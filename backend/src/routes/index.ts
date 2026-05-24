@@ -5,6 +5,7 @@ import { categoriesRouter } from './categories.js';
 import { transactionsRouter } from './transactions.js';
 import { budgetsRouter } from './budgets.js';
 import { dashboardRouter } from './dashboard.js';
+import { recurringRouter } from './recurring.js';
 
 export const apiRouter = Router();
 apiRouter.use(usersRouter);
@@ -13,3 +14,4 @@ apiRouter.use(categoriesRouter);
 apiRouter.use(transactionsRouter);
 apiRouter.use(budgetsRouter);
 apiRouter.use(dashboardRouter);
+apiRouter.use(recurringRouter);

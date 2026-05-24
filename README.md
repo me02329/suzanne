@@ -13,12 +13,21 @@ Contrairement au repo `Suzanne` historique, ce projet ne contient pas la partie 
 
 ## Modules MVP
 
-- Comptes
+- Comptes avec solde initial
 - Catégories dépenses/revenus
-- Transactions quotidiennes
-- Budgets mensuels
-- Transactions récurrentes
-- Dashboard mensuel
+- Transactions quotidiennes avec filtre mensuel
+- Budgets mensuels par catégorie
+- Transactions récurrentes mensuelles
+- Dashboard mensuel : solde estimé, revenus, dépenses, net et ventilation par catégorie
+
+## Hors périmètre
+
+- PEA
+- CTO
+- actifs financiers
+- dividendes
+- allocation/rebalancing
+- données de marché
 
 ## Développement
 

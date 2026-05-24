@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { createCategorySchema, idParam } from '../lib/validation.js';
+import { createCategorySchema, idParam, updateCategorySchema } from '../lib/validation.js';
 
 export const categoriesRouter = Router();
 
@@ -15,6 +15,21 @@ categoriesRouter.post('/users/:user_id/categories', asyncHandler(async (req, res
   const body = createCategorySchema.parse(req.body);
   const row = await prisma.category.create({ data: { ...body, user_id, icon: body.icon ?? null } });
   res.status(201).json(row);
+}));
+
+categoriesRouter.patch('/categories/:id', asyncHandler(async (req, res) => {
+  const id = idParam.parse(req.params.id);
+  const body = updateCategorySchema.parse(req.body);
+  const row = await prisma.category.update({
+    where: { id },
+    data: {
+      ...(body.name != null ? { name: body.name } : {}),
+      ...(body.type != null ? { type: body.type } : {}),
+      ...(body.color != null ? { color: body.color } : {}),
+      ...(body.icon !== undefined ? { icon: body.icon ?? null } : {}),
+    },
+  });
+  res.json(row);
 }));
 
 categoriesRouter.delete('/categories/:id', asyncHandler(async (req, res) => {

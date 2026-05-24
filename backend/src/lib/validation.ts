@@ -13,6 +13,7 @@ export const createAccountSchema = z.object({
   initial_balance: z.coerce.number().default(0),
   initial_balance_date: dateString,
 });
+export const updateAccountSchema = createAccountSchema.partial();
 
 export const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -20,6 +21,7 @@ export const createCategorySchema = z.object({
   color: z.string().trim().min(1).default('#6366f1'),
   icon: z.string().trim().max(80).nullish(),
 });
+export const updateCategorySchema = createCategorySchema.partial();
 
 export const createTransactionSchema = z.object({
   account_id: z.coerce.number().int().positive().nullish(),
@@ -29,9 +31,22 @@ export const createTransactionSchema = z.object({
   date: dateString,
   description: z.string().trim().max(500).nullish(),
 });
+export const updateTransactionSchema = createTransactionSchema.partial();
 
 export const createBudgetSchema = z.object({
   category_id: z.coerce.number().int().positive(),
   month: monthString,
   amount_limit: z.coerce.number().positive(),
 });
+
+export const createRecurringSchema = z.object({
+  account_id: z.coerce.number().int().positive().nullish(),
+  category_id: z.coerce.number().int().positive().nullish(),
+  amount: z.coerce.number().positive(),
+  type: z.enum(['expense', 'income']),
+  description: z.string().trim().min(1).max(500),
+  frequency: z.enum(['weekly', 'monthly', 'yearly']),
+  day_of_month: z.coerce.number().int().min(1).max(31).nullish(),
+  active: z.coerce.boolean().default(true),
+});
+export const updateRecurringSchema = createRecurringSchema.partial();

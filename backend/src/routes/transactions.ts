@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { createTransactionSchema, idParam, monthString } from '../lib/validation.js';
+import { createTransactionSchema, idParam, monthString, updateTransactionSchema } from '../lib/validation.js';
 
 export const transactionsRouter = Router();
 
@@ -30,6 +30,23 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
     },
   });
   res.status(201).json(row);
+}));
+
+transactionsRouter.patch('/transactions/:id', asyncHandler(async (req, res) => {
+  const id = idParam.parse(req.params.id);
+  const body = updateTransactionSchema.parse(req.body);
+  const row = await prisma.transaction.update({
+    where: { id },
+    data: {
+      ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
+      ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
+      ...(body.amount != null ? { amount: body.amount } : {}),
+      ...(body.type != null ? { type: body.type } : {}),
+      ...(body.date != null ? { date: new Date(body.date) } : {}),
+      ...(body.description !== undefined ? { description: body.description ?? null } : {}),
+    },
+  });
+  res.json(row);
 }));
 
 transactionsRouter.delete('/transactions/:id', asyncHandler(async (req, res) => {

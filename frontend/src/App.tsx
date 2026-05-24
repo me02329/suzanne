@@ -1,9 +1,31 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, Euro, Wallet } from 'lucide-react';
-import type { Category, DashboardSummary, Transaction, User } from '@suzanne-lite/shared';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  CalendarClock,
+  Euro,
+  FolderTree,
+  Landmark,
+  Plus,
+  Trash2,
+  Wallet,
+} from 'lucide-react';
+import type {
+  Account,
+  Budget,
+  Category,
+  DashboardSummary,
+  RecurringTransaction,
+  Transaction,
+  TransactionType,
+  User,
+} from '@suzanne-lite/shared';
 import { api } from './lib/api';
 
+type Tab = 'dashboard' | 'transactions' | 'accounts' | 'categories' | 'budgets' | 'recurring';
+
 const currentMonth = new Date().toISOString().slice(0, 7);
+const today = new Date().toISOString().slice(0, 10);
 
 function money(value: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value);
@@ -13,26 +35,63 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [userId, setUserId] = useState<number | null>(null);
   const [month, setMonth] = useState(currentMonth);
+  const [tab, setTab] = useState<Tab>('dashboard');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [recurring, setRecurring] = useState<RecurringTransaction[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const reloadUsers = async () => {
+    const rows = await api.users();
+    setUsers(rows);
+    setUserId((current) => current ?? rows[0]?.id ?? null);
+  };
+
+  const reload = async () => {
+    if (!userId) return;
+    const [dash, txs, accs, cats, bds, recs] = await Promise.all([
+      api.dashboard(userId, month),
+      api.transactions(userId, month),
+      api.accounts(userId),
+      api.categories(userId),
+      api.budgets(userId, month),
+      api.recurring(userId),
+    ]);
+    setSummary(dash);
+    setTransactions(txs);
+    setAccounts(accs);
+    setCategories(cats);
+    setBudgets(bds);
+    setRecurring(recs);
+  };
 
   useEffect(() => {
-    api.users().then((rows) => {
-      setUsers(rows);
-      setUserId(rows[0]?.id ?? null);
-    }).catch((e) => setError((e as Error).message));
+    reloadUsers().catch((e) => setError((e as Error).message));
   }, []);
 
   useEffect(() => {
-    if (!userId) return;
-    Promise.all([api.dashboard(userId, month), api.transactions(userId, month), api.categories(userId)])
-      .then(([dash, txs, cats]) => { setSummary(dash); setTransactions(txs); setCategories(cats); })
-      .catch((e) => setError((e as Error).message));
+    setError(null);
+    reload().catch((e) => setError((e as Error).message));
   }, [userId, month]);
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+
+  const run = async (fn: () => Promise<unknown>, message = 'Enregistré') => {
+    try {
+      setError(null);
+      await fn();
+      await reload();
+      setNotice(message);
+      window.setTimeout(() => setNotice(null), 2500);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
 
   return (
     <main className="shell">
@@ -49,18 +108,63 @@ export default function App() {
         </div>
       </header>
 
-      {error && <div className="error">{error}</div>}
+      <nav className="tabs">
+        <TabButton tab="dashboard" current={tab} setTab={setTab} label="Tableau" />
+        <TabButton tab="transactions" current={tab} setTab={setTab} label="Transactions" />
+        <TabButton tab="accounts" current={tab} setTab={setTab} label="Comptes" />
+        <TabButton tab="categories" current={tab} setTab={setTab} label="Catégories" />
+        <TabButton tab="budgets" current={tab} setTab={setTab} label="Budgets" />
+        <TabButton tab="recurring" current={tab} setTab={setTab} label="Récurrents" />
+      </nav>
 
+      {error && <div className="error">{error}</div>}
+      {notice && <div className="notice">{notice}</div>}
+
+      {tab === 'dashboard' && (
+        <Dashboard summary={summary} transactions={transactions} categoryById={categoryById} />
+      )}
+      {tab === 'transactions' && userId && (
+        <Transactions
+          userId={userId}
+          transactions={transactions}
+          accounts={accounts}
+          categories={categories}
+          categoryById={categoryById}
+          accountById={accountById}
+          run={run}
+        />
+      )}
+      {tab === 'accounts' && userId && (
+        <Accounts userId={userId} accounts={accounts} run={run} />
+      )}
+      {tab === 'categories' && userId && (
+        <Categories userId={userId} categories={categories} run={run} />
+      )}
+      {tab === 'budgets' && userId && (
+        <Budgets userId={userId} month={month} categories={categories} budgets={budgets} summary={summary} run={run} />
+      )}
+      {tab === 'recurring' && userId && (
+        <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} run={run} />
+      )}
+    </main>
+  );
+}
+
+function TabButton({ tab, current, setTab, label }: { tab: Tab; current: Tab; setTab: (tab: Tab) => void; label: string }) {
+  return <button className={current === tab ? 'active' : ''} onClick={() => setTab(tab)}>{label}</button>;
+}
+
+function Dashboard({ summary, transactions, categoryById }: { summary: DashboardSummary | null; transactions: Transaction[]; categoryById: Map<number, Category> }) {
+  return (
+    <>
       <section className="stats">
-        <Stat icon={<Wallet />} label="Solde" value={money(summary?.balance ?? 0)} />
+        <Stat icon={<Wallet />} label="Solde estimé" value={money(summary?.balance ?? 0)} />
         <Stat icon={<ArrowUpCircle />} label="Revenus" value={money(summary?.income ?? 0)} positive />
         <Stat icon={<ArrowDownCircle />} label="Dépenses" value={money(summary?.expenses ?? 0)} negative />
         <Stat icon={<Euro />} label="Net mensuel" value={money(summary?.net ?? 0)} />
       </section>
-
       <section className="grid">
-        <div className="panel">
-          <h2>Dépenses par catégorie</h2>
+        <Panel title="Dépenses par catégorie">
           <div className="category-list">
             {(summary?.expenses_by_category ?? []).map((row) => (
               <div className="category-row" key={row.category_id ?? 'none'}>
@@ -69,33 +173,147 @@ export default function App() {
                 <strong>{money(row.amount)}</strong>
               </div>
             ))}
+            {(summary?.expenses_by_category ?? []).length === 0 && <p className="empty">Aucune dépense ce mois-ci.</p>}
           </div>
-        </div>
-        <div className="panel">
-          <h2>Transactions</h2>
-          <div className="transactions">
-            {transactions.map((t) => {
-              const category = t.category_id ? categoryById.get(t.category_id) : null;
-              return (
-                <div className="tx" key={t.id}>
-                  <div>
-                    <strong>{t.description || category?.name || 'Transaction'}</strong>
-                    <span>{new Date(t.date).toLocaleDateString('fr-FR')} · {category?.name ?? 'Sans catégorie'}</span>
-                  </div>
-                  <strong className={t.type === 'income' ? 'income' : 'expense'}>
-                    {t.type === 'income' ? '+' : '-'}{money(t.amount)}
-                  </strong>
-                </div>
-              );
-            })}
-            {transactions.length === 0 && <p className="empty">Aucune transaction sur ce mois.</p>}
-          </div>
-        </div>
+        </Panel>
+        <Panel title="Dernières transactions">
+          <TransactionList transactions={transactions.slice(0, 8)} categoryById={categoryById} />
+        </Panel>
       </section>
-    </main>
+    </>
   );
+}
+
+function Transactions({ userId, transactions, accounts, categories, categoryById, accountById, run }: {
+  userId: number;
+  transactions: Transaction[];
+  accounts: Account[];
+  categories: Category[];
+  categoryById: Map<number, Category>;
+  accountById: Map<number, Account>;
+  run: (fn: () => Promise<unknown>, message?: string) => Promise<void>;
+}) {
+  const [type, setType] = useState<TransactionType>('expense');
+  const filteredCategories = categories.filter((c) => c.type === type || type === 'transfer');
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    void run(() => api.createTransaction(userId, {
+      account_id: numberOrNull(data.get('account_id')),
+      category_id: numberOrNull(data.get('category_id')),
+      amount: Number(data.get('amount')),
+      type,
+      date: String(data.get('date')),
+      description: String(data.get('description') || ''),
+    }));
+    event.currentTarget.reset();
+    setType('expense');
+  };
+
+  return (
+    <section className="split">
+      <Panel title="Ajouter une transaction">
+        <form className="form" onSubmit={submit}>
+          <label>Type<select value={type} onChange={(e) => setType(e.target.value as TransactionType)}><option value="expense">Dépense</option><option value="income">Revenu</option><option value="transfer">Transfert</option></select></label>
+          <label>Date<input name="date" type="date" defaultValue={today} required /></label>
+          <label>Montant<input name="amount" type="number" min="0.01" step="0.01" required /></label>
+          <label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+          <label>Catégorie<select name="category_id"><option value="">Aucune</option>{filteredCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label className="full">Description<input name="description" placeholder="Ex: Carrefour, salaire, loyer..." /></label>
+          <button className="primary"><Plus size={16} /> Ajouter</button>
+        </form>
+      </Panel>
+      <Panel title="Historique du mois">
+        <div className="transactions">
+          {transactions.map((t) => (
+            <div className="tx" key={t.id}>
+              <div>
+                <strong>{t.description || categoryById.get(t.category_id ?? -1)?.name || 'Transaction'}</strong>
+                <span>{new Date(t.date).toLocaleDateString('fr-FR')} · {accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · {categoryById.get(t.category_id ?? -1)?.name ?? 'Sans catégorie'}</span>
+              </div>
+              <strong className={t.type === 'income' ? 'income' : 'expense'}>{t.type === 'income' ? '+' : '-'}{money(t.amount)}</strong>
+              <IconButton label="Supprimer" onClick={() => void run(() => api.deleteTransaction(t.id), 'Transaction supprimée')} />
+            </div>
+          ))}
+          {transactions.length === 0 && <p className="empty">Aucune transaction sur ce mois.</p>}
+        </div>
+      </Panel>
+    </section>
+  );
+}
+
+function Accounts({ userId, accounts, run }: { userId: number; accounts: Account[]; run: (fn: () => Promise<unknown>, message?: string) => Promise<void> }) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    void run(() => api.createAccount(userId, {
+      name: String(data.get('name')),
+      type: String(data.get('type')) as Account['type'],
+      currency: String(data.get('currency') || 'EUR'),
+      initial_balance: Number(data.get('initial_balance') || 0),
+      initial_balance_date: String(data.get('initial_balance_date')),
+    }));
+    event.currentTarget.reset();
+  };
+
+  return <section className="split"><Panel title="Nouveau compte"><form className="form" onSubmit={submit}><label>Nom<input name="name" required /></label><label>Type<select name="type"><option value="checking">Courant</option><option value="savings">Épargne</option><option value="cash">Espèces</option><option value="other">Autre</option></select></label><label>Devise<input name="currency" defaultValue="EUR" maxLength={3} required /></label><label>Solde initial<input name="initial_balance" type="number" step="0.01" defaultValue="0" /></label><label>Date initiale<input name="initial_balance_date" type="date" defaultValue={today} required /></label><button className="primary"><Landmark size={16} /> Ajouter</button></form></Panel><Panel title="Comptes">{accounts.map((a) => <Row key={a.id} title={a.name} detail={`${a.type} · ${a.currency} · initial ${money(a.initial_balance)}`} onDelete={() => void run(() => api.deleteAccount(a.id), 'Compte supprimé')} />)}{accounts.length === 0 && <p className="empty">Aucun compte.</p>}</Panel></section>;
+}
+
+function Categories({ userId, categories, run }: { userId: number; categories: Category[]; run: (fn: () => Promise<unknown>, message?: string) => Promise<void> }) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    void run(() => api.createCategory(userId, { name: String(data.get('name')), type: String(data.get('type')) as Category['type'], color: String(data.get('color')), icon: String(data.get('icon') || '') }));
+    event.currentTarget.reset();
+  };
+  return <section className="split"><Panel title="Nouvelle catégorie"><form className="form" onSubmit={submit}><label>Nom<input name="name" required /></label><label>Type<select name="type"><option value="expense">Dépense</option><option value="income">Revenu</option></select></label><label>Couleur<input name="color" type="color" defaultValue="#6366f1" /></label><label>Icône<input name="icon" placeholder="shopping-cart" /></label><button className="primary"><FolderTree size={16} /> Ajouter</button></form></Panel><Panel title="Catégories"><div className="category-list">{categories.map((c) => <div className="category-row" key={c.id}><span className="dot" style={{ background: c.color }} /><span>{c.name} · {c.type === 'income' ? 'revenu' : 'dépense'}</span><IconButton label="Supprimer" onClick={() => void run(() => api.deleteCategory(c.id), 'Catégorie supprimée')} /></div>)}</div></Panel></section>;
+}
+
+function Budgets({ userId, month, categories, budgets, summary, run }: { userId: number; month: string; categories: Category[]; budgets: Budget[]; summary: DashboardSummary | null; run: (fn: () => Promise<unknown>, message?: string) => Promise<void> }) {
+  const expenseCategories = categories.filter((c) => c.type === 'expense');
+  const spentByCategory = new Map((summary?.expenses_by_category ?? []).map((c) => [c.category_id, c.amount]));
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    void run(() => api.setBudget(userId, { category_id: Number(data.get('category_id')), month, amount_limit: Number(data.get('amount_limit')) }), 'Budget enregistré');
+    event.currentTarget.reset();
+  };
+  return <section className="split"><Panel title={`Budget ${month}`}><form className="form" onSubmit={submit}><label>Catégorie<select name="category_id" required>{expenseCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>Limite<input name="amount_limit" type="number" min="0.01" step="0.01" required /></label><button className="primary">Enregistrer</button></form></Panel><Panel title="Suivi">{budgets.map((b) => { const category = categories.find((c) => c.id === b.category_id); const spent = spentByCategory.get(b.category_id) ?? 0; const pct = Math.min(100, (spent / b.amount_limit) * 100); return <div className="budget" key={b.id}><div><strong>{category?.name ?? 'Catégorie'}</strong><span>{money(spent)} / {money(b.amount_limit)}</span></div><div className="bar"><span style={{ width: `${pct}%`, background: pct >= 100 ? '#dc2626' : '#4f46e5' }} /></div><IconButton label="Supprimer" onClick={() => void run(() => api.deleteBudget(b.id), 'Budget supprimé')} /></div>; })}{budgets.length === 0 && <p className="empty">Aucun budget pour ce mois.</p>}</Panel></section>;
+}
+
+function Recurring({ userId, recurring, accounts, categories, categoryById, accountById, run }: { userId: number; recurring: RecurringTransaction[]; accounts: Account[]; categories: Category[]; categoryById: Map<number, Category>; accountById: Map<number, Account>; run: (fn: () => Promise<unknown>, message?: string) => Promise<void> }) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    void run(() => api.createRecurring(userId, { account_id: numberOrNull(data.get('account_id')), category_id: numberOrNull(data.get('category_id')), amount: Number(data.get('amount')), type: String(data.get('type')) as 'expense' | 'income', description: String(data.get('description')), frequency: 'monthly', day_of_month: Number(data.get('day_of_month') || 1), active: true }));
+    event.currentTarget.reset();
+  };
+  return <section className="split"><Panel title="Nouvelle transaction récurrente"><form className="form" onSubmit={submit}><label>Description<input name="description" required /></label><label>Type<select name="type"><option value="expense">Dépense</option><option value="income">Revenu</option></select></label><label>Montant<input name="amount" type="number" min="0.01" step="0.01" required /></label><label>Jour du mois<input name="day_of_month" type="number" min="1" max="31" defaultValue="1" /></label><label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label>Catégorie<select name="category_id"><option value="">Aucune</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><button className="primary"><CalendarClock size={16} /> Ajouter</button><button type="button" className="secondary" onClick={() => void run(() => api.generateRecurring(userId), 'Récurrents générés')}>Générer ce mois</button></form></Panel><Panel title="Récurrents">{recurring.map((r) => <Row key={r.id} title={`${r.description} · ${money(r.amount)}`} detail={`${r.type === 'income' ? 'Revenu' : 'Dépense'} · jour ${r.day_of_month ?? 1} · ${accountById.get(r.account_id ?? -1)?.name ?? 'sans compte'} · ${categoryById.get(r.category_id ?? -1)?.name ?? 'sans catégorie'}`} onDelete={() => void run(() => api.deleteRecurring(r.id), 'Récurrent supprimé')} />)}{recurring.length === 0 && <p className="empty">Aucune transaction récurrente.</p>}</Panel></section>;
+}
+
+function TransactionList({ transactions, categoryById }: { transactions: Transaction[]; categoryById: Map<number, Category> }) {
+  return <div className="transactions">{transactions.map((t) => <div className="tx" key={t.id}><div><strong>{t.description || categoryById.get(t.category_id ?? -1)?.name || 'Transaction'}</strong><span>{new Date(t.date).toLocaleDateString('fr-FR')} · {categoryById.get(t.category_id ?? -1)?.name ?? 'Sans catégorie'}</span></div><strong className={t.type === 'income' ? 'income' : 'expense'}>{t.type === 'income' ? '+' : '-'}{money(t.amount)}</strong></div>)}{transactions.length === 0 && <p className="empty">Aucune transaction.</p>}</div>;
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return <div className="panel"><h2>{title}</h2>{children}</div>;
 }
 
 function Stat({ icon, label, value, positive, negative }: { icon: React.ReactNode; label: string; value: string; positive?: boolean; negative?: boolean }) {
   return <div className="stat"><div className="stat-icon">{icon}</div><span>{label}</span><strong className={positive ? 'income' : negative ? 'expense' : ''}>{value}</strong></div>;
+}
+
+function Row({ title, detail, onDelete }: { title: string; detail: string; onDelete: () => void }) {
+  return <div className="row"><div><strong>{title}</strong><span>{detail}</span></div><IconButton label="Supprimer" onClick={onDelete} /></div>;
+}
+
+function IconButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return <button className="icon-button" aria-label={label} title={label} onClick={onClick}><Trash2 size={16} /></button>;
+}
+
+function numberOrNull(value: FormDataEntryValue | null): number | null {
+  if (!value) return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }

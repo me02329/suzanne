@@ -66,6 +66,47 @@ export interface RecurringTransaction {
   created_at: string;
 }
 
+export interface CreateAccountBody {
+  name: string;
+  type: AccountType;
+  currency: string;
+  initial_balance: number;
+  initial_balance_date: string;
+}
+
+export interface CreateCategoryBody {
+  name: string;
+  type: CategoryType;
+  color: string;
+  icon?: string | null;
+}
+
+export interface CreateTransactionBody {
+  account_id?: number | null;
+  category_id?: number | null;
+  amount: number;
+  type: TransactionType;
+  date: string;
+  description?: string | null;
+}
+
+export interface CreateBudgetBody {
+  category_id: number;
+  month: string;
+  amount_limit: number;
+}
+
+export interface CreateRecurringBody {
+  account_id?: number | null;
+  category_id?: number | null;
+  amount: number;
+  type: Exclude<TransactionType, 'transfer'>;
+  description: string;
+  frequency: RecurringFrequency;
+  day_of_month?: number | null;
+  active?: boolean;
+}
+
 export interface DashboardSummary {
   month: string;
   income: number;
