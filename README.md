@@ -15,10 +15,17 @@ Contrairement au repo `Suzanne` historique, ce projet ne contient pas la partie 
 
 - Comptes avec solde initial
 - Plusieurs utilisateurs isolés
+- Institutions bancaires
 - Catégories dépenses/revenus
 - Transactions quotidiennes avec filtre mensuel
 - Budgets mensuels par catégorie
 - Transactions récurrentes mensuelles
+- Règles d'auto-catégorisation par mot-clé
+- Objectifs d'épargne
+- Snapshots de solde par compte
+- Import CSV simple avec application des règles
+- Export CSV des transactions et sauvegarde JSON
+- Recherche globale
 - Dashboard mensuel : solde estimé, revenus, dépenses, net et ventilation par catégorie
 
 ## Hors périmètre

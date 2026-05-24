@@ -18,13 +18,32 @@ model User {
   transactions           Transaction[]
   budgets                Budget[]
   recurring_transactions RecurringTransaction[]
+  institutions            Institution[]
+  category_rules          CategoryRule[]
+  savings_goals           SavingsGoal[]
+  account_snapshots       AccountSnapshot[]
 
   @@map("users")
+}
+
+model Institution {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  name       String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  accounts Account[]
+
+  @@unique([user_id, name])
+  @@index([user_id])
+  @@map("institutions")
 }
 
 model Account {
   id                   Int      @id @default(autoincrement())
   user_id              Int
+  institution_id       Int?
   name                 String
   type                 String
   currency             String   @default("EUR")
@@ -33,11 +52,14 @@ model Account {
   created_at           DateTime @default(now()) @db.Timestamptz(6)
 
   user                   User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  institution            Institution?           @relation(fields: [institution_id], references: [id], onDelete: SetNull)
   transactions           Transaction[]
   recurring_transactions RecurringTransaction[]
+  snapshots              AccountSnapshot[]
 
   @@unique([user_id, name])
   @@index([user_id])
+  @@index([institution_id])
   @@map("accounts")
 }
 
@@ -54,10 +76,26 @@ model Category {
   transactions           Transaction[]
   budgets                Budget[]
   recurring_transactions RecurringTransaction[]
+  category_rules          CategoryRule[]
 
   @@unique([user_id, name, type])
   @@index([user_id, type])
   @@map("categories")
+}
+
+model CategoryRule {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  pattern     String
+  category_id Int
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, pattern])
+  @@index([user_id])
+  @@map("category_rules")
 }
 
 model Transaction {
@@ -117,4 +155,36 @@ model RecurringTransaction {
 
   @@index([user_id, active])
   @@map("recurring_transactions")
+}
+
+model SavingsGoal {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  name           String
+  target_amount  Float
+  current_amount Float    @default(0)
+  deadline       DateTime? @db.Date
+  color          String   @default("#4f46e5")
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("savings_goals")
+}
+
+model AccountSnapshot {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  account_id Int
+  date       DateTime @db.Date
+  balance    Float
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
+
+  @@unique([account_id, date])
+  @@index([user_id, date])
+  @@map("account_snapshots")
 }

@@ -7,6 +7,7 @@ export const monthString = z.string().regex(/^\d{4}-\d{2}$/);
 export const createUserSchema = z.object({ name: z.string().trim().min(1).max(80) });
 
 export const createAccountSchema = z.object({
+  institution_id: z.coerce.number().int().positive().nullish(),
   name: z.string().trim().min(1).max(120),
   type: z.enum(['checking', 'savings', 'cash', 'other']).default('checking'),
   currency: z.string().trim().min(3).max(3).default('EUR'),
@@ -50,3 +51,32 @@ export const createRecurringSchema = z.object({
   active: z.coerce.boolean().default(true),
 });
 export const updateRecurringSchema = createRecurringSchema.partial();
+
+export const createInstitutionSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+});
+
+export const createCategoryRuleSchema = z.object({
+  pattern: z.string().trim().min(1).max(120),
+  category_id: z.coerce.number().int().positive(),
+});
+
+export const createSavingsGoalSchema = z.object({
+  name: z.string().trim().min(1).max(160),
+  target_amount: z.coerce.number().positive(),
+  current_amount: z.coerce.number().min(0).default(0),
+  deadline: dateString.nullish(),
+  color: z.string().trim().min(1).default('#4f46e5'),
+});
+export const updateSavingsGoalSchema = createSavingsGoalSchema.partial();
+
+export const createAccountSnapshotSchema = z.object({
+  account_id: z.coerce.number().int().positive(),
+  date: dateString,
+  balance: z.coerce.number(),
+});
+
+export const csvImportSchema = z.object({
+  csv: z.string().min(1),
+  account_id: z.coerce.number().int().positive().nullish(),
+});

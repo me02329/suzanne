@@ -24,6 +24,7 @@ accountsRouter.patch('/accounts/:id', asyncHandler(async (req, res) => {
     where: { id },
     data: {
       ...(body.name != null ? { name: body.name } : {}),
+      ...(body.institution_id !== undefined ? { institution_id: body.institution_id ?? null } : {}),
       ...(body.type != null ? { type: body.type } : {}),
       ...(body.currency != null ? { currency: body.currency } : {}),
       ...(body.initial_balance != null ? { initial_balance: body.initial_balance } : {}),

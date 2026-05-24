@@ -26,6 +26,7 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const byCategory = new Map<number | null, number>();
   for (const t of transactions.filter((t) => t.type === 'expense')) byCategory.set(t.category_id, (byCategory.get(t.category_id) ?? 0) + t.amount);
   const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const monthly_cashflow = await buildCashflow(user_id, start);
 
   res.json({
     month,
@@ -33,9 +34,25 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
     expenses,
     net: income - expenses,
     balance,
+    monthly_cashflow,
     expenses_by_category: Array.from(byCategory.entries()).map(([category_id, amount]) => {
       const category = category_id ? categoryById.get(category_id) : null;
       return { category_id, name: category?.name ?? 'Sans catégorie', color: category?.color ?? '#9ca3af', amount };
     }),
   });
 }));
+
+async function buildCashflow(user_id: number, endMonth: Date) {
+  const out: Array<{ month: string; income: number; expenses: number }> = [];
+  for (let i = 5; i >= 0; i -= 1) {
+    const start = new Date(Date.UTC(endMonth.getUTCFullYear(), endMonth.getUTCMonth() - i, 1));
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+    const rows = await prisma.transaction.findMany({ where: { user_id, date: { gte: start, lt: end } } });
+    out.push({
+      month: start.toISOString().slice(0, 7),
+      income: rows.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
+      expenses: rows.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+    });
+  }
+  return out;
+}
