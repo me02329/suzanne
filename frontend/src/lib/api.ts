@@ -27,6 +27,7 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   users: () => http<User[]>('/users'),
   createUser: (body: { name: string }) => http<User>('/users', { method: 'POST', body: JSON.stringify(body) }),
+  deleteUser: (id: number) => http<{ deleted: boolean }>(`/users/${id}`, { method: 'DELETE' }),
   accounts: (userId: number) => http<Account[]>(`/users/${userId}/accounts`),
   createAccount: (userId: number, body: CreateAccountBody) => http<Account>(`/users/${userId}/accounts`, { method: 'POST', body: JSON.stringify(body) }),
   deleteAccount: (id: number) => http<{ deleted: boolean }>(`/accounts/${id}`, { method: 'DELETE' }),

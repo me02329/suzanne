@@ -9,6 +9,7 @@ import {
   Plus,
   Trash2,
   Wallet,
+  Users,
 } from 'lucide-react';
 import type {
   Account,
@@ -22,7 +23,7 @@ import type {
 } from '@suzanne-lite/shared';
 import { api } from './lib/api';
 
-type Tab = 'dashboard' | 'transactions' | 'accounts' | 'categories' | 'budgets' | 'recurring';
+type Tab = 'dashboard' | 'transactions' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'users';
 
 const currentMonth = new Date().toISOString().slice(0, 7);
 const today = new Date().toISOString().slice(0, 10);
@@ -48,7 +49,7 @@ export default function App() {
   const reloadUsers = async () => {
     const rows = await api.users();
     setUsers(rows);
-    setUserId((current) => current ?? rows[0]?.id ?? null);
+    setUserId((current) => rows.some((u) => u.id === current) ? current : rows[0]?.id ?? null);
   };
 
   const reload = async () => {
@@ -93,6 +94,18 @@ export default function App() {
     }
   };
 
+  const runUsers = async (fn: () => Promise<unknown>, message = 'Enregistré') => {
+    try {
+      setError(null);
+      await fn();
+      await reloadUsers();
+      setNotice(message);
+      window.setTimeout(() => setNotice(null), 2500);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -115,6 +128,7 @@ export default function App() {
         <TabButton tab="categories" current={tab} setTab={setTab} label="Catégories" />
         <TabButton tab="budgets" current={tab} setTab={setTab} label="Budgets" />
         <TabButton tab="recurring" current={tab} setTab={setTab} label="Récurrents" />
+        <TabButton tab="users" current={tab} setTab={setTab} label="Utilisateurs" />
       </nav>
 
       {error && <div className="error">{error}</div>}
@@ -145,6 +159,9 @@ export default function App() {
       )}
       {tab === 'recurring' && userId && (
         <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} run={run} />
+      )}
+      {tab === 'users' && (
+        <UsersPage users={users} currentUserId={userId} run={runUsers} />
       )}
     </main>
   );
@@ -290,6 +307,41 @@ function Recurring({ userId, recurring, accounts, categories, categoryById, acco
     event.currentTarget.reset();
   };
   return <section className="split"><Panel title="Nouvelle transaction récurrente"><form className="form" onSubmit={submit}><label>Description<input name="description" required /></label><label>Type<select name="type"><option value="expense">Dépense</option><option value="income">Revenu</option></select></label><label>Montant<input name="amount" type="number" min="0.01" step="0.01" required /></label><label>Jour du mois<input name="day_of_month" type="number" min="1" max="31" defaultValue="1" /></label><label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label>Catégorie<select name="category_id"><option value="">Aucune</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><button className="primary"><CalendarClock size={16} /> Ajouter</button><button type="button" className="secondary" onClick={() => void run(() => api.generateRecurring(userId), 'Récurrents générés')}>Générer ce mois</button></form></Panel><Panel title="Récurrents">{recurring.map((r) => <Row key={r.id} title={`${r.description} · ${money(r.amount)}`} detail={`${r.type === 'income' ? 'Revenu' : 'Dépense'} · jour ${r.day_of_month ?? 1} · ${accountById.get(r.account_id ?? -1)?.name ?? 'sans compte'} · ${categoryById.get(r.category_id ?? -1)?.name ?? 'sans catégorie'}`} onDelete={() => void run(() => api.deleteRecurring(r.id), 'Récurrent supprimé')} />)}{recurring.length === 0 && <p className="empty">Aucune transaction récurrente.</p>}</Panel></section>;
+}
+
+function UsersPage({ users, currentUserId, run }: { users: User[]; currentUserId: number | null; run: (fn: () => Promise<unknown>, message?: string) => Promise<void> }) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    void run(() => api.createUser({ name: String(data.get('name')) }), 'Utilisateur créé');
+    event.currentTarget.reset();
+  };
+
+  return (
+    <section className="split">
+      <Panel title="Nouvel utilisateur">
+        <form className="form" onSubmit={submit}>
+          <label>Nom<input name="name" required placeholder="Ex: Démo, Suzanne..." /></label>
+          <button className="primary"><Users size={16} /> Créer</button>
+        </form>
+      </Panel>
+      <Panel title="Utilisateurs">
+        {users.map((u) => (
+          <Row
+            key={u.id}
+            title={`${u.name}${u.id === currentUserId ? ' · actif' : ''}`}
+            detail={`Créé le ${new Date(u.created_at).toLocaleDateString('fr-FR')}`}
+            onDelete={() => {
+              if (window.confirm(`Supprimer ${u.name} et toutes ses données ?`)) {
+                void run(() => api.deleteUser(u.id), 'Utilisateur supprimé');
+              }
+            }}
+          />
+        ))}
+        {users.length === 0 && <p className="empty">Aucun utilisateur.</p>}
+      </Panel>
+    </section>
+  );
 }
 
 function TransactionList({ transactions, categoryById }: { transactions: Transaction[]; categoryById: Map<number, Category> }) {

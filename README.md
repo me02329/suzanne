@@ -14,6 +14,7 @@ Contrairement au repo `Suzanne` historique, ce projet ne contient pas la partie 
 ## Modules MVP
 
 - Comptes avec solde initial
+- Plusieurs utilisateurs isolés
 - Catégories dépenses/revenus
 - Transactions quotidiennes avec filtre mensuel
 - Budgets mensuels par catégorie
