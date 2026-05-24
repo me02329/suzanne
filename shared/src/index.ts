@@ -181,5 +181,6 @@ export interface DashboardSummary {
   net: number;
   balance: number;
   expenses_by_category: Array<{ category_id: number | null; name: string; color: string; amount: number }>;
-  monthly_cashflow: Array<{ month: string; income: number; expenses: number }>;
+  monthly_cashflow: Array<{ month: string; income: number; expenses: number; net: number }>;
+  yearly_cashflow: Array<{ year: string; income: number; expenses: number; net: number }>;
 }

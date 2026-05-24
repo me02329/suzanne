@@ -2,16 +2,40 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  BarChart3,
   CalendarClock,
+  CreditCard,
+  Database,
   Euro,
   FolderTree,
   Landmark,
+  LayoutDashboard,
   Plus,
-  Trash2,
-  Wallet,
-  Users,
+  Repeat,
   Search,
+  Settings2,
+  Tags,
+  Target,
+  Trash2,
+  Upload,
+  Users,
+  Wallet,
 } from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import type {
   Account,
   AccountSnapshot,
@@ -33,9 +57,31 @@ type Tab = 'dashboard' | 'transactions' | 'accounts' | 'categories' | 'budgets' 
 
 const currentMonth = new Date().toISOString().slice(0, 7);
 const today = new Date().toISOString().slice(0, 10);
+const chartGrid = '#e8edf5';
+const incomeColor = '#15803d';
+const expenseColor = '#dc2626';
+const netColor = '#2563eb';
+
+const navItems: Array<{ tab: Tab; label: string; icon: React.ReactNode }> = [
+  { tab: 'dashboard', label: 'Vue générale', icon: <LayoutDashboard size={18} /> },
+  { tab: 'transactions', label: 'Transactions', icon: <CreditCard size={18} /> },
+  { tab: 'accounts', label: 'Comptes', icon: <Landmark size={18} /> },
+  { tab: 'categories', label: 'Catégories', icon: <Tags size={18} /> },
+  { tab: 'budgets', label: 'Budgets', icon: <BarChart3 size={18} /> },
+  { tab: 'recurring', label: 'Récurrents', icon: <Repeat size={18} /> },
+  { tab: 'goals', label: 'Objectifs', icon: <Target size={18} /> },
+  { tab: 'rules', label: 'Règles', icon: <Settings2 size={18} /> },
+  { tab: 'tools', label: 'Import/Export', icon: <Upload size={18} /> },
+  { tab: 'users', label: 'Utilisateurs', icon: <Users size={18} /> },
+];
 
 function money(value: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value);
+}
+
+function formatMonth(month: string) {
+  const date = new Date(`${month}-01T00:00:00.000Z`);
+  return new Intl.DateTimeFormat('fr-FR', { month: 'short' }).format(date);
 }
 
 export default function App() {
@@ -126,54 +172,59 @@ export default function App() {
     }
   };
 
+  const activeNav = navItems.find((item) => item.tab === tab);
+
   return (
-    <main className="shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Suzanne Lite</p>
-          <h1>Suivi quotidien</h1>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-mark"><Database size={22} /></div>
+          <div>
+            <strong>Suzanne</strong>
+            <span>Finance quotidienne</span>
+          </div>
         </div>
-        <div className="toolbar">
-          {userId && (
-            <div className="search-box">
-              <Search size={16} />
-              <input
-                placeholder="Recherche"
-                onChange={(e) => {
-                  const q = e.target.value;
-                  if (q.trim().length < 2) setSearchResults([]);
-                  else api.search(userId, q).then(setSearchResults).catch(() => setSearchResults([]));
-                }}
-              />
-              {searchResults.length > 0 && (
-                <div className="search-results">
-                  {searchResults.map((r) => <div key={`${r.type}-${r.id}`}><strong>{r.title}</strong><span>{r.subtitle}</span></div>)}
-                </div>
-              )}
-            </div>
-          )}
-          <select value={userId ?? ''} onChange={(e) => setUserId(Number(e.target.value))}>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </select>
-          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
-        </div>
-      </header>
+        <nav className="nav-list" aria-label="Navigation principale">
+          {navItems.map((item) => (
+            <TabButton key={item.tab} tab={item.tab} current={tab} setTab={setTab} label={item.label} icon={item.icon} />
+          ))}
+        </nav>
+      </aside>
 
-      <nav className="tabs">
-        <TabButton tab="dashboard" current={tab} setTab={setTab} label="Tableau" />
-        <TabButton tab="transactions" current={tab} setTab={setTab} label="Transactions" />
-        <TabButton tab="accounts" current={tab} setTab={setTab} label="Comptes" />
-        <TabButton tab="categories" current={tab} setTab={setTab} label="Catégories" />
-        <TabButton tab="budgets" current={tab} setTab={setTab} label="Budgets" />
-        <TabButton tab="recurring" current={tab} setTab={setTab} label="Récurrents" />
-        <TabButton tab="goals" current={tab} setTab={setTab} label="Objectifs" />
-        <TabButton tab="rules" current={tab} setTab={setTab} label="Règles" />
-        <TabButton tab="tools" current={tab} setTab={setTab} label="Import/Export" />
-        <TabButton tab="users" current={tab} setTab={setTab} label="Utilisateurs" />
-      </nav>
+      <main className="content">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">{activeNav?.label ?? 'Vue générale'}</p>
+            <h1>{tab === 'dashboard' ? 'Pilotage financier' : activeNav?.label}</h1>
+          </div>
+          <div className="toolbar">
+            {userId && (
+              <div className="search-box">
+                <Search size={16} />
+                <input
+                  placeholder="Rechercher une opération"
+                  onChange={(e) => {
+                    const q = e.target.value;
+                    if (q.trim().length < 2) setSearchResults([]);
+                    else api.search(userId, q).then(setSearchResults).catch(() => setSearchResults([]));
+                  }}
+                />
+                {searchResults.length > 0 && (
+                  <div className="search-results">
+                    {searchResults.map((r) => <div key={`${r.type}-${r.id}`}><strong>{r.title}</strong><span>{r.subtitle}</span></div>)}
+                  </div>
+                )}
+              </div>
+            )}
+            <select value={userId ?? ''} onChange={(e) => setUserId(Number(e.target.value))} aria-label="Utilisateur">
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mois" />
+          </div>
+        </header>
 
-      {error && <div className="error">{error}</div>}
-      {notice && <div className="notice">{notice}</div>}
+        {error && <div className="error">{error}</div>}
+        {notice && <div className="notice">{notice}</div>}
 
       {tab === 'dashboard' && (
         <Dashboard summary={summary} transactions={transactions} categoryById={categoryById} />
@@ -213,15 +264,24 @@ export default function App() {
       {tab === 'users' && (
         <UsersPage users={users} currentUserId={userId} run={runUsers} />
       )}
-    </main>
+      </main>
+    </div>
   );
 }
 
-function TabButton({ tab, current, setTab, label }: { tab: Tab; current: Tab; setTab: (tab: Tab) => void; label: string }) {
-  return <button className={current === tab ? 'active' : ''} onClick={() => setTab(tab)}>{label}</button>;
+function TabButton({ tab, current, setTab, label, icon }: { tab: Tab; current: Tab; setTab: (tab: Tab) => void; label: string; icon: React.ReactNode }) {
+  return <button className={current === tab ? 'active' : ''} onClick={() => setTab(tab)}>{icon}<span>{label}</span></button>;
 }
 
 function Dashboard({ summary, transactions, categoryById }: { summary: DashboardSummary | null; transactions: Transaction[]; categoryById: Map<number, Category> }) {
+  const monthRows = (summary?.monthly_cashflow ?? []).map((row) => ({
+    ...row,
+    label: formatMonth(row.month),
+  }));
+  const yearRows = summary?.yearly_cashflow ?? [];
+  const categoryRows = summary?.expenses_by_category ?? [];
+  const savingRate = summary && summary.income > 0 ? Math.round((summary.net / summary.income) * 100) : 0;
+
   return (
     <>
       <section className="stats">
@@ -229,35 +289,72 @@ function Dashboard({ summary, transactions, categoryById }: { summary: Dashboard
         <Stat icon={<ArrowUpCircle />} label="Revenus" value={money(summary?.income ?? 0)} positive />
         <Stat icon={<ArrowDownCircle />} label="Dépenses" value={money(summary?.expenses ?? 0)} negative />
         <Stat icon={<Euro />} label="Net mensuel" value={money(summary?.net ?? 0)} />
+        <Stat icon={<BarChart3 />} label="Taux d'épargne" value={`${savingRate}%`} />
       </section>
+
+      <section className="charts-grid">
+        <Panel title="Cashflow mensuel">
+          <div className="chart-area">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke={chartGrid} vertical={false} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                <YAxis tickFormatter={(value) => `${value}€`} tickLine={false} axisLine={false} width={48} />
+                <Tooltip formatter={(value) => money(Number(value))} />
+                <Legend />
+                <Bar dataKey="income" name="Revenus" fill={incomeColor} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expenses" name="Dépenses" fill={expenseColor} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel title="Répartition des dépenses">
+          <div className="chart-split">
+            <div className="donut-area">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={categoryRows} dataKey="amount" nameKey="name" innerRadius="58%" outerRadius="86%" paddingAngle={2}>
+                    {categoryRows.map((row) => <Cell key={row.category_id ?? row.name} fill={row.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="category-list compact">
+              {categoryRows.map((row) => (
+                <div className="category-row" key={row.category_id ?? 'none'}>
+                  <span className="dot" style={{ background: row.color }} />
+                  <span>{row.name}</span>
+                  <strong>{money(row.amount)}</strong>
+                </div>
+              ))}
+              {categoryRows.length === 0 && <p className="empty">Aucune dépense ce mois-ci.</p>}
+            </div>
+          </div>
+        </Panel>
+      </section>
+
       <section className="grid">
-        <Panel title="Dépenses par catégorie">
-          <div className="category-list">
-            {(summary?.expenses_by_category ?? []).map((row) => (
-              <div className="category-row" key={row.category_id ?? 'none'}>
-                <span className="dot" style={{ background: row.color }} />
-                <span>{row.name}</span>
-                <strong>{money(row.amount)}</strong>
-              </div>
-            ))}
-            {(summary?.expenses_by_category ?? []).length === 0 && <p className="empty">Aucune dépense ce mois-ci.</p>}
+        <Panel title="Tendance annuelle">
+          <div className="chart-area small">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={yearRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke={chartGrid} vertical={false} />
+                <XAxis dataKey="year" tickLine={false} axisLine={false} />
+                <YAxis tickFormatter={(value) => `${value}€`} tickLine={false} axisLine={false} width={48} />
+                <Tooltip formatter={(value) => money(Number(value))} />
+                <Legend />
+                <Line type="monotone" dataKey="income" name="Revenus" stroke={incomeColor} strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="expenses" name="Dépenses" stroke={expenseColor} strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="net" name="Net" stroke={netColor} strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </Panel>
         <Panel title="Dernières transactions">
           <TransactionList transactions={transactions.slice(0, 8)} categoryById={categoryById} />
         </Panel>
-      </section>
-      <section className="panel full-panel">
-        <h2>Cashflow 6 mois</h2>
-        <div className="cashflow">
-          {(summary?.monthly_cashflow ?? []).map((m) => (
-            <div key={m.month}>
-              <span>{m.month}</span>
-              <strong className="income">{money(m.income)}</strong>
-              <strong className="expense">{money(m.expenses)}</strong>
-            </div>
-          ))}
-        </div>
       </section>
     </>
   );

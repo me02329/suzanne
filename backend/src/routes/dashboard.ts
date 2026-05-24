@@ -27,6 +27,7 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   for (const t of transactions.filter((t) => t.type === 'expense')) byCategory.set(t.category_id, (byCategory.get(t.category_id) ?? 0) + t.amount);
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   const monthly_cashflow = await buildCashflow(user_id, start);
+  const yearly_cashflow = buildYearlyCashflow(allTransactions);
 
   res.json({
     month,
@@ -35,6 +36,7 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
     net: income - expenses,
     balance,
     monthly_cashflow,
+    yearly_cashflow,
     expenses_by_category: Array.from(byCategory.entries()).map(([category_id, amount]) => {
       const category = category_id ? categoryById.get(category_id) : null;
       return { category_id, name: category?.name ?? 'Sans catégorie', color: category?.color ?? '#9ca3af', amount };
@@ -43,16 +45,32 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
 }));
 
 async function buildCashflow(user_id: number, endMonth: Date) {
-  const out: Array<{ month: string; income: number; expenses: number }> = [];
-  for (let i = 5; i >= 0; i -= 1) {
+  const out: Array<{ month: string; income: number; expenses: number; net: number }> = [];
+  for (let i = 11; i >= 0; i -= 1) {
     const start = new Date(Date.UTC(endMonth.getUTCFullYear(), endMonth.getUTCMonth() - i, 1));
     const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
     const rows = await prisma.transaction.findMany({ where: { user_id, date: { gte: start, lt: end } } });
+    const income = rows.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const expenses = rows.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
     out.push({
       month: start.toISOString().slice(0, 7),
-      income: rows.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-      expenses: rows.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+      income,
+      expenses,
+      net: income - expenses,
     });
   }
   return out;
+}
+
+function buildYearlyCashflow(transactions: Array<{ type: string; amount: number; date: Date }>) {
+  const byYear = new Map<string, { year: string; income: number; expenses: number; net: number }>();
+  for (const transaction of transactions) {
+    const year = transaction.date.toISOString().slice(0, 4);
+    const row = byYear.get(year) ?? { year, income: 0, expenses: 0, net: 0 };
+    if (transaction.type === 'income') row.income += transaction.amount;
+    if (transaction.type === 'expense') row.expenses += transaction.amount;
+    row.net = row.income - row.expenses;
+    byYear.set(year, row);
+  }
+  return Array.from(byYear.values()).sort((a, b) => a.year.localeCompare(b.year));
 }
