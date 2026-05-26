@@ -69,6 +69,7 @@ export interface RecurringTransaction {
   type: Exclude<TransactionType, 'transfer'>;
   description: string;
   frequency: RecurringFrequency;
+  interval: number;
   day_of_month: number | null;
   active: boolean;
   last_executed: string | null;
@@ -146,6 +147,7 @@ export interface CreateRecurringBody {
   type: Exclude<TransactionType, 'transfer'>;
   description: string;
   frequency: RecurringFrequency;
+  interval?: number;
   day_of_month?: number | null;
   active?: boolean;
 }

@@ -25,6 +25,7 @@ recurringRouter.post('/users/:user_id/recurring-transactions', asyncHandler(asyn
       type: body.type,
       description: body.description,
       frequency: body.frequency,
+      interval: body.interval,
       day_of_month: body.day_of_month ?? null,
       active: body.active,
     },
@@ -50,6 +51,7 @@ recurringRouter.patch('/users/:user_id/recurring-transactions/:id', asyncHandler
       ...(body.type != null ? { type: body.type } : {}),
       ...(body.description != null ? { description: body.description } : {}),
       ...(body.frequency != null ? { frequency: body.frequency } : {}),
+      ...(body.interval != null ? { interval: body.interval } : {}),
       ...(body.day_of_month !== undefined ? { day_of_month: body.day_of_month ?? null } : {}),
       ...(body.active != null ? { active: body.active } : {}),
     },
@@ -80,7 +82,7 @@ async function generateDueRecurringTransactions(user_id: number, today: Date): P
   let generated = 0;
 
   for (const row of rows) {
-    const dueDates = dueDatesFor(row.frequency, row.day_of_month, row.last_executed, today);
+    const dueDates = dueDatesFor(row.frequency, row.interval, row.day_of_month, row.last_executed, today);
     for (const date of dueDates) {
       await prisma.transaction.create({
         data: {
@@ -106,14 +108,58 @@ async function generateDueRecurringTransactions(user_id: number, today: Date): P
   return generated;
 }
 
-function dueDatesFor(frequency: string, dayOfMonth: number | null, lastExecuted: Date | null, today: Date): Date[] {
-  if (frequency !== 'monthly') return [];
+function dueDatesFor(frequency: string, interval: number, dayOfMonth: number | null, lastExecuted: Date | null, today: Date): Date[] {
   const dates: Date[] = [];
-  const cursor = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-  const due = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), Math.min(dayOfMonth ?? 1, daysInMonth(cursor))));
+  const step = Math.max(1, interval);
   const lastKey = lastExecuted ? dateKey(lastExecuted) : null;
-  if (due <= today && (!lastKey || dateKey(due) > lastKey)) dates.push(due);
+
+  if (frequency === 'weekly') {
+    const cursor = lastExecuted ? addDays(lastExecuted, 7 * step) : startOfUtcDay(today);
+    while (cursor <= today) {
+      if (!lastKey || dateKey(cursor) > lastKey) dates.push(new Date(cursor));
+      cursor.setUTCDate(cursor.getUTCDate() + 7 * step);
+    }
+    return dates;
+  }
+
+  if (frequency === 'monthly') {
+    const cursor = lastExecuted
+      ? addMonths(lastExecuted, step)
+      : new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+    while (cursor <= today) {
+      const due = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), Math.min(dayOfMonth ?? 1, daysInMonth(cursor))));
+      if (due <= today && (!lastKey || dateKey(due) > lastKey)) dates.push(due);
+      cursor.setUTCMonth(cursor.getUTCMonth() + step, 1);
+    }
+    return dates;
+  }
+
+  if (frequency === 'yearly') {
+    const cursor = lastExecuted
+      ? addMonths(lastExecuted, 12 * step)
+      : new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), Math.min(dayOfMonth ?? 1, daysInMonth(today))));
+    while (cursor <= today) {
+      if (!lastKey || dateKey(cursor) > lastKey) dates.push(new Date(cursor));
+      cursor.setUTCFullYear(cursor.getUTCFullYear() + step);
+    }
+  }
   return dates;
+}
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function addDays(date: Date, days: number): Date {
+  const out = startOfUtcDay(date);
+  out.setUTCDate(out.getUTCDate() + days);
+  return out;
+}
+
+function addMonths(date: Date, months: number): Date {
+  const out = startOfUtcDay(date);
+  out.setUTCMonth(out.getUTCMonth() + months, 1);
+  return out;
 }
 
 function daysInMonth(date: Date): number {

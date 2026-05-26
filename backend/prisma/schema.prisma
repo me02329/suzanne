@@ -172,6 +172,7 @@ model RecurringTransaction {
   type          TransactionType
   description   String
   frequency     RecurringFrequency
+  interval      Int       @default(1)
   day_of_month  Int?
   active        Boolean   @default(true)
   last_executed DateTime? @db.Date

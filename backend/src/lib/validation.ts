@@ -67,6 +67,7 @@ export const createRecurringSchema = z.object({
   type: z.enum(['expense', 'income']),
   description: z.string().trim().min(1).max(500),
   frequency: z.enum(['weekly', 'monthly', 'yearly']),
+  interval: z.coerce.number().int().min(1).max(120).default(1),
   day_of_month: z.coerce.number().int().min(1).max(31).nullish(),
   active: z.coerce.boolean().default(true),
 });
