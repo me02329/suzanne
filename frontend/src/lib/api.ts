@@ -20,6 +20,7 @@ import type {
   SearchResult,
   Transaction,
   User,
+  WealthHistoryPoint,
 } from '@suzanne-lite/shared';
 
 const API_BASE = '/api';
@@ -49,6 +50,8 @@ export const api = {
   deleteCategory: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/categories/${id}`, { method: 'DELETE' }),
   transactions: (userId: number, month?: string) => http<Transaction[]>(`/users/${userId}/transactions${month ? `?month=${month}` : ''}`),
   dashboard: (userId: number, month: string) => http<DashboardSummary>(`/users/${userId}/dashboard?month=${month}`),
+  wealthHistory: (userId: number, range: string, granularity: string) =>
+    http<WealthHistoryPoint[]>(`/users/${userId}/wealth-history?range=${encodeURIComponent(range)}&granularity=${encodeURIComponent(granularity)}`),
   createTransaction: (userId: number, body: CreateTransactionBody) => http<Transaction>(`/users/${userId}/transactions`, { method: 'POST', body: JSON.stringify(body) }),
   updateTransaction: (userId: number, id: number, body: Partial<CreateTransactionBody>) => http<Transaction>(`/users/${userId}/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteTransaction: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/transactions/${id}`, { method: 'DELETE' }),

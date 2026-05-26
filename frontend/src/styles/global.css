@@ -466,6 +466,45 @@ select:focus, input:focus, textarea:focus {
   font-weight: 700;
 }
 
+.panel-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.panel-toolbar select {
+  min-width: 130px;
+}
+
+.series-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.series-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.series-toggles input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
 .alert-list {
   display: grid;
   gap: 10px;

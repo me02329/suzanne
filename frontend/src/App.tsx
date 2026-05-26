@@ -61,6 +61,7 @@ import type {
   Transaction,
   TransactionType,
   User,
+  WealthHistoryPoint,
 } from '@suzanne-lite/shared';
 import { api } from './lib/api';
 
@@ -340,6 +341,7 @@ export default function App() {
 
       {tab === 'dashboard' && (
         <Dashboard
+          userId={userId}
           summary={summary}
           transactions={transactions}
           budgets={budgets}
@@ -438,7 +440,8 @@ function SearchBox({ userId }: { userId: number }) {
   );
 }
 
-function Dashboard({ summary, transactions, budgets, recurring, accounts, categoryById, accountById }: {
+function Dashboard({ userId, summary, transactions, budgets, recurring, accounts, categoryById, accountById }: {
+  userId: number | null;
   summary: DashboardSummary | null;
   transactions: Transaction[];
   budgets: Budget[];
@@ -447,6 +450,29 @@ function Dashboard({ summary, transactions, budgets, recurring, accounts, catego
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
 }) {
+  const [wealthRange, setWealthRange] = useState('12m');
+  const [wealthGranularity, setWealthGranularity] = useState('month');
+  const [wealthHistory, setWealthHistory] = useState<WealthHistoryPoint[]>([]);
+  const [wealthSeries, setWealthSeries] = useState<Record<string, boolean>>({
+    net_worth: true,
+    assets: true,
+    liabilities: true,
+    cash: false,
+    regulated_savings: true,
+    investments: true,
+    crypto: true,
+    other: false,
+  });
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    api.wealthHistory(userId, wealthRange, wealthGranularity)
+      .then((rows) => { if (!cancelled) setWealthHistory(rows); })
+      .catch(() => { if (!cancelled) setWealthHistory([]); });
+    return () => { cancelled = true; };
+  }, [userId, wealthRange, wealthGranularity]);
+
   let cumulativeNet = 0;
   const monthRows = (summary?.monthly_cashflow ?? []).map((row) => {
     cumulativeNet += row.net;
@@ -476,6 +502,24 @@ function Dashboard({ summary, transactions, budgets, recurring, accounts, catego
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5);
   const alerts = buildAccountAlerts(accountBalances, summary?.balance_assets ?? 0);
+  const wealthChartRows = wealthHistory.map((point) => ({
+    ...point,
+    label: wealthGranularity === 'day'
+      ? new Date(`${point.date}T00:00:00.000Z`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+      : wealthGranularity === 'week'
+        ? new Date(`${point.date}T00:00:00.000Z`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+        : formatMonth(point.date.slice(0, 7)),
+    cash: point.by_group.cash ?? 0,
+    regulated_savings: point.by_group.regulated_savings ?? 0,
+    investments: point.by_group.investments ?? 0,
+    crypto: point.by_group.crypto ?? 0,
+    liabilities_signed: point.by_group.liabilities ?? 0,
+    other: point.by_group.other ?? 0,
+  }));
+
+  const toggleWealthSeries = (key: string) => {
+    setWealthSeries((current) => ({ ...current, [key]: !current[key] }));
+  };
 
   return (
     <>
@@ -493,6 +537,56 @@ function Dashboard({ summary, transactions, budgets, recurring, accounts, catego
       </section>
 
       <section className="charts-grid">
+        <Panel title="Évolution du patrimoine">
+          <div className="panel-toolbar">
+            <select value={wealthRange} onChange={(e) => setWealthRange(e.target.value)}>
+              <option value="1m">1 mois</option>
+              <option value="6m">6 mois</option>
+              <option value="12m">12 mois</option>
+              <option value="ytd">YTD</option>
+              <option value="all">Tout</option>
+            </select>
+            <select value={wealthGranularity} onChange={(e) => setWealthGranularity(e.target.value)}>
+              <option value="day">Jour</option>
+              <option value="week">Semaine</option>
+              <option value="month">Mois</option>
+            </select>
+          </div>
+          <div className="series-toggles">
+            {[
+              ['net_worth', 'Net'],
+              ['assets', 'Actifs'],
+              ['liabilities', 'Passifs'],
+              ['cash', 'Liquidités'],
+              ['regulated_savings', 'Livrets'],
+              ['investments', 'Investissements'],
+              ['crypto', 'Crypto'],
+              ['other', 'Autres'],
+            ].map(([key, label]) => (
+              <label key={key}><input type="checkbox" checked={wealthSeries[key] ?? false} onChange={() => toggleWealthSeries(key)} /> {label}</label>
+            ))}
+          </div>
+          <div className="chart-area">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={wealthChartRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke={chartGrid} vertical={false} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                <YAxis tickFormatter={(value) => `${value}€`} tickLine={false} axisLine={false} width={54} />
+                <Tooltip formatter={(value) => money(Number(value))} />
+                <Legend />
+                {wealthSeries.net_worth && <Line type="monotone" dataKey="net_worth" name="Net" stroke="#111827" strokeWidth={3} dot={false} />}
+                {wealthSeries.assets && <Line type="monotone" dataKey="assets" name="Actifs" stroke="#16a34a" strokeWidth={2} dot={false} />}
+                {wealthSeries.liabilities && <Line type="monotone" dataKey="liabilities" name="Passifs" stroke="#dc2626" strokeWidth={2} dot={false} />}
+                {wealthSeries.cash && <Line type="monotone" dataKey="cash" name="Liquidités" stroke={accountGroupColor('cash')} strokeWidth={2} dot={false} />}
+                {wealthSeries.regulated_savings && <Line type="monotone" dataKey="regulated_savings" name="Livrets" stroke={accountGroupColor('regulated_savings')} strokeWidth={2} dot={false} />}
+                {wealthSeries.investments && <Line type="monotone" dataKey="investments" name="Investissements" stroke={accountGroupColor('investments')} strokeWidth={2} dot={false} />}
+                {wealthSeries.crypto && <Line type="monotone" dataKey="crypto" name="Crypto" stroke={accountGroupColor('crypto')} strokeWidth={2} dot={false} />}
+                {wealthSeries.other && <Line type="monotone" dataKey="other" name="Autres" stroke={accountGroupColor('other')} strokeWidth={2} dot={false} />}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
         <Panel title="Cashflow mensuel">
           <div className="chart-area">
             <ResponsiveContainer width="100%" height="100%">

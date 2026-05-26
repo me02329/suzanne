@@ -66,6 +66,43 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   });
 }));
 
+dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const range = String(req.query.range ?? '12m');
+  const granularity = String(req.query.granularity ?? 'month');
+
+  const [transactions, accounts, snapshots] = await Promise.all([
+    prisma.transaction.findMany({ where: { user_id } }),
+    prisma.account.findMany({ where: { user_id } }),
+    prisma.accountSnapshot.findMany({ where: { user_id } }),
+  ]);
+
+  const today = startOfUtcDay(new Date());
+  const firstDate = firstRelevantDate(accounts, transactions, snapshots) ?? today;
+  const from = rangeStart(range, today, firstDate);
+  const dates = buildHistoryDates(from, today, granularity);
+
+  const points = dates.map((date) => {
+    const accountBalances = computeAccountBalancesAt(accounts, transactions, snapshots, date);
+    const unassignedBalance = computeUnassignedBalanceUntil(transactions, date);
+    const assets = accountBalances.filter((a) => !a.is_liability).reduce((s, a) => s + a.balance, 0) + unassignedBalance;
+    const liabilities = accountBalances.filter((a) => a.is_liability).reduce((s, a) => s + a.balance, 0);
+    const byGroup = buildBalanceByGroup(accountBalances, unassignedBalance).reduce<Record<string, number>>((acc, row) => {
+      acc[row.group] = row.signed_amount;
+      return acc;
+    }, {});
+    return {
+      date: dateKey(date),
+      assets: round2(assets),
+      liabilities: round2(liabilities),
+      net_worth: round2(assets - liabilities),
+      by_group: byGroup,
+    };
+  });
+
+  res.json(points);
+}));
+
 // Solde estimé : pour chaque compte on part du snapshot de solde le plus récent
 // (ou du solde initial s'il n'y a pas de snapshot) puis on applique les transactions
 // postérieures à cette date. Les transactions sans compte sont ajoutées à plat.
@@ -117,11 +154,26 @@ function computeAccountBalances(
   });
 }
 
+function computeAccountBalancesAt(
+  accounts: AccountRow[],
+  transactions: Tx[],
+  snapshots: Array<{ account_id: number; date: Date; balance: number }>,
+  at: Date,
+) {
+  const snapshotsUntil = snapshots.filter((s) => s.date <= at);
+  const transactionsUntil = transactions.filter((t) => t.date <= at);
+  return computeAccountBalances(accounts.filter((a) => a.initial_balance_date <= at), transactionsUntil, snapshotsUntil);
+}
+
 function computeUnassignedBalance(transactions: Tx[]): number {
   // Transactions sans compte : seuls revenus/dépenses comptent (un transfert sans compte n'a pas de sens).
   return transactions
     .filter((t) => t.account_id == null && t.type !== 'transfer')
     .reduce((s, t) => s + sourceDelta(t), 0);
+}
+
+function computeUnassignedBalanceUntil(transactions: Tx[], at: Date): number {
+  return computeUnassignedBalance(transactions.filter((t) => t.date <= at));
 }
 
 function buildBalanceByGroup(
@@ -198,6 +250,59 @@ function accountTypeLabel(type: string): string {
     other: 'Autre',
   };
   return labels[type] ?? type;
+}
+
+function firstRelevantDate(
+  accounts: AccountRow[],
+  transactions: Tx[],
+  snapshots: Array<{ date: Date }>,
+): Date | null {
+  const dates = [
+    ...accounts.map((a) => a.initial_balance_date),
+    ...transactions.map((t) => t.date),
+    ...snapshots.map((s) => s.date),
+  ].sort((a, b) => a.getTime() - b.getTime());
+  return dates[0] ?? null;
+}
+
+function rangeStart(range: string, today: Date, firstDate: Date): Date {
+  if (range === '1m') return addMonths(today, -1);
+  if (range === '6m') return addMonths(today, -6);
+  if (range === 'ytd') return new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
+  if (range === 'all') return firstDate;
+  return addMonths(today, -12);
+}
+
+function buildHistoryDates(from: Date, to: Date, granularity: string): Date[] {
+  const dates: Date[] = [];
+  const cursor = startOfUtcDay(from);
+  const end = startOfUtcDay(to);
+  while (cursor <= end) {
+    dates.push(new Date(cursor));
+    if (granularity === 'day') {
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    } else if (granularity === 'week') {
+      cursor.setUTCDate(cursor.getUTCDate() + 7);
+    } else {
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1, 1);
+    }
+  }
+  if (dates.length === 0 || dateKey(dates[dates.length - 1]!) !== dateKey(end)) dates.push(end);
+  return dates;
+}
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function dateKey(date: Date): string {
+  return date.toISOString().split('T')[0]!;
+}
+
+function addMonths(date: Date, months: number): Date {
+  const out = startOfUtcDay(date);
+  out.setUTCMonth(out.getUTCMonth() + months);
+  return out;
 }
 
 function buildCashflow(transactions: Tx[], endMonth: Date) {

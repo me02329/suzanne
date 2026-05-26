@@ -225,3 +225,11 @@ export interface DashboardSummary {
   monthly_cashflow: Array<{ month: string; income: number; expenses: number; net: number }>;
   yearly_cashflow: Array<{ year: string; income: number; expenses: number; net: number }>;
 }
+
+export interface WealthHistoryPoint {
+  date: string;
+  assets: number;
+  liabilities: number;
+  net_worth: number;
+  by_group: Record<string, number>;
+}
