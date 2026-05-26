@@ -17,9 +17,15 @@ accountsRouter.post('/users/:user_id/accounts', asyncHandler(async (req, res) =>
   res.status(201).json(row);
 }));
 
-accountsRouter.patch('/accounts/:id', asyncHandler(async (req, res) => {
+accountsRouter.patch('/users/:user_id/accounts/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const body = updateAccountSchema.parse(req.body);
+  const existing = await prisma.account.findFirst({ where: { id, user_id } });
+  if (!existing) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   const row = await prisma.account.update({
     where: { id },
     data: {
@@ -34,8 +40,13 @@ accountsRouter.patch('/accounts/:id', asyncHandler(async (req, res) => {
   res.json(row);
 }));
 
-accountsRouter.delete('/accounts/:id', asyncHandler(async (req, res) => {
+accountsRouter.delete('/users/:user_id/accounts/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  await prisma.account.delete({ where: { id } });
+  const result = await prisma.account.deleteMany({ where: { id, user_id } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   res.json({ deleted: true });
 }));

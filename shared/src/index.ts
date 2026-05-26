@@ -42,6 +42,7 @@ export interface Transaction {
   id: number;
   user_id: number;
   account_id: number | null;
+  to_account_id: number | null;
   category_id: number | null;
   amount: number;
   type: TransactionType;
@@ -124,6 +125,7 @@ export interface CreateCategoryBody {
 
 export interface CreateTransactionBody {
   account_id?: number | null;
+  to_account_id?: number | null;
   category_id?: number | null;
   amount: number;
   type: TransactionType;

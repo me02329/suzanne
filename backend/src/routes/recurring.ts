@@ -32,9 +32,15 @@ recurringRouter.post('/users/:user_id/recurring-transactions', asyncHandler(asyn
   res.status(201).json(row);
 }));
 
-recurringRouter.patch('/recurring-transactions/:id', asyncHandler(async (req, res) => {
+recurringRouter.patch('/users/:user_id/recurring-transactions/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const body = updateRecurringSchema.parse(req.body);
+  const existing = await prisma.recurringTransaction.findFirst({ where: { id, user_id } });
+  if (!existing) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   const row = await prisma.recurringTransaction.update({
     where: { id },
     data: {
@@ -51,9 +57,14 @@ recurringRouter.patch('/recurring-transactions/:id', asyncHandler(async (req, re
   res.json(row);
 }));
 
-recurringRouter.delete('/recurring-transactions/:id', asyncHandler(async (req, res) => {
+recurringRouter.delete('/users/:user_id/recurring-transactions/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  await prisma.recurringTransaction.delete({ where: { id } });
+  const result = await prisma.recurringTransaction.deleteMany({ where: { id, user_id } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   res.json({ deleted: true });
 }));
 

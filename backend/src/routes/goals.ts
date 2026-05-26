@@ -26,9 +26,15 @@ goalsRouter.post('/users/:user_id/savings-goals', asyncHandler(async (req, res) 
   res.status(201).json(row);
 }));
 
-goalsRouter.patch('/savings-goals/:id', asyncHandler(async (req, res) => {
+goalsRouter.patch('/users/:user_id/savings-goals/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const body = updateSavingsGoalSchema.parse(req.body);
+  const existing = await prisma.savingsGoal.findFirst({ where: { id, user_id } });
+  if (!existing) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   const row = await prisma.savingsGoal.update({
     where: { id },
     data: {
@@ -42,8 +48,13 @@ goalsRouter.patch('/savings-goals/:id', asyncHandler(async (req, res) => {
   res.json(row);
 }));
 
-goalsRouter.delete('/savings-goals/:id', asyncHandler(async (req, res) => {
+goalsRouter.delete('/users/:user_id/savings-goals/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  await prisma.savingsGoal.delete({ where: { id } });
+  const result = await prisma.savingsGoal.deleteMany({ where: { id, user_id } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   res.json({ deleted: true });
 }));

@@ -22,8 +22,13 @@ rulesRouter.post('/users/:user_id/category-rules', asyncHandler(async (req, res)
   res.json(row);
 }));
 
-rulesRouter.delete('/category-rules/:id', asyncHandler(async (req, res) => {
+rulesRouter.delete('/users/:user_id/category-rules/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  await prisma.categoryRule.delete({ where: { id } });
+  const result = await prisma.categoryRule.deleteMany({ where: { id, user_id } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   res.json({ deleted: true });
 }));

@@ -22,6 +22,7 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
     data: {
       user_id,
       account_id: body.account_id ?? null,
+      to_account_id: body.type === 'transfer' ? body.to_account_id ?? null : null,
       category_id: body.category_id ?? null,
       amount: body.amount,
       type: body.type,
@@ -32,13 +33,20 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
   res.status(201).json(row);
 }));
 
-transactionsRouter.patch('/transactions/:id', asyncHandler(async (req, res) => {
+transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const body = updateTransactionSchema.parse(req.body);
+  const existing = await prisma.transaction.findFirst({ where: { id, user_id } });
+  if (!existing) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   const row = await prisma.transaction.update({
     where: { id },
     data: {
       ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
+      ...(body.to_account_id !== undefined ? { to_account_id: body.to_account_id ?? null } : {}),
       ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
       ...(body.amount != null ? { amount: body.amount } : {}),
       ...(body.type != null ? { type: body.type } : {}),
@@ -49,9 +57,14 @@ transactionsRouter.patch('/transactions/:id', asyncHandler(async (req, res) => {
   res.json(row);
 }));
 
-transactionsRouter.delete('/transactions/:id', asyncHandler(async (req, res) => {
+transactionsRouter.delete('/users/:user_id/transactions/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  await prisma.transaction.delete({ where: { id } });
+  const result = await prisma.transaction.deleteMany({ where: { id, user_id } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   res.json({ deleted: true });
 }));
 

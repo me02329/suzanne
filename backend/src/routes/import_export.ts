@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { csvImportSchema, idParam } from '../lib/validation.js';
+import { round2 } from '../lib/money.js';
 
 export const importExportRouter = Router();
 
@@ -46,12 +47,18 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
   const user_id = idParam.parse(req.params.user_id);
   const body = csvImportSchema.parse(req.body);
   const rules = await prisma.categoryRule.findMany({ where: { user_id } });
-  const lines = body.csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = body.csv.split(/\r?\n/).filter((l) => l.trim().length > 0);
   const [, ...dataLines] = lines;
   let imported = 0;
+  let skipped = 0;
   for (const line of dataLines) {
     const [dateRaw, typeRaw, amountRaw, descriptionRaw] = splitCsv(line);
-    if (!dateRaw || !amountRaw) continue;
+    const date = parseDate(dateRaw);
+    const amount = parseAmount(amountRaw);
+    if (!date || amount === null) {
+      skipped += 1;
+      continue;
+    }
     const description = descriptionRaw ?? '';
     const matchedRule = rules.find((r) => description.toUpperCase().includes(r.pattern));
     await prisma.transaction.create({
@@ -59,16 +66,28 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
         user_id,
         account_id: body.account_id ?? null,
         category_id: matchedRule?.category_id ?? null,
-        date: new Date(dateRaw),
+        date,
         type: normalizeType(typeRaw),
-        amount: Number(amountRaw.replace(',', '.')),
+        amount,
         description,
       },
     });
     imported += 1;
   }
-  res.json({ imported });
+  res.json({ imported, skipped });
 }));
+
+function parseDate(value: string | undefined): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}/.test(value)) return null;
+  const date = new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseAmount(value: string | undefined): number | null {
+  if (!value) return null;
+  const amount = Number(value.replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(amount) && amount > 0 ? round2(amount) : null;
+}
 
 function normalizeType(value: string | undefined): 'expense' | 'income' {
   return value?.toLowerCase().includes('income') || value?.toLowerCase().includes('revenu') ? 'income' : 'expense';
@@ -79,5 +98,31 @@ function csvCell(value: string): string {
 }
 
 function splitCsv(line: string): string[] {
-  return line.split(',').map((cell) => cell.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
+  const cells: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ',') {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
 }

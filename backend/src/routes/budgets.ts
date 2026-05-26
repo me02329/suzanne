@@ -22,8 +22,13 @@ budgetsRouter.post('/users/:user_id/budgets', asyncHandler(async (req, res) => {
   res.json(row);
 }));
 
-budgetsRouter.delete('/budgets/:id', asyncHandler(async (req, res) => {
+budgetsRouter.delete('/users/:user_id/budgets/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  await prisma.budget.delete({ where: { id } });
+  const result = await prisma.budget.deleteMany({ where: { id, user_id } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   res.json({ deleted: true });
 }));

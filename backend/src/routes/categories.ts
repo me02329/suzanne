@@ -17,9 +17,15 @@ categoriesRouter.post('/users/:user_id/categories', asyncHandler(async (req, res
   res.status(201).json(row);
 }));
 
-categoriesRouter.patch('/categories/:id', asyncHandler(async (req, res) => {
+categoriesRouter.patch('/users/:user_id/categories/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const body = updateCategorySchema.parse(req.body);
+  const existing = await prisma.category.findFirst({ where: { id, user_id } });
+  if (!existing) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   const row = await prisma.category.update({
     where: { id },
     data: {
@@ -32,8 +38,13 @@ categoriesRouter.patch('/categories/:id', asyncHandler(async (req, res) => {
   res.json(row);
 }));
 
-categoriesRouter.delete('/categories/:id', asyncHandler(async (req, res) => {
+categoriesRouter.delete('/users/:user_id/categories/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  await prisma.category.delete({ where: { id } });
+  const result = await prisma.category.deleteMany({ where: { id, user_id } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   res.json({ deleted: true });
 }));

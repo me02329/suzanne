@@ -274,6 +274,7 @@ select, input, textarea {
 .tx span, .row span, .budget span { color: var(--muted); font-size: 13px; }
 .income { color: var(--income); }
 .expense { color: var(--expense); }
+.transfer { color: var(--accent); }
 
 .error, .notice { padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; font-weight: 700; }
 .error { background: #fee2e2; color: #991b1b; }
@@ -293,6 +294,31 @@ select, input, textarea {
   cursor: pointer;
   flex: 0 0 auto;
 }
+
+.icon-button.neutral {
+  border-color: var(--border);
+  color: var(--muted);
+  background: var(--surface-muted);
+}
+
+.topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  animation: spin 0.7s linear infinite;
+  flex: 0 0 auto;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .budget { display: grid; grid-template-columns: minmax(0, 1fr) 160px 34px; }
 .bar { height: 9px; border-radius: 999px; background: #eef0f4; overflow: hidden; }

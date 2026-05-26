@@ -22,8 +22,13 @@ snapshotsRouter.post('/users/:user_id/account-snapshots', asyncHandler(async (re
   res.json(row);
 }));
 
-snapshotsRouter.delete('/account-snapshots/:id', asyncHandler(async (req, res) => {
+snapshotsRouter.delete('/users/:user_id/account-snapshots/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  await prisma.accountSnapshot.delete({ where: { id } });
+  const result = await prisma.accountSnapshot.deleteMany({ where: { id, user_id } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
   res.json({ deleted: true });
 }));
