@@ -22,7 +22,29 @@ searchRouter.get('/users/:user_id/search', asyncHandler(async (req, res) => {
   res.json([
     ...transactions.map((t) => ({ type: 'transaction', id: t.id, title: t.description ?? 'Transaction', subtitle: `${t.type} · ${t.amount} €` })),
     ...categories.map((c) => ({ type: 'category', id: c.id, title: c.name, subtitle: c.type })),
-    ...accounts.map((a) => ({ type: 'account', id: a.id, title: a.name, subtitle: a.type })),
+    ...accounts.map((a) => ({ type: 'account', id: a.id, title: a.name, subtitle: accountTypeLabel(a.type) })),
     ...goals.map((g) => ({ type: 'goal', id: g.id, title: g.name, subtitle: `${g.current_amount}/${g.target_amount} €` })),
   ]);
 }));
+
+function accountTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    checking: 'Compte courant',
+    savings: 'Épargne',
+    livret_a: 'Livret A',
+    ldds: 'LDDS',
+    lep: 'LEP',
+    pel: 'PEL',
+    cel: 'CEL',
+    pea: 'PEA',
+    securities: 'Compte-titres',
+    life_insurance: 'Assurance-vie',
+    crypto: 'Crypto',
+    retirement: 'Retraite',
+    cash: 'Espèces',
+    credit: 'Carte / crédit',
+    loan: 'Emprunt',
+    other: 'Autre',
+  };
+  return labels[type] ?? type;
+}

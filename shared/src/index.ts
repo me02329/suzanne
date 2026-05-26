@@ -1,5 +1,21 @@
 export type TransactionType = 'expense' | 'income' | 'transfer';
-export type AccountType = 'checking' | 'savings' | 'cash' | 'other';
+export type AccountType =
+  | 'checking'
+  | 'savings'
+  | 'livret_a'
+  | 'ldds'
+  | 'lep'
+  | 'pel'
+  | 'cel'
+  | 'pea'
+  | 'securities'
+  | 'life_insurance'
+  | 'crypto'
+  | 'retirement'
+  | 'cash'
+  | 'credit'
+  | 'loan'
+  | 'other';
 export type CategoryType = 'expense' | 'income';
 export type RecurringFrequency = 'weekly' | 'monthly' | 'yearly';
 
@@ -184,6 +200,27 @@ export interface DashboardSummary {
   expenses: number;
   net: number;
   balance: number;
+  balance_assets: number;
+  balance_liabilities: number;
+  net_worth: number;
+  account_balances: Array<{
+    account_id: number;
+    name: string;
+    type: AccountType;
+    type_label: string;
+    group: string;
+    group_label: string;
+    balance: number;
+    signed_balance: number;
+    is_liability: boolean;
+  }>;
+  balance_by_group: Array<{
+    group: string;
+    label: string;
+    amount: number;
+    signed_amount: number;
+    is_liability: boolean;
+  }>;
   expenses_by_category: Array<{ category_id: number | null; name: string; color: string; amount: number }>;
   monthly_cashflow: Array<{ month: string; income: number; expenses: number; net: number }>;
   yearly_cashflow: Array<{ year: string; income: number; expenses: number; net: number }>;

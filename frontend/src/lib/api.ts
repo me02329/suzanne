@@ -39,6 +39,7 @@ export const api = {
   deleteUser: (id: number) => http<{ deleted: boolean }>(`/users/${id}`, { method: 'DELETE' }),
   accounts: (userId: number) => http<Account[]>(`/users/${userId}/accounts`),
   createAccount: (userId: number, body: CreateAccountBody) => http<Account>(`/users/${userId}/accounts`, { method: 'POST', body: JSON.stringify(body) }),
+  updateAccount: (userId: number, id: number, body: Partial<CreateAccountBody>) => http<Account>(`/users/${userId}/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteAccount: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/accounts/${id}`, { method: 'DELETE' }),
   institutions: (userId: number) => http<Institution[]>(`/users/${userId}/institutions`),
   createInstitution: (userId: number, body: CreateInstitutionBody) => http<Institution>(`/users/${userId}/institutions`, { method: 'POST', body: JSON.stringify(body) }),

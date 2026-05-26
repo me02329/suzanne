@@ -22,7 +22,19 @@ enum CategoryType {
 enum AccountType {
   checking
   savings
+  livret_a
+  ldds
+  lep
+  pel
+  cel
+  pea
+  securities
+  life_insurance
+  crypto
+  retirement
   cash
+  credit
+  loan
   other
 }
 

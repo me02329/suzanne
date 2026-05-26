@@ -7,6 +7,7 @@ import { round2 } from '../lib/money.js';
 export const dashboardRouter = Router();
 
 type Tx = { type: string; amount: number; date: Date; category_id: number | null; account_id: number | null; to_account_id: number | null };
+type AccountRow = { id: number; name: string; type: string; initial_balance: number; initial_balance_date: Date };
 
 // Effet d'une transaction sur le compte dont elle est la source (account_id).
 // Un transfert débite le compte source ; le crédit du compte destination est
@@ -32,7 +33,12 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const income = monthTransactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const expenses = monthTransactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
 
-  const balance = computeBalance(accounts, transactions, snapshots);
+  const accountBalances = computeAccountBalances(accounts, transactions, snapshots);
+  const unassignedBalance = computeUnassignedBalance(transactions);
+  const assets = accountBalances.filter((a) => !a.is_liability).reduce((s, a) => s + a.balance, 0) + unassignedBalance;
+  const liabilities = accountBalances.filter((a) => a.is_liability).reduce((s, a) => s + a.balance, 0);
+  const netWorth = assets - liabilities;
+  const balanceByGroup = buildBalanceByGroup(accountBalances, unassignedBalance);
 
   const byCategory = new Map<number | null, number>();
   for (const t of monthTransactions.filter((t) => t.type === 'expense')) {
@@ -45,7 +51,12 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
     income: round2(income),
     expenses: round2(expenses),
     net: round2(income - expenses),
-    balance: round2(balance),
+    balance: round2(netWorth),
+    balance_assets: round2(assets),
+    balance_liabilities: round2(liabilities),
+    net_worth: round2(netWorth),
+    account_balances: accountBalances.map((a) => ({ ...a, balance: round2(a.balance), signed_balance: round2(a.signed_balance) })),
+    balance_by_group: balanceByGroup,
     monthly_cashflow: buildCashflow(transactions, start),
     yearly_cashflow: buildYearlyCashflow(transactions),
     expenses_by_category: Array.from(byCategory.entries()).map(([category_id, amount]) => {
@@ -58,19 +69,28 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
 // Solde estimé : pour chaque compte on part du snapshot de solde le plus récent
 // (ou du solde initial s'il n'y a pas de snapshot) puis on applique les transactions
 // postérieures à cette date. Les transactions sans compte sont ajoutées à plat.
-function computeBalance(
-  accounts: Array<{ id: number; initial_balance: number; initial_balance_date: Date }>,
+function computeAccountBalances(
+  accounts: AccountRow[],
   transactions: Tx[],
   snapshots: Array<{ account_id: number; date: Date; balance: number }>,
-): number {
+): Array<{
+  account_id: number;
+  name: string;
+  type: string;
+  type_label: string;
+  group: string;
+  group_label: string;
+  balance: number;
+  signed_balance: number;
+  is_liability: boolean;
+}> {
   const latestSnapshot = new Map<number, { date: Date; balance: number }>();
   for (const s of snapshots) {
     const current = latestSnapshot.get(s.account_id);
     if (!current || s.date > current.date) latestSnapshot.set(s.account_id, { date: s.date, balance: s.balance });
   }
 
-  let balance = 0;
-  for (const account of accounts) {
+  return accounts.map((account) => {
     const snap = latestSnapshot.get(account.id);
     const base = snap ? snap.balance : account.initial_balance;
     const since = snap ? snap.date : account.initial_balance_date;
@@ -80,15 +100,104 @@ function computeBalance(
     const incoming = transactions
       .filter((t) => t.type === 'transfer' && t.to_account_id === account.id && t.date > since)
       .reduce((s, t) => s + t.amount, 0);
-    balance += base + outgoing + incoming;
-  }
+    const rawBalance = base + outgoing + incoming;
+    const isLiability = isLiabilityAccount(account.type);
+    const balance = isLiability ? Math.abs(rawBalance) : rawBalance;
+    return {
+      account_id: account.id,
+      name: account.name,
+      type: account.type,
+      type_label: accountTypeLabel(account.type),
+      group: accountTypeGroup(account.type),
+      group_label: accountGroupLabel(accountTypeGroup(account.type)),
+      balance,
+      signed_balance: isLiability ? -balance : balance,
+      is_liability: isLiability,
+    };
+  });
+}
 
+function computeUnassignedBalance(transactions: Tx[]): number {
   // Transactions sans compte : seuls revenus/dépenses comptent (un transfert sans compte n'a pas de sens).
-  balance += transactions
+  return transactions
     .filter((t) => t.account_id == null && t.type !== 'transfer')
     .reduce((s, t) => s + sourceDelta(t), 0);
+}
 
-  return balance;
+function buildBalanceByGroup(
+  accountBalances: Array<{ group: string; group_label: string; signed_balance: number; balance: number; is_liability: boolean }>,
+  unassignedBalance: number,
+) {
+  const groups = new Map<string, { group: string; label: string; amount: number; signed_amount: number; is_liability: boolean }>();
+  for (const account of accountBalances) {
+    const row = groups.get(account.group) ?? {
+      group: account.group,
+      label: account.group_label,
+      amount: 0,
+      signed_amount: 0,
+      is_liability: account.is_liability,
+    };
+    row.amount += account.balance;
+    row.signed_amount += account.signed_balance;
+    row.is_liability = row.is_liability || account.is_liability;
+    groups.set(account.group, row);
+  }
+  if (unassignedBalance !== 0) {
+    const row = groups.get('cash') ?? { group: 'cash', label: accountGroupLabel('cash'), amount: 0, signed_amount: 0, is_liability: false };
+    row.amount += unassignedBalance;
+    row.signed_amount += unassignedBalance;
+    groups.set('cash', row);
+  }
+  return Array.from(groups.values())
+    .map((row) => ({ ...row, amount: round2(row.amount), signed_amount: round2(row.signed_amount) }))
+    .sort((a, b) => Math.abs(b.signed_amount) - Math.abs(a.signed_amount));
+}
+
+function isLiabilityAccount(type: string): boolean {
+  return type === 'credit' || type === 'loan';
+}
+
+function accountTypeGroup(type: string): string {
+  if (['checking', 'cash'].includes(type)) return 'cash';
+  if (['savings', 'livret_a', 'ldds', 'lep', 'pel', 'cel'].includes(type)) return 'regulated_savings';
+  if (['pea', 'securities', 'life_insurance', 'retirement'].includes(type)) return 'investments';
+  if (type === 'crypto') return 'crypto';
+  if (['credit', 'loan'].includes(type)) return 'liabilities';
+  return 'other';
+}
+
+function accountGroupLabel(group: string): string {
+  const labels: Record<string, string> = {
+    cash: 'Liquidités',
+    regulated_savings: 'Livrets',
+    investments: 'Investissements',
+    crypto: 'Crypto',
+    liabilities: 'Passifs',
+    other: 'Autres',
+  };
+  return labels[group] ?? group;
+}
+
+function accountTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    checking: 'Compte courant',
+    savings: 'Épargne',
+    livret_a: 'Livret A',
+    ldds: 'LDDS',
+    lep: 'LEP',
+    pel: 'PEL',
+    cel: 'CEL',
+    pea: 'PEA',
+    securities: 'Compte-titres',
+    life_insurance: 'Assurance-vie',
+    crypto: 'Crypto',
+    retirement: 'Retraite',
+    cash: 'Espèces',
+    credit: 'Carte / crédit',
+    loan: 'Emprunt',
+    other: 'Autre',
+  };
+  return labels[type] ?? type;
 }
 
 function buildCashflow(transactions: Tx[], endMonth: Date) {

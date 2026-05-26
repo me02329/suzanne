@@ -342,7 +342,7 @@ select:focus, input:focus, textarea:focus {
 
 .table-tools {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 180px;
+  grid-template-columns: minmax(240px, 1fr) 180px 190px;
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -465,6 +465,26 @@ select:focus, input:focus, textarea:focus {
   font-size: 13px;
   font-weight: 700;
 }
+
+.alert-list {
+  display: grid;
+  gap: 10px;
+}
+
+.account-alert {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.account-alert strong { font-size: 14px; }
+.account-alert span { color: var(--muted); font-size: 13px; line-height: 1.35; }
+.account-alert.info { border-color: #bfdbfe; background: #eff6ff; }
+.account-alert.warning { border-color: #fde68a; background: #fffbeb; }
+.account-alert.danger { border-color: #fecaca; background: #fef2f2; }
 
 .category-row:last-child, .tx:last-child, .row:last-child, .budget:last-child { border-bottom: 0; }
 .dot { width: 10px; height: 10px; border-radius: 999px; flex: 0 0 auto; }

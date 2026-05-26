@@ -1,0 +1,12 @@
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'livret_a';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'ldds';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'lep';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'pel';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'cel';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'pea';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'securities';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'life_insurance';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'crypto';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'retirement';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'credit';
+ALTER TYPE "AccountType" ADD VALUE IF NOT EXISTS 'loan';

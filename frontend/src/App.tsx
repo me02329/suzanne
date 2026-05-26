@@ -47,6 +47,7 @@ import {
 } from 'recharts';
 import type {
   Account,
+  AccountType,
   AccountSnapshot,
   Budget,
   Category,
@@ -91,6 +92,34 @@ const navSections: Array<{ id: string; label: string; items: typeof navItems }> 
   { id: 'admin', label: 'Administration', items: navItems.filter((item) => ['tools', 'users'].includes(item.tab)) },
 ];
 
+const accountTypeOptions: Array<{ value: AccountType; label: string }> = [
+  { value: 'checking', label: 'Compte courant' },
+  { value: 'savings', label: 'Épargne' },
+  { value: 'livret_a', label: 'Livret A' },
+  { value: 'ldds', label: 'LDDS' },
+  { value: 'lep', label: 'LEP' },
+  { value: 'pel', label: 'PEL' },
+  { value: 'cel', label: 'CEL' },
+  { value: 'pea', label: 'PEA' },
+  { value: 'securities', label: 'Compte-titres' },
+  { value: 'life_insurance', label: 'Assurance-vie' },
+  { value: 'crypto', label: 'Crypto' },
+  { value: 'retirement', label: 'Retraite' },
+  { value: 'cash', label: 'Espèces' },
+  { value: 'credit', label: 'Carte / crédit' },
+  { value: 'loan', label: 'Emprunt' },
+  { value: 'other', label: 'Autre' },
+];
+
+const accountGroupOptions = [
+  { value: 'cash', label: 'Liquidités' },
+  { value: 'regulated_savings', label: 'Livrets' },
+  { value: 'investments', label: 'Investissements' },
+  { value: 'crypto', label: 'Crypto' },
+  { value: 'liabilities', label: 'Passifs' },
+  { value: 'other', label: 'Autres' },
+];
+
 function money(value: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value);
 }
@@ -113,6 +142,35 @@ function typeLabel(type: TransactionType) {
 function recurringFrequencyLabel(frequency: RecurringFrequency, interval: number) {
   const unit = frequency === 'weekly' ? 'semaine' : frequency === 'yearly' ? 'an' : 'mois';
   return interval <= 1 ? `Chaque ${unit}` : `Tous les ${interval} ${unit}${unit === 'mois' ? '' : 's'}`;
+}
+
+function accountTypeLabel(type: AccountType) {
+  return accountTypeOptions.find((option) => option.value === type)?.label ?? type;
+}
+
+function accountTypeGroup(type: AccountType) {
+  if (['checking', 'cash'].includes(type)) return 'cash';
+  if (['savings', 'livret_a', 'ldds', 'lep', 'pel', 'cel'].includes(type)) return 'regulated_savings';
+  if (['pea', 'securities', 'life_insurance', 'retirement'].includes(type)) return 'investments';
+  if (type === 'crypto') return 'crypto';
+  if (['credit', 'loan'].includes(type)) return 'liabilities';
+  return 'other';
+}
+
+function accountGroupLabel(group: string) {
+  return accountGroupOptions.find((option) => option.value === group)?.label ?? group;
+}
+
+function accountGroupColor(group: string) {
+  const colors: Record<string, string> = {
+    cash: '#2563eb',
+    regulated_savings: '#10b981',
+    investments: '#7c3aed',
+    crypto: '#f59e0b',
+    liabilities: '#dc2626',
+    other: '#64748b',
+  };
+  return colors[group] ?? '#64748b';
 }
 
 export default function App() {
@@ -400,6 +458,8 @@ function Dashboard({ summary, transactions, budgets, recurring, accounts, catego
   });
   const yearRows = summary?.yearly_cashflow ?? [];
   const categoryRows = summary?.expenses_by_category ?? [];
+  const wealthByGroup = (summary?.balance_by_group ?? []).filter((row) => Math.abs(row.signed_amount) > 0);
+  const accountBalances = summary?.account_balances ?? [];
   const savingRate = summary && summary.income > 0 ? Math.round((summary.net / summary.income) * 100) : 0;
   const subscriptionExpenses = recurring.filter((r) => r.active && r.type === 'expense').reduce((sum, r) => sum + r.amount, 0);
   const subscriptionIncomes = recurring.filter((r) => r.active && r.type === 'income').reduce((sum, r) => sum + r.amount, 0);
@@ -410,20 +470,19 @@ function Dashboard({ summary, transactions, budgets, recurring, accounts, catego
   const budgetLimit = budgets.reduce((sum, b) => sum + b.amount_limit, 0);
   const budgetUsed = summary?.expenses ?? 0;
   const budgetPct = budgetLimit > 0 ? Math.min(100, (budgetUsed / budgetLimit) * 100) : 0;
-  const accountRows = accounts.map((account) => {
-    const outgoing = transactions.filter((t) => t.account_id === account.id).reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
-    const incoming = transactions.filter((t) => t.type === 'transfer' && t.to_account_id === account.id).reduce((sum, t) => sum + t.amount, 0);
-    return { name: account.name, value: outgoing + incoming };
-  });
+  const accountRows = accountBalances.map((account) => ({ name: account.name, value: account.signed_balance, group: account.group_label }));
   const topExpenses = transactions
     .filter((t) => t.type === 'expense')
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5);
+  const alerts = buildAccountAlerts(accountBalances, summary?.balance_assets ?? 0);
 
   return (
     <>
       <section className="stats">
-        <Stat icon={<Wallet />} label="Solde estimé" value={money(summary?.balance ?? 0)} />
+        <Stat icon={<Wallet />} label="Patrimoine net" value={money(summary?.net_worth ?? summary?.balance ?? 0)} />
+        <Stat icon={<ArrowUpCircle />} label="Actifs" value={money(summary?.balance_assets ?? 0)} positive />
+        <Stat icon={<ArrowDownCircle />} label="Passifs" value={money(summary?.balance_liabilities ?? 0)} negative />
         <Stat icon={<ArrowUpCircle />} label="Revenus" value={money(summary?.income ?? 0)} positive />
         <Stat icon={<ArrowDownCircle />} label="Dépenses" value={money(summary?.expenses ?? 0)} negative />
         <Stat icon={<Euro />} label="Net mensuel" value={money(summary?.net ?? 0)} />
@@ -507,6 +566,44 @@ function Dashboard({ summary, transactions, budgets, recurring, accounts, catego
         </Panel>
       </section>
 
+      <section className="charts-grid">
+        <Panel title="Répartition du patrimoine">
+          <div className="chart-split">
+            <div className="donut-area">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={wealthByGroup} dataKey="amount" nameKey="label" innerRadius="58%" outerRadius="86%" paddingAngle={2}>
+                    {wealthByGroup.map((row) => <Cell key={row.group} fill={accountGroupColor(row.group)} />)}
+                  </Pie>
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="category-list compact">
+              {wealthByGroup.map((row) => (
+                <div className="category-row" key={row.group}>
+                  <span className="dot" style={{ background: accountGroupColor(row.group) }} />
+                  <span>{row.label}</span>
+                  <strong className={row.is_liability ? 'expense' : ''}>{row.is_liability ? '-' : ''}{money(row.amount)}</strong>
+                </div>
+              ))}
+              {wealthByGroup.length === 0 && <p className="empty">Aucun solde à répartir.</p>}
+            </div>
+          </div>
+        </Panel>
+        <Panel title="Alertes comptes">
+          <div className="alert-list">
+            {alerts.map((alert) => (
+              <div className={`account-alert ${alert.tone}`} key={alert.title}>
+                <strong>{alert.title}</strong>
+                <span>{alert.detail}</span>
+              </div>
+            ))}
+            {alerts.length === 0 && <p className="empty">Aucune alerte sur les comptes.</p>}
+          </div>
+        </Panel>
+      </section>
+
       <section className="grid">
         <Panel title="Tendance annuelle">
           <div className="chart-area small">
@@ -549,7 +646,7 @@ function Dashboard({ summary, transactions, budgets, recurring, accounts, catego
       </section>
 
       <section className="charts-grid">
-        <Panel title="Mouvements par compte">
+        <Panel title="Soldes par compte">
           <div className="chart-area small">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={accountRows} layout="vertical" margin={{ top: 8, right: 8, left: 16, bottom: 0 }}>
@@ -557,7 +654,7 @@ function Dashboard({ summary, transactions, budgets, recurring, accounts, catego
                 <XAxis type="number" tickFormatter={(value) => `${value}€`} tickLine={false} axisLine={false} />
                 <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={100} />
                 <Tooltip formatter={(value) => money(Number(value))} />
-                <Bar dataKey="value" name="Mouvement" fill={netColor} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="value" name="Solde" fill={netColor} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -568,6 +665,61 @@ function Dashboard({ summary, transactions, budgets, recurring, accounts, catego
       </section>
     </>
   );
+}
+
+function buildAccountAlerts(accountBalances: DashboardSummary['account_balances'], totalAssets: number) {
+  const alerts: Array<{ title: string; detail: string; tone: 'info' | 'warning' | 'danger' }> = [];
+  const checking = accountBalances
+    .filter((a) => a.type === 'checking')
+    .reduce((sum, a) => sum + a.balance, 0);
+  if (checking > 3000) {
+    alerts.push({
+      title: 'Cash élevé sur compte courant',
+      detail: `${money(checking)} restent sur compte courant. Une partie pourrait être fléchée vers livret ou investissement.`,
+      tone: 'info',
+    });
+  }
+
+  const ceilings: Partial<Record<AccountType, number>> = {
+    livret_a: 22950,
+    ldds: 12000,
+    lep: 10000,
+  };
+  for (const account of accountBalances) {
+    const ceiling = ceilings[account.type];
+    if (!ceiling) continue;
+    const pct = account.balance / ceiling;
+    if (pct >= 0.9) {
+      alerts.push({
+        title: `${account.name} proche du plafond`,
+        detail: `${money(account.balance)} / ${money(ceiling)} (${Math.round(pct * 100)} %).`,
+        tone: pct >= 1 ? 'danger' : 'warning',
+      });
+    }
+  }
+
+  const crypto = accountBalances
+    .filter((a) => a.type === 'crypto')
+    .reduce((sum, a) => sum + a.balance, 0);
+  if (totalAssets > 0 && crypto / totalAssets >= 0.15) {
+    alerts.push({
+      title: 'Crypto élevée dans le patrimoine',
+      detail: `${Math.round((crypto / totalAssets) * 100)} % des actifs sont en crypto.`,
+      tone: 'warning',
+    });
+  }
+
+  const liabilities = accountBalances
+    .filter((a) => a.is_liability)
+    .reduce((sum, a) => sum + a.balance, 0);
+  if (liabilities > 0) {
+    alerts.push({
+      title: 'Passifs à suivre',
+      detail: `${money(liabilities)} de crédits/emprunts sont intégrés au patrimoine net.`,
+      tone: 'info',
+    });
+  }
+  return alerts;
 }
 
 function Transactions({ userId, transactions, accounts, categories, categoryById, accountById, run }: {
@@ -583,19 +735,28 @@ function Transactions({ userId, transactions, accounts, categories, categoryById
   const [type, setType] = useState<TransactionType>('expense');
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
+  const [filterAccountGroup, setFilterAccountGroup] = useState('all');
   const filteredCategories = categories.filter((c) => c.type === type || type === 'transfer');
   const filteredTransactions = transactions.filter((t) => {
+    const sourceAccount = accountById.get(t.account_id ?? -1);
+    const destinationAccount = accountById.get(t.to_account_id ?? -1);
+    const groups = [
+      sourceAccount ? accountTypeGroup(sourceAccount.type) : null,
+      destinationAccount ? accountTypeGroup(destinationAccount.type) : null,
+    ];
     const haystack = [
       t.description,
       typeLabel(t.type),
-      accountById.get(t.account_id ?? -1)?.name,
-      accountById.get(t.to_account_id ?? -1)?.name,
+      sourceAccount?.name,
+      destinationAccount?.name,
       categoryById.get(t.category_id ?? -1)?.name,
       money(t.amount),
       String(t.amount),
       new Date(t.date).toLocaleDateString('fr-FR'),
     ].filter(Boolean).join(' ').toLowerCase();
-    return (filterType === 'all' || t.type === filterType) && haystack.includes(query.trim().toLowerCase());
+    return (filterType === 'all' || t.type === filterType)
+      && (filterAccountGroup === 'all' || groups.includes(filterAccountGroup))
+      && haystack.includes(query.trim().toLowerCase());
   });
   const txTotals = filteredTransactions.reduce((acc, t) => {
     if (t.type === 'income') acc.income += t.amount;
@@ -671,6 +832,10 @@ function Transactions({ userId, transactions, accounts, categories, categoryById
             <option value="income">Revenus</option>
             <option value="transfer">Transferts</option>
           </select>
+          <select value={filterAccountGroup} onChange={(e) => setFilterAccountGroup(e.target.value)}>
+            <option value="all">Tous les comptes</option>
+            {accountGroupOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
         </div>
         <div className="tx-summary">
           <span><strong>{filteredTransactions.length}</strong> lignes</span>
@@ -692,17 +857,25 @@ function Transactions({ userId, transactions, accounts, categories, categoryById
 }
 
 function Accounts({ userId, accounts, institutions, snapshots, institutionById, run }: { userId: number; accounts: Account[]; institutions: Institution[]; snapshots: AccountSnapshot[]; institutionById: Map<number, Institution>; run: (fn: () => Promise<unknown>, message?: string) => Promise<void> }) {
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    void run(() => api.createAccount(userId, {
+    const body = {
       institution_id: numberOrNull(data.get('institution_id')),
       name: String(data.get('name')),
       type: String(data.get('type')) as Account['type'],
       currency: String(data.get('currency') || 'EUR'),
       initial_balance: Number(data.get('initial_balance') || 0),
       initial_balance_date: String(data.get('initial_balance_date')),
-    }));
+    };
+    if (editingAccount) {
+      void run(() => api.updateAccount(userId, editingAccount.id, body), 'Compte modifié');
+      setEditingAccount(null);
+    } else {
+      void run(() => api.createAccount(userId, body));
+    }
     event.currentTarget.reset();
   };
 
@@ -729,15 +902,16 @@ function Accounts({ userId, accounts, institutions, snapshots, institutionById, 
             <button className="primary">Ajouter</button>
           </form>
         </Panel>
-        <Panel title="Nouveau compte">
-          <form className="form" onSubmit={submit}>
-            <label>Institution<select name="institution_id"><option value="">Aucune</option>{institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
-            <label>Nom<input name="name" required /></label>
-            <label>Type<select name="type"><option value="checking">Courant</option><option value="savings">Épargne</option><option value="cash">Espèces</option><option value="other">Autre</option></select></label>
-            <label>Devise<input name="currency" defaultValue="EUR" maxLength={3} required /></label>
-            <label>Solde initial<input name="initial_balance" type="number" step="0.01" defaultValue="0" /></label>
-            <label>Date initiale<input name="initial_balance_date" type="date" defaultValue={today} required /></label>
-            <button className="primary"><Landmark size={16} /> Ajouter</button>
+        <Panel title={editingAccount ? 'Modifier le compte' : 'Nouveau compte'}>
+          <form className="form" onSubmit={submit} key={editingAccount?.id ?? 'new-account'}>
+            <label>Institution<select name="institution_id" defaultValue={editingAccount?.institution_id ?? ''}><option value="">Aucune</option>{institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
+            <label>Nom<input name="name" defaultValue={editingAccount?.name ?? ''} required /></label>
+            <label>Type<select name="type" defaultValue={editingAccount?.type ?? 'checking'}>{accountTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            <label>Devise<input name="currency" defaultValue={editingAccount?.currency ?? 'EUR'} maxLength={3} required /></label>
+            <label>Solde initial<input name="initial_balance" type="number" step="0.01" defaultValue={editingAccount?.initial_balance ?? 0} /></label>
+            <label>Date initiale<input name="initial_balance_date" type="date" defaultValue={editingAccount?.initial_balance_date?.slice(0, 10) ?? today} required /></label>
+            <button className="primary"><Landmark size={16} /> {editingAccount ? 'Enregistrer' : 'Ajouter'}</button>
+            {editingAccount && <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>Annuler</button>}
           </form>
         </Panel>
         <Panel title="Snapshot de solde">
@@ -758,10 +932,13 @@ function Accounts({ userId, accounts, institutions, snapshots, institutionById, 
                 <tr key={a.id}>
                   <td><strong>{a.name}</strong><span>Depuis le {new Date(a.initial_balance_date).toLocaleDateString('fr-FR')}</span></td>
                   <td>{institutionById.get(a.institution_id ?? -1)?.name ?? 'Sans institution'}</td>
-                  <td>{a.type}</td>
+                  <td>{accountTypeLabel(a.type)}</td>
                   <td>{a.currency}</td>
                   <td className="amount-cell">{money(a.initial_balance)}</td>
-                  <td className="actions-cell"><IconButton label="Supprimer" confirm={`Supprimer le compte « ${a.name} » et toutes ses transactions ?`} onClick={() => void run(() => api.deleteAccount(userId, a.id), 'Compte supprimé')} /></td>
+                  <td className="actions-cell">
+                    <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditingAccount(a)} />
+                    <IconButton label="Supprimer" confirm={`Supprimer le compte « ${a.name} » et toutes ses transactions ?`} onClick={() => void run(() => api.deleteAccount(userId, a.id), 'Compte supprimé')} />
+                  </td>
                 </tr>
               ))}
             </tbody>
