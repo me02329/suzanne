@@ -166,7 +166,7 @@ export function Statistics({ userId, reportCurrency }: { userId: number; reportC
       </section>
 
       <section className="charts-grid">
-        <Panel title="Évolution mensuelle des dépenses">
+        <Panel title="Évolution mensuelle des dépenses — toutes catégories">
           <div className="chart-area">
             {monthly.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">

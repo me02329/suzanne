@@ -35,6 +35,8 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
   const [linking, setLinking] = useState<Transaction | null>(null);
   const [addType, setAddType] = useState<TransactionType>('expense');
   const [editType, setEditType] = useState<TransactionType>('expense');
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = usePersistedState<'all' | TransactionType>('tx_filter_type', 'all');
   const [filterAccountGroup, setFilterAccountGroup] = usePersistedState<string>('tx_filter_account_group', 'all');
@@ -80,6 +82,38 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
 
   const closeModal = () => setEditing(null);
 
+  const selectedTransactions = transactions.filter((t) => selectedIds.has(t.id));
+  const selectedCount = selectedTransactions.length;
+
+  const setTransactionSelected = (transactionId: number, selected: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (selected) next.add(transactionId);
+      else next.delete(transactionId);
+      return next;
+    });
+  };
+
+  const setVisibleTransactionsSelected = (selected: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const transaction of filteredTransactions) {
+        if (selected) next.add(transaction.id);
+        else next.delete(transaction.id);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const updateTransactionInline = (
+    transaction: Transaction,
+    patch: Partial<Pick<Transaction, 'account_id' | 'to_account_id' | 'category_id'>>,
+  ) => {
+    void run(() => api.updateTransaction(userId, transaction.id, patch), 'Transaction modifiée');
+  };
+
   const submitAdd = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -117,6 +151,27 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
       void run(() => api.createTransaction(userId, body), 'Transaction copiée');
     }
     closeModal();
+  };
+
+  const submitBulkEdit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (selectedTransactions.length === 0) return;
+    const data = new FormData(event.currentTarget);
+    const body: Partial<Pick<Transaction, 'account_id' | 'category_id'>> = {};
+    if (data.get('apply_account') === 'on') {
+      body.account_id = numberOrNull(data.get('account_id'));
+    }
+    if (data.get('apply_category') === 'on') {
+      body.category_id = numberOrNull(data.get('category_id'));
+    }
+    if (Object.keys(body).length === 0) return;
+    const ids = selectedTransactions.map((t) => t.id);
+    void run(
+      () => Promise.all(ids.map((id) => api.updateTransaction(userId, id, body))),
+      `${ids.length} transactions modifiées`,
+    );
+    setBulkEditing(false);
+    clearSelection();
   };
 
   const submitRecurringLink = (event: FormEvent<HTMLFormElement>) => {
@@ -183,10 +238,23 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
           <span className="expense">- {money(txTotals.expenses)}</span>
           <span className="transfer">{money(txTotals.transfers)} transférés</span>
         </div>
+        {selectedCount > 0 && (
+          <div className="bulk-bar">
+            <strong>{selectedCount} sélectionnée{selectedCount > 1 ? 's' : ''}</strong>
+            <button type="button" className="secondary" onClick={() => setBulkEditing(true)}>Modifier la sélection</button>
+            <button type="button" className="ghost-button" onClick={clearSelection}>Désélectionner</button>
+          </div>
+        )}
         <TransactionsTable
           transactions={filteredTransactions}
+          categories={categories}
+          accounts={accounts}
           categoryById={categoryById}
           accountById={accountById}
+          selectedIds={selectedIds}
+          onSelect={setTransactionSelected}
+          onSelectAll={setVisibleTransactionsSelected}
+          onInlineUpdate={updateTransactionInline}
           onEdit={startEdit}
           onCopy={copyTransaction}
           onLink={setLinking}
@@ -218,6 +286,34 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
             <label className="full">Description<input name="description" defaultValue={editing.description ?? ''} placeholder="Ex: Carrefour, salaire, loyer..." /></label>
             <button className="primary">{editing.id > 0 ? 'Enregistrer' : 'Créer la copie'}</button>
             <button type="button" className="secondary" onClick={closeModal}>Annuler</button>
+          </form>
+        </Modal>
+      )}
+
+      {bulkEditing && (
+        <Modal title={`Modifier ${selectedCount} transaction${selectedCount > 1 ? 's' : ''}`} onClose={() => setBulkEditing(false)}>
+          <form className="form" onSubmit={submitBulkEdit}>
+            <label className="bulk-field">
+              <span><input type="checkbox" name="apply_account" /> Changer le compte</span>
+              <select name="account_id">
+                <option value="">Sans compte</option>
+                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </label>
+            <label className="bulk-field">
+              <span><input type="checkbox" name="apply_category" /> Changer la catégorie</span>
+              <select name="category_id">
+                <option value="">Sans catégorie</option>
+                <optgroup label="Dépenses">
+                  {categories.filter((c) => c.type === 'expense').map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </optgroup>
+                <optgroup label="Revenus">
+                  {categories.filter((c) => c.type === 'income').map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </optgroup>
+              </select>
+            </label>
+            <button className="primary">Appliquer aux transactions sélectionnées</button>
+            <button type="button" className="secondary" onClick={() => setBulkEditing(false)}>Annuler</button>
           </form>
         </Modal>
       )}

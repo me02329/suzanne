@@ -102,7 +102,7 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     monthlyMap.set(monthCursor.toISOString().slice(0, 7), 0);
     monthCursor.setUTCMonth(monthCursor.getUTCMonth() + 1);
   }
-  for (const t of considered) {
+  for (const t of inRange) {
     const month = t.date.toISOString().slice(0, 7);
     monthlyMap.set(month, (monthlyMap.get(month) ?? 0) + txValue(t));
   }
