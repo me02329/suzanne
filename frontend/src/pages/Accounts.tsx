@@ -144,10 +144,10 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                                 type="number"
                                 step="0.01"
                                 inputMode="decimal"
-                                placeholder="—"
+                                placeholder={`en ${account.currency}`}
                                 value={snapshotInputs[account.id] ?? ''}
                                 onChange={(e) => setSnapshotInputs((current) => ({ ...current, [account.id]: e.target.value }))}
-                                aria-label={`Solde réel pour ${account.name}`}
+                                aria-label={`Solde réel pour ${account.name} en ${account.currency}`}
                               />
                             </td>
                           </tr>
