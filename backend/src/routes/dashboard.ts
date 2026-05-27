@@ -100,6 +100,10 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
       acc[row.group] = row.signed_amount;
       return acc;
     }, {});
+    const byAccount = accountBalances.reduce<Record<number, number>>((acc, row) => {
+      acc[row.account_id] = round2(row.signed_balance);
+      return acc;
+    }, {});
     return {
       date: dateKey(date),
       currency: reportCurrency,
@@ -107,6 +111,7 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
       liabilities: round2(liabilities),
       net_worth: round2(assets - liabilities),
       by_group: byGroup,
+      by_account: byAccount,
     };
   });
 

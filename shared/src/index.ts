@@ -240,6 +240,7 @@ export interface WealthHistoryPoint {
   liabilities: number;
   net_worth: number;
   by_group: Record<string, number>;
+  by_account: Record<number, number>;
 }
 
 export type StatisticsRange = '3m' | '6m' | '1y' | '2y' | 'all';

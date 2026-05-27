@@ -60,6 +60,10 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Bumped on every successful reload. Children that fetch derived data not
+  // covered by the main reload (e.g. Dashboard's wealth history) observe this
+  // to re-fetch after snapshots/transactions are created.
+  const [dataVersion, setDataVersion] = useState(0);
 
   // Version token: every reload bumps this; only the latest in-flight reload
   // is allowed to write into React state, so rapid month/currency/user changes
@@ -100,6 +104,7 @@ export default function App() {
       setRules(rls);
       setGoals(gls);
       setSnapshots(snaps);
+      setDataVersion((v) => v + 1);
     } finally {
       if (version === reloadVersion.current) setLoading(false);
     }
@@ -222,6 +227,7 @@ export default function App() {
             reportCurrency={reportCurrency}
             categoryById={categoryById}
             accountById={accountById}
+            dataVersion={dataVersion}
           />
         )}
         {tab === 'transactions' && userId && (

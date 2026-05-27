@@ -59,9 +59,17 @@ const incomeColor = '#15803d';
 const expenseColor = '#dc2626';
 const netColor = '#2563eb';
 
+// 12-color palette used when the wealth chart is broken down per account.
+// Repeats after 12 accounts (highly unusual for personal finance), with
+// roughly evenly spaced hues so adjacent series stay distinguishable.
+const ACCOUNT_PALETTE = [
+  '#2563eb', '#10b981', '#7c3aed', '#f59e0b', '#dc2626', '#0ea5e9',
+  '#84cc16', '#a855f7', '#f97316', '#ec4899', '#06b6d4', '#65a30d',
+];
+
 interface WealthSeriesEntry { key: string; label: string; color: string; width: number }
 
-export function Dashboard({ userId, summary, transactions, budgets, recurring, accounts, reportCurrency, categoryById, accountById }: {
+export function Dashboard({ userId, summary, transactions, budgets, recurring, accounts, reportCurrency, categoryById, accountById, dataVersion }: {
   userId: number | null;
   summary: DashboardSummary | null;
   transactions: Transaction[];
@@ -71,6 +79,9 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   reportCurrency: string;
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
+  // Increments after every successful App-level reload so the wealth-history
+  // fetch (which would otherwise miss snapshot/transaction changes) re-runs.
+  dataVersion: number;
 }) {
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, displayCurrency);
@@ -79,7 +90,11 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   const [wealthRange, setWealthRange] = usePersistedState('wealth_range', '12m');
   const [wealthGranularity, setWealthGranularity] = usePersistedState('wealth_granularity', 'month');
   const [wealthChartMode, setWealthChartMode] = usePersistedState<'area' | 'line'>('wealth_chart_mode', 'area');
-  const [wealthSeriesPref, setWealthSeriesPref] = usePersistedState<Record<string, boolean> | null>('wealth_series', null);
+  const [wealthViewMode, setWealthViewMode] = usePersistedState<'group' | 'account'>('wealth_view_mode', 'account');
+  // Two separate persisted preferences so toggling Group ↔ Account preserves
+  // each side's checkbox state independently.
+  const [wealthSeriesGroupPref, setWealthSeriesGroupPref] = usePersistedState<Record<string, boolean> | null>('wealth_series_groups', null);
+  const [wealthSeriesAccountPref, setWealthSeriesAccountPref] = usePersistedState<Record<string, boolean> | null>('wealth_series_accounts', null);
   const [wealthHistory, setWealthHistory] = useState<WealthHistoryPoint[]>([]);
   const [wealthLoading, setWealthLoading] = useState(false);
 
@@ -92,9 +107,45 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
       .catch(() => { if (!cancelled) setWealthHistory([]); })
       .finally(() => { if (!cancelled) setWealthLoading(false); });
     return () => { cancelled = true; };
-  }, [userId, wealthRange, wealthGranularity, reportCurrency]);
+  }, [userId, wealthRange, wealthGranularity, reportCurrency, dataVersion]);
+
+  // Series configuration depends on the active view mode. In account mode the
+  // list is dynamic (one entry per account) so we compute it from `accounts`.
+  const wealthSeriesConfig: WealthSeriesEntry[] = useMemo(() => {
+    if (wealthViewMode === 'account') {
+      return [
+        { key: 'net_worth', label: 'Total', color: '#111827', width: 3 },
+        ...accounts.map((account, idx) => ({
+          key: `account_${account.id}`,
+          label: account.name,
+          color: ACCOUNT_PALETTE[idx % ACCOUNT_PALETTE.length]!,
+          width: 2,
+        })),
+      ];
+    }
+    return [
+      { key: 'net_worth', label: 'Total', color: '#111827', width: 3 },
+      { key: 'assets', label: 'Actifs', color: '#16a34a', width: 2 },
+      { key: 'liabilities', label: 'Passifs', color: '#dc2626', width: 2 },
+      { key: 'cash', label: 'Liquidités', color: accountGroupColor('cash'), width: 2 },
+      { key: 'regulated_savings', label: 'Livrets', color: accountGroupColor('regulated_savings'), width: 2 },
+      { key: 'investments', label: 'Investissements', color: accountGroupColor('investments'), width: 2 },
+      { key: 'crypto', label: 'Crypto', color: accountGroupColor('crypto'), width: 2 },
+      { key: 'other', label: 'Autres', color: accountGroupColor('other'), width: 2 },
+    ];
+  }, [wealthViewMode, accounts]);
 
   const defaultWealthSeries = useMemo<Record<string, boolean>>(() => {
+    if (wealthViewMode === 'account') {
+      const balances = new Map((summary?.account_balances ?? []).map((a) => [a.account_id, a.balance]));
+      const defaults: Record<string, boolean> = { net_worth: true };
+      // Activate every account by default; if the user has many they can
+      // uncheck the ones they don't care about and the preference is persisted.
+      for (const account of accounts) {
+        defaults[`account_${account.id}`] = (balances.get(account.id) ?? 0) !== 0;
+      }
+      return defaults;
+    }
     const byGroupAmount = (group: string) =>
       (summary?.balance_by_group ?? []).find((row) => row.group === group)?.amount ?? 0;
     return {
@@ -107,22 +158,15 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
       crypto: byGroupAmount('crypto') > 0,
       other: byGroupAmount('other') > 0,
     };
-  }, [summary?.balance_assets, summary?.balance_liabilities, summary?.balance_by_group]);
+  }, [wealthViewMode, summary, accounts]);
+
+  const wealthSeriesPref = wealthViewMode === 'account' ? wealthSeriesAccountPref : wealthSeriesGroupPref;
   const wealthSeries = wealthSeriesPref ?? defaultWealthSeries;
   const toggleWealthSeries = (key: string) => {
-    setWealthSeriesPref({ ...wealthSeries, [key]: !wealthSeries[key] });
+    const next = { ...wealthSeries, [key]: !wealthSeries[key] };
+    if (wealthViewMode === 'account') setWealthSeriesAccountPref(next);
+    else setWealthSeriesGroupPref(next);
   };
-
-  const wealthSeriesConfig: WealthSeriesEntry[] = [
-    { key: 'net_worth', label: 'Total', color: '#111827', width: 3 },
-    { key: 'assets', label: 'Actifs', color: '#16a34a', width: 2 },
-    { key: 'liabilities', label: 'Passifs', color: '#dc2626', width: 2 },
-    { key: 'cash', label: 'Liquidités', color: accountGroupColor('cash'), width: 2 },
-    { key: 'regulated_savings', label: 'Livrets', color: accountGroupColor('regulated_savings'), width: 2 },
-    { key: 'investments', label: 'Investissements', color: accountGroupColor('investments'), width: 2 },
-    { key: 'crypto', label: 'Crypto', color: accountGroupColor('crypto'), width: 2 },
-    { key: 'other', label: 'Autres', color: accountGroupColor('other'), width: 2 },
-  ];
 
   let cumulativeNet = 0;
   const monthRows = (summary?.monthly_cashflow ?? []).map((row) => {
@@ -158,18 +202,26 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5);
   const alerts = buildAccountAlerts(accountBalances, summary?.balance_assets ?? 0, displayCurrency);
-  const wealthChartRows = wealthHistory.map((point) => ({
-    ...point,
-    label: wealthGranularity === 'day' || wealthGranularity === 'week'
-      ? new Date(`${point.date}T00:00:00.000Z`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
-      : formatMonth(point.date.slice(0, 7)),
-    cash: point.by_group.cash ?? 0,
-    regulated_savings: point.by_group.regulated_savings ?? 0,
-    investments: point.by_group.investments ?? 0,
-    crypto: point.by_group.crypto ?? 0,
-    liabilities_signed: point.by_group.liabilities ?? 0,
-    other: point.by_group.other ?? 0,
-  }));
+  const wealthChartRows = wealthHistory.map((point) => {
+    const row: Record<string, unknown> = {
+      ...point,
+      label: wealthGranularity === 'day' || wealthGranularity === 'week'
+        ? new Date(`${point.date}T00:00:00.000Z`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+        : formatMonth(point.date.slice(0, 7)),
+      cash: point.by_group.cash ?? 0,
+      regulated_savings: point.by_group.regulated_savings ?? 0,
+      investments: point.by_group.investments ?? 0,
+      crypto: point.by_group.crypto ?? 0,
+      liabilities_signed: point.by_group.liabilities ?? 0,
+      other: point.by_group.other ?? 0,
+    };
+    // Flatten by_account so recharts can read each `account_<id>` directly
+    // from the row instead of going through a nested object.
+    for (const [id, value] of Object.entries(point.by_account ?? {})) {
+      row[`account_${id}`] = value;
+    }
+    return row;
+  });
   const wealthHasData = wealthChartRows.length > 0;
   const cashflowHasData = monthRows.some((row) => row.income !== 0 || row.expenses !== 0);
   const categoryHasData = categoryRows.length > 0;
@@ -192,6 +244,10 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
         <section className="charts-grid">
           <Panel title="Évolution du patrimoine">
             <div className="panel-toolbar">
+              <select value={wealthViewMode} onChange={(e) => setWealthViewMode(e.target.value as 'group' | 'account')} aria-label="Découpage des séries">
+                <option value="account">Par compte</option>
+                <option value="group">Par groupe</option>
+              </select>
               <select value={wealthRange} onChange={(e) => setWealthRange(e.target.value)}>
                 <option value="1m">1 mois</option>
                 <option value="6m">6 mois</option>
