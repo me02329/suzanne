@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { idParam, monthString } from '../lib/validation.js';
+import { currencyQuery, idParam, monthString } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
+import { fetchExchangeRate, normalizeCurrency } from '../lib/fx.js';
 
 export const dashboardRouter = Router();
 
-type Tx = { type: string; amount: number; date: Date; category_id: number | null; account_id: number | null; to_account_id: number | null };
-type AccountRow = { id: number; name: string; type: string; initial_balance: number; initial_balance_date: Date };
+type Tx = { type: string; amount: number; to_amount: number | null; date: Date; category_id: number | null; account_id: number | null; to_account_id: number | null };
+type AccountRow = { id: number; name: string; type: string; currency: string; initial_balance: number; initial_balance_date: Date };
 
 // Effet d'une transaction sur le compte dont elle est la source (account_id).
 // Un transfert débite le compte source ; le crédit du compte destination est
@@ -19,6 +20,7 @@ function sourceDelta(t: { type: string; amount: number }): number {
 dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const month = monthString.parse(req.query.month ?? new Date().toISOString().slice(0, 7));
+  const reportCurrency = currencyQuery.parse(req.query.currency ?? 'EUR');
   const start = new Date(`${month}-01T00:00:00.000Z`);
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
 
@@ -28,12 +30,15 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
     prisma.category.findMany({ where: { user_id } }),
     prisma.accountSnapshot.findMany({ where: { user_id } }),
   ]);
+  const fx = await buildFx(accounts, reportCurrency);
+  const accountById = new Map(accounts.map((account) => [account.id, account]));
+  const txValue = (t: Tx) => round2(t.amount * (fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1));
 
   const monthTransactions = transactions.filter((t) => t.date >= start && t.date < end);
-  const income = monthTransactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const expenses = monthTransactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const income = monthTransactions.filter((t) => t.type === 'income').reduce((s, t) => s + txValue(t), 0);
+  const expenses = monthTransactions.filter((t) => t.type === 'expense').reduce((s, t) => s + txValue(t), 0);
 
-  const accountBalances = computeAccountBalances(accounts, transactions, snapshots);
+  const accountBalances = computeAccountBalances(accounts, transactions, snapshots, fx);
   const unassignedBalance = computeUnassignedBalance(transactions);
   const assets = accountBalances.filter((a) => !a.is_liability).reduce((s, a) => s + a.balance, 0) + unassignedBalance;
   const liabilities = accountBalances.filter((a) => a.is_liability).reduce((s, a) => s + a.balance, 0);
@@ -42,12 +47,14 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
 
   const byCategory = new Map<number | null, number>();
   for (const t of monthTransactions.filter((t) => t.type === 'expense')) {
-    byCategory.set(t.category_id, (byCategory.get(t.category_id) ?? 0) + t.amount);
+    byCategory.set(t.category_id, (byCategory.get(t.category_id) ?? 0) + txValue(t));
   }
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
   res.json({
     month,
+    currency: reportCurrency,
+    exchange_rates: Object.fromEntries(fx.entries()),
     income: round2(income),
     expenses: round2(expenses),
     net: round2(income - expenses),
@@ -57,8 +64,8 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
     net_worth: round2(netWorth),
     account_balances: accountBalances.map((a) => ({ ...a, balance: round2(a.balance), signed_balance: round2(a.signed_balance) })),
     balance_by_group: balanceByGroup,
-    monthly_cashflow: buildCashflow(transactions, start),
-    yearly_cashflow: buildYearlyCashflow(transactions),
+    monthly_cashflow: buildCashflow(transactions, start, accountById, fx),
+    yearly_cashflow: buildYearlyCashflow(transactions, accountById, fx),
     expenses_by_category: Array.from(byCategory.entries()).map(([category_id, amount]) => {
       const category = category_id ? categoryById.get(category_id) : null;
       return { category_id, name: category?.name ?? 'Sans catégorie', color: category?.color ?? '#9ca3af', amount: round2(amount) };
@@ -70,12 +77,14 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
   const user_id = idParam.parse(req.params.user_id);
   const range = String(req.query.range ?? '12m');
   const granularity = String(req.query.granularity ?? 'month');
+  const reportCurrency = currencyQuery.parse(req.query.currency ?? 'EUR');
 
   const [transactions, accounts, snapshots] = await Promise.all([
     prisma.transaction.findMany({ where: { user_id } }),
     prisma.account.findMany({ where: { user_id } }),
     prisma.accountSnapshot.findMany({ where: { user_id } }),
   ]);
+  const fx = await buildFx(accounts, reportCurrency);
 
   const today = startOfUtcDay(new Date());
   const firstDate = firstRelevantDate(accounts, transactions, snapshots) ?? today;
@@ -83,7 +92,7 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
   const dates = buildHistoryDates(from, today, granularity);
 
   const points = dates.map((date) => {
-    const accountBalances = computeAccountBalancesAt(accounts, transactions, snapshots, date);
+    const accountBalances = computeAccountBalancesAt(accounts, transactions, snapshots, date, fx);
     const unassignedBalance = computeUnassignedBalanceUntil(transactions, date);
     const assets = accountBalances.filter((a) => !a.is_liability).reduce((s, a) => s + a.balance, 0) + unassignedBalance;
     const liabilities = accountBalances.filter((a) => a.is_liability).reduce((s, a) => s + a.balance, 0);
@@ -93,6 +102,7 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
     }, {});
     return {
       date: dateKey(date),
+      currency: reportCurrency,
       assets: round2(assets),
       liabilities: round2(liabilities),
       net_worth: round2(assets - liabilities),
@@ -110,10 +120,12 @@ function computeAccountBalances(
   accounts: AccountRow[],
   transactions: Tx[],
   snapshots: Array<{ account_id: number; date: Date; balance: number }>,
+  fx: Map<string, number>,
 ): Array<{
   account_id: number;
   name: string;
   type: string;
+  currency: string;
   type_label: string;
   group: string;
   group_label: string;
@@ -136,14 +148,15 @@ function computeAccountBalances(
       .reduce((s, t) => s + sourceDelta(t), 0);
     const incoming = transactions
       .filter((t) => t.type === 'transfer' && t.to_account_id === account.id && t.date > since)
-      .reduce((s, t) => s + t.amount, 0);
-    const rawBalance = base + outgoing + incoming;
+      .reduce((s, t) => s + (t.to_amount ?? t.amount), 0);
+    const rawBalance = (base + outgoing + incoming) * (fx.get(account.currency) ?? 1);
     const isLiability = isLiabilityAccount(account.type);
     const balance = isLiability ? Math.abs(rawBalance) : rawBalance;
     return {
       account_id: account.id,
       name: account.name,
       type: account.type,
+      currency: account.currency,
       type_label: accountTypeLabel(account.type),
       group: accountTypeGroup(account.type),
       group_label: accountGroupLabel(accountTypeGroup(account.type)),
@@ -159,10 +172,11 @@ function computeAccountBalancesAt(
   transactions: Tx[],
   snapshots: Array<{ account_id: number; date: Date; balance: number }>,
   at: Date,
+  fx: Map<string, number>,
 ) {
   const snapshotsUntil = snapshots.filter((s) => s.date <= at);
   const transactionsUntil = transactions.filter((t) => t.date <= at);
-  return computeAccountBalances(accounts.filter((a) => a.initial_balance_date <= at), transactionsUntil, snapshotsUntil);
+  return computeAccountBalances(accounts.filter((a) => a.initial_balance_date <= at), transactionsUntil, snapshotsUntil, fx);
 }
 
 function computeUnassignedBalance(transactions: Tx[]): number {
@@ -305,7 +319,7 @@ function addMonths(date: Date, months: number): Date {
   return out;
 }
 
-function buildCashflow(transactions: Tx[], endMonth: Date) {
+function buildCashflow(transactions: Tx[], endMonth: Date, accountById: Map<number, AccountRow>, fx: Map<string, number>) {
   const buckets = new Map<string, { month: string; income: number; expenses: number; net: number }>();
   for (let i = 11; i >= 0; i -= 1) {
     const start = new Date(Date.UTC(endMonth.getUTCFullYear(), endMonth.getUTCMonth() - i, 1));
@@ -315,8 +329,9 @@ function buildCashflow(transactions: Tx[], endMonth: Date) {
   for (const t of transactions) {
     const bucket = buckets.get(t.date.toISOString().slice(0, 7));
     if (!bucket) continue;
-    if (t.type === 'income') bucket.income += t.amount;
-    if (t.type === 'expense') bucket.expenses += t.amount;
+    const value = t.amount * (fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1);
+    if (t.type === 'income') bucket.income += value;
+    if (t.type === 'expense') bucket.expenses += value;
     bucket.net = bucket.income - bucket.expenses;
   }
   return Array.from(buckets.values()).map((b) => ({
@@ -327,17 +342,28 @@ function buildCashflow(transactions: Tx[], endMonth: Date) {
   }));
 }
 
-function buildYearlyCashflow(transactions: Tx[]) {
+function buildYearlyCashflow(transactions: Tx[], accountById: Map<number, AccountRow>, fx: Map<string, number>) {
   const byYear = new Map<string, { year: string; income: number; expenses: number; net: number }>();
   for (const transaction of transactions) {
     const year = transaction.date.toISOString().slice(0, 4);
     const row = byYear.get(year) ?? { year, income: 0, expenses: 0, net: 0 };
-    if (transaction.type === 'income') row.income += transaction.amount;
-    if (transaction.type === 'expense') row.expenses += transaction.amount;
+    const value = transaction.amount * (fx.get(accountById.get(transaction.account_id ?? -1)?.currency ?? 'EUR') ?? 1);
+    if (transaction.type === 'income') row.income += value;
+    if (transaction.type === 'expense') row.expenses += value;
     row.net = row.income - row.expenses;
     byYear.set(year, row);
   }
   return Array.from(byYear.values())
     .map((r) => ({ year: r.year, income: round2(r.income), expenses: round2(r.expenses), net: round2(r.net) }))
     .sort((a, b) => a.year.localeCompare(b.year));
+}
+
+async function buildFx(accounts: AccountRow[], reportCurrency: string): Promise<Map<string, number>> {
+  const currencies = Array.from(new Set(['EUR', reportCurrency, ...accounts.map((account) => normalizeCurrency(account.currency))]));
+  const entries = await Promise.all(currencies.map(async (currency) => {
+    if (currency === reportCurrency) return [currency, 1] as const;
+    const quote = await fetchExchangeRate(currency, reportCurrency);
+    return [currency, quote.rate] as const;
+  }));
+  return new Map(entries);
 }

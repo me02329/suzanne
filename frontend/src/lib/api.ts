@@ -49,11 +49,14 @@ export const api = {
   createCategory: (userId: number, body: CreateCategoryBody) => http<Category>(`/users/${userId}/categories`, { method: 'POST', body: JSON.stringify(body) }),
   deleteCategory: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/categories/${id}`, { method: 'DELETE' }),
   transactions: (userId: number, month?: string) => http<Transaction[]>(`/users/${userId}/transactions${month ? `?month=${month}` : ''}`),
-  dashboard: (userId: number, month: string) => http<DashboardSummary>(`/users/${userId}/dashboard?month=${month}`),
-  wealthHistory: (userId: number, range: string, granularity: string) =>
-    http<WealthHistoryPoint[]>(`/users/${userId}/wealth-history?range=${encodeURIComponent(range)}&granularity=${encodeURIComponent(granularity)}`),
+  dashboard: (userId: number, month: string, currency = 'EUR') =>
+    http<DashboardSummary>(`/users/${userId}/dashboard?month=${month}&currency=${encodeURIComponent(currency)}`),
+  wealthHistory: (userId: number, range: string, granularity: string, currency = 'EUR') =>
+    http<WealthHistoryPoint[]>(`/users/${userId}/wealth-history?range=${encodeURIComponent(range)}&granularity=${encodeURIComponent(granularity)}&currency=${encodeURIComponent(currency)}`),
   createTransaction: (userId: number, body: CreateTransactionBody) => http<Transaction>(`/users/${userId}/transactions`, { method: 'POST', body: JSON.stringify(body) }),
   updateTransaction: (userId: number, id: number, body: Partial<CreateTransactionBody>) => http<Transaction>(`/users/${userId}/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  linkTransactionRecurring: (userId: number, id: number, body: { recurring_transaction_id: number | null; sync_description?: boolean; sync_amount?: boolean; sync_category_account?: boolean }) =>
+    http<Transaction>(`/users/${userId}/transactions/${id}/link-recurring`, { method: 'POST', body: JSON.stringify(body) }),
   deleteTransaction: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/transactions/${id}`, { method: 'DELETE' }),
   budgets: (userId: number, month?: string) => http<Budget[]>(`/users/${userId}/budgets${month ? `?month=${month}` : ''}`),
   setBudget: (userId: number, body: CreateBudgetBody) => http<Budget>(`/users/${userId}/budgets`, { method: 'POST', body: JSON.stringify(body) }),
@@ -72,7 +75,7 @@ export const api = {
   snapshots: (userId: number) => http<AccountSnapshot[]>(`/users/${userId}/account-snapshots`),
   setSnapshot: (userId: number, body: CreateAccountSnapshotBody) => http<AccountSnapshot>(`/users/${userId}/account-snapshots`, { method: 'POST', body: JSON.stringify(body) }),
   deleteSnapshot: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/account-snapshots/${id}`, { method: 'DELETE' }),
-  importCsv: (userId: number, body: { csv: string; account_id?: number | null }) => http<{ imported: number }>(`/users/${userId}/import.csv`, { method: 'POST', body: JSON.stringify(body) }),
+  importCsv: (userId: number, body: { csv: string; account_id?: number | null; date_format?: string; mapping?: { date: string; amount: string; description?: string | null; type?: string | null } }) => http<{ imported: number; skipped: number }>(`/users/${userId}/import.csv`, { method: 'POST', body: JSON.stringify(body) }),
   exportJsonUrl: (userId: number) => `${API_BASE}/users/${userId}/export.json`,
   exportCsvUrl: (userId: number) => `${API_BASE}/users/${userId}/transactions.csv`,
   search: (userId: number, q: string) => http<SearchResult[]>(`/users/${userId}/search?q=${encodeURIComponent(q)}`),

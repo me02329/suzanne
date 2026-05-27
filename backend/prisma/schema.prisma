@@ -141,7 +141,10 @@ model Transaction {
   account_id    Int?
   to_account_id Int?
   category_id   Int?
+  recurring_transaction_id Int?
   amount        Float
+  to_amount     Float?
+  exchange_rate Float?
   type          TransactionType
   date          DateTime        @db.Date
   description   String?
@@ -151,11 +154,13 @@ model Transaction {
   account    Account?  @relation("TxSource", fields: [account_id], references: [id], onDelete: SetNull)
   to_account Account?  @relation("TxDestination", fields: [to_account_id], references: [id], onDelete: SetNull)
   category   Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  recurring_transaction RecurringTransaction? @relation(fields: [recurring_transaction_id], references: [id], onDelete: SetNull)
 
   @@index([user_id, date])
   @@index([account_id])
   @@index([to_account_id])
   @@index([category_id])
+  @@index([recurring_transaction_id])
   @@map("transactions")
 }
 
@@ -193,6 +198,7 @@ model RecurringTransaction {
   user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   account  Account?  @relation(fields: [account_id], references: [id], onDelete: SetNull)
   category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  transactions Transaction[]
 
   @@index([user_id, active])
   @@map("recurring_transactions")

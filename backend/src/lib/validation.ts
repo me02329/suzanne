@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import { round2 } from './money.js';
+import { normalizeCurrency } from './fx.js';
 
 const amount = z.coerce.number().positive().transform(round2);
 const signedAmount = z.coerce.number().transform(round2);
+const currencyCode = z.string().trim().min(3).max(3).transform(normalizeCurrency);
 
 export const idParam = z.coerce.number().int().positive();
 export const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -31,7 +33,7 @@ export const createAccountSchema = z.object({
     'loan',
     'other',
   ]).default('checking'),
-  currency: z.string().trim().min(3).max(3).default('EUR'),
+  currency: currencyCode.default('EUR'),
   initial_balance: z.coerce.number().default(0).transform(round2),
   initial_balance_date: dateString,
 });
@@ -50,6 +52,7 @@ export const createTransactionSchema = z.object({
   to_account_id: z.coerce.number().int().positive().nullish(),
   category_id: z.coerce.number().int().positive().nullish(),
   amount,
+  to_amount: z.coerce.number().positive().transform(round2).nullish(),
   type: z.enum(['expense', 'income', 'transfer']),
   date: dateString,
   description: z.string().trim().max(500).nullish(),
@@ -66,10 +69,18 @@ export const updateTransactionSchema = z.object({
   to_account_id: z.coerce.number().int().positive().nullish(),
   category_id: z.coerce.number().int().positive().nullish(),
   amount,
+  to_amount: z.coerce.number().positive().transform(round2).nullish(),
   type: z.enum(['expense', 'income', 'transfer']),
   date: dateString,
   description: z.string().trim().max(500).nullish(),
 }).partial();
+
+export const linkRecurringSchema = z.object({
+  recurring_transaction_id: z.coerce.number().int().positive().nullable(),
+  sync_description: z.coerce.boolean().default(false),
+  sync_amount: z.coerce.boolean().default(false),
+  sync_category_account: z.coerce.boolean().default(true),
+});
 
 export const createBudgetSchema = z.object({
   category_id: z.coerce.number().int().positive(),
@@ -117,4 +128,13 @@ export const createAccountSnapshotSchema = z.object({
 export const csvImportSchema = z.object({
   csv: z.string().min(1),
   account_id: z.coerce.number().int().positive().nullish(),
+  date_format: z.enum(['auto', 'yyyy-mm-dd', 'dd/mm/yyyy', 'mm/dd/yyyy', 'dd-mm-yyyy', 'yyyymmdd']).default('auto'),
+  mapping: z.object({
+    date: z.string().min(1),
+    amount: z.string().min(1),
+    description: z.string().min(1).nullish(),
+    type: z.string().min(1).nullish(),
+  }).nullish(),
 });
+
+export const currencyQuery = currencyCode.default('EUR');

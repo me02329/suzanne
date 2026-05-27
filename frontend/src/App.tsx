@@ -121,8 +121,18 @@ const accountGroupOptions = [
   { value: 'other', label: 'Autres' },
 ];
 
-function money(value: number) {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value);
+const currencyOptions = [
+  { value: 'EUR', label: 'EUR - Euro' },
+  { value: 'JPY', label: 'JPY - Yen japonais' },
+  { value: 'USD', label: 'USD - Dollar US' },
+  { value: 'GBP', label: 'GBP - Livre sterling' },
+  { value: 'CHF', label: 'CHF - Franc suisse' },
+  { value: 'CAD', label: 'CAD - Dollar canadien' },
+  { value: 'AUD', label: 'AUD - Dollar australien' },
+];
+
+function money(value: number, currency = 'EUR') {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(value);
 }
 
 function formatMonth(month: string) {
@@ -178,6 +188,7 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [userId, setUserId] = useState<number | null>(null);
   const [month, setMonth] = useState(currentMonth);
+  const [reportCurrency, setReportCurrency] = useState(() => localStorage.getItem('suzanne_report_currency') ?? 'EUR');
   const [tab, setTab] = useState<Tab>('dashboard');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -210,7 +221,7 @@ export default function App() {
     setLoading(true);
     try {
       const [dash, txs, accs, insts, cats, bds, recs, rls, gls, snaps] = await Promise.all([
-        api.dashboard(userId, month),
+        api.dashboard(userId, month, reportCurrency),
         api.transactions(userId, month),
         api.accounts(userId),
         api.institutions(userId),
@@ -243,7 +254,11 @@ export default function App() {
   useEffect(() => {
     setError(null);
     reload().catch((e) => setError((e as Error).message));
-  }, [userId, month]);
+  }, [userId, month, reportCurrency]);
+
+  useEffect(() => {
+    localStorage.setItem('suzanne_report_currency', reportCurrency);
+  }, [reportCurrency]);
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -332,6 +347,9 @@ export default function App() {
             <select value={userId ?? ''} onChange={(e) => setUserId(Number(e.target.value))} aria-label="Utilisateur">
               {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
+            <select value={reportCurrency} onChange={(e) => setReportCurrency(e.target.value)} aria-label="Devise d'affichage">
+              {currencyOptions.map((option) => <option key={option.value} value={option.value}>{option.value}</option>)}
+            </select>
             <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mois" />
           </div>
         </header>
@@ -347,6 +365,7 @@ export default function App() {
           budgets={budgets}
           recurring={recurring}
           accounts={accounts}
+          reportCurrency={reportCurrency}
           categoryById={categoryById}
           accountById={accountById}
         />
@@ -355,6 +374,7 @@ export default function App() {
         <Transactions
           userId={userId}
           transactions={transactions}
+          recurring={recurring}
           accounts={accounts}
           categories={categories}
           categoryById={categoryById}
@@ -440,18 +460,21 @@ function SearchBox({ userId }: { userId: number }) {
   );
 }
 
-function Dashboard({ userId, summary, transactions, budgets, recurring, accounts, categoryById, accountById }: {
+function Dashboard({ userId, summary, transactions, budgets, recurring, accounts, reportCurrency, categoryById, accountById }: {
   userId: number | null;
   summary: DashboardSummary | null;
   transactions: Transaction[];
   budgets: Budget[];
   recurring: RecurringTransaction[];
   accounts: Account[];
+  reportCurrency: string;
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
 }) {
+  const money = (value: number) => window.Intl.NumberFormat('fr-FR', { style: 'currency', currency: summary?.currency ?? reportCurrency }).format(value);
   const [wealthRange, setWealthRange] = useState('12m');
   const [wealthGranularity, setWealthGranularity] = useState('month');
+  const [wealthChartMode, setWealthChartMode] = useState<'area' | 'line'>('area');
   const [wealthHistory, setWealthHistory] = useState<WealthHistoryPoint[]>([]);
   const [wealthSeries, setWealthSeries] = useState<Record<string, boolean>>({
     net_worth: true,
@@ -467,11 +490,11 @@ function Dashboard({ userId, summary, transactions, budgets, recurring, accounts
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    api.wealthHistory(userId, wealthRange, wealthGranularity)
+    api.wealthHistory(userId, wealthRange, wealthGranularity, reportCurrency)
       .then((rows) => { if (!cancelled) setWealthHistory(rows); })
       .catch(() => { if (!cancelled) setWealthHistory([]); });
     return () => { cancelled = true; };
-  }, [userId, wealthRange, wealthGranularity]);
+  }, [userId, wealthRange, wealthGranularity, reportCurrency]);
 
   let cumulativeNet = 0;
   const monthRows = (summary?.monthly_cashflow ?? []).map((row) => {
@@ -520,6 +543,16 @@ function Dashboard({ userId, summary, transactions, budgets, recurring, accounts
   const toggleWealthSeries = (key: string) => {
     setWealthSeries((current) => ({ ...current, [key]: !current[key] }));
   };
+  const wealthSeriesConfig = [
+    { key: 'net_worth', label: 'Total', color: '#111827', width: 3 },
+    { key: 'assets', label: 'Actifs', color: '#16a34a', width: 2 },
+    { key: 'liabilities', label: 'Passifs', color: '#dc2626', width: 2 },
+    { key: 'cash', label: 'Liquidités', color: accountGroupColor('cash'), width: 2 },
+    { key: 'regulated_savings', label: 'Livrets', color: accountGroupColor('regulated_savings'), width: 2 },
+    { key: 'investments', label: 'Investissements', color: accountGroupColor('investments'), width: 2 },
+    { key: 'crypto', label: 'Crypto', color: accountGroupColor('crypto'), width: 2 },
+    { key: 'other', label: 'Autres', color: accountGroupColor('other'), width: 2 },
+  ];
 
   return (
     <>
@@ -551,38 +584,44 @@ function Dashboard({ userId, summary, transactions, budgets, recurring, accounts
               <option value="week">Semaine</option>
               <option value="month">Mois</option>
             </select>
+            <select value={wealthChartMode} onChange={(e) => setWealthChartMode(e.target.value as 'area' | 'line')} aria-label="Type de graphique patrimoine">
+              <option value="area">Zones</option>
+              <option value="line">Lignes</option>
+            </select>
           </div>
           <div className="series-toggles">
-            {[
-              ['net_worth', 'Net'],
-              ['assets', 'Actifs'],
-              ['liabilities', 'Passifs'],
-              ['cash', 'Liquidités'],
-              ['regulated_savings', 'Livrets'],
-              ['investments', 'Investissements'],
-              ['crypto', 'Crypto'],
-              ['other', 'Autres'],
-            ].map(([key, label]) => (
+            {wealthSeriesConfig.map(({ key, label }) => (
               <label key={key}><input type="checkbox" checked={wealthSeries[key] ?? false} onChange={() => toggleWealthSeries(key)} /> {label}</label>
             ))}
           </div>
           <div className="chart-area">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={wealthChartRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <ComposedChart data={wealthChartRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke={chartGrid} vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                <YAxis tickFormatter={(value) => `${value}€`} tickLine={false} axisLine={false} width={54} />
+                <YAxis tickFormatter={(value) => money(Number(value))} tickLine={false} axisLine={false} width={80} />
                 <Tooltip formatter={(value) => money(Number(value))} />
                 <Legend />
-                {wealthSeries.net_worth && <Line type="monotone" dataKey="net_worth" name="Net" stroke="#111827" strokeWidth={3} dot={false} />}
-                {wealthSeries.assets && <Line type="monotone" dataKey="assets" name="Actifs" stroke="#16a34a" strokeWidth={2} dot={false} />}
-                {wealthSeries.liabilities && <Line type="monotone" dataKey="liabilities" name="Passifs" stroke="#dc2626" strokeWidth={2} dot={false} />}
-                {wealthSeries.cash && <Line type="monotone" dataKey="cash" name="Liquidités" stroke={accountGroupColor('cash')} strokeWidth={2} dot={false} />}
-                {wealthSeries.regulated_savings && <Line type="monotone" dataKey="regulated_savings" name="Livrets" stroke={accountGroupColor('regulated_savings')} strokeWidth={2} dot={false} />}
-                {wealthSeries.investments && <Line type="monotone" dataKey="investments" name="Investissements" stroke={accountGroupColor('investments')} strokeWidth={2} dot={false} />}
-                {wealthSeries.crypto && <Line type="monotone" dataKey="crypto" name="Crypto" stroke={accountGroupColor('crypto')} strokeWidth={2} dot={false} />}
-                {wealthSeries.other && <Line type="monotone" dataKey="other" name="Autres" stroke={accountGroupColor('other')} strokeWidth={2} dot={false} />}
-              </LineChart>
+                {wealthSeriesConfig.map(({ key, label, color, width }) => {
+                  if (!wealthSeries[key]) return null;
+                  if (wealthChartMode === 'area') {
+                    return (
+                      <Area
+                        key={key}
+                        type="monotone"
+                        dataKey={key}
+                        name={label}
+                        stroke={color}
+                        strokeWidth={width}
+                        fill={color}
+                        fillOpacity={key === 'net_worth' ? 0.2 : 0.14}
+                        dot={false}
+                      />
+                    );
+                  }
+                  return <Line key={key} type="monotone" dataKey={key} name={label} stroke={color} strokeWidth={width} dot={false} />;
+                })}
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </Panel>
@@ -593,7 +632,7 @@ function Dashboard({ userId, summary, transactions, budgets, recurring, accounts
               <ComposedChart data={monthRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke={chartGrid} vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                <YAxis tickFormatter={(value) => `${value}€`} tickLine={false} axisLine={false} width={48} />
+                <YAxis tickFormatter={(value) => money(Number(value))} tickLine={false} axisLine={false} width={80} />
                 <Tooltip formatter={(value) => money(Number(value))} />
                 <Legend />
                 <Bar dataKey="income" name="Revenus" fill={incomeColor} radius={[4, 4, 0, 0]} />
@@ -637,7 +676,7 @@ function Dashboard({ userId, summary, transactions, budgets, recurring, accounts
               <AreaChart data={monthRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke={chartGrid} vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                <YAxis tickFormatter={(value) => `${value}€`} tickLine={false} axisLine={false} width={48} />
+                <YAxis tickFormatter={(value) => money(Number(value))} tickLine={false} axisLine={false} width={80} />
                 <Tooltip formatter={(value) => money(Number(value))} />
                 <Area type="monotone" dataKey="cumulativeNet" name="Cumul net" stroke={netColor} fill="#dbeafe" strokeWidth={2} />
               </AreaChart>
@@ -705,7 +744,7 @@ function Dashboard({ userId, summary, transactions, budgets, recurring, accounts
               <LineChart data={yearRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke={chartGrid} vertical={false} />
                 <XAxis dataKey="year" tickLine={false} axisLine={false} />
-                <YAxis tickFormatter={(value) => `${value}€`} tickLine={false} axisLine={false} width={48} />
+                <YAxis tickFormatter={(value) => money(Number(value))} tickLine={false} axisLine={false} width={80} />
                 <Tooltip formatter={(value) => money(Number(value))} />
                 <Legend />
                 <Line type="monotone" dataKey="income" name="Revenus" stroke={incomeColor} strokeWidth={2} dot={{ r: 3 }} />
@@ -745,7 +784,7 @@ function Dashboard({ userId, summary, transactions, budgets, recurring, accounts
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={accountRows} layout="vertical" margin={{ top: 8, right: 8, left: 16, bottom: 0 }}>
                 <CartesianGrid stroke={chartGrid} horizontal={false} />
-                <XAxis type="number" tickFormatter={(value) => `${value}€`} tickLine={false} axisLine={false} />
+                <XAxis type="number" tickFormatter={(value) => money(Number(value))} tickLine={false} axisLine={false} />
                 <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={100} />
                 <Tooltip formatter={(value) => money(Number(value))} />
                 <Bar dataKey="value" name="Solde" fill={netColor} radius={[0, 4, 4, 0]} />
@@ -816,9 +855,10 @@ function buildAccountAlerts(accountBalances: DashboardSummary['account_balances'
   return alerts;
 }
 
-function Transactions({ userId, transactions, accounts, categories, categoryById, accountById, run }: {
+function Transactions({ userId, transactions, recurring, accounts, categories, categoryById, accountById, run }: {
   userId: number;
   transactions: Transaction[];
+  recurring: RecurringTransaction[];
   accounts: Account[];
   categories: Category[];
   categoryById: Map<number, Category>;
@@ -826,6 +866,7 @@ function Transactions({ userId, transactions, accounts, categories, categoryById
   run: (fn: () => Promise<unknown>, message?: string) => Promise<void>;
 }) {
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [linking, setLinking] = useState<Transaction | null>(null);
   const [type, setType] = useState<TransactionType>('expense');
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
@@ -844,7 +885,7 @@ function Transactions({ userId, transactions, accounts, categories, categoryById
       sourceAccount?.name,
       destinationAccount?.name,
       categoryById.get(t.category_id ?? -1)?.name,
-      money(t.amount),
+      money(t.amount, sourceAccount?.currency ?? 'EUR'),
       String(t.amount),
       new Date(t.date).toLocaleDateString('fr-FR'),
     ].filter(Boolean).join(' ').toLowerCase();
@@ -872,6 +913,20 @@ function Transactions({ userId, transactions, accounts, categories, categoryById
   const cancelEdit = () => {
     setEditing(null);
     setType('expense');
+  };
+
+  const submitRecurringLink = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!linking) return;
+    const data = new FormData(event.currentTarget);
+    const recurringId = numberOrNull(data.get('recurring_transaction_id'));
+    void run(() => api.linkTransactionRecurring(userId, linking.id, {
+      recurring_transaction_id: recurringId,
+      sync_description: data.get('sync_description') === 'on',
+      sync_amount: data.get('sync_amount') === 'on',
+      sync_category_account: data.get('sync_category_account') === 'on',
+    }), recurringId ? 'Transaction liée à la récurrence' : 'Lien récurrence retiré');
+    setLinking(null);
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -914,6 +969,24 @@ function Transactions({ userId, transactions, accounts, categories, categoryById
           {editing && <button type="button" className="secondary" onClick={cancelEdit}>Annuler</button>}
         </form>
       </Panel>
+      {linking && (
+        <Panel title="Lier à une récurrence">
+          <form className="form" onSubmit={submitRecurringLink}>
+            <label className="full">Transaction<input value={`${new Date(linking.date).toLocaleDateString('fr-FR')} - ${txLabel(linking, categoryById)}`} readOnly /></label>
+            <label className="full">Récurrence<select name="recurring_transaction_id" defaultValue={linking.recurring_transaction_id ?? ''}>
+              <option value="">Aucune</option>
+              {recurring.filter((r) => r.type === linking.type || linking.type === 'transfer').map((r) => (
+                <option key={r.id} value={r.id}>{r.description} - {money(r.amount, accountById.get(r.account_id ?? -1)?.currency ?? 'EUR')}</option>
+              ))}
+            </select></label>
+            <label><input type="checkbox" name="sync_category_account" defaultChecked /> Synchroniser compte / catégorie / type</label>
+            <label><input type="checkbox" name="sync_description" /> Renommer comme la récurrence</label>
+            <label><input type="checkbox" name="sync_amount" /> Remplacer le montant par celui de la récurrence</label>
+            <button className="primary">Lier</button>
+            <button type="button" className="secondary" onClick={() => setLinking(null)}>Annuler</button>
+          </form>
+        </Panel>
+      )}
       <Panel title="Historique du mois">
         <div className="table-tools">
           <div className="search-box inline">
@@ -943,6 +1016,7 @@ function Transactions({ userId, transactions, accounts, categories, categoryById
           accountById={accountById}
           onEdit={startEdit}
           onCopy={copyTransaction}
+          onLink={setLinking}
           onDelete={(t) => void run(() => api.deleteTransaction(userId, t.id), 'Transaction supprimée')}
         />
       </Panel>
@@ -1001,7 +1075,7 @@ function Accounts({ userId, accounts, institutions, snapshots, institutionById, 
             <label>Institution<select name="institution_id" defaultValue={editingAccount?.institution_id ?? ''}><option value="">Aucune</option>{institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
             <label>Nom<input name="name" defaultValue={editingAccount?.name ?? ''} required /></label>
             <label>Type<select name="type" defaultValue={editingAccount?.type ?? 'checking'}>{accountTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-            <label>Devise<input name="currency" defaultValue={editingAccount?.currency ?? 'EUR'} maxLength={3} required /></label>
+            <label>Devise<select name="currency" defaultValue={editingAccount?.currency ?? 'EUR'} required>{currencyOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
             <label>Solde initial<input name="initial_balance" type="number" step="0.01" defaultValue={editingAccount?.initial_balance ?? 0} /></label>
             <label>Date initiale<input name="initial_balance_date" type="date" defaultValue={editingAccount?.initial_balance_date?.slice(0, 10) ?? today} required /></label>
             <button className="primary"><Landmark size={16} /> {editingAccount ? 'Enregistrer' : 'Ajouter'}</button>
@@ -1263,13 +1337,133 @@ function Rules({ userId, rules, categories, categoryById, run }: { userId: numbe
 
 function Tools({ userId, accounts, run }: { userId: number; accounts: Account[]; run: (fn: () => Promise<unknown>, message?: string) => Promise<void> }) {
   const [csv, setCsv] = useState('');
+  const preview = useMemo(() => parseCsvPreview(csv), [csv]);
+  const [mapping, setMapping] = useState({ date: '', amount: '', description: '', type: '' });
+
+  useEffect(() => {
+    if (preview.headers.length === 0) return;
+    setMapping((current) => ({
+      date: current.date || guessColumn(preview.headers, ['dateOp', 'dateVal', 'date']),
+      amount: current.amount || guessColumn(preview.headers, ['amount', 'montant']),
+      description: current.description || guessColumn(preview.headers, ['label', 'suggestedLabel', 'description', 'comment']),
+      type: current.type || guessColumn(preview.headers, ['type']),
+    }));
+  }, [preview.headers.join('|')]);
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    void run(() => api.importCsv(userId, { csv, account_id: numberOrNull(data.get('account_id')) }), 'CSV importé');
+    void run(() => api.importCsv(userId, {
+      csv,
+      account_id: numberOrNull(data.get('account_id')),
+      date_format: String(data.get('date_format') || 'auto'),
+      mapping: {
+        date: mapping.date,
+        amount: mapping.amount,
+        description: mapping.description || null,
+        type: mapping.type || null,
+      },
+    }), 'CSV importé');
     setCsv('');
   };
-  return <section className="split"><Panel title="Importer CSV"><form className="form" onSubmit={submit}><label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label className="full">CSV<textarea value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={'date,type,amount,description\\n2026-05-24,expense,12.50,Courses'} required /></label><button className="primary">Importer</button></form></Panel><Panel title="Exporter"><div className="export-actions"><a className="secondary link-button" href={api.exportCsvUrl(userId)}>Télécharger transactions CSV</a><a className="secondary link-button" href={api.exportJsonUrl(userId)}>Télécharger sauvegarde JSON</a></div></Panel></section>;
+
+  const columnSelect = (key: keyof typeof mapping, label: string, required = false) => (
+    <label>{label}<select value={mapping[key]} onChange={(e) => setMapping((current) => ({ ...current, [key]: e.target.value }))} required={required}>
+      <option value="">Ignorer</option>
+      {preview.headers.map((header) => <option key={header} value={header}>{header}</option>)}
+    </select></label>
+  );
+
+  return (
+    <section className="split">
+      <Panel title="Importer CSV">
+        <form className="form" onSubmit={submit}>
+          <label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}</select></label>
+          <label>Format de date<select name="date_format" defaultValue="auto">
+            <option value="auto">Détection auto</option>
+            <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+            <option value="dd/mm/yyyy">DD/MM/YYYY</option>
+            <option value="mm/dd/yyyy">MM/DD/YYYY</option>
+            <option value="dd-mm-yyyy">DD-MM-YYYY</option>
+            <option value="yyyymmdd">YYYYMMDD</option>
+          </select></label>
+          <label className="full">CSV<textarea value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={'dateOp\\tdateVal\\tlabel\\tamount\\n2026-05-24\\t2026-05-24\\tCourses\\t-12,50'} required /></label>
+          {preview.headers.length > 0 && (
+            <>
+              <div className="form-section-title">Colonnes à importer</div>
+              {columnSelect('date', 'Date', true)}
+              {columnSelect('amount', 'Montant', true)}
+              {columnSelect('description', 'Libellé')}
+              {columnSelect('type', 'Type')}
+              <div className="table-wrap full">
+                <table className="tx-table">
+                  <thead><tr>{preview.headers.map((header) => <th key={header}>{header}</th>)}</tr></thead>
+                  <tbody>{preview.rows.slice(0, 5).map((row, idx) => <tr key={idx}>{preview.headers.map((header) => <td key={header}>{row[header] ?? ''}</td>)}</tr>)}</tbody>
+                </table>
+              </div>
+            </>
+          )}
+          <button className="primary" disabled={!mapping.date || !mapping.amount}>Importer</button>
+        </form>
+      </Panel>
+      <Panel title="Exporter">
+        <div className="export-actions"><a className="secondary link-button" href={api.exportCsvUrl(userId)}>Télécharger transactions CSV</a><a className="secondary link-button" href={api.exportJsonUrl(userId)}>Télécharger sauvegarde JSON</a></div>
+      </Panel>
+    </section>
+  );
+}
+
+function parseCsvPreview(csv: string): { headers: string[]; rows: Array<Record<string, string>> } {
+  const lines = csv.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length === 0) return { headers: [], rows: [] };
+  const delimiter = detectCsvDelimiter(lines[0]!);
+  const headers = splitCsvLine(lines[0]!, delimiter);
+  const rows = lines.slice(1, 8).map((line) => {
+    const cells = splitCsvLine(line, delimiter);
+    return headers.reduce<Record<string, string>>((row, header, idx) => {
+      row[header] = cells[idx] ?? '';
+      return row;
+    }, {});
+  });
+  return { headers, rows };
+}
+
+function detectCsvDelimiter(header: string): string {
+  return ['\t', ';', ','].map((delimiter) => ({ delimiter, count: header.split(delimiter).length })).sort((a, b) => b.count - a.count)[0]?.delimiter ?? ',';
+}
+
+function splitCsvLine(line: string, delimiter: string): string[] {
+  const cells: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else current += char;
+    } else if (char === '"') inQuotes = true;
+    else if (char === delimiter) {
+      cells.push(current.trim());
+      current = '';
+    } else current += char;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function guessColumn(headers: string[], candidates: string[]): string {
+  const normalized = new Map(headers.map((header) => [header.trim().toLowerCase().replace(/[^a-z0-9]/g, ''), header]));
+  for (const candidate of candidates) {
+    const header = normalized.get(candidate.trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+    if (header) return header;
+  }
+  return '';
 }
 
 function TransactionList({ transactions, categoryById, accountById }: {
@@ -1286,8 +1480,8 @@ function TransactionList({ transactions, categoryById, accountById }: {
             <span>{new Date(t.date).toLocaleDateString('fr-FR')} · {accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · {categoryById.get(t.category_id ?? -1)?.name ?? 'Sans catégorie'}</span>
           </div>
           {t.type === 'transfer'
-            ? <strong className="transfer">{money(t.amount)}</strong>
-            : <strong className={t.type === 'income' ? 'income' : 'expense'}>{t.type === 'income' ? '+' : '-'}{money(t.amount)}</strong>}
+            ? <strong className="transfer">{money(t.amount, accountById.get(t.account_id ?? -1)?.currency ?? 'EUR')} {'->'} {money(t.to_amount ?? t.amount, accountById.get(t.to_account_id ?? -1)?.currency ?? accountById.get(t.account_id ?? -1)?.currency ?? 'EUR')}</strong>
+            : <strong className={t.type === 'income' ? 'income' : 'expense'}>{t.type === 'income' ? '+' : '-'}{money(t.amount, accountById.get(t.account_id ?? -1)?.currency ?? 'EUR')}</strong>}
         </div>
       ))}
       {transactions.length === 0 && <p className="empty">Aucune transaction.</p>}
@@ -1304,12 +1498,13 @@ function DataTable({ children, empty }: { children: React.ReactNode; empty: stri
   );
 }
 
-function TransactionsTable({ transactions, categoryById, accountById, onEdit, onCopy, onDelete }: {
+function TransactionsTable({ transactions, categoryById, accountById, onEdit, onCopy, onLink, onDelete }: {
   transactions: Transaction[];
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
   onEdit: (transaction: Transaction) => void;
   onCopy: (transaction: Transaction) => void;
+  onLink: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
 }) {
   if (transactions.length === 0) return <p className="empty">Aucune transaction sur ce mois.</p>;
@@ -1330,8 +1525,13 @@ function TransactionsTable({ transactions, categoryById, accountById, onEdit, on
         <tbody>
           {transactions.map((t) => {
             const source = accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte';
+            const sourceAccount = accountById.get(t.account_id ?? -1);
             const destination = accountById.get(t.to_account_id ?? -1)?.name ?? 'Sans compte';
+            const destinationAccount = accountById.get(t.to_account_id ?? -1);
             const category = categoryById.get(t.category_id ?? -1);
+            const amountLabel = t.type === 'transfer'
+              ? `${money(t.amount, sourceAccount?.currency ?? 'EUR')} -> ${money(t.to_amount ?? t.amount, destinationAccount?.currency ?? sourceAccount?.currency ?? 'EUR')}`
+              : `${t.type === 'income' ? '+' : '-'}${money(t.amount, sourceAccount?.currency ?? 'EUR')}`;
             return (
               <tr key={t.id}>
                 <td className="nowrap">{new Date(t.date).toLocaleDateString('fr-FR')}</td>
@@ -1343,11 +1543,12 @@ function TransactionsTable({ transactions, categoryById, accountById, onEdit, on
                 <td>{t.type === 'transfer' ? `${source} -> ${destination}` : source}</td>
                 <td>{t.type === 'transfer' ? 'Transfert' : category?.name ?? 'Sans catégorie'}</td>
                 <td className={`amount-cell ${t.type === 'income' ? 'income' : t.type === 'expense' ? 'expense' : 'transfer'}`}>
-                  {t.type === 'transfer' ? '' : t.type === 'income' ? '+' : '-'}{money(t.amount)}
+                  {amountLabel}
                 </td>
                 <td className="actions-cell">
                   <IconButton label="Copier" tone="neutral" icon={<Copy size={16} />} onClick={() => onCopy(t)} />
                   <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => onEdit(t)} />
+                  <IconButton label={t.recurring_transaction_id ? 'Récurrence liée' : 'Lier récurrence'} tone="neutral" icon={<Repeat size={16} />} onClick={() => onLink(t)} />
                   <IconButton label="Supprimer" confirm="Supprimer cette transaction ?" onClick={() => onDelete(t)} />
                 </td>
               </tr>

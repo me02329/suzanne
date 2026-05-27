@@ -60,7 +60,10 @@ export interface Transaction {
   account_id: number | null;
   to_account_id: number | null;
   category_id: number | null;
+  recurring_transaction_id: number | null;
   amount: number;
+  to_amount: number | null;
+  exchange_rate: number | null;
   type: TransactionType;
   date: string;
   description: string | null;
@@ -145,6 +148,7 @@ export interface CreateTransactionBody {
   to_account_id?: number | null;
   category_id?: number | null;
   amount: number;
+  to_amount?: number | null;
   type: TransactionType;
   date: string;
   description?: string | null;
@@ -196,6 +200,8 @@ export interface SearchResult {
 
 export interface DashboardSummary {
   month: string;
+  currency: string;
+  exchange_rates: Record<string, number>;
   income: number;
   expenses: number;
   net: number;
@@ -207,6 +213,7 @@ export interface DashboardSummary {
     account_id: number;
     name: string;
     type: AccountType;
+    currency: string;
     type_label: string;
     group: string;
     group_label: string;
@@ -228,6 +235,7 @@ export interface DashboardSummary {
 
 export interface WealthHistoryPoint {
   date: string;
+  currency: string;
   assets: number;
   liabilities: number;
   net_worth: number;
