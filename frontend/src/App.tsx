@@ -970,7 +970,7 @@ function Transactions({ userId, transactions, recurring, accounts, categories, c
         </form>
       </Panel>
       {linking && (
-        <Panel title="Lier à une récurrence">
+        <Modal title="Lier à une récurrence" onClose={() => setLinking(null)}>
           <form className="form" onSubmit={submitRecurringLink}>
             <label className="full">Transaction<input value={`${new Date(linking.date).toLocaleDateString('fr-FR')} - ${txLabel(linking, categoryById)}`} readOnly /></label>
             <label className="full">Récurrence<select name="recurring_transaction_id" defaultValue={linking.recurring_transaction_id ?? ''}>
@@ -985,7 +985,7 @@ function Transactions({ userId, transactions, recurring, accounts, categories, c
             <button className="primary">Lier</button>
             <button type="button" className="secondary" onClick={() => setLinking(null)}>Annuler</button>
           </form>
-        </Panel>
+        </Modal>
       )}
       <Panel title="Historique du mois">
         <div className="table-tools">
@@ -1337,6 +1337,7 @@ function Rules({ userId, rules, categories, categoryById, run }: { userId: numbe
 
 function Tools({ userId, accounts, run }: { userId: number; accounts: Account[]; run: (fn: () => Promise<unknown>, message?: string) => Promise<void> }) {
   const [csv, setCsv] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
   const preview = useMemo(() => parseCsvPreview(csv), [csv]);
   const [mapping, setMapping] = useState({ date: '', amount: '', description: '', type: '' });
 
@@ -1365,6 +1366,7 @@ function Tools({ userId, accounts, run }: { userId: number; accounts: Account[];
       },
     }), 'CSV importé');
     setCsv('');
+    setImportOpen(false);
   };
 
   const columnSelect = (key: keyof typeof mapping, label: string, required = false) => (
@@ -1377,38 +1379,48 @@ function Tools({ userId, accounts, run }: { userId: number; accounts: Account[];
   return (
     <section className="split">
       <Panel title="Importer CSV">
-        <form className="form" onSubmit={submit}>
-          <label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}</select></label>
-          <label>Format de date<select name="date_format" defaultValue="auto">
-            <option value="auto">Détection auto</option>
-            <option value="yyyy-mm-dd">YYYY-MM-DD</option>
-            <option value="dd/mm/yyyy">DD/MM/YYYY</option>
-            <option value="mm/dd/yyyy">MM/DD/YYYY</option>
-            <option value="dd-mm-yyyy">DD-MM-YYYY</option>
-            <option value="yyyymmdd">YYYYMMDD</option>
-          </select></label>
-          <label className="full">CSV<textarea value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={'dateOp\\tdateVal\\tlabel\\tamount\\n2026-05-24\\t2026-05-24\\tCourses\\t-12,50'} required /></label>
-          {preview.headers.length > 0 && (
-            <>
-              <div className="form-section-title">Colonnes à importer</div>
-              {columnSelect('date', 'Date', true)}
-              {columnSelect('amount', 'Montant', true)}
-              {columnSelect('description', 'Libellé')}
-              {columnSelect('type', 'Type')}
-              <div className="table-wrap full">
-                <table className="tx-table">
-                  <thead><tr>{preview.headers.map((header) => <th key={header}>{header}</th>)}</tr></thead>
-                  <tbody>{preview.rows.slice(0, 5).map((row, idx) => <tr key={idx}>{preview.headers.map((header) => <td key={header}>{row[header] ?? ''}</td>)}</tr>)}</tbody>
-                </table>
-              </div>
-            </>
-          )}
-          <button className="primary" disabled={!mapping.date || !mapping.amount}>Importer</button>
-        </form>
+        <div className="export-actions">
+          <button className="primary" type="button" onClick={() => setImportOpen(true)}>
+            <Upload size={16} /> Importer CSV
+          </button>
+        </div>
       </Panel>
       <Panel title="Exporter">
         <div className="export-actions"><a className="secondary link-button" href={api.exportCsvUrl(userId)}>Télécharger transactions CSV</a><a className="secondary link-button" href={api.exportJsonUrl(userId)}>Télécharger sauvegarde JSON</a></div>
       </Panel>
+      {importOpen && (
+        <Modal title="Importer CSV" onClose={() => setImportOpen(false)} wide>
+          <form className="form" onSubmit={submit}>
+            <label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}</select></label>
+            <label>Format de date<select name="date_format" defaultValue="auto">
+              <option value="auto">Détection auto</option>
+              <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+              <option value="dd/mm/yyyy">DD/MM/YYYY</option>
+              <option value="mm/dd/yyyy">MM/DD/YYYY</option>
+              <option value="dd-mm-yyyy">DD-MM-YYYY</option>
+              <option value="yyyymmdd">YYYYMMDD</option>
+            </select></label>
+            <label className="full">CSV<textarea value={csv} onChange={(e) => setCsv(e.target.value)} placeholder={'dateOp\\tdateVal\\tlabel\\tamount\\n2026-05-24\\t2026-05-24\\tCourses\\t-12,50'} required /></label>
+            {preview.headers.length > 0 && (
+              <>
+                <div className="form-section-title">Colonnes à importer</div>
+                {columnSelect('date', 'Date', true)}
+                {columnSelect('amount', 'Montant', true)}
+                {columnSelect('description', 'Libellé')}
+                {columnSelect('type', 'Type')}
+                <div className="table-wrap full">
+                  <table className="tx-table">
+                    <thead><tr>{preview.headers.map((header) => <th key={header}>{header}</th>)}</tr></thead>
+                    <tbody>{preview.rows.slice(0, 5).map((row, idx) => <tr key={idx}>{preview.headers.map((header) => <td key={header}>{row[header] ?? ''}</td>)}</tr>)}</tbody>
+                  </table>
+                </div>
+              </>
+            )}
+            <button className="primary" disabled={!mapping.date || !mapping.amount}>Importer</button>
+            <button type="button" className="secondary" onClick={() => setImportOpen(false)}>Annuler</button>
+          </form>
+        </Modal>
+      )}
     </section>
   );
 }
@@ -1562,6 +1574,22 @@ function TransactionsTable({ transactions, categoryById, accountById, onEdit, on
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return <div className="panel"><h2>{title}</h2>{children}</div>;
+}
+
+function Modal({ title, children, onClose, wide = false }: { title: string; children: React.ReactNode; onClose: () => void; wide?: boolean }) {
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <div className={`modal${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <h2>{title}</h2>
+          <button className="icon-button neutral" type="button" aria-label="Fermer" onClick={onClose}>
+            <X size={16} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function Stat({ icon, label, value, positive, negative }: { icon: React.ReactNode; label: string; value: string; positive?: boolean; negative?: boolean }) {
