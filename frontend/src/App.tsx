@@ -21,6 +21,7 @@ import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
 import { SearchBox } from './components/SearchBox';
 import { Toast } from './components/Toast';
+import { Assistant } from './pages/Assistant';
 import { Dashboard } from './pages/Dashboard';
 import { Statistics } from './pages/Statistics';
 import { Transactions } from './pages/Transactions';
@@ -250,6 +251,9 @@ export default function App() {
             accountById={accountById}
             dataVersion={dataVersion}
           />
+        )}
+        {tab === 'assistant' && userId && (
+          <Assistant userId={userId} month={month} currency={reportCurrency} run={run} />
         )}
         {tab === 'transactions' && userId && (
           <Transactions

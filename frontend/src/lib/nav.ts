@@ -4,6 +4,7 @@ import {
   CreditCard,
   Landmark,
   LayoutDashboard,
+  MessageSquareText,
   PieChart,
   Repeat,
   Settings2,
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react';
 import type { SearchResult } from '@suzanne-lite/shared';
 
-export type Tab = 'dashboard' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'goals' | 'rules' | 'tools' | 'users';
+export type Tab = 'dashboard' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'goals' | 'rules' | 'tools' | 'users';
 
 export interface NavItem {
   tab: Tab;
@@ -30,6 +31,7 @@ export interface NavSection {
 
 export const navItems: NavItem[] = [
   { tab: 'dashboard', label: 'Vue générale', icon: React.createElement(LayoutDashboard, { size: 18 }) },
+  { tab: 'assistant', label: 'Assistant IA', icon: React.createElement(MessageSquareText, { size: 18 }) },
   { tab: 'transactions', label: 'Transactions', icon: React.createElement(CreditCard, { size: 18 }) },
   { tab: 'statistics', label: 'Statistiques', icon: React.createElement(PieChart, { size: 18 }) },
   { tab: 'accounts', label: 'Comptes', icon: React.createElement(Landmark, { size: 18 }) },
@@ -43,7 +45,7 @@ export const navItems: NavItem[] = [
 ];
 
 export const navSections: NavSection[] = [
-  { id: 'pilotage', label: 'Pilotage', items: navItems.filter((item) => ['dashboard', 'transactions', 'statistics', 'budgets', 'recurring'].includes(item.tab)) },
+  { id: 'pilotage', label: 'Pilotage', items: navItems.filter((item) => ['dashboard', 'assistant', 'transactions', 'statistics', 'budgets', 'recurring'].includes(item.tab)) },
   { id: 'structure', label: 'Structure', items: navItems.filter((item) => ['accounts', 'categories', 'goals', 'rules'].includes(item.tab)) },
   { id: 'admin', label: 'Administration', items: navItems.filter((item) => ['tools', 'users'].includes(item.tab)) },
 ];

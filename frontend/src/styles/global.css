@@ -875,6 +875,126 @@ select:focus, input:focus, textarea:focus {
   margin: 0;
 }
 
+.assistant-layout {
+  max-width: 980px;
+}
+
+.assistant-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.assistant-context {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.assistant-chat {
+  display: grid;
+  gap: 14px;
+  min-height: 420px;
+  max-height: calc(100vh - 310px);
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.assistant-message {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.assistant-message.user {
+  grid-template-columns: minmax(0, 1fr) 30px;
+}
+
+.assistant-message.user .assistant-avatar {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.assistant-message.user .assistant-bubble {
+  grid-column: 1;
+  justify-self: end;
+  background: var(--accent);
+  color: white;
+}
+
+.assistant-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: #1d4ed8;
+}
+
+.assistant-message.user .assistant-avatar {
+  background: var(--surface-muted);
+}
+
+.assistant-bubble {
+  width: fit-content;
+  max-width: min(720px, 100%);
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.assistant-bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.assistant-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.assistant-action {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.assistant-action strong {
+  color: #1e3a8a;
+}
+
+.assistant-action div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assistant-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.assistant-composer textarea {
+  min-height: 72px;
+}
+
+.spin-icon {
+  animation: spin 0.7s linear infinite;
+}
+
 /* Sticky left panel — only kicks in when the split layout actually has
    two columns (i.e. above the 860px responsive breakpoint). */
 @media (min-width: 861px) {
@@ -1033,6 +1153,7 @@ textarea {
   .toolbar { width: 100%; }
   .search-box { min-width: 0; }
   .stats, .grid, .charts-grid, .split, .chart-split { grid-template-columns: 1fr; }
+  .assistant-composer { grid-template-columns: 1fr; }
   .table-tools, .dashboard-metric { grid-template-columns: 1fr; }
   .budget { grid-template-columns: 1fr; }
   .cashflow { grid-template-columns: 1fr 1fr; }

@@ -1,6 +1,9 @@
 import type {
   Account,
   AccountSnapshot,
+  AiChatResponse,
+  AiConfirmResponse,
+  AiPendingAction,
   Budget,
   CategoryRule,
   Category,
@@ -85,4 +88,8 @@ export const api = {
   search: (userId: number, q: string) => http<SearchResult[]>(`/users/${userId}/search?q=${encodeURIComponent(q)}`),
   statistics: (userId: number, range: string, currency: string, excludeUncategorized: boolean) =>
     http<StatisticsSummary>(`/users/${userId}/statistics?range=${encodeURIComponent(range)}&currency=${encodeURIComponent(currency)}&exclude_uncategorized=${excludeUncategorized}`),
+  aiChat: (userId: number, body: { message: string; month: string; currency: string }) =>
+    http<AiChatResponse>(`/users/${userId}/ai/chat`, { method: 'POST', body: JSON.stringify(body) }),
+  confirmAiAction: (userId: number, action: AiPendingAction) =>
+    http<AiConfirmResponse>(`/users/${userId}/ai/confirm`, { method: 'POST', body: JSON.stringify({ action }) }),
 };
