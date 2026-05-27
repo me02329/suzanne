@@ -241,3 +241,74 @@ export interface WealthHistoryPoint {
   net_worth: number;
   by_group: Record<string, number>;
 }
+
+// ---------------------------------------------------------------------------
+// Account taxonomy: source of truth pour les types/groupes de comptes,
+// utilisée par le backend (calcul de soldes, search) et le frontend (forms,
+// dashboard, alertes). Ne pas dupliquer ailleurs.
+// ---------------------------------------------------------------------------
+
+export type AccountGroup = 'cash' | 'regulated_savings' | 'investments' | 'crypto' | 'liabilities' | 'other';
+
+export const ACCOUNT_TYPES: ReadonlyArray<{ value: AccountType; label: string; group: AccountGroup }> = [
+  { value: 'checking', label: 'Compte courant', group: 'cash' },
+  { value: 'cash', label: 'Espèces', group: 'cash' },
+  { value: 'savings', label: 'Épargne', group: 'regulated_savings' },
+  { value: 'livret_a', label: 'Livret A', group: 'regulated_savings' },
+  { value: 'ldds', label: 'LDDS', group: 'regulated_savings' },
+  { value: 'lep', label: 'LEP', group: 'regulated_savings' },
+  { value: 'pel', label: 'PEL', group: 'regulated_savings' },
+  { value: 'cel', label: 'CEL', group: 'regulated_savings' },
+  { value: 'pea', label: 'PEA', group: 'investments' },
+  { value: 'securities', label: 'Compte-titres', group: 'investments' },
+  { value: 'life_insurance', label: 'Assurance-vie', group: 'investments' },
+  { value: 'retirement', label: 'Retraite', group: 'investments' },
+  { value: 'crypto', label: 'Crypto', group: 'crypto' },
+  { value: 'credit', label: 'Carte / crédit', group: 'liabilities' },
+  { value: 'loan', label: 'Emprunt', group: 'liabilities' },
+  { value: 'other', label: 'Autre', group: 'other' },
+];
+
+export const ACCOUNT_GROUPS: ReadonlyArray<{ value: AccountGroup; label: string; color: string }> = [
+  { value: 'cash', label: 'Liquidités', color: '#2563eb' },
+  { value: 'regulated_savings', label: 'Livrets', color: '#10b981' },
+  { value: 'investments', label: 'Investissements', color: '#7c3aed' },
+  { value: 'crypto', label: 'Crypto', color: '#f59e0b' },
+  { value: 'liabilities', label: 'Passifs', color: '#dc2626' },
+  { value: 'other', label: 'Autres', color: '#64748b' },
+];
+
+const ACCOUNT_TYPE_INDEX = new Map(ACCOUNT_TYPES.map((entry) => [entry.value, entry]));
+const ACCOUNT_GROUP_INDEX = new Map(ACCOUNT_GROUPS.map((entry) => [entry.value, entry]));
+
+export function accountTypeLabel(type: AccountType): string {
+  return ACCOUNT_TYPE_INDEX.get(type)?.label ?? type;
+}
+
+export function accountTypeGroup(type: AccountType): AccountGroup {
+  return ACCOUNT_TYPE_INDEX.get(type)?.group ?? 'other';
+}
+
+export function accountGroupLabel(group: string): string {
+  return ACCOUNT_GROUP_INDEX.get(group as AccountGroup)?.label ?? group;
+}
+
+export function accountGroupColor(group: string): string {
+  return ACCOUNT_GROUP_INDEX.get(group as AccountGroup)?.color ?? '#64748b';
+}
+
+export const LIVRET_CEILINGS: Partial<Record<AccountType, number>> = {
+  livret_a: 22950,
+  ldds: 12000,
+  lep: 10000,
+};
+
+export const REPORT_CURRENCIES: ReadonlyArray<{ value: string; label: string }> = [
+  { value: 'EUR', label: 'EUR - Euro' },
+  { value: 'JPY', label: 'JPY - Yen japonais' },
+  { value: 'USD', label: 'USD - Dollar US' },
+  { value: 'GBP', label: 'GBP - Livre sterling' },
+  { value: 'CHF', label: 'CHF - Franc suisse' },
+  { value: 'CAD', label: 'CAD - Dollar canadien' },
+  { value: 'AUD', label: 'AUD - Dollar australien' },
+];
