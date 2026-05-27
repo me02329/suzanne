@@ -1,0 +1,189 @@
+import { useEffect, useState } from 'react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import type { StatisticsSummary } from '@suzanne-lite/shared';
+import { api } from '../lib/api';
+import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, truncate } from '../lib/format';
+import { usePersistedState } from '../lib/storage';
+import { EmptyChart } from '../components/EmptyChart';
+import { Panel } from '../components/Panel';
+
+const chartGrid = '#e8edf5';
+const expenseColor = '#dc2626';
+
+const RANGE_LABELS: Record<string, string> = {
+  '3m': '3 mois', '6m': '6 mois', '1y': '12 mois', '2y': '2 ans', all: 'Tout',
+};
+
+// "Statistiques" — long-range expense analytics that complement the
+// month-scoped dashboard.
+export function Statistics({ userId, reportCurrency }: { userId: number; reportCurrency: string }) {
+  const [range, setRange] = usePersistedState('stats_range', '1y');
+  const [excludeUncategorized, setExcludeUncategorized] = usePersistedState('stats_exclude_uncategorized', true);
+  const [data, setData] = useState<StatisticsSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    api.statistics(userId, range, reportCurrency, excludeUncategorized)
+      .then((row) => { if (!cancelled) setData(row); })
+      .catch((e) => { if (!cancelled) setError((e as Error).message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId, range, reportCurrency, excludeUncategorized]);
+
+  const currency = data?.currency ?? reportCurrency;
+  const money = (value: number) => moneyFmt(value, currency);
+  const moneyCompact = (value: number) => moneyCompactFmt(value, currency);
+
+  const byCategory = data?.by_category ?? [];
+  const byMerchant = data?.by_merchant ?? [];
+  const monthly = (data?.monthly ?? []).map((row) => ({ ...row, label: formatMonth(row.month) }));
+  const merchantRows = byMerchant.slice(0, 10).map((row) => ({ ...row, label: truncate(row.description, 28) }));
+
+  const totalDisplayed = excludeUncategorized ? (data?.total_categorized ?? 0) : (data?.total_expenses ?? 0);
+  const monthsCount = monthly.length;
+  const averagePerMonth = monthsCount > 0 ? totalDisplayed / monthsCount : 0;
+
+  return (
+    <>
+      <Panel title={`Statistiques — ${RANGE_LABELS[range] ?? range}`}>
+        <div className="panel-toolbar">
+          <select value={range} onChange={(e) => setRange(e.target.value)}>
+            <option value="3m">3 mois</option>
+            <option value="6m">6 mois</option>
+            <option value="1y">12 mois</option>
+            <option value="2y">2 ans</option>
+            <option value="all">Tout</option>
+          </select>
+          <label className="series-toggles inline">
+            <input type="checkbox" checked={excludeUncategorized} onChange={(e) => setExcludeUncategorized(e.target.checked)} /> Exclure non-catégorisé
+          </label>
+        </div>
+        <p className="panel-note">
+          {data
+            ? `${data.transactions_count} transactions du ${new Date(data.from).toLocaleDateString('fr-FR')} au ${new Date(data.to).toLocaleDateString('fr-FR')}.`
+            : loading
+              ? 'Chargement…'
+              : '—'}
+          {data && excludeUncategorized && data.total_uncategorized > 0 && (
+            <> <strong>{money(data.total_uncategorized)}</strong> exclus (non catégorisés).</>
+          )}
+        </p>
+        {error && <div className="error">{error}</div>}
+      </Panel>
+
+      <section className="stats">
+        <div className="stat">
+          <div className="stat-icon" />
+          <span>Dépenses sur la plage</span>
+          <strong className="expense">{money(totalDisplayed)}</strong>
+        </div>
+        <div className="stat">
+          <div className="stat-icon" />
+          <span>Moyenne mensuelle</span>
+          <strong>{money(averagePerMonth)}</strong>
+        </div>
+        <div className="stat">
+          <div className="stat-icon" />
+          <span>Catégories actives</span>
+          <strong>{byCategory.length}</strong>
+        </div>
+        <div className="stat">
+          <div className="stat-icon" />
+          <span>Mois couverts</span>
+          <strong>{monthsCount}</strong>
+        </div>
+      </section>
+
+      <section className="charts-grid">
+        <Panel title="Répartition par catégorie">
+          <div className="chart-split">
+            <div className="donut-area">
+              {byCategory.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={byCategory} dataKey="amount" nameKey="name" innerRadius="58%" outerRadius="86%" paddingAngle={2}>
+                      {byCategory.map((row) => <Cell key={row.category_id ?? row.name} fill={row.color} />)}
+                    </Pie>
+                    <Tooltip formatter={(value) => money(Number(value))} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyChart message="Aucune dépense sur cette plage." />
+              )}
+            </div>
+            <div className="category-list compact">
+              {byCategory.slice(0, 12).map((row) => (
+                <div className="category-row" key={row.category_id ?? row.name}>
+                  <span className="dot" style={{ background: row.color }} />
+                  <span>{row.name}</span>
+                  <strong>{money(row.amount)}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Top marchands">
+          <div className="chart-area">
+            {merchantRows.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={merchantRows} layout="vertical" margin={{ top: 8, right: 8, left: 16, bottom: 0 }}>
+                  <CartesianGrid stroke={chartGrid} horizontal={false} />
+                  <XAxis type="number" tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    width={170}
+                  />
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                  <Bar dataKey="amount" name="Cumul" fill={expenseColor} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart message="Aucun marchand identifiable. Ajoute des descriptions à tes transactions." />
+            )}
+          </div>
+        </Panel>
+      </section>
+
+      <section className="charts-grid">
+        <Panel title="Évolution mensuelle des dépenses">
+          <div className="chart-area">
+            {monthly.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={chartGrid} vertical={false} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                  <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                  <Line type="monotone" dataKey="amount" name="Dépenses" stroke={expenseColor} strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart message="Pas encore d'historique mensuel." />
+            )}
+          </div>
+        </Panel>
+      </section>
+    </>
+  );
+}

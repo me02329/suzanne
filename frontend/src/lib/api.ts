@@ -18,6 +18,7 @@ import type {
   RecurringTransaction,
   SavingsGoal,
   SearchResult,
+  StatisticsSummary,
   Transaction,
   User,
   WealthHistoryPoint,
@@ -47,6 +48,7 @@ export const api = {
   deleteInstitution: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/institutions/${id}`, { method: 'DELETE' }),
   categories: (userId: number) => http<Category[]>(`/users/${userId}/categories`),
   createCategory: (userId: number, body: CreateCategoryBody) => http<Category>(`/users/${userId}/categories`, { method: 'POST', body: JSON.stringify(body) }),
+  updateCategory: (userId: number, id: number, body: Partial<CreateCategoryBody>) => http<Category>(`/users/${userId}/categories/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteCategory: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/categories/${id}`, { method: 'DELETE' }),
   transactions: (userId: number, month?: string) => http<Transaction[]>(`/users/${userId}/transactions${month ? `?month=${month}` : ''}`),
   dashboard: (userId: number, month: string, currency = 'EUR') =>
@@ -79,4 +81,6 @@ export const api = {
   exportJsonUrl: (userId: number) => `${API_BASE}/users/${userId}/export.json`,
   exportCsvUrl: (userId: number) => `${API_BASE}/users/${userId}/transactions.csv`,
   search: (userId: number, q: string) => http<SearchResult[]>(`/users/${userId}/search?q=${encodeURIComponent(q)}`),
+  statistics: (userId: number, range: string, currency: string, excludeUncategorized: boolean) =>
+    http<StatisticsSummary>(`/users/${userId}/statistics?range=${encodeURIComponent(range)}&currency=${encodeURIComponent(currency)}&exclude_uncategorized=${excludeUncategorized}`),
 };

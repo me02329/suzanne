@@ -25,7 +25,8 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
   };
   return (
     <section className="split">
-      <Panel title="Nouvelle règle">
+      <Panel title="Nouvelle règle" sticky>
+        <p className="panel-note">Appliquées <strong>uniquement lors de l'import CSV</strong> : si le libellé d'une transaction contient le mot-clé, elle reçoit automatiquement la catégorie choisie. Inutile en saisie manuelle.</p>
         <form className="form" onSubmit={submit}>
           <label>Mot-clé<input name="pattern" placeholder="CARREFOUR" required /></label>
           <label>Catégorie<select name="category_id" required>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>

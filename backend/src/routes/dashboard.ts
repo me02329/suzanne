@@ -3,7 +3,7 @@ import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { currencyQuery, idParam, monthString } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
-import { fetchExchangeRate, normalizeCurrency } from '../lib/fx.js';
+import { buildFx } from '../lib/fxHelper.js';
 
 export const dashboardRouter = Router();
 
@@ -358,12 +358,3 @@ function buildYearlyCashflow(transactions: Tx[], accountById: Map<number, Accoun
     .sort((a, b) => a.year.localeCompare(b.year));
 }
 
-async function buildFx(accounts: AccountRow[], reportCurrency: string): Promise<Map<string, number>> {
-  const currencies = Array.from(new Set(['EUR', reportCurrency, ...accounts.map((account) => normalizeCurrency(account.currency))]));
-  const entries = await Promise.all(currencies.map(async (currency) => {
-    if (currency === reportCurrency) return [currency, 1] as const;
-    const quote = await fetchExchangeRate(currency, reportCurrency);
-    return [currency, quote.rate] as const;
-  }));
-  return new Map(entries);
-}

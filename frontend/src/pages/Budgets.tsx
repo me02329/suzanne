@@ -30,7 +30,8 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
   };
   return (
     <section className="split">
-      <Panel title={`Budget ${month}`}>
+      <Panel title={`Budget ${month}`} sticky>
+        <p className="panel-note">Limite mensuelle de dépense par catégorie. Ne bloque rien — sert juste de garde-fou visuel pour repérer les dépassements.</p>
         <form className="form" onSubmit={submit}>
           <label>Catégorie<select name="category_id" required>{expenseCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <label>Limite<input name="amount_limit" type="number" min="0.01" step="0.01" required /></label>

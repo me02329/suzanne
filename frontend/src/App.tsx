@@ -19,7 +19,9 @@ import { currentMonthIso } from './lib/format';
 import { navItems, navSections, type Tab } from './lib/nav';
 import { usePersistedState } from './lib/storage';
 import { SearchBox } from './components/SearchBox';
+import { Toast } from './components/Toast';
 import { Dashboard } from './pages/Dashboard';
+import { Statistics } from './pages/Statistics';
 import { Transactions } from './pages/Transactions';
 import { Accounts } from './pages/Accounts';
 import { Categories } from './pages/Categories';
@@ -116,13 +118,14 @@ export default function App() {
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   const institutionById = useMemo(() => new Map(institutions.map((i) => [i.id, i])), [institutions]);
 
+  // The Toast component handles its own auto-dismiss timer; we just keep the
+  // last error/notice in state and clear them when the toast tells us to.
   const run = async (fn: () => Promise<unknown>, message = 'Enregistré') => {
     try {
       setError(null);
       await fn();
       await reload();
       setNotice(message);
-      window.setTimeout(() => setNotice(null), 2500);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -134,7 +137,6 @@ export default function App() {
       await fn();
       await reloadUsers();
       setNotice(message);
-      window.setTimeout(() => setNotice(null), 2500);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -209,9 +211,6 @@ export default function App() {
           </div>
         </header>
 
-        {error && <div className="error">{error}</div>}
-        {notice && <div className="notice">{notice}</div>}
-
         {tab === 'dashboard' && (
           <Dashboard
             userId={userId}
@@ -236,6 +235,9 @@ export default function App() {
             accountById={accountById}
             run={run}
           />
+        )}
+        {tab === 'statistics' && userId && (
+          <Statistics userId={userId} reportCurrency={reportCurrency} />
         )}
         {tab === 'accounts' && userId && (
           <Accounts userId={userId} accounts={accounts} institutions={institutions} snapshots={snapshots} institutionById={institutionById} run={run} />
@@ -262,6 +264,11 @@ export default function App() {
           <UsersPage users={users} currentUserId={userId} run={runUsers} />
         )}
       </main>
+
+      <div className="toast-stack" aria-live="polite" aria-atomic="false">
+        {error && <Toast kind="error" message={error} onDismiss={() => setError(null)} />}
+        {notice && <Toast kind="success" message={notice} onDismiss={() => setNotice(null)} />}
+      </div>
     </div>
   );
 }

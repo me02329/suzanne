@@ -135,7 +135,7 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
 
   return (
     <section className="split">
-      <Panel title="Ajouter une transaction">
+      <Panel title="Ajouter une transaction" sticky>
         <form className="form" onSubmit={submitAdd}>
           <label>Type
             <select value={addType} onChange={(e) => setAddType(e.target.value as TransactionType)}>

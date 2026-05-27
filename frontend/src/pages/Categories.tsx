@@ -1,14 +1,17 @@
-import { FormEvent } from 'react';
-import { FolderTree } from 'lucide-react';
+import { FormEvent, useState } from 'react';
+import { FolderTree, Pencil } from 'lucide-react';
 import type { Category } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
+import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 
 type Run = (fn: () => Promise<unknown>, message?: string) => Promise<void>;
 
 export function Categories({ userId, categories, run }: { userId: number; categories: Category[]; run: Run }) {
+  const [editing, setEditing] = useState<Category | null>(null);
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -21,9 +24,22 @@ export function Categories({ userId, categories, run }: { userId: number; catego
     event.currentTarget.reset();
   };
 
+  const submitEdit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editing) return;
+    const data = new FormData(event.currentTarget);
+    void run(() => api.updateCategory(userId, editing.id, {
+      name: String(data.get('name')),
+      type: String(data.get('type')) as Category['type'],
+      color: String(data.get('color')),
+      icon: String(data.get('icon') || ''),
+    }), 'Catégorie mise à jour');
+    setEditing(null);
+  };
+
   return (
     <section className="split">
-      <Panel title="Nouvelle catégorie">
+      <Panel title="Nouvelle catégorie" sticky>
         <form className="form" onSubmit={submit}>
           <label>Nom<input name="name" required /></label>
           <label>Type<select name="type"><option value="expense">Dépense</option><option value="income">Revenu</option></select></label>
@@ -42,6 +58,7 @@ export function Categories({ userId, categories, run }: { userId: number; catego
                 <td><span className={`pill ${c.type}`}>{c.type === 'income' ? 'Revenu' : 'Dépense'}</span></td>
                 <td>{c.icon ?? '-'}</td>
                 <td className="actions-cell">
+                  <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(c)} />
                   <IconButton label="Supprimer" confirm={`Supprimer la catégorie « ${c.name} » ?`} onClick={() => void run(() => api.deleteCategory(userId, c.id), 'Catégorie supprimée')} />
                 </td>
               </tr>
@@ -49,6 +66,24 @@ export function Categories({ userId, categories, run }: { userId: number; catego
           </tbody>
         </DataTable>
       </Panel>
+
+      {editing && (
+        <Modal title={`Modifier « ${editing.name} »`} onClose={() => setEditing(null)}>
+          <form className="form" onSubmit={submitEdit} key={editing.id}>
+            <label>Nom<input name="name" defaultValue={editing.name} required /></label>
+            <label>Type
+              <select name="type" defaultValue={editing.type}>
+                <option value="expense">Dépense</option>
+                <option value="income">Revenu</option>
+              </select>
+            </label>
+            <label>Couleur<input name="color" type="color" defaultValue={editing.color} /></label>
+            <label>Icône<input name="icon" defaultValue={editing.icon ?? ''} placeholder="shopping-cart" /></label>
+            <button className="primary">Enregistrer</button>
+            <button type="button" className="secondary" onClick={() => setEditing(null)}>Annuler</button>
+          </form>
+        </Modal>
+      )}
     </section>
   );
 }

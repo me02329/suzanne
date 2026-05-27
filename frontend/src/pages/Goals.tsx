@@ -23,7 +23,8 @@ export function Goals({ userId, goals, run }: { userId: number; goals: SavingsGo
   };
   return (
     <section className="split">
-      <Panel title="Nouvel objectif">
+      <Panel title="Nouvel objectif" sticky>
+        <p className="panel-note">Compteur cumulatif vers une cible (épargne, voyage, achat…). Indépendant des comptes — c'est un compteur que tu mets à jour à la main.</p>
         <form className="form" onSubmit={submit}>
           <label>Nom<input name="name" required /></label>
           <label>Cible<input name="target_amount" type="number" min="0.01" step="0.01" required /></label>

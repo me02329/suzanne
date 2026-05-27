@@ -27,6 +27,18 @@ export function formatMonth(month: string) {
   return new Intl.DateTimeFormat('fr-FR', { month: 'short' }).format(date);
 }
 
+// "Mai 2026", used as the dashboard section header for the month-scoped block.
+export function formatMonthLong(month: string) {
+  const date = new Date(`${month}-01T00:00:00.000Z`);
+  const formatted = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(date);
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
+// Truncate long labels (account names, descriptions) for chart axes.
+export function truncate(label: string, max = 18): string {
+  return label.length > max ? `${label.slice(0, max - 1)}…` : label;
+}
+
 // today()/currentMonth() are functions (not constants) so a long-running tab
 // stays correct across midnight rollovers.
 export function todayIso(): string {

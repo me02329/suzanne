@@ -242,6 +242,23 @@ export interface WealthHistoryPoint {
   by_group: Record<string, number>;
 }
 
+export type StatisticsRange = '3m' | '6m' | '1y' | '2y' | 'all';
+
+export interface StatisticsSummary {
+  range: StatisticsRange;
+  currency: string;
+  from: string;
+  to: string;
+  exclude_uncategorized: boolean;
+  total_expenses: number;
+  total_categorized: number;
+  total_uncategorized: number;
+  transactions_count: number;
+  by_category: Array<{ category_id: number | null; name: string; color: string; amount: number; transactions_count: number }>;
+  by_merchant: Array<{ description: string; amount: number; transactions_count: number }>;
+  monthly: Array<{ month: string; amount: number }>;
+}
+
 // ---------------------------------------------------------------------------
 // Account taxonomy: source of truth pour les types/groupes de comptes,
 // utilisée par le backend (calcul de soldes, search) et le frontend (forms,
