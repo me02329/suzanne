@@ -29,6 +29,15 @@ snapshotsRouter.post('/users/:user_id/account-snapshots/batch', asyncHandler(asy
   const user_id = idParam.parse(req.params.user_id);
   const body = batchAccountSnapshotsSchema.parse(req.body);
   const date = new Date(body.date);
+  // Snapshot which account_ids already have a row for that exact date,
+  // *before* the upsert, so we can report created vs updated counts.
+  const accountIds = body.balances.map((b) => b.account_id);
+  const existing = await prisma.accountSnapshot.findMany({
+    where: { user_id, date, account_id: { in: accountIds } },
+    select: { account_id: true },
+  });
+  const existingAccountIds = new Set(existing.map((e) => e.account_id));
+
   const rows = await prisma.$transaction(
     body.balances.map((entry) =>
       prisma.accountSnapshot.upsert({
@@ -38,7 +47,9 @@ snapshotsRouter.post('/users/:user_id/account-snapshots/batch', asyncHandler(asy
       }),
     ),
   );
-  res.status(201).json({ saved: rows.length });
+  const updated = body.balances.filter((b) => existingAccountIds.has(b.account_id)).length;
+  const created = rows.length - updated;
+  res.status(201).json({ saved: rows.length, created, updated });
 }));
 
 snapshotsRouter.delete('/users/:user_id/account-snapshots/:id', asyncHandler(async (req, res) => {

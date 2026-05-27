@@ -8,7 +8,7 @@ import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Panel } from '../components/Panel';
 
-type Run = (fn: () => Promise<unknown>, message?: string) => Promise<void>;
+import type { Run } from '../lib/run';
 
 export function Recurring({ userId, recurring, accounts, categories, categoryById, accountById, run }: {
   userId: number;

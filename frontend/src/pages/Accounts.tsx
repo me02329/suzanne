@@ -17,7 +17,7 @@ import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Panel } from '../components/Panel';
 
-type Run = (fn: () => Promise<unknown>, message?: string) => Promise<void>;
+import type { Run } from '../lib/run';
 
 export function Accounts({ userId, accounts, institutions, snapshots, institutionById, summary, run }: {
   userId: number;
@@ -62,7 +62,13 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
     if (balances.length === 0) return;
     void run(
       () => api.setSnapshotBatch(userId, { date: snapshotDate, balances }),
-      `${balances.length} snapshot${balances.length > 1 ? 's' : ''} enregistré${balances.length > 1 ? 's' : ''}`,
+      (result) => {
+        const { created, updated } = result as { created: number; updated: number };
+        const parts: string[] = [];
+        if (created > 0) parts.push(`${created} créé${created > 1 ? 's' : ''}`);
+        if (updated > 0) parts.push(`${updated} mis à jour`);
+        return parts.length > 0 ? `Snapshots enregistrés : ${parts.join(', ')}` : 'Aucun changement';
+      },
     );
     setSnapshotInputs({});
   };

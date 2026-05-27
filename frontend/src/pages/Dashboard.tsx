@@ -398,27 +398,6 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
         </section>
 
         <section className="charts-grid">
-          <Panel title="Cashflow mensuel">
-            <div className="chart-area">
-              {cashflowHasData ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={monthRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid stroke={chartGrid} vertical={false} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                    <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
-                    <Tooltip formatter={(value) => money(Number(value))} />
-                    <Legend />
-                    <Bar dataKey="income" name="Revenus" fill={incomeColor} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="expenses" name="Dépenses" fill={expenseColor} radius={[4, 4, 0, 0]} />
-                    <Line type="monotone" dataKey="cumulativeNet" name="Cumul net" stroke={netColor} strokeWidth={3} dot={{ r: 3 }} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              ) : (
-                <EmptyChart message="Pas encore de cashflow à afficher." />
-              )}
-            </div>
-          </Panel>
-
           <Panel title="Répartition des dépenses du mois">
             <div className="chart-split">
               <div className="donut-area">
@@ -447,9 +426,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
               </div>
             </div>
           </Panel>
-        </section>
 
-        <section className="charts-grid">
           <Panel title="Budget du mois">
             <div className="dashboard-metric">
               <div>
@@ -464,6 +441,9 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
             <div className="bar big"><span style={{ width: `${budgetPct}%`, background: budgetPct >= 100 ? '#dc2626' : '#2563eb' }} /></div>
             <p className="panel-note">{budgetLimit > 0 ? `${Math.round(budgetPct)} % consommé` : 'Ajoute des budgets pour suivre la consommation du mois.'}</p>
           </Panel>
+        </section>
+
+        <section className="charts-grid">
           <Panel title="Plus grosses dépenses du mois">
             <TransactionList transactions={topExpenses} categoryById={categoryById} accountById={accountById} />
           </Panel>
@@ -472,7 +452,27 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
 
       <DashboardSection title="Tendances longues" subtitle="12 derniers mois et années">
         <section className="charts-grid">
-          <Panel title="Cumul net 12 mois">
+          <Panel title="Cashflow par mois (12 derniers mois)">
+            <div className="chart-area">
+              {cashflowHasData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={monthRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke={chartGrid} vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                    <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
+                    <Tooltip formatter={(value) => money(Number(value))} />
+                    <Legend />
+                    <Bar dataKey="income" name="Revenus" fill={incomeColor} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="expenses" name="Dépenses" fill={expenseColor} radius={[4, 4, 0, 0]} />
+                    <Line type="monotone" dataKey="cumulativeNet" name="Cumul net" stroke={netColor} strokeWidth={3} dot={{ r: 3 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyChart message="Pas encore de cashflow à afficher." />
+              )}
+            </div>
+          </Panel>
+          <Panel title="Cumul net (12 derniers mois)">
             <div className="chart-area small">
               {cashflowHasData ? (
                 <ResponsiveContainer width="100%" height="100%">

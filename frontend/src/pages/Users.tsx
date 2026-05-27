@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import { Panel } from '../components/Panel';
 import { Row } from '../components/Row';
 
-type Run = (fn: () => Promise<unknown>, message?: string) => Promise<void>;
+import type { Run } from '../lib/run';
 
 export function UsersPage({ users, currentUserId, run }: { users: User[]; currentUserId: number | null; run: Run }) {
   const submit = (event: FormEvent<HTMLFormElement>) => {

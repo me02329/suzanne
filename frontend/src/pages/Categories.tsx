@@ -7,7 +7,7 @@ import { IconButton } from '../components/IconButton';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 
-type Run = (fn: () => Promise<unknown>, message?: string) => Promise<void>;
+import type { Run } from '../lib/run';
 
 export function Categories({ userId, categories, run }: { userId: number; categories: Category[]; run: Run }) {
   const [editing, setEditing] = useState<Category | null>(null);

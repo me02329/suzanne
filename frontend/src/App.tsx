@@ -17,6 +17,7 @@ import {
 import { api } from './lib/api';
 import { currentMonthIso } from './lib/format';
 import { navItems, navSections, type Tab } from './lib/nav';
+import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
 import { SearchBox } from './components/SearchBox';
 import { Toast } from './components/Toast';
@@ -69,6 +70,10 @@ export default function App() {
   // is allowed to write into React state, so rapid month/currency/user changes
   // never resurrect stale data.
   const reloadVersion = useRef(0);
+  // Re-entry guard for run(): a rapid double-click on a primary button could
+  // otherwise fire the same mutation twice and create duplicates server-side.
+  // Cheaper than passing a `pending` flag to every page/form.
+  const runInFlight = useRef(false);
 
   const reloadUsers = async () => {
     const rows = await api.users();
@@ -125,25 +130,41 @@ export default function App() {
 
   // The Toast component handles its own auto-dismiss timer; we just keep the
   // last error/notice in state and clear them when the toast tells us to.
-  const run = async (fn: () => Promise<unknown>, message = 'Enregistré') => {
+  // Both run/runUsers gate on runInFlight so a rapid double-click silently
+  // drops the second invocation instead of duplicating the mutation.
+  // `message` can be a function that derives the toast text from the
+  // operation's return value (used by batch snapshots to say "X créés, Y
+  // mis à jour" instead of a generic count).
+  const resolveMessage = (message: string | ((result: unknown) => string) | undefined, result: unknown) =>
+    typeof message === 'function' ? message(result) : (message ?? 'Enregistré');
+
+  const run: Run = async (fn, message) => {
+    if (runInFlight.current) return;
+    runInFlight.current = true;
     try {
       setError(null);
-      await fn();
+      const result = await fn();
       await reload();
-      setNotice(message);
+      setNotice(resolveMessage(message, result));
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      runInFlight.current = false;
     }
   };
 
-  const runUsers = async (fn: () => Promise<unknown>, message = 'Enregistré') => {
+  const runUsers: Run = async (fn, message) => {
+    if (runInFlight.current) return;
+    runInFlight.current = true;
     try {
       setError(null);
-      await fn();
+      const result = await fn();
       await reloadUsers();
-      setNotice(message);
+      setNotice(resolveMessage(message, result));
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      runInFlight.current = false;
     }
   };
 

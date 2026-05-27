@@ -7,7 +7,7 @@ import { guessColumn, parseCsvPreview } from '../lib/csv';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 
-type Run = (fn: () => Promise<unknown>, message?: string) => Promise<void>;
+import type { Run } from '../lib/run';
 
 const PLACEHOLDER_CSV = `dateOp\tdateVal\tlabel\tamount\n2026-05-24\t2026-05-24\tCourses\t-12,50`;
 

@@ -17,7 +17,7 @@ import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 import { TransactionsTable } from '../components/TransactionsTable';
 
-type Run = (fn: () => Promise<unknown>, message?: string) => Promise<void>;
+import type { Run } from '../lib/run';
 
 export function Transactions({ userId, transactions, recurring, accounts, categories, categoryById, accountById, run }: {
   userId: number;

@@ -6,7 +6,7 @@ import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Panel } from '../components/Panel';
 
-type Run = (fn: () => Promise<unknown>, message?: string) => Promise<void>;
+import type { Run } from '../lib/run';
 
 export function Goals({ userId, goals, run }: { userId: number; goals: SavingsGoal[]; run: Run }) {
   const submit = (event: FormEvent<HTMLFormElement>) => {

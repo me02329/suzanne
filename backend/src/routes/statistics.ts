@@ -20,6 +20,10 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   const excludeUncategorized = String(req.query.exclude_uncategorized ?? 'true') === 'true';
 
   const [transactions, accounts, categories] = await Promise.all([
+    // Statistics is intentionally expense-only: income flows aren't
+    // categorised the same way (salary, refunds, etc.) and transfers between
+    // own accounts aren't spending. Including them would skew every chart
+    // and the "Top marchands" especially.
     prisma.transaction.findMany({ where: { user_id, type: 'expense' } }),
     prisma.account.findMany({ where: { user_id } }),
     prisma.category.findMany({ where: { user_id } }),
