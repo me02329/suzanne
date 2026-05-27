@@ -40,6 +40,10 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
 
   const accountBalances = computeAccountBalances(accounts, transactions, snapshots, fx);
   const unassignedBalance = computeUnassignedBalance(transactions);
+  // Count income/expense transactions left without an account so the UI can
+  // surface them as a fixable anomaly instead of silently folding them into
+  // the cash group.
+  const unassignedCount = transactions.filter((t) => t.account_id == null && t.type !== 'transfer').length;
   const assets = accountBalances.filter((a) => !a.is_liability).reduce((s, a) => s + a.balance, 0) + unassignedBalance;
   const liabilities = accountBalances.filter((a) => a.is_liability).reduce((s, a) => s + a.balance, 0);
   const netWorth = assets - liabilities;
@@ -62,6 +66,8 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
     balance_assets: round2(assets),
     balance_liabilities: round2(liabilities),
     net_worth: round2(netWorth),
+    unassigned_balance: round2(unassignedBalance),
+    unassigned_count: unassignedCount,
     account_balances: accountBalances.map((a) => ({ ...a, balance: round2(a.balance), signed_balance: round2(a.signed_balance) })),
     balance_by_group: balanceByGroup,
     monthly_cashflow: buildCashflow(transactions, start, accountById, fx),

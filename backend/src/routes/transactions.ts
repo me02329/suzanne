@@ -55,6 +55,20 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
     to_amount: body.to_amount !== undefined ? body.to_amount ?? null : existing.to_amount,
     date: body.date ?? existing.date.toISOString().slice(0, 10),
   };
+  // The create schema validates source != destination via superRefine, but
+  // the partial update schema can't (fields may be absent). We re-check on
+  // the post-merge state so PATCH can't turn an existing transfer into a
+  // self-transfer either.
+  if (next.type === 'transfer') {
+    if (!next.account_id || !next.to_account_id) {
+      res.status(400).json({ error: 'Un transfert exige un compte source et un compte destination' });
+      return;
+    }
+    if (next.account_id === next.to_account_id) {
+      res.status(400).json({ error: 'Les comptes source et destination doivent être différents' });
+      return;
+    }
+  }
   const transfer = await transferAmounts(user_id, next);
   const row = await prisma.transaction.update({
     where: { id },

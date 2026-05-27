@@ -81,28 +81,43 @@ async function generateDueRecurringTransactions(user_id: number, today: Date): P
   const rows = await prisma.recurringTransaction.findMany({ where: { user_id, active: true } });
   let generated = 0;
 
+  // Wrap each recurring row's "create N transactions + bump last_executed" in
+  // a single DB transaction so a crash/double-click can't leave us with
+  // generated rows but a stale last_executed (which would re-create them on
+  // the next run = duplication). We also link each generated transaction to
+  // its recurring source via recurring_transaction_id and pre-skip any
+  // (recurring_id, date) pair that already exists — defensive dedup in case
+  // the previous run was retried partially.
   for (const row of rows) {
     const dueDates = dueDatesFor(row.frequency, row.interval, row.day_of_month, row.last_executed, today);
-    for (const date of dueDates) {
-      await prisma.transaction.create({
+    if (dueDates.length === 0) continue;
+
+    const existing = await prisma.transaction.findMany({
+      where: { user_id, recurring_transaction_id: row.id, date: { in: dueDates } },
+      select: { date: true },
+    });
+    const alreadyGenerated = new Set(existing.map((e) => dateKey(e.date)));
+    const newDates = dueDates.filter((d) => !alreadyGenerated.has(dateKey(d)));
+
+    await prisma.$transaction([
+      ...newDates.map((date) => prisma.transaction.create({
         data: {
           user_id,
           account_id: row.account_id,
           category_id: row.category_id,
+          recurring_transaction_id: row.id,
           amount: row.amount,
           type: row.type,
           date,
           description: row.description,
         },
-      });
-      generated += 1;
-    }
-    if (dueDates.length > 0) {
-      await prisma.recurringTransaction.update({
+      })),
+      prisma.recurringTransaction.update({
         where: { id: row.id },
         data: { last_executed: dueDates[dueDates.length - 1] },
-      });
-    }
+      }),
+    ]);
+    generated += newDates.length;
   }
 
   return generated;

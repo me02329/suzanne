@@ -207,7 +207,13 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
     .filter((t) => t.type === 'expense')
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5);
-  const alerts = buildAccountAlerts(accountBalances, summary?.balance_assets ?? 0, displayCurrency);
+  const alerts = buildAccountAlerts(
+    accountBalances,
+    summary?.balance_assets ?? 0,
+    displayCurrency,
+    summary?.unassigned_balance ?? 0,
+    summary?.unassigned_count ?? 0,
+  );
   const wealthChartRows = wealthHistory.map((point) => {
     const row: Record<string, unknown> = {
       ...point,
@@ -538,9 +544,23 @@ function buildAccountAlerts(
   accountBalances: DashboardSummary['account_balances'],
   totalAssets: number,
   currency: string,
+  unassignedBalance: number,
+  unassignedCount: number,
 ): Array<{ title: string; detail: string; tone: 'info' | 'warning' | 'danger' }> {
   const fmt = (value: number) => moneyFmt(value, currency);
   const alerts: Array<{ title: string; detail: string; tone: 'info' | 'warning' | 'danger' }> = [];
+
+  // Transactions without an account are silently merged into the cash bucket
+  // by the backend (intentional, keeps totals coherent), but they're easy to
+  // miss — surface them as a warning so the user can edit and assign one.
+  if (unassignedCount > 0) {
+    alerts.push({
+      title: `${unassignedCount} transaction${unassignedCount > 1 ? 's' : ''} sans compte`,
+      detail: `${fmt(unassignedBalance)} de revenus/dépenses non rattachés à un compte. Ouvre l'onglet Transactions et assigne-leur un compte pour qu'ils ne polluent plus les Liquidités.`,
+      tone: 'warning',
+    });
+  }
+
   const checking = accountBalances
     .filter((a) => a.type === 'checking')
     .reduce((sum, a) => sum + a.balance, 0);

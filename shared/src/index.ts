@@ -209,6 +209,8 @@ export interface DashboardSummary {
   balance_assets: number;
   balance_liabilities: number;
   net_worth: number;
+  unassigned_balance: number;
+  unassigned_count: number;
   account_balances: Array<{
     account_id: number;
     name: string;

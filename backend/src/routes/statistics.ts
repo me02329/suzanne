@@ -87,8 +87,17 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 30);
 
-  // Monthly evolution
+  // Monthly evolution — pre-seed every month in the [from, today] range with
+  // 0 so months without any expense still appear on the chart (otherwise
+  // recharts would jump straight from one populated month to the next,
+  // hiding the gap).
   const monthlyMap = new Map<string, number>();
+  const monthCursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
+  const lastMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  while (monthCursor <= lastMonth) {
+    monthlyMap.set(monthCursor.toISOString().slice(0, 7), 0);
+    monthCursor.setUTCMonth(monthCursor.getUTCMonth() + 1);
+  }
   for (const t of considered) {
     const month = t.date.toISOString().slice(0, 7);
     monthlyMap.set(month, (monthlyMap.get(month) ?? 0) + txValue(t));
