@@ -13,6 +13,7 @@ import { snapshotsRouter } from './snapshots.js';
 import { importExportRouter } from './import_export.js';
 import { searchRouter } from './search.js';
 import { statisticsRouter } from './statistics.js';
+import { aiRouter } from './ai.js';
 
 export const apiRouter = Router();
 apiRouter.use(usersRouter);
@@ -29,3 +30,4 @@ apiRouter.use(snapshotsRouter);
 apiRouter.use(importExportRouter);
 apiRouter.use(searchRouter);
 apiRouter.use(statisticsRouter);
+apiRouter.use(aiRouter);

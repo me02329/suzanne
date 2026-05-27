@@ -198,6 +198,22 @@ export interface SearchResult {
   subtitle: string;
 }
 
+export interface AiPendingAction {
+  type: 'create_transaction' | 'update_transaction_category';
+  label: string;
+  payload: unknown;
+}
+
+export interface AiChatResponse {
+  answer: string;
+  pendingActions: AiPendingAction[];
+}
+
+export interface AiConfirmResponse {
+  ok: true;
+  result: unknown;
+}
+
 export interface DashboardSummary {
   month: string;
   currency: string;
