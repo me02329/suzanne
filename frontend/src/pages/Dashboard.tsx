@@ -137,12 +137,13 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
 
   const defaultWealthSeries = useMemo<Record<string, boolean>>(() => {
     if (wealthViewMode === 'account') {
-      const balances = new Map((summary?.account_balances ?? []).map((a) => [a.account_id, a.balance]));
+      // Activate every account by default. Restricting to non-zero balances
+      // hid every account when summary arrived after accounts on first load,
+      // so the user only saw the Total line. Users with many accounts can
+      // uncheck the noisy ones — the preference is persisted.
       const defaults: Record<string, boolean> = { net_worth: true };
-      // Activate every account by default; if the user has many they can
-      // uncheck the ones they don't care about and the preference is persisted.
       for (const account of accounts) {
-        defaults[`account_${account.id}`] = (balances.get(account.id) ?? 0) !== 0;
+        defaults[`account_${account.id}`] = true;
       }
       return defaults;
     }
@@ -161,7 +162,12 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   }, [wealthViewMode, summary, accounts]);
 
   const wealthSeriesPref = wealthViewMode === 'account' ? wealthSeriesAccountPref : wealthSeriesGroupPref;
-  const wealthSeries = wealthSeriesPref ?? defaultWealthSeries;
+  // Merge the persisted preference on top of the default so newly-created
+  // accounts (or new groups) show up enabled by default even after the user
+  // has customised some toggles.
+  const wealthSeries = wealthSeriesPref
+    ? { ...defaultWealthSeries, ...wealthSeriesPref }
+    : defaultWealthSeries;
   const toggleWealthSeries = (key: string) => {
     const next = { ...wealthSeries, [key]: !wealthSeries[key] };
     if (wealthViewMode === 'account') setWealthSeriesAccountPref(next);

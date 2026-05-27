@@ -294,16 +294,35 @@ function rangeStart(range: string, today: Date, firstDate: Date): Date {
 
 function buildHistoryDates(from: Date, to: Date, granularity: string): Date[] {
   const dates: Date[] = [];
-  const cursor = startOfUtcDay(from);
   const end = startOfUtcDay(to);
+
+  if (granularity === 'month') {
+    // Snap each monthly data point to the LAST day of the month so an
+    // end-of-month snapshot (the natural saisie convention) shows up
+    // exactly at its month's marker, instead of bleeding into the next.
+    // Months still in progress get represented by today's date as a final
+    // partial point.
+    const cursor = startOfUtcDay(from);
+    cursor.setUTCDate(1);
+    while (true) {
+      const endOfMonth = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0));
+      if (endOfMonth > end) break;
+      if (endOfMonth >= startOfUtcDay(from)) dates.push(endOfMonth);
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+    if (dates.length === 0 || dateKey(dates[dates.length - 1]!) !== dateKey(end)) {
+      dates.push(end);
+    }
+    return dates;
+  }
+
+  const cursor = startOfUtcDay(from);
   while (cursor <= end) {
     dates.push(new Date(cursor));
     if (granularity === 'day') {
       cursor.setUTCDate(cursor.getUTCDate() + 1);
-    } else if (granularity === 'week') {
-      cursor.setUTCDate(cursor.getUTCDate() + 7);
     } else {
-      cursor.setUTCMonth(cursor.getUTCMonth() + 1, 1);
+      cursor.setUTCDate(cursor.getUTCDate() + 7);
     }
   }
   if (dates.length === 0 || dateKey(dates[dates.length - 1]!) !== dateKey(end)) dates.push(end);
