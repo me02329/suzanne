@@ -164,6 +164,9 @@ Les migrations sont appliquées automatiquement au démarrage du conteneur.
 | `DATABASE_URL` | *(requis)* | URL PostgreSQL (`postgres://user:pwd@host:5432/db`) |
 | `PORT` | `3000` | Port HTTP interne |
 | `NODE_ENV` | `development` | `production` en prod |
+| `AI_API_KEY` / `OPENAI_API_KEY` | *(vide)* | Clé API utilisée par l'assistant IA |
+| `AI_MODEL` | `gpt-4.1-mini` | Modèle compatible Chat Completions |
+| `AI_BASE_URL` | `https://api.openai.com/v1` | Endpoint OpenAI-compatible (OpenAI, proxy, local, etc.) |
 
 ## Référence API
 
@@ -199,6 +202,8 @@ Toutes les routes métier sont préfixées par `/api`.
 | GET | `/api/users/:user_id/wealth-history` | Historique de patrimoine |
 | GET | `/api/users/:user_id/statistics` | Statistiques long terme |
 | GET | `/api/users/:user_id/search` | Recherche globale |
+| POST | `/api/users/:user_id/ai/chat` | Assistant IA avec tools lecture/action confirmée |
+| POST | `/api/users/:user_id/ai/confirm` | Confirmer une action proposée par l'IA |
 | POST | `/api/users/:user_id/import.csv` | Import CSV de transactions |
 | GET | `/api/users/:user_id/transactions.csv` | Export CSV des transactions |
 | GET | `/api/users/:user_id/export.json` | Sauvegarde JSON |
