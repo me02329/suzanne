@@ -225,7 +225,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
           <DataTable empty={snapshots.length === 0 ? 'Aucun snapshot.' : null}>
             <thead><tr><th>Date</th><th>Compte</th><th className="amount-cell">Solde</th><th className="actions-cell">Actions</th></tr></thead>
             <tbody>
-              {snapshots.slice(0, 8).map((s) => {
+              {snapshots.slice(0, 20).map((s) => {
                 const account = accounts.find((a) => a.id === s.account_id);
                 return (
                   <tr key={s.id}>

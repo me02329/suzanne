@@ -100,8 +100,13 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
       acc[row.group] = row.signed_amount;
       return acc;
     }, {});
-    const byAccount = accountBalances.reduce<Record<number, number>>((acc, row) => {
-      acc[row.account_id] = round2(row.signed_balance);
+    // Always emit every account in by_account (defaulting to 0 when the
+    // account was not yet eligible at this date). recharts treats undefined
+    // values as gaps in the line, so an account with a single eligible
+    // point would produce no visible line at all.
+    const computedById = new Map(accountBalances.map((row) => [row.account_id, row.signed_balance]));
+    const byAccount = accounts.reduce<Record<number, number>>((acc, account) => {
+      acc[account.id] = round2(computedById.get(account.id) ?? 0);
       return acc;
     }, {});
     return {
@@ -181,7 +186,15 @@ function computeAccountBalancesAt(
 ) {
   const snapshotsUntil = snapshots.filter((s) => s.date <= at);
   const transactionsUntil = transactions.filter((t) => t.date <= at);
-  return computeAccountBalances(accounts.filter((a) => a.initial_balance_date <= at), transactionsUntil, snapshotsUntil, fx);
+  // An account is eligible at `at` if either its initial balance is dated
+  // before `at`, or — crucially — a snapshot earlier than `at` exists for
+  // it. The latter lets users created in May 2026 still anchor their
+  // April balance via a back-dated snapshot.
+  const accountsWithEarlierSnap = new Set(snapshotsUntil.map((s) => s.account_id));
+  const eligibleAccounts = accounts.filter((a) =>
+    a.initial_balance_date <= at || accountsWithEarlierSnap.has(a.id),
+  );
+  return computeAccountBalances(eligibleAccounts, transactionsUntil, snapshotsUntil, fx);
 }
 
 function computeUnassignedBalance(transactions: Tx[]): number {
