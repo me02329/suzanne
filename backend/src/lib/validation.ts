@@ -7,8 +7,12 @@ const signedAmount = z.coerce.number().transform(round2);
 const currencyCode = z.string().trim().min(3).max(3).transform(normalizeCurrency);
 
 export const idParam = z.coerce.number().int().positive();
-export const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-export const monthString = z.string().regex(/^\d{4}-\d{2}$/);
+export const dateString = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(isValidDateString, 'Date invalide');
+export const monthString = z.string()
+  .regex(/^\d{4}-\d{2}$/)
+  .refine(isValidMonthString, 'Mois invalide');
 
 export const createUserSchema = z.object({ name: z.string().trim().min(1).max(80) });
 
@@ -146,3 +150,24 @@ export const csvImportSchema = z.object({
 });
 
 export const currencyQuery = currencyCode.default('EUR');
+
+function isValidDateString(value: string): boolean {
+  const [yearRaw, monthRaw, dayRaw] = value.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+}
+
+function isValidMonthString(value: string): boolean {
+  const [yearRaw, monthRaw] = value.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  return Number.isInteger(year)
+    && Number.isInteger(month)
+    && month >= 1
+    && month <= 12;
+}
