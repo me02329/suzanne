@@ -49,6 +49,17 @@ export function currentMonthIso(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
+// Last day of the previous month — used as the default snapshot date so a
+// user opening the app on the 5th lands on the obvious "fin de mois précédent".
+export function lastDayOfPreviousMonthIso(): string {
+  const now = new Date();
+  const last = new Date(now.getFullYear(), now.getMonth(), 0);
+  const yyyy = last.getFullYear();
+  const mm = String(last.getMonth() + 1).padStart(2, '0');
+  const dd = String(last.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export function txLabel(t: Transaction, categoryById: Map<number, Category>) {
   return t.description || (t.type === 'transfer' ? 'Transfert' : categoryById.get(t.category_id ?? -1)?.name) || 'Transaction';
 }

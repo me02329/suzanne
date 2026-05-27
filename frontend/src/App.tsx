@@ -246,7 +246,7 @@ export default function App() {
           <Statistics userId={userId} reportCurrency={reportCurrency} />
         )}
         {tab === 'accounts' && userId && (
-          <Accounts userId={userId} accounts={accounts} institutions={institutions} snapshots={snapshots} institutionById={institutionById} run={run} />
+          <Accounts userId={userId} accounts={accounts} institutions={institutions} snapshots={snapshots} institutionById={institutionById} summary={summary} run={run} />
         )}
         {tab === 'categories' && userId && (
           <Categories userId={userId} categories={categories} run={run} />

@@ -1,30 +1,71 @@
-import { FormEvent, useState } from 'react';
-import { Landmark, Pencil } from 'lucide-react';
+import { FormEvent, useMemo, useState } from 'react';
+import { CalendarCheck, Landmark, Pencil } from 'lucide-react';
 import {
   ACCOUNT_TYPES,
   REPORT_CURRENCIES,
   accountTypeLabel,
+  accountTypeGroup,
+  accountGroupLabel,
   type Account,
   type AccountSnapshot,
+  type DashboardSummary,
   type Institution,
 } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
-import { money, todayIso } from '../lib/format';
+import { lastDayOfPreviousMonthIso, money, todayIso } from '../lib/format';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Panel } from '../components/Panel';
 
 type Run = (fn: () => Promise<unknown>, message?: string) => Promise<void>;
 
-export function Accounts({ userId, accounts, institutions, snapshots, institutionById, run }: {
+export function Accounts({ userId, accounts, institutions, snapshots, institutionById, summary, run }: {
   userId: number;
   accounts: Account[];
   institutions: Institution[];
   snapshots: AccountSnapshot[];
   institutionById: Map<number, Institution>;
+  summary: DashboardSummary | null;
   run: Run;
 }) {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [snapshotDate, setSnapshotDate] = useState<string>(() => lastDayOfPreviousMonthIso());
+  const [snapshotInputs, setSnapshotInputs] = useState<Record<number, string>>({});
+
+  // Group accounts by accountTypeGroup so the batch form shows them in
+  // sensible buckets (Liquidités, Livrets, Investissements…) instead of a
+  // flat list.
+  const accountsByGroup = useMemo(() => {
+    const buckets = new Map<string, Account[]>();
+    for (const account of accounts) {
+      const group = accountTypeGroup(account.type);
+      const list = buckets.get(group) ?? [];
+      list.push(account);
+      buckets.set(group, list);
+    }
+    for (const list of buckets.values()) {
+      list.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    }
+    return buckets;
+  }, [accounts]);
+
+  const estimatedByAccount = useMemo(() => {
+    return new Map((summary?.account_balances ?? []).map((row) => [row.account_id, row]));
+  }, [summary]);
+
+  const submitSnapshotBatch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const balances = Object.entries(snapshotInputs)
+      .filter(([, raw]) => raw.trim() !== '')
+      .map(([id, raw]) => ({ account_id: Number(id), balance: Number(raw.replace(',', '.')) }))
+      .filter((entry) => Number.isFinite(entry.balance));
+    if (balances.length === 0) return;
+    void run(
+      () => api.setSnapshotBatch(userId, { date: snapshotDate, balances }),
+      `${balances.length} snapshot${balances.length > 1 ? 's' : ''} enregistré${balances.length > 1 ? 's' : ''}`,
+    );
+    setSnapshotInputs({});
+  };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -53,21 +94,80 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
     event.currentTarget.reset();
   };
 
-  const submitSnapshot = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    void run(() => api.setSnapshot(userId, {
-      account_id: Number(data.get('account_id')),
-      date: String(data.get('date')),
-      balance: Number(data.get('balance')),
-    }), 'Snapshot enregistré');
-    event.currentTarget.reset();
-  };
+  const filledCount = Object.values(snapshotInputs).filter((v) => v.trim() !== '').length;
+  const orderedGroups = ['cash', 'regulated_savings', 'investments', 'crypto', 'liabilities', 'other'];
 
   return (
-    <section className="split">
-      <div className="stack">
-        <Panel title="Nouvelle institution">
+    <>
+      <Panel title="Snapshots de fin de mois">
+        <p className="panel-note">
+          Saisis le solde réel de chaque compte à une date précise (typiquement le dernier jour du mois).
+          Laisse vide les comptes que tu n'as pas encore vérifiés — seuls les champs remplis seront enregistrés.
+          Re-saisir une même date écrase la valeur précédente.
+        </p>
+        <form className="form snapshot-batch-form" onSubmit={submitSnapshotBatch}>
+          <label>Date du snapshot
+            <input type="date" value={snapshotDate} onChange={(e) => setSnapshotDate(e.target.value)} required />
+          </label>
+          {accounts.length === 0 ? (
+            <p className="empty">Crée d'abord un compte pour pouvoir saisir des snapshots.</p>
+          ) : (
+            <div className="table-wrap full">
+              <table className="tx-table snapshot-batch-table">
+                <thead>
+                  <tr>
+                    <th>Compte</th>
+                    <th>Devise</th>
+                    <th className="amount-cell">Solde estimé</th>
+                    <th className="amount-cell">Nouveau solde réel</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderedGroups.flatMap((group) => {
+                    const groupAccounts = accountsByGroup.get(group);
+                    if (!groupAccounts || groupAccounts.length === 0) return [];
+                    return [
+                      <tr key={`header-${group}`} className="snapshot-batch-group-header">
+                        <td colSpan={4}>{accountGroupLabel(group)}</td>
+                      </tr>,
+                      ...groupAccounts.map((account) => {
+                        const estimated = estimatedByAccount.get(account.id);
+                        return (
+                          <tr key={account.id}>
+                            <td><strong>{account.name}</strong></td>
+                            <td>{account.currency}</td>
+                            <td className="amount-cell">
+                              {estimated ? money(estimated.signed_balance, account.currency) : '—'}
+                            </td>
+                            <td className="amount-cell">
+                              <input
+                                type="number"
+                                step="0.01"
+                                inputMode="decimal"
+                                placeholder="—"
+                                value={snapshotInputs[account.id] ?? ''}
+                                onChange={(e) => setSnapshotInputs((current) => ({ ...current, [account.id]: e.target.value }))}
+                                aria-label={`Solde réel pour ${account.name}`}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      }),
+                    ];
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <button className="primary" disabled={filledCount === 0}>
+            <CalendarCheck size={16} /> Enregistrer {filledCount > 0 ? `(${filledCount})` : ''}
+          </button>
+        </form>
+      </Panel>
+
+      <section className="split" style={{ marginTop: 18 }}>
+        <div className="stack">
+          <Panel title="Nouvelle institution">
           <form className="form" onSubmit={submitInstitution}>
             <label>Nom<input name="name" required placeholder="Banque, broker, caisse..." /></label>
             <button className="primary">Ajouter</button>
@@ -83,14 +183,6 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
             <label>Date initiale<input name="initial_balance_date" type="date" defaultValue={editingAccount?.initial_balance_date?.slice(0, 10) ?? todayIso()} required /></label>
             <button className="primary"><Landmark size={16} /> {editingAccount ? 'Enregistrer' : 'Ajouter'}</button>
             {editingAccount && <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>Annuler</button>}
-          </form>
-        </Panel>
-        <Panel title="Snapshot de solde">
-          <form className="form" onSubmit={submitSnapshot}>
-            <label>Compte<select name="account_id" required>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-            <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
-            <label>Solde<input name="balance" type="number" step="0.01" required /></label>
-            <button className="primary">Enregistrer</button>
           </form>
         </Panel>
       </div>
@@ -149,5 +241,6 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
         </Panel>
       </div>
     </section>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { createAccountSnapshotSchema, idParam } from '../lib/validation.js';
+import { batchAccountSnapshotsSchema, createAccountSnapshotSchema, idParam } from '../lib/validation.js';
 
 export const snapshotsRouter = Router();
 
@@ -20,6 +20,25 @@ snapshotsRouter.post('/users/:user_id/account-snapshots', asyncHandler(async (re
     update: { balance: body.balance },
   });
   res.json(row);
+}));
+
+// Batch upsert — saves end-of-month snapshots for several accounts in a
+// single atomic transaction. Re-using the same (account_id, date) pair as
+// the unique key means submitting twice just updates the balance.
+snapshotsRouter.post('/users/:user_id/account-snapshots/batch', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const body = batchAccountSnapshotsSchema.parse(req.body);
+  const date = new Date(body.date);
+  const rows = await prisma.$transaction(
+    body.balances.map((entry) =>
+      prisma.accountSnapshot.upsert({
+        where: { account_id_date: { account_id: entry.account_id, date } },
+        create: { user_id, account_id: entry.account_id, date, balance: entry.balance },
+        update: { balance: entry.balance },
+      }),
+    ),
+  );
+  res.status(201).json({ saved: rows.length });
 }));
 
 snapshotsRouter.delete('/users/:user_id/account-snapshots/:id', asyncHandler(async (req, res) => {

@@ -555,6 +555,38 @@ select:focus, input:focus, textarea:focus {
   margin: 0;
 }
 
+/* Batch snapshots form — grouped table with an editable column. */
+.snapshot-batch-form .table-wrap {
+  margin-top: 4px;
+}
+
+.snapshot-batch-table input[type="number"] {
+  width: 100%;
+  max-width: 180px;
+  text-align: right;
+  padding: 6px 8px;
+  margin-left: auto;
+}
+
+.snapshot-batch-table .snapshot-batch-group-header td {
+  padding: 6px 10px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-top: 1px solid var(--border);
+}
+
+.snapshot-batch-table tbody tr:hover {
+  background: transparent;
+}
+
+.snapshot-batch-table tbody tr:not(.snapshot-batch-group-header):hover {
+  background: var(--surface-muted);
+}
+
 /* Single inline checkbox toggle reused outside the wealth-series grid. */
 .series-toggles.inline {
   display: inline-flex;

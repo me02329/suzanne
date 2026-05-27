@@ -125,6 +125,14 @@ export const createAccountSnapshotSchema = z.object({
   balance: signedAmount,
 });
 
+export const batchAccountSnapshotsSchema = z.object({
+  date: dateString,
+  balances: z.array(z.object({
+    account_id: z.coerce.number().int().positive(),
+    balance: signedAmount,
+  })).min(1).max(100),
+});
+
 export const csvImportSchema = z.object({
   csv: z.string().min(1),
   account_id: z.coerce.number().int().positive().nullish(),
