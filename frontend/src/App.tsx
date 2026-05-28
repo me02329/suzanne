@@ -33,6 +33,7 @@ import { Budgets } from './pages/Budgets';
 import { Recurring } from './pages/Recurring';
 import { Goals } from './pages/Goals';
 import { Rules } from './pages/Rules';
+import { Settings } from './pages/Settings';
 import { Tools } from './pages/Tools';
 import { UsersPage } from './pages/Users';
 
@@ -49,6 +50,7 @@ export default function App() {
     pilotage: true,
     structure: true,
     admin: true,
+    ai: true,
   });
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -298,6 +300,7 @@ export default function App() {
         {tab === 'users' && (
           <UsersPage users={users} currentUserId={userId} run={runUsers} />
         )}
+        {tab === 'settings' && <Settings />}
       </main>
 
       <div className="toast-stack" aria-live="polite" aria-atomic="false">

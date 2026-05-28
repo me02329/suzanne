@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Coins, Link2 } from 'lucide-react';
+import { Coins, Link2, Pencil } from 'lucide-react';
 import type { Account, SavingsGoal } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { money, todayIso } from '../lib/format';
@@ -19,6 +19,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
   run: Run;
 }) {
   const [contributing, setContributing] = useState<SavingsGoal | null>(null);
+  const [editing, setEditing] = useState<SavingsGoal | null>(null);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -32,6 +33,21 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
       account_id: numberOrNull(data.get('account_id')),
     }), 'Objectif ajouté');
     event.currentTarget.reset();
+  };
+
+  const submitEdit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editing) return;
+    const data = new FormData(event.currentTarget);
+    void run(() => api.updateGoal(userId, editing.id, {
+      name: String(data.get('name')),
+      target_amount: Number(data.get('target_amount')),
+      current_amount: Number(data.get('current_amount') || 0),
+      deadline: String(data.get('deadline') || '') || null,
+      color: String(data.get('color')),
+      account_id: numberOrNull(data.get('account_id')),
+    }), 'Objectif modifié');
+    setEditing(null);
   };
 
   const submitContribution = (event: FormEvent<HTMLFormElement>) => {
@@ -86,7 +102,8 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
                   <td>{g.deadline ? new Date(g.deadline).toLocaleDateString('fr-FR') : '-'}</td>
                   <td className="actions-cell">
                     <IconButton label="Verser" tone="accent" icon={<Coins size={16} />} onClick={() => setContributing(g)} />
-                    <IconButton label="Supprimer" onClick={() => void run(() => api.deleteGoal(userId, g.id), 'Objectif supprimé')} />
+                    <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(g)} />
+                    <IconButton label="Supprimer" confirm="Supprimer cet objectif ?" onClick={() => void run(() => api.deleteGoal(userId, g.id), 'Objectif supprimé')} />
                   </td>
                 </tr>
               );
@@ -94,6 +111,26 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
           </tbody>
         </DataTable>
       </Panel>
+
+      {editing && (
+        <Modal title={`Modifier "${editing.name}"`} onClose={() => setEditing(null)}>
+          <form className="form" onSubmit={submitEdit}>
+            <label>Nom<input name="name" defaultValue={editing.name} required /></label>
+            <label>Cible<input name="target_amount" type="number" min="0.01" step="0.01" defaultValue={editing.target_amount} required /></label>
+            <label>Actuel<input name="current_amount" type="number" min="0" step="0.01" defaultValue={editing.current_amount} /></label>
+            <label>Compte de l'objectif
+              <select name="account_id" defaultValue={editing.account_id ?? ''}>
+                <option value="">Aucun (compteur manuel)</option>
+                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </label>
+            <label>Échéance<input name="deadline" type="date" defaultValue={editing.deadline ? editing.deadline.slice(0, 10) : ''} /></label>
+            <label>Couleur<input name="color" type="color" defaultValue={editing.color} /></label>
+            <button className="primary">Enregistrer</button>
+            <button type="button" className="secondary" onClick={() => setEditing(null)}>Annuler</button>
+          </form>
+        </Modal>
+      )}
 
       {contributing && (
         <Modal title={`Verser sur "${contributing.name}"`} onClose={() => setContributing(null)}>

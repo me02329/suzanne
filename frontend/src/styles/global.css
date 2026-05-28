@@ -366,6 +366,11 @@ select, input, textarea {
   padding: 10px 12px;
 }
 
+option, optgroup {
+  background: var(--surface);
+  color: var(--text);
+}
+
 select:focus, input:focus, textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);

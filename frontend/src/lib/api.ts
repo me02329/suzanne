@@ -52,8 +52,18 @@ export interface AiHealthStatus {
   model: string;
   baseUrl: string;
   provider: string;
+  source?: string;
   ok?: boolean;
   error?: { kind: string; message: string; detail: string };
+}
+
+export interface AiSettings {
+  configured: boolean;
+  has_key: boolean;
+  model: string;
+  base_url: string;
+  provider: string;
+  source: string;
 }
 
 export const api = {
@@ -129,6 +139,9 @@ export const api = {
     return http<StatisticsSummary>(`/users/${userId}/statistics?${params.toString()}`);
   },
   aiHealth: () => http<AiHealthStatus>('/ai/health'),
+  aiSettings: () => http<AiSettings>('/settings/ai'),
+  updateAiSettings: (body: { api_key?: string | null; model?: string | null; base_url?: string | null; provider?: string | null }) =>
+    http<AiSettings>('/settings/ai', { method: 'PUT', body: JSON.stringify(body) }),
   aiChat: (userId: number, body: { message: string; month: string; currency: string }) =>
     http<AiChatResponse>(`/users/${userId}/ai/chat`, { method: 'POST', body: JSON.stringify(body) }),
   confirmAiAction: (userId: number, action: AiPendingAction) =>

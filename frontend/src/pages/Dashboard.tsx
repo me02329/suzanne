@@ -47,6 +47,7 @@ import {
   moneyCompact as moneyCompactFmt,
   truncate,
 } from '../lib/format';
+import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { DashboardSection } from '../components/DashboardSection';
 import { EmptyChart } from '../components/EmptyChart';
@@ -54,10 +55,6 @@ import { Panel } from '../components/Panel';
 import { Stat } from '../components/Stat';
 import { TransactionList } from '../components/TransactionList';
 
-const chartGrid = '#e8edf5';
-const incomeColor = '#15803d';
-const expenseColor = '#dc2626';
-const netColor = '#2563eb';
 
 // 12-color palette used when the wealth chart is broken down per account.
 // Repeats after 12 accounts (highly unusual for personal finance), with
@@ -86,6 +83,11 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, displayCurrency);
   const moneyCompact = (value: number) => moneyCompactFmt(value, displayCurrency);
+  const chartTheme = useChartTheme();
+  const chartGrid = chartTheme.grid;
+  const incomeColor = chartTheme.income;
+  const expenseColor = chartTheme.expense;
+  const netColor = chartTheme.net;
 
   const [wealthRange, setWealthRange] = usePersistedState('wealth_range', '12m');
   const [wealthGranularity, setWealthGranularity] = usePersistedState('wealth_granularity', 'month');
@@ -114,7 +116,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   const wealthSeriesConfig: WealthSeriesEntry[] = useMemo(() => {
     if (wealthViewMode === 'account') {
       return [
-        { key: 'net_worth', label: 'Total', color: '#111827', width: 3 },
+        { key: 'net_worth', label: 'Total', color: chartTheme.total, width: 3 },
         ...accounts.map((account, idx) => ({
           key: `account_${account.id}`,
           label: account.name,
@@ -124,7 +126,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
       ];
     }
     return [
-      { key: 'net_worth', label: 'Total', color: '#111827', width: 3 },
+      { key: 'net_worth', label: 'Total', color: chartTheme.total, width: 3 },
       { key: 'assets', label: 'Actifs', color: '#16a34a', width: 2 },
       { key: 'liabilities', label: 'Passifs', color: '#dc2626', width: 2 },
       { key: 'cash', label: 'Liquidités', color: accountGroupColor('cash'), width: 2 },
@@ -481,7 +483,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
                     <XAxis dataKey="label" tickLine={false} axisLine={false} />
                     <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
                     <Tooltip formatter={(value) => money(Number(value))} />
-                    <Area type="monotone" dataKey="cumulativeNet" name="Cumul net" stroke={netColor} fill="#dbeafe" strokeWidth={2} />
+                    <Area type="monotone" dataKey="cumulativeNet" name="Cumul net" stroke={netColor} fill={chartTheme.netFill} strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import type { SearchResult } from '@suzanne-lite/shared';
 
-export type Tab = 'dashboard' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'goals' | 'rules' | 'tools' | 'users';
+export type Tab = 'dashboard' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'goals' | 'rules' | 'tools' | 'users' | 'settings';
 
 export interface NavItem {
   tab: Tab;
@@ -31,23 +31,25 @@ export interface NavSection {
 
 export const navItems: NavItem[] = [
   { tab: 'dashboard', label: 'Vue générale', icon: React.createElement(LayoutDashboard, { size: 18 }) },
-  { tab: 'assistant', label: 'Assistant IA', icon: React.createElement(MessageSquareText, { size: 18 }) },
   { tab: 'transactions', label: 'Transactions', icon: React.createElement(CreditCard, { size: 18 }) },
+  { tab: 'recurring', label: 'Récurrents', icon: React.createElement(Repeat, { size: 18 }) },
   { tab: 'statistics', label: 'Statistiques', icon: React.createElement(PieChart, { size: 18 }) },
   { tab: 'accounts', label: 'Comptes', icon: React.createElement(Landmark, { size: 18 }) },
   { tab: 'categories', label: 'Catégories', icon: React.createElement(Tags, { size: 18 }) },
   { tab: 'budgets', label: 'Budgets', icon: React.createElement(BarChart3, { size: 18 }) },
-  { tab: 'recurring', label: 'Récurrents', icon: React.createElement(Repeat, { size: 18 }) },
   { tab: 'goals', label: 'Objectifs', icon: React.createElement(Target, { size: 18 }) },
   { tab: 'rules', label: 'Règles', icon: React.createElement(Settings2, { size: 18 }) },
   { tab: 'tools', label: 'Import/Export', icon: React.createElement(Upload, { size: 18 }) },
   { tab: 'users', label: 'Utilisateurs', icon: React.createElement(Users, { size: 18 }) },
+  { tab: 'settings', label: 'Paramètres', icon: React.createElement(Settings2, { size: 18 }) },
+  { tab: 'assistant', label: 'Assistant IA', icon: React.createElement(MessageSquareText, { size: 18 }) },
 ];
 
 export const navSections: NavSection[] = [
-  { id: 'pilotage', label: 'Pilotage', items: navItems.filter((item) => ['dashboard', 'assistant', 'transactions', 'statistics', 'budgets', 'recurring'].includes(item.tab)) },
+  { id: 'pilotage', label: 'Pilotage', items: navItems.filter((item) => ['dashboard', 'transactions', 'recurring', 'statistics', 'budgets'].includes(item.tab)) },
   { id: 'structure', label: 'Structure', items: navItems.filter((item) => ['accounts', 'categories', 'goals', 'rules'].includes(item.tab)) },
-  { id: 'admin', label: 'Administration', items: navItems.filter((item) => ['tools', 'users'].includes(item.tab)) },
+  { id: 'admin', label: 'Administration', items: navItems.filter((item) => ['tools', 'users', 'settings'].includes(item.tab)) },
+  { id: 'ai', label: 'Intelligence', items: navItems.filter((item) => ['assistant'].includes(item.tab)) },
 ];
 
 // Maps a search result type to the tab where the user should land when they

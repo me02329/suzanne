@@ -15,13 +15,11 @@ import {
 } from 'recharts';
 import type { StatisticsSummary } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
+import { useChartTheme } from '../lib/chartTheme';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, truncate } from '../lib/format';
 import { usePersistedState } from '../lib/storage';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
-
-const chartGrid = '#e8edf5';
-const expenseColor = '#dc2626';
 
 const RANGE_LABELS: Record<string, string> = {
   '3m': '3 mois', '6m': '6 mois', '1y': '12 mois', '2y': '2 ans', all: 'Tout', custom: 'Personnalisée',
@@ -42,6 +40,9 @@ export function Statistics({ userId, reportCurrency }: { userId: number; reportC
   const effectiveFrom = isCustom ? customFrom : null;
   const effectiveTo = isCustom ? customTo : null;
   const customReady = !isCustom || (Boolean(customFrom) && Boolean(customTo));
+  const chartTheme = useChartTheme();
+  const chartGrid = chartTheme.grid;
+  const expenseColor = chartTheme.expense;
 
   useEffect(() => {
     if (!customReady) return;

@@ -224,6 +224,14 @@ model SavingsGoal {
   @@map("savings_goals")
 }
 
+model Setting {
+  key        String   @id
+  value      String
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("settings")
+}
+
 model AccountSnapshot {
   id         Int      @id @default(autoincrement())
   user_id    Int
