@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/errors.js';
 import { idParam, monthString } from '../lib/validation.js';
-import { checkAiHealth, runAiChat } from '../ai/client.js';
+import { checkAiHealth, runAiChat, streamAiChat } from '../ai/client.js';
 import { confirmAiAction, type PendingAiAction } from '../ai/tools.js';
 
 export const aiRouter = Router();
@@ -32,6 +32,35 @@ aiRouter.post('/users/:user_id/ai/chat', asyncHandler(async (req, res) => {
   const body = aiChatSchema.parse(req.body);
   const result = await runAiChat(userId, body.message, { month: body.month, currency: body.currency });
   res.json(result);
+}));
+
+aiRouter.post('/users/:user_id/ai/chat/stream', asyncHandler(async (req, res) => {
+  const userId = idParam.parse(req.params.user_id);
+  const body = aiChatSchema.parse(req.body);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+
+  const send = (event: unknown) => {
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+  };
+
+  let closed = false;
+  req.on('close', () => { closed = true; });
+
+  try {
+    for await (const event of streamAiChat(userId, body.message, { month: body.month, currency: body.currency })) {
+      if (closed) break;
+      send(event);
+    }
+  } catch (e) {
+    send({ kind: 'error', error: { kind: 'network', message: (e as Error).message, detail: '' } });
+  } finally {
+    res.end();
+  }
 }));
 
 aiRouter.post('/users/:user_id/ai/confirm', asyncHandler(async (req, res) => {

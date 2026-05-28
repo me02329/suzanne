@@ -68,6 +68,13 @@ export interface AiSettings {
   source: string;
 }
 
+export type AiStreamEvent =
+  | { kind: 'token'; text: string }
+  | { kind: 'tool_start'; id: string; name: string; args: unknown }
+  | { kind: 'tool_result'; id: string; name: string; ok: boolean; pendingAction?: AiPendingAction; preview?: string }
+  | { kind: 'done'; answer: string; pendingActions: AiPendingAction[] }
+  | { kind: 'error'; error: { kind: string; message: string; detail: string } };
+
 export const api = {
   users: () => http<User[]>('/users'),
   createUser: (body: { name: string }) => http<User>('/users', { method: 'POST', body: JSON.stringify(body) }),
@@ -150,6 +157,40 @@ export const api = {
     http<AiSettings>('/settings/ai', { method: 'PUT', body: JSON.stringify(body) }),
   aiChat: (userId: number, body: { message: string; month: string; currency: string }) =>
     http<AiChatResponse>(`/users/${userId}/ai/chat`, { method: 'POST', body: JSON.stringify(body) }),
+  aiChatStream: async function* (
+    userId: number,
+    body: { message: string; month: string; currency: string },
+    signal?: AbortSignal,
+  ): AsyncGenerator<AiStreamEvent> {
+    const res = await fetch(`${API_BASE}/users/${userId}/ai/chat/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!res.ok || !res.body) {
+      let message = `HTTP ${res.status}`;
+      try { const data = await res.json() as { error?: string }; if (data?.error) message = data.error; } catch { /* keep */ }
+      throw new Error(message);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let lineEnd: number;
+      while ((lineEnd = buffer.indexOf('\n')) >= 0) {
+        const rawLine = buffer.slice(0, lineEnd).replace(/\r$/, '');
+        buffer = buffer.slice(lineEnd + 1);
+        if (!rawLine.startsWith('data:')) continue;
+        const data = rawLine.slice(5).trim();
+        if (!data) continue;
+        try { yield JSON.parse(data) as AiStreamEvent; } catch { /* malformed — skip */ }
+      }
+    }
+  },
   confirmAiAction: (userId: number, action: AiPendingAction) =>
     http<AiConfirmResponse>(`/users/${userId}/ai/confirm`, { method: 'POST', body: JSON.stringify({ action }) }),
 };

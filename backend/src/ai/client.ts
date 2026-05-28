@@ -24,6 +24,13 @@ export interface AiChatResult {
   pendingActions: PendingAiAction[];
 }
 
+export type AiStreamEvent =
+  | { kind: 'token'; text: string }
+  | { kind: 'tool_start'; id: string; name: string; args: unknown }
+  | { kind: 'tool_result'; id: string; name: string; ok: boolean; pendingAction?: PendingAiAction; preview?: string }
+  | { kind: 'done'; answer: string; pendingActions: PendingAiAction[] }
+  | { kind: 'error'; error: { kind: AiErrorKind; message: string; detail: string } };
+
 export type AiErrorKind = 'not_configured' | 'auth' | 'rate_limit' | 'insufficient_quota' | 'model_unavailable' | 'bad_request' | 'upstream' | 'network';
 
 export class AiProviderError extends Error {
@@ -118,6 +125,189 @@ export async function runAiChat(userId: number, message: string, context: { mont
     answer: 'J’ai atteint la limite d’étapes pour cette demande. Essaie une consigne plus précise.',
     pendingActions,
   };
+}
+
+export async function* streamAiChat(userId: number, message: string, context: { month: string; currency: string }): AsyncGenerator<AiStreamEvent> {
+  const cfg = await getAiConfig();
+  if (!cfg.apiKey) {
+    yield {
+      kind: 'error',
+      error: { kind: 'not_configured', message: 'Assistant IA non configuré: ajoute une clé API depuis Paramètres ou définis AI_API_KEY côté backend.', detail: '' },
+    };
+    return;
+  }
+
+  const messages: AiMessage[] = [
+    { role: 'system', content: systemPrompt(context) },
+    { role: 'user', content: message },
+  ];
+  const pendingActions: PendingAiAction[] = [];
+  let finalAnswer = '';
+
+  try {
+    for (let step = 0; step < 4; step += 1) {
+      // Stream this turn from the provider. The generator yields token events
+      // as we read deltas, and resolves to the assembled message at the end
+      // so we can decide whether to loop (tool calls) or stop.
+      const assembled = { content: '', tool_calls: [] as ToolCall[] };
+      for await (const delta of streamChatCompletion(messages)) {
+        if (delta.contentDelta) {
+          assembled.content += delta.contentDelta;
+          yield { kind: 'token', text: delta.contentDelta };
+        }
+        if (delta.toolCallDelta) {
+          mergeToolCallDelta(assembled.tool_calls, delta.toolCallDelta);
+        }
+      }
+
+      const assistantMessage: AiMessage = {
+        role: 'assistant',
+        content: assembled.content || null,
+        tool_calls: assembled.tool_calls.length > 0 ? assembled.tool_calls : undefined,
+      };
+      messages.push(assistantMessage);
+
+      if (assembled.tool_calls.length === 0) {
+        finalAnswer = assembled.content.trim() || 'Je n\'ai pas trouvé de réponse exploitable.';
+        yield { kind: 'done', answer: finalAnswer, pendingActions };
+        return;
+      }
+
+      for (const call of assembled.tool_calls) {
+        const args = parseToolArguments(call.function.arguments);
+        yield { kind: 'tool_start', id: call.id, name: call.function.name, args };
+        try {
+          const execution = await executeAiTool(userId, call.function.name, args);
+          if (execution.pendingAction) pendingActions.push(execution.pendingAction);
+          messages.push({
+            role: 'tool',
+            tool_call_id: call.id,
+            content: JSON.stringify(execution.result),
+          });
+          yield {
+            kind: 'tool_result',
+            id: call.id,
+            name: call.function.name,
+            ok: true,
+            pendingAction: execution.pendingAction,
+            preview: previewResult(execution.result),
+          };
+        } catch (e) {
+          const detail = (e as Error).message;
+          messages.push({
+            role: 'tool',
+            tool_call_id: call.id,
+            content: JSON.stringify({ ok: false, error: detail }),
+          });
+          yield { kind: 'tool_result', id: call.id, name: call.function.name, ok: false, preview: detail };
+        }
+      }
+    }
+
+    yield { kind: 'done', answer: 'J\'ai atteint la limite d\'étapes pour cette demande. Essaie une consigne plus précise.', pendingActions };
+  } catch (e) {
+    if (e instanceof AiProviderError) {
+      yield { kind: 'error', error: { kind: e.kind, message: e.message, detail: e.detail } };
+    } else {
+      yield { kind: 'error', error: { kind: 'network', message: (e as Error).message, detail: '' } };
+    }
+  }
+}
+
+interface StreamDelta {
+  contentDelta?: string;
+  toolCallDelta?: { index: number; id?: string; name?: string; argsDelta?: string };
+}
+
+async function* streamChatCompletion(messages: AiMessage[]): AsyncGenerator<StreamDelta> {
+  const cfg = await getAiConfig();
+  let res: Response;
+  try {
+    res = await fetch(`${cfg.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${cfg.apiKey}`,
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify({
+        model: cfg.model,
+        messages,
+        tools: aiToolDefinitions,
+        tool_choice: 'auto',
+        temperature: 0.2,
+        stream: true,
+      }),
+    });
+  } catch (e) {
+    throw new AiProviderError('network', 502, `Impossible de joindre le fournisseur IA: ${(e as Error).message}`);
+  }
+  if (!res.ok) {
+    const body = await res.text();
+    console.error('[ai] provider error (stream)', { status: res.status, model: cfg.model, body: body.slice(0, 500) });
+    throw classifyUpstream(res.status, body);
+  }
+  if (!res.body) throw new AiProviderError('upstream', 502, 'Pas de body sur la réponse streaming.');
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    // SSE events are separated by blank lines; data: lines may span multiple.
+    let lineEnd: number;
+    while ((lineEnd = buffer.indexOf('\n')) >= 0) {
+      const rawLine = buffer.slice(0, lineEnd).replace(/\r$/, '');
+      buffer = buffer.slice(lineEnd + 1);
+      if (!rawLine.startsWith('data:')) continue;
+      const data = rawLine.slice(5).trim();
+      if (data === '[DONE]') return;
+      try {
+        const payload = JSON.parse(data);
+        const choice = payload?.choices?.[0];
+        const delta = choice?.delta;
+        if (!delta) continue;
+        if (typeof delta.content === 'string' && delta.content.length > 0) {
+          yield { contentDelta: delta.content };
+        }
+        if (Array.isArray(delta.tool_calls)) {
+          for (const tc of delta.tool_calls) {
+            yield {
+              toolCallDelta: {
+                index: Number(tc.index ?? 0),
+                id: tc.id,
+                name: tc.function?.name,
+                argsDelta: tc.function?.arguments,
+              },
+            };
+          }
+        }
+      } catch {
+        /* malformed chunk — skip */
+      }
+    }
+  }
+}
+
+function mergeToolCallDelta(calls: ToolCall[], delta: { index: number; id?: string; name?: string; argsDelta?: string }) {
+  while (calls.length <= delta.index) {
+    calls.push({ id: '', type: 'function', function: { name: '', arguments: '' } });
+  }
+  const target = calls[delta.index]!;
+  if (delta.id) target.id = delta.id;
+  if (delta.name) target.function.name = delta.name;
+  if (delta.argsDelta) target.function.arguments += delta.argsDelta;
+}
+
+function previewResult(result: unknown): string {
+  try {
+    const text = typeof result === 'string' ? result : JSON.stringify(result);
+    return text.length > 140 ? `${text.slice(0, 137)}…` : text;
+  } catch {
+    return '';
+  }
 }
 
 async function createChatCompletion(messages: AiMessage[], options: { noTools?: boolean } = {}) {
