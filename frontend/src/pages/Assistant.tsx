@@ -96,6 +96,7 @@ export function Assistant({ userId, month, currency, run }: { userId: number; mo
 
     const controller = new AbortController();
     abortRef.current = controller;
+    let receivedTerminalEvent = false;
     try {
       for await (const event of api.aiChatStream(userId, { message, month, currency }, controller.signal)) {
         if (event.kind === 'token') {
@@ -107,17 +108,25 @@ export function Assistant({ userId, month, currency, run }: { userId: number; mo
         } else if (event.kind === 'tool_result') {
           upsertTool(assistantId, { id: event.id, name: event.name, status: event.ok ? 'ok' : 'error', preview: event.preview });
         } else if (event.kind === 'done') {
+          receivedTerminalEvent = true;
           updateAssistant(assistantId, {
             content: event.answer,
             streaming: false,
             actions: event.pendingActions,
           });
         } else if (event.kind === 'error') {
+          receivedTerminalEvent = true;
           updateAssistant(assistantId, {
             content: `❌ ${event.error.message}`,
             streaming: false,
           });
         }
+      }
+      if (!receivedTerminalEvent && !controller.signal.aborted) {
+        updateAssistant(assistantId, {
+          content: '❌ La réponse IA s’est interrompue avant la fin. Réessaie dans quelques secondes.',
+          streaming: false,
+        });
       }
     } catch (e) {
       updateAssistant(assistantId, {

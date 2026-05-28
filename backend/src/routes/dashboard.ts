@@ -131,8 +131,8 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
 
 // Solde estimé : pour chaque compte on part du snapshot de solde le plus récent
 // (ou du solde initial s'il n'y a pas de snapshot) puis on applique les transactions
-// postérieures à cette date. Les transactions sans compte sont ajoutées à plat.
-function computeAccountBalances(
+// de cette date et les suivantes. Les transactions sans compte sont ajoutées à plat.
+export function computeAccountBalances(
   accounts: AccountRow[],
   transactions: Tx[],
   snapshots: Array<{ account_id: number; date: Date; balance: number }>,
@@ -159,12 +159,7 @@ function computeAccountBalances(
     const snap = latestSnapshot.get(account.id);
     const base = snap ? snap.balance : account.initial_balance;
     const since = snap ? snap.date : account.initial_balance_date;
-    // Semantics differ between snapshots and the initial balance:
-    //   - A snapshot is the end-of-day balance on its date, so same-day
-    //     transactions are already baked in → strict `>`.
-    //   - The initial balance is the opening balance *before* any activity,
-    //     so a transaction on the opening day must still be counted → `>=`.
-    const matches = (txDate: Date) => (snap ? txDate > since : txDate >= since);
+    const matches = (txDate: Date) => txDate >= since;
     const outgoing = transactions
       .filter((t) => t.account_id === account.id && matches(t.date))
       .reduce((s, t) => s + sourceDelta(t), 0);
@@ -406,4 +401,3 @@ function buildYearlyCashflow(transactions: Tx[], accountById: Map<number, Accoun
     .map((r) => ({ year: r.year, income: round2(r.income), expenses: round2(r.expenses), net: round2(r.net) }))
     .sort((a, b) => a.year.localeCompare(b.year));
 }
-

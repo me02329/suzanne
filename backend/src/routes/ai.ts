@@ -48,12 +48,12 @@ aiRouter.post('/users/:user_id/ai/chat/stream', asyncHandler(async (req, res) =>
     res.write(`data: ${JSON.stringify(event)}\n\n`);
   };
 
-  let closed = false;
-  req.on('close', () => { closed = true; });
+  let aborted = false;
+  req.on('aborted', () => { aborted = true; });
 
   try {
     for await (const event of streamAiChat(userId, body.message, { month: body.month, currency: body.currency })) {
-      if (closed) break;
+      if (aborted || res.destroyed || res.writableEnded) break;
       send(event);
     }
   } catch (e) {
