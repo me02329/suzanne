@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { CalendarCheck, Landmark, Pencil } from 'lucide-react';
+import { CalendarCheck, ChevronDown, ChevronUp, Landmark, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   ACCOUNT_TYPES,
   REPORT_CURRENCIES,
@@ -13,11 +13,15 @@ import {
 } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { lastDayOfPreviousMonthIso, money, todayIso } from '../lib/format';
+import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
+import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 
 import type { Run } from '../lib/run';
+
+const ORDERED_GROUPS = ['cash', 'regulated_savings', 'investments', 'crypto', 'liabilities', 'other'];
 
 export function Accounts({ userId, accounts, institutions, snapshots, institutionById, summary, run }: {
   userId: number;
@@ -31,10 +35,10 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [snapshotDate, setSnapshotDate] = useState<string>(() => lastDayOfPreviousMonthIso());
   const [snapshotInputs, setSnapshotInputs] = useState<Record<number, string>>({});
+  const [snapshotsOpen, setSnapshotsOpen] = usePersistedState<boolean>('accounts_snapshots_open', false);
+  const [accountOpen, setAccountOpen] = usePersistedState<boolean>('accounts_account_open', accounts.length === 0);
+  const [institutionOpen, setInstitutionOpen] = usePersistedState<boolean>('accounts_institution_open', false);
 
-  // Group accounts by accountTypeGroup so the batch form shows them in
-  // sensible buckets (Liquidités, Livrets, Investissements…) instead of a
-  // flat list.
   const accountsByGroup = useMemo(() => {
     const buckets = new Map<string, Account[]>();
     for (const account of accounts) {
@@ -43,9 +47,19 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       list.push(account);
       buckets.set(group, list);
     }
-    for (const list of buckets.values()) {
-      list.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    for (const list of buckets.values()) list.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    return buckets;
+  }, [accounts]);
+
+  const accountsByInstitution = useMemo(() => {
+    const buckets = new Map<number | null, Account[]>();
+    for (const account of accounts) {
+      const key = account.institution_id ?? null;
+      const list = buckets.get(key) ?? [];
+      list.push(account);
+      buckets.set(key, list);
     }
+    for (const list of buckets.values()) list.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     return buckets;
   }, [accounts]);
 
@@ -73,9 +87,10 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
     setSnapshotInputs({});
   };
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submitAccount = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     const body = {
       institution_id: (() => { const v = data.get('institution_id'); return v && Number(v) > 0 ? Number(v) : null; })(),
       name: String(data.get('name')),
@@ -88,165 +103,260 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       void run(() => api.updateAccount(userId, editingAccount.id, body), 'Compte modifié');
       setEditingAccount(null);
     } else {
-      void run(() => api.createAccount(userId, body));
+      void run(() => api.createAccount(userId, body), 'Compte ajouté');
+      form.reset();
     }
-    event.currentTarget.reset();
   };
 
   const submitInstitution = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     void run(() => api.createInstitution(userId, { name: String(data.get('name')) }), 'Institution ajoutée');
-    event.currentTarget.reset();
+    form.reset();
   };
 
   const filledCount = Object.values(snapshotInputs).filter((v) => v.trim() !== '').length;
-  const orderedGroups = ['cash', 'regulated_savings', 'investments', 'crypto', 'liabilities', 'other'];
+  const institutionOrder: Array<{ id: number | null; name: string }> = [
+    ...institutions.map((i) => ({ id: i.id as number | null, name: i.name })),
+    { id: null, name: 'Sans institution' },
+  ];
+  const hasUnassigned = (accountsByInstitution.get(null)?.length ?? 0) > 0;
 
   return (
-    <>
-      <Panel title="Snapshots de fin de mois">
-        <p className="panel-note">
-          Saisis le solde réel de chaque compte à une date précise (typiquement le dernier jour du mois).
-          Laisse vide les comptes que tu n'as pas encore vérifiés — seuls les champs remplis seront enregistrés.
-          Re-saisir une même date écrase la valeur précédente.
-        </p>
-        <form className="form snapshot-batch-form" onSubmit={submitSnapshotBatch}>
-          <label>Date du snapshot
-            <input type="date" value={snapshotDate} onChange={(e) => setSnapshotDate(e.target.value)} required />
-          </label>
-          {accounts.length === 0 ? (
-            <p className="empty">Crée d'abord un compte pour pouvoir saisir des snapshots.</p>
-          ) : (
-            <div className="table-wrap full">
-              <table className="tx-table snapshot-batch-table">
-                <thead>
-                  <tr>
-                    <th>Compte</th>
-                    <th>Devise</th>
-                    <th className="amount-cell">Solde estimé</th>
-                    <th className="amount-cell">Nouveau solde réel</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orderedGroups.flatMap((group) => {
-                    const groupAccounts = accountsByGroup.get(group);
-                    if (!groupAccounts || groupAccounts.length === 0) return [];
-                    return [
-                      <tr key={`header-${group}`} className="snapshot-batch-group-header">
-                        <td colSpan={4}>{accountGroupLabel(group)}</td>
-                      </tr>,
-                      ...groupAccounts.map((account) => {
+    <section className="stack">
+      <div className={`collapsible-panel ${snapshotsOpen ? 'open' : ''}`}>
+        <button
+          type="button"
+          className="collapsible-header"
+          onClick={() => setSnapshotsOpen(!snapshotsOpen)}
+          aria-expanded={snapshotsOpen}
+        >
+          <span className="collapsible-title"><CalendarCheck size={16} /> Saisir snapshots de fin de mois</span>
+          {snapshotsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {snapshotsOpen && (
+          <div className="collapsible-body">
+            <p className="panel-note">
+              Saisis le solde réel à une date précise. Laisse vide les comptes non vérifiés.
+              Re-saisir la même date écrase la valeur précédente.
+            </p>
+            <form className="form snapshot-batch-form" onSubmit={submitSnapshotBatch}>
+              <label>Date du snapshot
+                <input type="date" value={snapshotDate} onChange={(e) => setSnapshotDate(e.target.value)} required />
+              </label>
+              {accounts.length === 0 ? (
+                <p className="empty">Crée d'abord un compte pour saisir des snapshots.</p>
+              ) : (
+                <div className="table-wrap full">
+                  <table className="tx-table snapshot-batch-table">
+                    <thead>
+                      <tr>
+                        <th>Compte</th>
+                        <th>Devise</th>
+                        <th className="amount-cell">Solde estimé</th>
+                        <th className="amount-cell">Nouveau solde réel</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ORDERED_GROUPS.flatMap((group) => {
+                        const groupAccounts = accountsByGroup.get(group);
+                        if (!groupAccounts || groupAccounts.length === 0) return [];
+                        return [
+                          <tr key={`header-${group}`} className="snapshot-batch-group-header">
+                            <td colSpan={4}>{accountGroupLabel(group)}</td>
+                          </tr>,
+                          ...groupAccounts.map((account) => {
+                            const estimated = estimatedByAccount.get(account.id);
+                            return (
+                              <tr key={account.id}>
+                                <td><strong>{account.name}</strong></td>
+                                <td>{account.currency}</td>
+                                <td className="amount-cell">
+                                  {estimated ? money(estimated.signed_balance, account.currency) : '—'}
+                                </td>
+                                <td className="amount-cell">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    inputMode="decimal"
+                                    placeholder={`en ${account.currency}`}
+                                    value={snapshotInputs[account.id] ?? ''}
+                                    onChange={(e) => setSnapshotInputs((current) => ({ ...current, [account.id]: e.target.value }))}
+                                    aria-label={`Solde réel pour ${account.name} en ${account.currency}`}
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          }),
+                        ];
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <button className="primary" disabled={filledCount === 0}>
+                <CalendarCheck size={16} /> Enregistrer {filledCount > 0 ? `(${filledCount})` : ''}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+
+      <div className={`collapsible-panel ${accountOpen ? 'open' : ''}`}>
+        <button
+          type="button"
+          className="collapsible-header"
+          onClick={() => setAccountOpen(!accountOpen)}
+          aria-expanded={accountOpen}
+        >
+          <span className="collapsible-title"><Plus size={16} /> Nouveau compte</span>
+          {accountOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {accountOpen && (
+          <div className="collapsible-body">
+            <form className="form form-inline" onSubmit={submitAccount} key={editingAccount?.id ?? 'new-account'}>
+              <label className="grow">Nom<input name="name" defaultValue={editingAccount?.name ?? ''} required /></label>
+              <label>Type
+                <select name="type" defaultValue={editingAccount?.type ?? 'checking'}>
+                  {ACCOUNT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+              <label>Institution
+                <select name="institution_id" defaultValue={editingAccount?.institution_id ?? ''}>
+                  <option value="">Aucune</option>
+                  {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+              </label>
+              <label>Devise
+                <select name="currency" defaultValue={editingAccount?.currency ?? 'EUR'} required>
+                  {REPORT_CURRENCIES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+              <label>Solde initial<input name="initial_balance" type="number" step="0.01" defaultValue={editingAccount?.initial_balance ?? 0} /></label>
+              <label>Date initiale<input name="initial_balance_date" type="date" defaultValue={editingAccount?.initial_balance_date?.slice(0, 10) ?? todayIso()} required /></label>
+              <button className="primary"><Landmark size={16} /> {editingAccount ? 'Enregistrer' : 'Ajouter'}</button>
+              {editingAccount && <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>Annuler</button>}
+            </form>
+          </div>
+        )}
+      </div>
+
+      <div className={`collapsible-panel ${institutionOpen ? 'open' : ''}`}>
+        <button
+          type="button"
+          className="collapsible-header"
+          onClick={() => setInstitutionOpen(!institutionOpen)}
+          aria-expanded={institutionOpen}
+        >
+          <span className="collapsible-title"><Plus size={16} /> Nouvelle institution</span>
+          {institutionOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {institutionOpen && (
+          <div className="collapsible-body">
+            <form className="form form-inline" onSubmit={submitInstitution}>
+              <label className="grow">Nom<input name="name" required placeholder="Banque, broker, caisse..." /></label>
+              <button className="primary">Ajouter</button>
+            </form>
+          </div>
+        )}
+      </div>
+
+      <Panel title="Institutions et comptes">
+        {accounts.length === 0 && institutions.length === 0 ? (
+          <p className="empty">Crée une institution et un compte pour commencer.</p>
+        ) : (
+          <div className="institution-list">
+            {institutionOrder.map((institution) => {
+              const accountsHere = accountsByInstitution.get(institution.id) ?? [];
+              if (institution.id === null && !hasUnassigned) return null;
+              const total = accountsHere.reduce((sum, a) => {
+                const est = estimatedByAccount.get(a.id);
+                return sum + (est?.signed_balance ?? a.initial_balance);
+              }, 0);
+              return (
+                <div className="institution-card" key={institution.id ?? 'none'}>
+                  <div className="institution-card-header">
+                    <div>
+                      <strong>{institution.name}</strong>
+                      <span>{accountsHere.length} compte{accountsHere.length > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="institution-card-actions">
+                      <span className="institution-total">{money(total)}</span>
+                      {institution.id !== null && accountsHere.length === 0 && (
+                        <IconButton
+                          label="Supprimer l'institution"
+                          icon={<Trash2 size={14} />}
+                          confirm={`Supprimer l'institution « ${institution.name} » ?`}
+                          onClick={() => void run(() => api.deleteInstitution(userId, institution.id as number), 'Institution supprimée')}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  {accountsHere.length === 0 ? (
+                    <p className="empty inline">Aucun compte rattaché.</p>
+                  ) : (
+                    <ul className="institution-accounts">
+                      {accountsHere.map((account) => {
                         const estimated = estimatedByAccount.get(account.id);
                         return (
-                          <tr key={account.id}>
-                            <td><strong>{account.name}</strong></td>
-                            <td>{account.currency}</td>
-                            <td className="amount-cell">
-                              {estimated ? money(estimated.signed_balance, account.currency) : '—'}
-                            </td>
-                            <td className="amount-cell">
-                              <input
-                                type="number"
-                                step="0.01"
-                                inputMode="decimal"
-                                placeholder={`en ${account.currency}`}
-                                value={snapshotInputs[account.id] ?? ''}
-                                onChange={(e) => setSnapshotInputs((current) => ({ ...current, [account.id]: e.target.value }))}
-                                aria-label={`Solde réel pour ${account.name} en ${account.currency}`}
-                              />
-                            </td>
-                          </tr>
+                          <li key={account.id}>
+                            <div className="account-line-main">
+                              <strong>{account.name}</strong>
+                              <span>{accountTypeLabel(account.type)} · {account.currency}</span>
+                            </div>
+                            <div className="account-line-amount">
+                              {estimated ? money(estimated.signed_balance, account.currency) : money(account.initial_balance, account.currency)}
+                            </div>
+                            <div className="account-line-actions">
+                              <IconButton label="Modifier" tone="neutral" icon={<Pencil size={14} />} onClick={() => { setEditingAccount(account); setAccountOpen(true); }} />
+                              <IconButton label="Supprimer" icon={<Trash2 size={14} />} confirm={`Supprimer le compte « ${account.name} » et toutes ses transactions ?`} onClick={() => void run(() => api.deleteAccount(userId, account.id), 'Compte supprimé')} />
+                            </div>
+                          </li>
                         );
-                      }),
-                    ];
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <button className="primary" disabled={filledCount === 0}>
-            <CalendarCheck size={16} /> Enregistrer {filledCount > 0 ? `(${filledCount})` : ''}
-          </button>
-        </form>
+                      })}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Panel>
 
-      <section className="split" style={{ marginTop: 18 }}>
-        <div className="stack">
-          <Panel title="Nouvelle institution">
-          <form className="form" onSubmit={submitInstitution}>
-            <label>Nom<input name="name" required placeholder="Banque, broker, caisse..." /></label>
-            <button className="primary">Ajouter</button>
-          </form>
-        </Panel>
-        <Panel title={editingAccount ? 'Modifier le compte' : 'Nouveau compte'}>
-          <form className="form" onSubmit={submit} key={editingAccount?.id ?? 'new-account'}>
-            <label>Institution<select name="institution_id" defaultValue={editingAccount?.institution_id ?? ''}><option value="">Aucune</option>{institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
-            <label>Nom<input name="name" defaultValue={editingAccount?.name ?? ''} required /></label>
-            <label>Type<select name="type" defaultValue={editingAccount?.type ?? 'checking'}>{ACCOUNT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-            <label>Devise<select name="currency" defaultValue={editingAccount?.currency ?? 'EUR'} required>{REPORT_CURRENCIES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-            <label>Solde initial<input name="initial_balance" type="number" step="0.01" defaultValue={editingAccount?.initial_balance ?? 0} /></label>
-            <label>Date initiale<input name="initial_balance_date" type="date" defaultValue={editingAccount?.initial_balance_date?.slice(0, 10) ?? todayIso()} required /></label>
-            <button className="primary"><Landmark size={16} /> {editingAccount ? 'Enregistrer' : 'Ajouter'}</button>
-            {editingAccount && <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>Annuler</button>}
-          </form>
-        </Panel>
-      </div>
-      <div className="stack">
-        <Panel title="Comptes">
-          <DataTable empty={accounts.length === 0 ? 'Aucun compte.' : null}>
-            <thead><tr><th>Compte</th><th>Institution</th><th>Type</th><th>Devise</th><th className="amount-cell">Solde initial</th><th className="actions-cell">Actions</th></tr></thead>
-            <tbody>
-              {accounts.map((a) => (
-                <tr key={a.id}>
-                  <td><strong>{a.name}</strong><span>Depuis le {new Date(a.initial_balance_date).toLocaleDateString('fr-FR')}</span></td>
-                  <td>{institutionById.get(a.institution_id ?? -1)?.name ?? 'Sans institution'}</td>
-                  <td>{accountTypeLabel(a.type)}</td>
-                  <td>{a.currency}</td>
-                  <td className="amount-cell">{money(a.initial_balance, a.currency)}</td>
-                  <td className="actions-cell">
-                    <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditingAccount(a)} />
-                    <IconButton label="Supprimer" confirm={`Supprimer le compte « ${a.name} » et toutes ses transactions ?`} onClick={() => void run(() => api.deleteAccount(userId, a.id), 'Compte supprimé')} />
-                  </td>
+      <Panel title="Snapshots récents">
+        <DataTable empty={snapshots.length === 0 ? 'Aucun snapshot.' : null}>
+          <thead><tr><th>Date</th><th>Compte</th><th className="amount-cell">Solde</th><th className="actions-cell">Actions</th></tr></thead>
+          <tbody>
+            {snapshots.slice(0, 20).map((s) => {
+              const account = accounts.find((a) => a.id === s.account_id);
+              return (
+                <tr key={s.id}>
+                  <td>{new Date(s.date).toLocaleDateString('fr-FR')}</td>
+                  <td>{account?.name ?? 'Compte'}</td>
+                  <td className="amount-cell">{money(s.balance, account?.currency ?? 'EUR')}</td>
+                  <td className="actions-cell"><IconButton label="Supprimer" onClick={() => void run(() => api.deleteSnapshot(userId, s.id), 'Snapshot supprimé')} /></td>
                 </tr>
-              ))}
-            </tbody>
-          </DataTable>
-        </Panel>
-        <Panel title="Institutions">
-          <DataTable empty={institutions.length === 0 ? 'Aucune institution.' : null}>
-            <thead><tr><th>Nom</th><th>Créée le</th><th className="actions-cell">Actions</th></tr></thead>
-            <tbody>
-              {institutions.map((i) => (
-                <tr key={i.id}>
-                  <td><strong>{i.name}</strong></td>
-                  <td>{new Date(i.created_at).toLocaleDateString('fr-FR')}</td>
-                  <td className="actions-cell"><IconButton label="Supprimer" confirm={`Supprimer l'institution « ${i.name} » ?`} onClick={() => void run(() => api.deleteInstitution(userId, i.id), 'Institution supprimée')} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </DataTable>
-        </Panel>
-        <Panel title="Snapshots récents">
-          <DataTable empty={snapshots.length === 0 ? 'Aucun snapshot.' : null}>
-            <thead><tr><th>Date</th><th>Compte</th><th className="amount-cell">Solde</th><th className="actions-cell">Actions</th></tr></thead>
-            <tbody>
-              {snapshots.slice(0, 20).map((s) => {
-                const account = accounts.find((a) => a.id === s.account_id);
-                return (
-                  <tr key={s.id}>
-                    <td>{new Date(s.date).toLocaleDateString('fr-FR')}</td>
-                    <td>{account?.name ?? 'Compte'}</td>
-                    <td className="amount-cell">{money(s.balance, account?.currency ?? 'EUR')}</td>
-                    <td className="actions-cell"><IconButton label="Supprimer" onClick={() => void run(() => api.deleteSnapshot(userId, s.id), 'Snapshot supprimé')} /></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </DataTable>
-        </Panel>
-      </div>
+              );
+            })}
+          </tbody>
+        </DataTable>
+      </Panel>
+
+      {editingAccount && !accountOpen && (
+        <Modal title={`Modifier ${editingAccount.name}`} onClose={() => setEditingAccount(null)}>
+          <form className="form" onSubmit={submitAccount} key={`modal-${editingAccount.id}`}>
+            <label>Nom<input name="name" defaultValue={editingAccount.name} required /></label>
+            <label>Type<select name="type" defaultValue={editingAccount.type}>{ACCOUNT_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+            <label>Institution<select name="institution_id" defaultValue={editingAccount.institution_id ?? ''}><option value="">Aucune</option>{institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
+            <label>Devise<select name="currency" defaultValue={editingAccount.currency} required>{REPORT_CURRENCIES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+            <label>Solde initial<input name="initial_balance" type="number" step="0.01" defaultValue={editingAccount.initial_balance} /></label>
+            <label>Date initiale<input name="initial_balance_date" type="date" defaultValue={editingAccount.initial_balance_date.slice(0, 10)} required /></label>
+            <button className="primary">Enregistrer</button>
+            <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>Annuler</button>
+          </form>
+        </Modal>
+      )}
     </section>
-    </>
   );
 }
