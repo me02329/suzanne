@@ -51,6 +51,8 @@ export const createCategorySchema = z.object({
 });
 export const updateCategorySchema = createCategorySchema.partial();
 
+const tagIdsArray = z.array(z.coerce.number().int().positive()).max(20).optional();
+
 export const createTransactionSchema = z.object({
   account_id: z.coerce.number().int().positive().nullish(),
   to_account_id: z.coerce.number().int().positive().nullish(),
@@ -60,6 +62,7 @@ export const createTransactionSchema = z.object({
   type: z.enum(['expense', 'income', 'transfer']),
   date: dateString,
   description: z.string().trim().max(500).nullish(),
+  tag_ids: tagIdsArray,
 }).superRefine((data, ctx) => {
   if (data.type !== 'transfer') return;
   if (!data.account_id || !data.to_account_id) {
@@ -77,7 +80,14 @@ export const updateTransactionSchema = z.object({
   type: z.enum(['expense', 'income', 'transfer']),
   date: dateString,
   description: z.string().trim().max(500).nullish(),
+  tag_ids: tagIdsArray,
 }).partial();
+
+export const createTagSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  color: z.string().trim().min(1).max(20).default('#6366f1'),
+});
+export const updateTagSchema = createTagSchema.partial();
 
 export const linkRecurringSchema = z.object({
   recurring_transaction_id: z.coerce.number().int().positive().nullable(),

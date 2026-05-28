@@ -15,6 +15,7 @@ import { searchRouter } from './search.js';
 import { statisticsRouter } from './statistics.js';
 import { aiRouter } from './ai.js';
 import { settingsRouter } from './settings.js';
+import { tagsRouter } from './tags.js';
 
 export const apiRouter = Router();
 apiRouter.use(usersRouter);
@@ -33,3 +34,4 @@ apiRouter.use(searchRouter);
 apiRouter.use(statisticsRouter);
 apiRouter.use(aiRouter);
 apiRouter.use(settingsRouter);
+apiRouter.use(tagsRouter);

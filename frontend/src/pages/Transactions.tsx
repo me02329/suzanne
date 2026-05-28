@@ -6,6 +6,7 @@ import {
   type Account,
   type Category,
   type RecurringTransaction,
+  type Tag,
   type Transaction,
   type TransactionType,
 } from '@suzanne-lite/shared';
@@ -15,16 +16,18 @@ import { money, todayIso, txLabel } from '../lib/format';
 import { usePersistedState } from '../lib/storage';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
+import { TagPicker } from '../components/TagPicker';
 import { TransactionsTable } from '../components/TransactionsTable';
 
 import type { Run } from '../lib/run';
 
-export function Transactions({ userId, transactions, recurring, accounts, categories, categoryById, accountById, run }: {
+export function Transactions({ userId, transactions, recurring, accounts, categories, tags, categoryById, accountById, run }: {
   userId: number;
   transactions: Transaction[];
   recurring: RecurringTransaction[];
   accounts: Account[];
   categories: Category[];
+  tags: Tag[];
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
   run: Run;
@@ -34,7 +37,10 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [linking, setLinking] = useState<Transaction | null>(null);
   const [addType, setAddType] = useState<TransactionType>('expense');
+  const [addTagIds, setAddTagIds] = useState<number[]>([]);
   const [editType, setEditType] = useState<TransactionType>('expense');
+  const [editTagIds, setEditTagIds] = useState<number[]>([]);
+  const [filterTagId, setFilterTagId] = usePersistedState<string>('tx_filter_tag', 'all');
   const [bulkEditing, setBulkEditing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [query, setQuery] = useState('');
@@ -60,8 +66,11 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
       String(t.amount),
       new Date(t.date).toLocaleDateString('fr-FR'),
     ].filter(Boolean).join(' ').toLowerCase();
+    const tagMatch = filterTagId === 'all'
+      || (t.tags ?? []).some((tag) => String(tag.id) === filterTagId);
     return (filterType === 'all' || t.type === filterType)
       && (filterAccountGroup === 'all' || groups.includes(filterAccountGroup as ReturnType<typeof accountTypeGroup>))
+      && tagMatch
       && haystack.includes(query.trim().toLowerCase());
   });
   const txTotals = filteredTransactions.reduce((acc, t) => {
@@ -73,11 +82,13 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
 
   const startEdit = (t: Transaction) => {
     setEditType(t.type);
+    setEditTagIds((t.tags ?? []).map((tag) => tag.id));
     setEditing(t);
   };
 
   const copyTransaction = (t: Transaction) => {
     setEditType(t.type);
+    setEditTagIds((t.tags ?? []).map((tag) => tag.id));
     setEditing({ ...t, id: -t.id, date: todayIso(), created_at: todayIso() });
   };
 
@@ -127,10 +138,12 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
       type: addType,
       date: String(data.get('date')),
       description: String(data.get('description') || ''),
+      tag_ids: addTagIds,
     };
     void run(() => api.createTransaction(userId, body), 'Transaction ajoutée');
     form.reset();
     setAddType('expense');
+    setAddTagIds([]);
   };
 
   const submitEdit = (event: FormEvent<HTMLFormElement>) => {
@@ -145,6 +158,7 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
       type: editType,
       date: String(data.get('date')),
       description: String(data.get('description') || ''),
+      tag_ids: editTagIds,
     };
     if (editing.id > 0) {
       void run(() => api.updateTransaction(userId, editing.id, body), 'Transaction modifiée');
@@ -223,6 +237,7 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
                 ? <label>Vers le compte<select name="to_account_id" required><option value="">Choisir...</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
                 : <label>Catégorie<select name="category_id"><option value="">Aucune</option>{filteredAddCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
               <label className="grow">Description<input name="description" placeholder="Ex: Carrefour, salaire, loyer..." /></label>
+              <label className="grow">Tags<TagPicker value={addTagIds} tags={tags} onChange={setAddTagIds} /></label>
               <button className="primary"><Plus size={16} /> Ajouter</button>
             </form>
           </div>
@@ -244,6 +259,10 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
           <select value={filterAccountGroup} onChange={(e) => setFilterAccountGroup(e.target.value)}>
             <option value="all">Tous les comptes</option>
             {ACCOUNT_GROUPS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+          <select value={filterTagId} onChange={(e) => setFilterTagId(e.target.value)}>
+            <option value="all">Tous les tags</option>
+            {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
         <div className="tx-summary">
@@ -298,6 +317,7 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
               ? <label>Vers le compte<select name="to_account_id" defaultValue={editing.to_account_id ?? ''} required><option value="">Choisir...</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
               : <label>Catégorie<select name="category_id" defaultValue={editing.category_id ?? ''}><option value="">Aucune</option>{filteredEditCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
             <label className="full">Description<input name="description" defaultValue={editing.description ?? ''} placeholder="Ex: Carrefour, salaire, loyer..." /></label>
+            <label className="full">Tags<TagPicker value={editTagIds} tags={tags} onChange={setEditTagIds} /></label>
             <button className="primary">{editing.id > 0 ? 'Enregistrer' : 'Créer la copie'}</button>
             <button type="button" className="secondary" onClick={closeModal}>Annuler</button>
           </form>

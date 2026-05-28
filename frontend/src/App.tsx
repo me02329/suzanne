@@ -11,6 +11,7 @@ import {
   type Institution,
   type RecurringTransaction,
   type SavingsGoal,
+  type Tag,
   type Transaction,
   type User,
 } from '@suzanne-lite/shared';
@@ -34,6 +35,7 @@ import { Recurring } from './pages/Recurring';
 import { Goals } from './pages/Goals';
 import { Rules } from './pages/Rules';
 import { Settings } from './pages/Settings';
+import { Tags } from './pages/Tags';
 import { Tools } from './pages/Tools';
 import { UsersPage } from './pages/Users';
 
@@ -62,6 +64,7 @@ export default function App() {
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([]);
   const [rules, setRules] = useState<CategoryRule[]>([]);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [snapshots, setSnapshots] = useState<AccountSnapshot[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -92,7 +95,7 @@ export default function App() {
     const version = ++reloadVersion.current;
     setLoading(true);
     try {
-      const [dash, txs, accs, insts, cats, bds, recs, rls, gls, snaps] = await Promise.all([
+      const [dash, txs, accs, insts, cats, bds, recs, rls, gls, snaps, tgs] = await Promise.all([
         api.dashboard(userId, month, reportCurrency),
         api.transactions(userId, month),
         api.accounts(userId),
@@ -103,6 +106,7 @@ export default function App() {
         api.rules(userId),
         api.goals(userId),
         api.snapshots(userId),
+        api.tags(userId),
       ]);
       if (version !== reloadVersion.current) return;
       setSummary(dash);
@@ -115,6 +119,7 @@ export default function App() {
       setRules(rls);
       setGoals(gls);
       setSnapshots(snaps);
+      setTags(tgs);
       setDataVersion((v) => v + 1);
     } finally {
       if (version === reloadVersion.current) setLoading(false);
@@ -268,10 +273,14 @@ export default function App() {
             recurring={recurring}
             accounts={accounts}
             categories={categories}
+            tags={tags}
             categoryById={categoryById}
             accountById={accountById}
             run={run}
           />
+        )}
+        {tab === 'tags' && userId && (
+          <Tags userId={userId} tags={tags} run={run} />
         )}
         {tab === 'statistics' && userId && (
           <Statistics userId={userId} reportCurrency={reportCurrency} />

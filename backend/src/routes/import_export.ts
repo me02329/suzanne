@@ -17,6 +17,7 @@ const EXPORT_ENTITIES = [
   'recurring',
   'goals',
   'snapshots',
+  'tags',
 ] as const;
 type ExportEntity = (typeof EXPORT_ENTITIES)[number];
 
@@ -39,6 +40,7 @@ const importSchema = z.object({
     recurring: z.array(z.any()).optional(),
     goals: z.array(z.any()).optional(),
     snapshots: z.array(z.any()).optional(),
+    tags: z.array(z.any()).optional(),
   }),
 });
 
@@ -81,18 +83,26 @@ async function buildExportPayload(user_id: number, entities: ExportEntity[], fro
     },
   } : {};
 
-  const [user, accounts, institutions, categories, rules, transactions, budgets, recurring, goals, snapshots] = await Promise.all([
+  const [user, accounts, institutions, categories, rules, transactions, budgets, recurring, goals, snapshots, tags] = await Promise.all([
     prisma.user.findUnique({ where: { id: user_id } }),
     want.has('accounts') ? prisma.account.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('institutions') ? prisma.institution.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('categories') ? prisma.category.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('category_rules') ? prisma.categoryRule.findMany({ where: { user_id } }) : Promise.resolve([]),
-    want.has('transactions') ? prisma.transaction.findMany({ where: { user_id, ...dateFilter } }) : Promise.resolve([]),
+    want.has('transactions') ? prisma.transaction.findMany({ where: { user_id, ...dateFilter }, include: { tags: { include: { tag: true } } } }) : Promise.resolve([]),
     want.has('budgets') ? prisma.budget.findMany({ where: { user_id, ...monthFilter } }) : Promise.resolve([]),
     want.has('recurring') ? prisma.recurringTransaction.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('goals') ? prisma.savingsGoal.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('snapshots') ? prisma.accountSnapshot.findMany({ where: { user_id, ...dateFilter } }) : Promise.resolve([]),
+    want.has('tags') ? prisma.tag.findMany({ where: { user_id } }) : Promise.resolve([]),
   ]);
+
+  // Embed tag_ids in each transaction so a restore can reattach them without
+  // a separate transaction_tags table in the payload.
+  const transactionsOut = transactions.map((tx) => {
+    const { tags: joins, ...rest } = tx as typeof tx & { tags?: Array<{ tag: { id: number; name: string } }> };
+    return { ...rest, tag_ids: (joins ?? []).map((j) => j.tag.id), tag_names: (joins ?? []).map((j) => j.tag.name) };
+  });
 
   return {
     version: 1,
@@ -104,11 +114,12 @@ async function buildExportPayload(user_id: number, entities: ExportEntity[], fro
     institutions,
     categories,
     rules,
-    transactions,
+    transactions: transactionsOut,
     budgets,
     recurring,
     goals,
     snapshots,
+    tags,
   };
 }
 
@@ -122,6 +133,7 @@ interface ImportSummary {
   recurring: { created: number };
   goals: { created: number; reused: number };
   snapshots: { created: number; updated: number };
+  tags: { created: number; reused: number };
 }
 
 async function importPayload(user_id: number, payload: z.infer<typeof importSchema>['payload']): Promise<ImportSummary> {
@@ -135,7 +147,25 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
     recurring: { created: 0 },
     goals: { created: 0, reused: 0 },
     snapshots: { created: 0, updated: 0 },
+    tags: { created: 0, reused: 0 },
   };
+
+  const tagIdMap = new Map<number, number>();
+  for (const raw of payload.tags ?? []) {
+    const name = String(raw.name ?? '').trim();
+    if (!name) continue;
+    const existing = await prisma.tag.findFirst({ where: { user_id, name } });
+    if (existing) {
+      tagIdMap.set(Number(raw.id), existing.id);
+      summary.tags.reused += 1;
+    } else {
+      const created = await prisma.tag.create({
+        data: { user_id, name, color: raw.color ?? '#6366f1' },
+      });
+      tagIdMap.set(Number(raw.id), created.id);
+      summary.tags.created += 1;
+    }
+  }
 
   const institutionIdMap = new Map<number, number>();
   for (const raw of payload.institutions ?? []) {
@@ -230,6 +260,18 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
     const accountId = raw.account_id ? accountIdMap.get(Number(raw.account_id)) ?? null : null;
     const toAccountId = raw.to_account_id ? accountIdMap.get(Number(raw.to_account_id)) ?? null : null;
     const categoryId = raw.category_id ? categoryIdMap.get(Number(raw.category_id)) ?? null : null;
+    // Resolve tags by remapped id first (round-trip), then by name (cross-account).
+    const tagIds = new Set<number>();
+    for (const rawTagId of (raw.tag_ids ?? [])) {
+      const mapped = tagIdMap.get(Number(rawTagId));
+      if (mapped) tagIds.add(mapped);
+    }
+    for (const rawName of (raw.tag_names ?? [])) {
+      const name = String(rawName ?? '').trim();
+      if (!name) continue;
+      const tag = await prisma.tag.findFirst({ where: { user_id, name } });
+      if (tag) tagIds.add(tag.id);
+    }
     await prisma.transaction.create({
       data: {
         user_id,
@@ -242,6 +284,9 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
         type: raw.type ?? 'expense',
         date: new Date(typeof raw.date === 'string' ? raw.date.slice(0, 10) : raw.date),
         description: raw.description ?? null,
+        tags: tagIds.size > 0
+          ? { create: Array.from(tagIds).map((tag_id) => ({ tag_id })) }
+          : undefined,
       },
     });
     summary.transactions.created += 1;

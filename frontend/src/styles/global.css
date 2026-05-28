@@ -1476,6 +1476,72 @@ textarea {
   font-size: 13px;
 }
 
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+.tag-chip.mini {
+  padding: 1px 8px;
+  font-size: 11px;
+}
+
+.tag-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.tag-chip button:hover { background: rgba(255, 255, 255, 0.45); }
+
+.tag-chip-row {
+  display: inline-flex !important;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.tag-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tag-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 28px;
+  align-items: center;
+}
+
+.tag-picker-placeholder {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.tag-picker-select {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
 .form-section-title {
   margin-top: 4px;
   font-size: 12px;

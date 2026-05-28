@@ -98,6 +98,13 @@ export function TransactionsTable({
                     {linked && <span className="badge-recurring" title="Liée à une récurrence">↻</span>}
                   </strong>
                   {t.description && category?.name && <span>{category.name}</span>}
+                  {t.tags && t.tags.length > 0 && (
+                    <span className="tag-chip-row">
+                      {t.tags.map((tag) => (
+                        <span key={tag.id} className="tag-chip mini" style={{ background: tag.color }}>{tag.name}</span>
+                      ))}
+                    </span>
+                  )}
                 </td>
                 <td><span className={`pill ${t.type}`}>{typeLabel(t.type)}</span></td>
                 <td>

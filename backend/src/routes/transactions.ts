@@ -13,14 +13,19 @@ transactionsRouter.get('/users/:user_id/transactions', asyncHandler(async (req, 
   const where = month
     ? { user_id, date: { gte: new Date(`${month}-01T00:00:00.000Z`), lt: new Date(nextMonth(month)) } }
     : { user_id };
-  const rows = await prisma.transaction.findMany({ where, orderBy: [{ date: 'desc' }, { id: 'desc' }] });
-  res.json(rows);
+  const rows = await prisma.transaction.findMany({
+    where,
+    orderBy: [{ date: 'desc' }, { id: 'desc' }],
+    include: { tags: { include: { tag: true } } },
+  });
+  res.json(rows.map(serializeTransaction));
 }));
 
 transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = createTransactionSchema.parse(req.body);
   const transfer = await transferAmounts(user_id, body);
+  const tagIds = await resolveTagIds(user_id, body.tag_ids);
   const row = await prisma.transaction.create({
     data: {
       user_id,
@@ -33,9 +38,11 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
       type: body.type,
       date: new Date(body.date),
       description: body.description ?? null,
+      tags: { create: tagIds.map((tag_id) => ({ tag_id })) },
     },
+    include: { tags: { include: { tag: true } } },
   });
-  res.status(201).json(row);
+  res.status(201).json(serializeTransaction(row));
 }));
 
 transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async (req, res) => {
@@ -70,6 +77,15 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
     }
   }
   const transfer = await transferAmounts(user_id, next);
+  if (body.tag_ids !== undefined) {
+    const tagIds = await resolveTagIds(user_id, body.tag_ids);
+    await prisma.transactionTag.deleteMany({ where: { transaction_id: id } });
+    if (tagIds.length > 0) {
+      await prisma.transactionTag.createMany({
+        data: tagIds.map((tag_id) => ({ transaction_id: id, tag_id })),
+      });
+    }
+  }
   const row = await prisma.transaction.update({
     where: { id },
     data: {
@@ -83,8 +99,9 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
       ...(body.date != null ? { date: new Date(body.date) } : {}),
       ...(body.description !== undefined ? { description: body.description ?? null } : {}),
     },
+    include: { tags: { include: { tag: true } } },
   });
-  res.json(row);
+  res.json(serializeTransaction(row));
 }));
 
 transactionsRouter.post('/users/:user_id/transactions/:id/link-recurring', asyncHandler(async (req, res) => {
@@ -140,6 +157,35 @@ function nextMonth(month: string): string {
   const [yearRaw, monthRaw] = month.split('-');
   const date = new Date(Date.UTC(Number(yearRaw), Number(monthRaw), 1));
   return date.toISOString();
+}
+
+async function resolveTagIds(userId: number, tagIds: number[] | undefined): Promise<number[]> {
+  if (!tagIds || tagIds.length === 0) return [];
+  const unique = Array.from(new Set(tagIds));
+  const owned = await prisma.tag.findMany({ where: { id: { in: unique }, user_id: userId } });
+  return owned.map((tag) => tag.id);
+}
+
+function serializeTransaction(row: {
+  id: number;
+  user_id: number;
+  account_id: number | null;
+  to_account_id: number | null;
+  category_id: number | null;
+  recurring_transaction_id: number | null;
+  amount: number;
+  to_amount: number | null;
+  exchange_rate: number | null;
+  type: string;
+  date: Date;
+  description: string | null;
+  created_at: Date;
+  tags: Array<{ tag: { id: number; user_id: number; name: string; color: string; created_at: Date } }>;
+}) {
+  return {
+    ...row,
+    tags: row.tags.map((join) => join.tag),
+  };
 }
 
 async function transferAmounts(

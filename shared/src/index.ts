@@ -54,6 +54,19 @@ export interface Category {
   created_at: string;
 }
 
+export interface Tag {
+  id: number;
+  user_id: number;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
+export interface CreateTagBody {
+  name: string;
+  color?: string;
+}
+
 export interface Transaction {
   id: number;
   user_id: number;
@@ -68,6 +81,7 @@ export interface Transaction {
   date: string;
   description: string | null;
   created_at: string;
+  tags: Tag[];
 }
 
 export interface Budget {
@@ -153,6 +167,7 @@ export interface CreateTransactionBody {
   type: TransactionType;
   date: string;
   description?: string | null;
+  tag_ids?: number[];
 }
 
 export interface CreateBudgetBody {
