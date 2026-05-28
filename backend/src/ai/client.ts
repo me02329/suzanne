@@ -5,6 +5,8 @@ type AiMessage =
   | { role: 'system' | 'user' | 'assistant'; content: string | null; tool_calls?: ToolCall[] }
   | { role: 'tool'; tool_call_id: string; content: string };
 
+export type AiChatHistoryMessage = { role: 'user' | 'assistant'; content: string };
+
 interface ToolCall {
   id: string;
   type: 'function';
@@ -85,16 +87,13 @@ export async function checkAiHealth(): Promise<{ configured: boolean; model: str
   }
 }
 
-export async function runAiChat(userId: number, message: string, context: { month: string; currency: string }): Promise<AiChatResult> {
+export async function runAiChat(userId: number, message: string, context: { month: string; currency: string }, history: AiChatHistoryMessage[] = []): Promise<AiChatResult> {
   const cfg = await getAiConfig();
   if (!cfg.apiKey) {
     throw new AiProviderError('not_configured', 503, 'Assistant IA non configuré: ajoute une clé API depuis Paramètres ou définis AI_API_KEY côté backend.');
   }
 
-  const messages: AiMessage[] = [
-    { role: 'system', content: systemPrompt(context) },
-    { role: 'user', content: message },
-  ];
+  const messages = initialMessages(context, history, message);
   const pendingActions: PendingAiAction[] = [];
 
   for (let step = 0; step < 4; step += 1) {
@@ -127,7 +126,7 @@ export async function runAiChat(userId: number, message: string, context: { mont
   };
 }
 
-export async function* streamAiChat(userId: number, message: string, context: { month: string; currency: string }): AsyncGenerator<AiStreamEvent> {
+export async function* streamAiChat(userId: number, message: string, context: { month: string; currency: string }, history: AiChatHistoryMessage[] = []): AsyncGenerator<AiStreamEvent> {
   const cfg = await getAiConfig();
   if (!cfg.apiKey) {
     yield {
@@ -137,10 +136,7 @@ export async function* streamAiChat(userId: number, message: string, context: { 
     return;
   }
 
-  const messages: AiMessage[] = [
-    { role: 'system', content: systemPrompt(context) },
-    { role: 'user', content: message },
-  ];
+  const messages = initialMessages(context, history, message);
   const pendingActions: PendingAiAction[] = [];
   let finalAnswer = '';
 
@@ -355,6 +351,18 @@ function parseToolArguments(value: string): unknown {
   }
 }
 
+function initialMessages(context: { month: string; currency: string }, history: AiChatHistoryMessage[], message: string): AiMessage[] {
+  const trimmedHistory = history
+    .filter((entry) => entry.content.trim())
+    .slice(-10)
+    .map((entry) => ({ role: entry.role, content: entry.content.slice(0, 2000) }) satisfies AiMessage);
+  return [
+    { role: 'system', content: systemPrompt(context) },
+    ...trimmedHistory,
+    { role: 'user', content: message },
+  ];
+}
+
 function systemPrompt(context: { month: string; currency: string }) {
   const today = new Date().toISOString().slice(0, 10);
   return [
@@ -364,9 +372,11 @@ function systemPrompt(context: { month: string; currency: string }) {
     '',
     'LECTURE : list_accounts, list_account_snapshots, list_categories, list_tags, list_recurring, list_goals, list_budgets, list_rules, get_dashboard_summary, search_transactions.',
     'Pour analyser un écart de patrimoine, consulte toujours les comptes, les snapshots et les transferts autour des dates concernées.',
+    'Si l\'utilisateur répond par une validation courte ("oui", "vas-y", "ok"), utilise l\'historique de conversation pour reprendre la tâche précédente et relance les tools nécessaires.',
     '',
     'ÉCRITURE : tu peux créer, modifier et supprimer presque tout via les tools propose_* (transactions, catégories, tags, objectifs, récurrents, budgets, règles, et versements sur objectifs).',
     'Chaque propose_* prépare l\'action et la renvoie pour confirmation : ne prétends JAMAIS qu\'une donnée a été créée ou modifiée. Décris ce que tu vas faire et explique que l\'utilisateur doit cliquer "Confirmer".',
+    'Pour catégoriser des transactions existantes, utilise propose_update_transaction avec uniquement transaction_id et category_id. Tu peux proposer plusieurs actions en une réponse.',
     'Toujours vérifier l\'existence et l\'id réel des entités avant d\'appeler un propose_* (utilise les list_*).',
     'Pour les suppressions, redemande explicitement avant d\'appeler propose_delete_*.',
     '',

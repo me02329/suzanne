@@ -80,6 +80,7 @@ export const aiToolDefinitions = [
     month: { type: 'string', default: '' },
     type: { type: 'string', enum: ['expense', 'income', 'transfer'] },
     category_id: { type: 'number' },
+    uncategorized: { type: 'boolean', description: 'true pour trouver les revenus/dépenses sans catégorie.' },
     tag_id: { type: 'number' },
     from: { type: 'string', description: 'Date YYYY-MM-DD optionnelle.' },
     to: { type: 'string', description: 'Date YYYY-MM-DD optionnelle.' },
@@ -559,6 +560,7 @@ async function searchTransactions(userId: number, rawArgs: unknown) {
     month: z.string().trim().default(''),
     type: z.enum(['expense', 'income', 'transfer']).optional(),
     category_id: z.coerce.number().int().positive().optional(),
+    uncategorized: z.boolean().optional(),
     tag_id: z.coerce.number().int().positive().optional(),
     from: z.string().trim().optional(),
     to: z.string().trim().optional(),
@@ -571,6 +573,7 @@ async function searchTransactions(userId: number, rawArgs: unknown) {
     ...(args.query ? { description: { contains: args.query, mode: 'insensitive' as const } } : {}),
     ...(args.type ? { type: args.type } : {}),
     ...(args.category_id ? { category_id: args.category_id } : {}),
+    ...(args.uncategorized ? { type: { not: 'transfer' as const }, category_id: null } : {}),
     ...(args.tag_id ? { tags: { some: { tag_id: args.tag_id } } } : {}),
     ...(range ? { date: range } : {}),
   };

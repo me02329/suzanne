@@ -75,6 +75,8 @@ export type AiStreamEvent =
   | { kind: 'done'; answer: string; pendingActions: AiPendingAction[] }
   | { kind: 'error'; error: { kind: string; message: string; detail: string } };
 
+export type AiChatHistoryMessage = { role: 'user' | 'assistant'; content: string };
+
 export const api = {
   users: () => http<User[]>('/users'),
   createUser: (body: { name: string }) => http<User>('/users', { method: 'POST', body: JSON.stringify(body) }),
@@ -161,11 +163,11 @@ export const api = {
   aiSettings: () => http<AiSettings>('/settings/ai'),
   updateAiSettings: (body: { api_key?: string | null; model?: string | null; base_url?: string | null; provider?: string | null }) =>
     http<AiSettings>('/settings/ai', { method: 'PUT', body: JSON.stringify(body) }),
-  aiChat: (userId: number, body: { message: string; month: string; currency: string }) =>
+  aiChat: (userId: number, body: { message: string; month: string; currency: string; history?: AiChatHistoryMessage[] }) =>
     http<AiChatResponse>(`/users/${userId}/ai/chat`, { method: 'POST', body: JSON.stringify(body) }),
   aiChatStream: async function* (
     userId: number,
-    body: { message: string; month: string; currency: string },
+    body: { message: string; month: string; currency: string; history?: AiChatHistoryMessage[] },
     signal?: AbortSignal,
   ): AsyncGenerator<AiStreamEvent> {
     const res = await fetch(`${API_BASE}/users/${userId}/ai/chat/stream`, {

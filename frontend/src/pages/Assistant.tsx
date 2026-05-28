@@ -3,7 +3,7 @@ import { AlertTriangle, Check, Loader2, RotateCcw, Send, Sparkles, Wrench, X } f
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { AiPendingAction } from '@suzanne-lite/shared';
-import { api, type AiHealthStatus } from '../lib/api';
+import { api, type AiChatHistoryMessage, type AiHealthStatus } from '../lib/api';
 import type { Run } from '../lib/run';
 
 interface ToolEvent {
@@ -86,6 +86,10 @@ export function Assistant({ userId, month, currency, run }: { userId: number; mo
     if (!message || streaming) return;
     const userId2 = Date.now();
     const assistantId = userId2 + 1;
+    const history: AiChatHistoryMessage[] = messages
+      .filter((msg) => msg.content.trim() && msg.content !== WELCOME.content)
+      .slice(-10)
+      .map((msg) => ({ role: msg.role, content: msg.content }));
     setMessages((current) => [
       ...current,
       { id: userId2, role: 'user', content: message },
@@ -98,7 +102,7 @@ export function Assistant({ userId, month, currency, run }: { userId: number; mo
     abortRef.current = controller;
     let receivedTerminalEvent = false;
     try {
-      for await (const event of api.aiChatStream(userId, { message, month, currency }, controller.signal)) {
+      for await (const event of api.aiChatStream(userId, { message, month, currency, history }, controller.signal)) {
         if (event.kind === 'token') {
           setMessages((current) => current.map((msg) =>
             msg.id === assistantId ? { ...msg, content: msg.content + event.text } : msg,

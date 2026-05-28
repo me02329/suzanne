@@ -11,6 +11,10 @@ const aiChatSchema = z.object({
   message: z.string().trim().min(1).max(2000),
   month: monthString,
   currency: z.string().trim().min(3).max(3).default('EUR'),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string().trim().min(1).max(4000),
+  })).max(12).default([]),
 });
 
 // The type is validated against the dispatch in confirmAiAction; we keep the
@@ -30,7 +34,7 @@ aiRouter.get('/ai/health', asyncHandler(async (_req, res) => {
 aiRouter.post('/users/:user_id/ai/chat', asyncHandler(async (req, res) => {
   const userId = idParam.parse(req.params.user_id);
   const body = aiChatSchema.parse(req.body);
-  const result = await runAiChat(userId, body.message, { month: body.month, currency: body.currency });
+  const result = await runAiChat(userId, body.message, { month: body.month, currency: body.currency }, body.history);
   res.json(result);
 }));
 
@@ -52,7 +56,7 @@ aiRouter.post('/users/:user_id/ai/chat/stream', asyncHandler(async (req, res) =>
   req.on('aborted', () => { aborted = true; });
 
   try {
-    for await (const event of streamAiChat(userId, body.message, { month: body.month, currency: body.currency })) {
+    for await (const event of streamAiChat(userId, body.message, { month: body.month, currency: body.currency }, body.history)) {
       if (aborted || res.destroyed || res.writableEnded) break;
       send(event);
     }
