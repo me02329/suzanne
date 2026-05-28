@@ -159,11 +159,17 @@ function computeAccountBalances(
     const snap = latestSnapshot.get(account.id);
     const base = snap ? snap.balance : account.initial_balance;
     const since = snap ? snap.date : account.initial_balance_date;
+    // Semantics differ between snapshots and the initial balance:
+    //   - A snapshot is the end-of-day balance on its date, so same-day
+    //     transactions are already baked in → strict `>`.
+    //   - The initial balance is the opening balance *before* any activity,
+    //     so a transaction on the opening day must still be counted → `>=`.
+    const matches = (txDate: Date) => (snap ? txDate > since : txDate >= since);
     const outgoing = transactions
-      .filter((t) => t.account_id === account.id && t.date > since)
+      .filter((t) => t.account_id === account.id && matches(t.date))
       .reduce((s, t) => s + sourceDelta(t), 0);
     const incoming = transactions
-      .filter((t) => t.type === 'transfer' && t.to_account_id === account.id && t.date > since)
+      .filter((t) => t.type === 'transfer' && t.to_account_id === account.id && matches(t.date))
       .reduce((s, t) => s + (t.to_amount ?? t.amount), 0);
     const rawBalance = (base + outgoing + incoming) * (fx.get(account.currency) ?? 1);
     const isLiability = isLiabilityAccount(account.type);
