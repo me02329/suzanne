@@ -131,7 +131,8 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
 
 // Solde estimé : pour chaque compte on part du snapshot de solde le plus récent
 // (ou du solde initial s'il n'y a pas de snapshot) puis on applique les transactions
-// de cette date et les suivantes. Les transactions sans compte sont ajoutées à plat.
+// postérieures à cette date. Le solde initial est traité comme une ouverture
+// de journée, donc les transactions du même jour comptent aussi.
 export function computeAccountBalances(
   accounts: AccountRow[],
   transactions: Tx[],
@@ -159,7 +160,7 @@ export function computeAccountBalances(
     const snap = latestSnapshot.get(account.id);
     const base = snap ? snap.balance : account.initial_balance;
     const since = snap ? snap.date : account.initial_balance_date;
-    const matches = (txDate: Date) => txDate >= since;
+    const matches = (txDate: Date) => (snap ? txDate > since : txDate >= since);
     const outgoing = transactions
       .filter((t) => t.account_id === account.id && matches(t.date))
       .reduce((s, t) => s + sourceDelta(t), 0);

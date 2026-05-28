@@ -302,6 +302,7 @@ export function Assistant({ userId, month, currency, run }: { userId: number; mo
 function toolLabel(name: string): string {
   const labels: Record<string, string> = {
     list_accounts: 'Lecture des comptes',
+    list_account_snapshots: 'Lecture des snapshots',
     list_categories: 'Lecture des catégories',
     list_tags: 'Lecture des tags',
     list_recurring: 'Lecture des récurrents',

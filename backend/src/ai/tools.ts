@@ -65,6 +65,12 @@ export const aiToolDefinitions = [
   toolDefinition('list_goals', 'Liste les objectifs d\'épargne avec progression.', {}),
   toolDefinition('list_budgets', 'Liste les budgets mensuels.', { month: { type: 'string', description: 'Mois YYYY-MM (optionnel).' } }),
   toolDefinition('list_rules', 'Liste les règles d\'auto-catégorisation.', {}),
+  toolDefinition('list_account_snapshots', 'Liste les snapshots de solde par compte.', {
+    account_id: { type: 'number' },
+    from: { type: 'string', description: 'Date YYYY-MM-DD optionnelle.' },
+    to: { type: 'string', description: 'Date YYYY-MM-DD optionnelle.' },
+    limit: { type: 'number', description: 'Maximum 100.', default: 50 },
+  }),
   toolDefinition('get_dashboard_summary', 'Résumé financier d\'un mois.', {
     month: { type: 'string', description: 'Mois YYYY-MM.' },
     currency: { type: 'string', description: 'Devise reporting.', default: 'EUR' },
@@ -75,7 +81,9 @@ export const aiToolDefinitions = [
     type: { type: 'string', enum: ['expense', 'income', 'transfer'] },
     category_id: { type: 'number' },
     tag_id: { type: 'number' },
-    limit: { type: 'number', default: 10 },
+    from: { type: 'string', description: 'Date YYYY-MM-DD optionnelle.' },
+    to: { type: 'string', description: 'Date YYYY-MM-DD optionnelle.' },
+    limit: { type: 'number', description: 'Maximum 100.', default: 10 },
   }),
 
   // ── Write : transactions ──
@@ -227,6 +235,7 @@ export async function executeAiTool(userId: number, name: string, rawArgs: unkno
       return { result: await prisma.budget.findMany({ where: { user_id: userId, ...(args.month ? { month: args.month } : {}) }, orderBy: [{ month: 'desc' }] }) };
     }
     case 'list_rules': return { result: await prisma.categoryRule.findMany({ where: { user_id: userId }, orderBy: { pattern: 'asc' } }) };
+    case 'list_account_snapshots': return { result: await listAccountSnapshots(userId, rawArgs) };
     case 'get_dashboard_summary': return { result: await dashboardSummary(userId, rawArgs) };
     case 'search_transactions': return { result: await searchTransactions(userId, rawArgs) };
 
@@ -524,6 +533,26 @@ async function dashboardSummary(userId: number, rawArgs: unknown) {
   };
 }
 
+async function listAccountSnapshots(userId: number, rawArgs: unknown) {
+  const args = z.object({
+    account_id: z.coerce.number().int().positive().optional(),
+    from: z.string().trim().optional(),
+    to: z.string().trim().optional(),
+    limit: z.coerce.number().int().min(1).default(50).transform((value) => Math.min(value, 100)),
+  }).parse(rawArgs);
+  const range = dateRange(args.from, args.to);
+  return await prisma.accountSnapshot.findMany({
+    where: {
+      user_id: userId,
+      ...(args.account_id ? { account_id: args.account_id } : {}),
+      ...(range ? { date: range } : {}),
+    },
+    take: args.limit,
+    orderBy: [{ date: 'desc' }, { id: 'desc' }],
+    include: { account: { select: { name: true, type: true, currency: true } } },
+  });
+}
+
 async function searchTransactions(userId: number, rawArgs: unknown) {
   const args = z.object({
     query: z.string().trim().default(''),
@@ -531,15 +560,19 @@ async function searchTransactions(userId: number, rawArgs: unknown) {
     type: z.enum(['expense', 'income', 'transfer']).optional(),
     category_id: z.coerce.number().int().positive().optional(),
     tag_id: z.coerce.number().int().positive().optional(),
-    limit: z.coerce.number().int().min(1).max(30).default(10),
+    from: z.string().trim().optional(),
+    to: z.string().trim().optional(),
+    limit: z.coerce.number().int().min(1).default(10).transform((value) => Math.min(value, 100)),
   }).parse(rawArgs);
+  const month = parseMonth(args.month);
+  const range = month ? monthRange(month) : dateRange(args.from, args.to);
   const where = {
     user_id: userId,
     ...(args.query ? { description: { contains: args.query, mode: 'insensitive' as const } } : {}),
     ...(args.type ? { type: args.type } : {}),
     ...(args.category_id ? { category_id: args.category_id } : {}),
     ...(args.tag_id ? { tags: { some: { tag_id: args.tag_id } } } : {}),
-    ...(args.month ? monthRange(args.month) : {}),
+    ...(range ? { date: range } : {}),
   };
   return await prisma.transaction.findMany({
     where,
@@ -729,11 +762,33 @@ async function assertTransactionReferences(
   if (body.category_id && !category) throw new Error('Catégorie introuvable');
 }
 
+function parseMonth(month: string): string | null {
+  if (!month) return null;
+  const parsed = monthString.safeParse(month);
+  return parsed.success ? parsed.data : null;
+}
+
+function parseDate(value: string | undefined): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function dateRange(from: string | undefined, to: string | undefined) {
+  const gte = parseDate(from);
+  const lte = parseDate(to);
+  if (!gte && !lte) return null;
+  return {
+    ...(gte ? { gte } : {}),
+    ...(lte ? { lte } : {}),
+  };
+}
+
 function monthRange(month: string) {
   const parsed = monthString.parse(month);
   const start = new Date(`${parsed}-01T00:00:00.000Z`);
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
-  return { date: { gte: start, lt: end } };
+  return { gte: start, lt: end };
 }
 
 async function transferAmounts(
