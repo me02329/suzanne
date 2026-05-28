@@ -97,10 +97,15 @@ export function Assistant({ userId, month, currency, run }: { userId: number; mo
             <>
               <span><strong>Modèle :</strong> {health.model} · <strong>endpoint :</strong> {health.baseUrl}</span>
               <span>
-                {!health.configured && <>Clé absente — définir <code>AI_API_KEY</code> côté backend.</>}
+                {!health.configured && <>Clé absente — définir <code>AI_API_KEY</code> côté backend ou via Paramètres.</>}
                 {health.configured && health.ok && <>Connexion OK.</>}
                 {health.configured && health.ok === false && health.error && (
-                  <><AlertTriangle size={14} /> {health.error.message} <em>({health.error.kind})</em></>
+                  <>
+                    <AlertTriangle size={14} /> {health.error.message} <em>({health.error.kind})</em>
+                    {health.error.kind === 'insufficient_quota' && (
+                      <> — <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noreferrer">ouvrir la facturation OpenAI</a></>
+                    )}
+                  </>
                 )}
               </span>
               <button type="button" className="ghost-button" onClick={refreshHealth} disabled={testing}>

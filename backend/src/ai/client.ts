@@ -24,7 +24,7 @@ export interface AiChatResult {
   pendingActions: PendingAiAction[];
 }
 
-export type AiErrorKind = 'not_configured' | 'auth' | 'rate_limit' | 'model_unavailable' | 'bad_request' | 'upstream' | 'network';
+export type AiErrorKind = 'not_configured' | 'auth' | 'rate_limit' | 'insufficient_quota' | 'model_unavailable' | 'bad_request' | 'upstream' | 'network';
 
 export class AiProviderError extends Error {
   status: number;
@@ -40,8 +40,21 @@ export class AiProviderError extends Error {
 
 function classifyUpstream(status: number, body: string): AiProviderError {
   const trimmed = body.slice(0, 400);
+  // OpenAI returns 429 for two very different situations: real rate limits
+  // (too many requests per minute) and "insufficient_quota" (no credit on
+  // the account). The user-facing fix is completely different so we split.
+  if (status === 429) {
+    if (body.includes('insufficient_quota')) {
+      return new AiProviderError(
+        'insufficient_quota',
+        402,
+        'Pas de crédit sur le compte OpenAI. Ajoute un moyen de paiement et un crédit prépayé sur platform.openai.com/settings/organization/billing/overview.',
+        trimmed,
+      );
+    }
+    return new AiProviderError('rate_limit', 429, 'Trop de requêtes : attends quelques secondes avant de réessayer.', trimmed);
+  }
   if (status === 401 || status === 403) return new AiProviderError('auth', 401, 'Clé API refusée par le fournisseur.', trimmed);
-  if (status === 429) return new AiProviderError('rate_limit', 429, 'Quota dépassé ou trop de requêtes.', trimmed);
   if (status === 404) return new AiProviderError('model_unavailable', 404, 'Modèle introuvable pour cette clé.', trimmed);
   if (status === 400) return new AiProviderError('bad_request', 400, 'Requête refusée par le fournisseur.', trimmed);
   return new AiProviderError('upstream', 502, `Erreur fournisseur IA (${status}).`, trimmed);
