@@ -66,7 +66,7 @@ const ACCOUNT_PALETTE = [
 
 interface WealthSeriesEntry { key: string; label: string; color: string; width: number }
 
-export function Dashboard({ userId, summary, transactions, budgets, recurring, accounts, reportCurrency, categoryById, accountById, dataVersion }: {
+export function Dashboard({ userId, summary, transactions, budgets, recurring, accounts, reportCurrency, categoryById, accountById, dataVersion, onOpenUnassignedTransactions }: {
   userId: number | null;
   summary: DashboardSummary | null;
   transactions: Transaction[];
@@ -79,6 +79,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   // Increments after every successful App-level reload so the wealth-history
   // fetch (which would otherwise miss snapshot/transaction changes) re-runs.
   dataVersion: number;
+  onOpenUnassignedTransactions: () => void;
 }) {
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, displayCurrency);
@@ -176,10 +177,8 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
     else setWealthSeriesGroupPref(next);
   };
 
-  let cumulativeNet = 0;
   const monthRows = (summary?.monthly_cashflow ?? []).map((row) => {
-    cumulativeNet += row.net;
-    return { ...row, label: formatMonth(row.month), cumulativeNet };
+    return { ...row, label: formatMonth(row.month), cumulativeNet: row.cumulative_net };
   });
   const yearRows = summary?.yearly_cashflow ?? [];
   const categoryRows = summary?.expenses_by_category ?? [];
@@ -215,6 +214,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
     displayCurrency,
     summary?.unassigned_balance ?? 0,
     summary?.unassigned_count ?? 0,
+    onOpenUnassignedTransactions,
   );
   const wealthChartRows = wealthHistory.map((point) => {
     const row: Record<string, unknown> = {
@@ -381,6 +381,11 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
                 <div className={`account-alert ${alert.tone}`} key={alert.title}>
                   <strong>{alert.title}</strong>
                   <span>{alert.detail}</span>
+                  {alert.action && (
+                    <button type="button" className="secondary" onClick={alert.action.onClick}>
+                      {alert.action.label}
+                    </button>
+                  )}
                 </div>
               ))}
               {alerts.length === 0 && <p className="empty">Aucune alerte sur les comptes.</p>}
@@ -465,7 +470,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
                     <Tooltip formatter={(value) => money(Number(value))} />
                     <Legend />
                     <Bar dataKey="income" name="Revenus" fill={incomeColor} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="expenses" name="Dépenses" fill={expenseColor} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="expenses_signed" name="Dépenses" fill={expenseColor} radius={[4, 4, 0, 0]} />
                     <Line type="monotone" dataKey="cumulativeNet" name="Cumul net" stroke={netColor} strokeWidth={3} dot={{ r: 3 }} />
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -548,18 +553,20 @@ function buildAccountAlerts(
   currency: string,
   unassignedBalance: number,
   unassignedCount: number,
-): Array<{ title: string; detail: string; tone: 'info' | 'warning' | 'danger' }> {
+  onOpenUnassignedTransactions: () => void,
+): Array<{ title: string; detail: string; tone: 'info' | 'warning' | 'danger'; action?: { label: string; onClick: () => void } }> {
   const fmt = (value: number) => moneyFmt(value, currency);
-  const alerts: Array<{ title: string; detail: string; tone: 'info' | 'warning' | 'danger' }> = [];
+  const alerts: Array<{ title: string; detail: string; tone: 'info' | 'warning' | 'danger'; action?: { label: string; onClick: () => void } }> = [];
 
   // Transactions without an account are silently merged into the cash bucket
   // by the backend (intentional, keeps totals coherent), but they're easy to
   // miss — surface them as a warning so the user can edit and assign one.
   if (unassignedCount > 0) {
     alerts.push({
-      title: `${unassignedCount} transaction${unassignedCount > 1 ? 's' : ''} sans compte`,
-      detail: `${fmt(unassignedBalance)} de revenus/dépenses non rattachés à un compte. Ouvre l'onglet Transactions et assigne-leur un compte pour qu'ils ne polluent plus les Liquidités.`,
+      title: `${unassignedCount} transaction${unassignedCount > 1 ? 's' : ''} sans compte, toutes périodes`,
+      detail: `${fmt(unassignedBalance)} de revenus/dépenses historiques n'ont pas de compte rattaché. Elles peuvent être catégorisées mais restent hors compte, donc elles sont ajoutées aux Liquidités.`,
       tone: 'warning',
+      action: { label: 'Voir et corriger', onClick: onOpenUnassignedTransactions },
     });
   }
 

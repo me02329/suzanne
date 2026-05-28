@@ -57,6 +57,7 @@ export default function App() {
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [unassignedTransactions, setUnassignedTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -70,6 +71,7 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [transactionIssueFilter, setTransactionIssueFilter] = useState<'unassigned_account' | null>(null);
   // Bumped on every successful reload. Children that fetch derived data not
   // covered by the main reload (e.g. Dashboard's wealth history) observe this
   // to re-fetch after snapshots/transactions are created.
@@ -95,9 +97,10 @@ export default function App() {
     const version = ++reloadVersion.current;
     setLoading(true);
     try {
-      const [dash, txs, accs, insts, cats, bds, recs, rls, gls, snaps, tgs] = await Promise.all([
+      const [dash, txs, unassignedTxs, accs, insts, cats, bds, recs, rls, gls, snaps, tgs] = await Promise.all([
         api.dashboard(userId, month, reportCurrency),
         api.transactions(userId, month),
+        api.transactions(userId, undefined, 'unassigned_account'),
         api.accounts(userId),
         api.institutions(userId),
         api.categories(userId),
@@ -111,6 +114,7 @@ export default function App() {
       if (version !== reloadVersion.current) return;
       setSummary(dash);
       setTransactions(txs);
+      setUnassignedTransactions(unassignedTxs);
       setAccounts(accs);
       setInstitutions(insts);
       setCategories(cats);
@@ -181,8 +185,13 @@ export default function App() {
 
   const activeNav = navItems.find((item) => item.tab === tab);
   const setActiveTab = (nextTab: Tab) => {
+    if (nextTab !== 'transactions') setTransactionIssueFilter(null);
     setTab(nextTab);
     setSidebarOpen(false);
+  };
+  const openUnassignedTransactions = () => {
+    setTransactionIssueFilter('unassigned_account');
+    setActiveTab('transactions');
   };
   const toggleSection = (id: string) => {
     setOpenSections({ ...openSections, [id]: !(openSections[id] ?? true) });
@@ -261,6 +270,7 @@ export default function App() {
             categoryById={categoryById}
             accountById={accountById}
             dataVersion={dataVersion}
+            onOpenUnassignedTransactions={openUnassignedTransactions}
           />
         )}
         {tab === 'assistant' && userId && (
@@ -270,6 +280,9 @@ export default function App() {
           <Transactions
             userId={userId}
             transactions={transactions}
+            unassignedTransactions={unassignedTransactions}
+            issueFilter={transactionIssueFilter}
+            onClearIssueFilter={() => setTransactionIssueFilter(null)}
             recurring={recurring}
             accounts={accounts}
             categories={categories}

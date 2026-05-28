@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { createTransactionSchema, idParam, linkRecurringSchema, monthString, updateTransactionSchema } from '../lib/validation.js';
@@ -10,11 +11,15 @@ export const transactionsRouter = Router();
 transactionsRouter.get('/users/:user_id/transactions', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const month = req.query.month ? monthString.parse(req.query.month) : null;
+  const issue = req.query.issue ? z.enum(['unassigned_account']).parse(req.query.issue) : null;
   const where = month
     ? { user_id, date: { gte: new Date(`${month}-01T00:00:00.000Z`), lt: new Date(nextMonth(month)) } }
     : { user_id };
   const rows = await prisma.transaction.findMany({
-    where,
+    where: {
+      ...where,
+      ...(issue === 'unassigned_account' ? { type: { not: 'transfer' as const }, account_id: null } : {}),
+    },
     orderBy: [{ date: 'desc' }, { id: 'desc' }],
     include: { tags: { include: { tag: true } } },
   });

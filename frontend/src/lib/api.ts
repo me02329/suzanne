@@ -90,7 +90,13 @@ export const api = {
   createCategory: (userId: number, body: CreateCategoryBody) => http<Category>(`/users/${userId}/categories`, { method: 'POST', body: JSON.stringify(body) }),
   updateCategory: (userId: number, id: number, body: Partial<CreateCategoryBody>) => http<Category>(`/users/${userId}/categories/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteCategory: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/categories/${id}`, { method: 'DELETE' }),
-  transactions: (userId: number, month?: string) => http<Transaction[]>(`/users/${userId}/transactions${month ? `?month=${month}` : ''}`),
+  transactions: (userId: number, month?: string, issue?: 'unassigned_account') => {
+    const params = new URLSearchParams();
+    if (month) params.set('month', month);
+    if (issue) params.set('issue', issue);
+    const query = params.toString();
+    return http<Transaction[]>(`/users/${userId}/transactions${query ? `?${query}` : ''}`);
+  },
   dashboard: (userId: number, month: string, currency = 'EUR') =>
     http<DashboardSummary>(`/users/${userId}/dashboard?month=${month}&currency=${encodeURIComponent(currency)}`),
   wealthHistory: (userId: number, range: string, granularity: string, currency = 'EUR') =>

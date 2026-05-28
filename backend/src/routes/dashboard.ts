@@ -379,12 +379,18 @@ function buildCashflow(transactions: Tx[], endMonth: Date, accountById: Map<numb
     if (t.type === 'expense') bucket.expenses += value;
     bucket.net = bucket.income - bucket.expenses;
   }
-  return Array.from(buckets.values()).map((b) => ({
-    month: b.month,
-    income: round2(b.income),
-    expenses: round2(b.expenses),
-    net: round2(b.net),
-  }));
+  let cumulativeNet = 0;
+  return Array.from(buckets.values()).map((b) => {
+    cumulativeNet += b.net;
+    return {
+      month: b.month,
+      income: round2(b.income),
+      expenses: round2(b.expenses),
+      expenses_signed: round2(-b.expenses),
+      net: round2(b.net),
+      cumulative_net: round2(cumulativeNet),
+    };
+  });
 }
 
 function buildYearlyCashflow(transactions: Tx[], accountById: Map<number, AccountRow>, fx: Map<string, number>) {

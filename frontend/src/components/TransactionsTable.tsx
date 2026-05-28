@@ -5,6 +5,7 @@ import { IconButton } from './IconButton';
 
 export function TransactionsTable({
   transactions,
+  emptyMessage = 'Aucune transaction sur ce mois.',
   categories,
   accounts,
   categoryById,
@@ -19,6 +20,7 @@ export function TransactionsTable({
   onDelete,
 }: {
   transactions: Transaction[];
+  emptyMessage?: string;
   categories: Category[];
   accounts: Account[];
   categoryById: Map<number, Category>;
@@ -32,7 +34,7 @@ export function TransactionsTable({
   onLink: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
 }) {
-  if (transactions.length === 0) return <p className="empty">Aucune transaction sur ce mois.</p>;
+  if (transactions.length === 0) return <p className="empty">{emptyMessage}</p>;
   const allSelected = transactions.length > 0 && transactions.every((t) => selectedIds.has(t.id));
   return (
     <div className="table-wrap">

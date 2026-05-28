@@ -271,7 +271,7 @@ export interface DashboardSummary {
     is_liability: boolean;
   }>;
   expenses_by_category: Array<{ category_id: number | null; name: string; color: string; amount: number }>;
-  monthly_cashflow: Array<{ month: string; income: number; expenses: number; net: number }>;
+  monthly_cashflow: Array<{ month: string; income: number; expenses: number; expenses_signed: number; net: number; cumulative_net: number }>;
   yearly_cashflow: Array<{ year: string; income: number; expenses: number; net: number }>;
 }
 

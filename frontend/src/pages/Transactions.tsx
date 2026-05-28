@@ -21,9 +21,12 @@ import { TransactionsTable } from '../components/TransactionsTable';
 
 import type { Run } from '../lib/run';
 
-export function Transactions({ userId, transactions, recurring, accounts, categories, tags, categoryById, accountById, run }: {
+export function Transactions({ userId, transactions, unassignedTransactions, issueFilter, onClearIssueFilter, recurring, accounts, categories, tags, categoryById, accountById, run }: {
   userId: number;
   transactions: Transaction[];
+  unassignedTransactions: Transaction[];
+  issueFilter: 'unassigned_account' | null;
+  onClearIssueFilter: () => void;
   recurring: RecurringTransaction[];
   accounts: Account[];
   categories: Category[];
@@ -50,7 +53,8 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
 
   const filteredAddCategories = categories.filter((c) => c.type === addType || addType === 'transfer');
   const filteredEditCategories = categories.filter((c) => c.type === editType || editType === 'transfer');
-  const filteredTransactions = transactions.filter((t) => {
+  const sourceTransactions = issueFilter === 'unassigned_account' ? unassignedTransactions : transactions;
+  const filteredTransactions = sourceTransactions.filter((t) => {
     const sourceAccount = accountById.get(t.account_id ?? -1);
     const destinationAccount = accountById.get(t.to_account_id ?? -1);
     const groups = [
@@ -94,7 +98,7 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
 
   const closeModal = () => setEditing(null);
 
-  const selectedTransactions = transactions.filter((t) => selectedIds.has(t.id));
+  const selectedTransactions = sourceTransactions.filter((t) => selectedIds.has(t.id));
   const selectedCount = selectedTransactions.length;
 
   const setTransactionSelected = (transactionId: number, selected: boolean) => {
@@ -244,7 +248,14 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
         )}
       </div>
 
-      <Panel title="Historique du mois">
+      <Panel title={issueFilter === 'unassigned_account' ? 'Transactions sans compte' : 'Historique du mois'}>
+        {issueFilter === 'unassigned_account' && (
+          <div className="bulk-bar">
+            <strong>Toutes périodes</strong>
+            <span>Ces revenus/dépenses sont comptés dans les Liquidités tant qu'aucun compte n'est rattaché.</span>
+            <button type="button" className="secondary" onClick={onClearIssueFilter}>Revenir au mois courant</button>
+          </div>
+        )}
         <div className="table-tools">
           <div className="search-box inline">
             <Search size={16} />
@@ -280,6 +291,7 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
         )}
         <TransactionsTable
           transactions={filteredTransactions}
+          emptyMessage={issueFilter === 'unassigned_account' ? 'Aucune transaction sans compte.' : 'Aucune transaction sur ce mois.'}
           categories={categories}
           accounts={accounts}
           categoryById={categoryById}

@@ -66,6 +66,9 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
   const estimatedByAccount = useMemo(() => {
     return new Map((summary?.account_balances ?? []).map((row) => [row.account_id, row]));
   }, [summary]);
+  const reportCurrency = summary?.currency ?? 'EUR';
+  const unassignedBalance = summary?.unassigned_balance ?? 0;
+  const hasUnassignedTransactions = (summary?.unassigned_count ?? 0) > 0 || unassignedBalance !== 0;
 
   const submitSnapshotBatch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -121,7 +124,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
     ...institutions.map((i) => ({ id: i.id as number | null, name: i.name })),
     { id: null, name: 'Sans institution' },
   ];
-  const hasUnassigned = (accountsByInstitution.get(null)?.length ?? 0) > 0;
+  const hasUnassigned = (accountsByInstitution.get(null)?.length ?? 0) > 0 || hasUnassignedTransactions;
 
   return (
     <section className="stack">
@@ -173,7 +176,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                                 <td><strong>{account.name}</strong></td>
                                 <td>{account.currency}</td>
                                 <td className="amount-cell">
-                                  {estimated ? money(estimated.signed_balance, account.currency) : '—'}
+                                  {estimated ? money(estimated.signed_balance, reportCurrency) : '—'}
                                 </td>
                                 <td className="amount-cell">
                                   <input
@@ -273,7 +276,8 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
               const total = accountsHere.reduce((sum, a) => {
                 const est = estimatedByAccount.get(a.id);
                 return sum + (est?.signed_balance ?? a.initial_balance);
-              }, 0);
+              }, institution.id === null ? unassignedBalance : 0);
+              const showUnassignedTransactions = institution.id === null && hasUnassignedTransactions;
               return (
                 <div className="institution-card" key={institution.id ?? 'none'}>
                   <div className="institution-card-header">
@@ -282,7 +286,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                       <span>{accountsHere.length} compte{accountsHere.length > 1 ? 's' : ''}</span>
                     </div>
                     <div className="institution-card-actions">
-                      <span className="institution-total">{money(total)}</span>
+                      <span className="institution-total">{money(total, reportCurrency)}</span>
                       {institution.id !== null && accountsHere.length === 0 && (
                         <IconButton
                           label="Supprimer l'institution"
@@ -293,10 +297,22 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                       )}
                     </div>
                   </div>
-                  {accountsHere.length === 0 ? (
+                  {accountsHere.length === 0 && !showUnassignedTransactions ? (
                     <p className="empty inline">Aucun compte rattaché.</p>
                   ) : (
                     <ul className="institution-accounts">
+                      {showUnassignedTransactions && (
+                        <li>
+                          <div className="account-line-main">
+                            <strong>Transactions hors compte</strong>
+                            <span>Revenus/dépenses historiques sans compte</span>
+                          </div>
+                          <div className="account-line-amount">
+                            {money(unassignedBalance, reportCurrency)}
+                          </div>
+                          <div className="account-line-actions" />
+                        </li>
+                      )}
                       {accountsHere.map((account) => {
                         const estimated = estimatedByAccount.get(account.id);
                         return (
@@ -306,7 +322,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                               <span>{accountTypeLabel(account.type)} · {account.currency}</span>
                             </div>
                             <div className="account-line-amount">
-                              {estimated ? money(estimated.signed_balance, account.currency) : money(account.initial_balance, account.currency)}
+                              {estimated ? money(estimated.signed_balance, reportCurrency) : money(account.initial_balance, account.currency)}
                             </div>
                             <div className="account-line-actions">
                               <IconButton label="Modifier" tone="neutral" icon={<Pencil size={14} />} onClick={() => { setEditingAccount(account); setAccountOpen(true); }} />
