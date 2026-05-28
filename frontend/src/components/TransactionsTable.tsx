@@ -61,9 +61,17 @@ export function TransactionsTable({
             const sourceAccount = accountById.get(t.account_id ?? -1);
             const destinationAccount = accountById.get(t.to_account_id ?? -1);
             const category = categoryById.get(t.category_id ?? -1);
+            const srcCurrency = sourceAccount?.currency ?? 'EUR';
+            const destCurrency = destinationAccount?.currency ?? srcCurrency;
+            const isCurrencyConversion = t.type === 'transfer'
+              && srcCurrency !== destCurrency
+              && t.to_amount != null
+              && t.to_amount !== t.amount;
             const amountLabel = t.type === 'transfer'
-              ? `${money(t.amount, sourceAccount?.currency ?? 'EUR')} -> ${money(t.to_amount ?? t.amount, destinationAccount?.currency ?? sourceAccount?.currency ?? 'EUR')}`
-              : `${t.type === 'income' ? '+' : '-'}${money(t.amount, sourceAccount?.currency ?? 'EUR')}`;
+              ? (isCurrencyConversion
+                ? `${money(t.amount, srcCurrency)} → ${money(t.to_amount ?? t.amount, destCurrency)}`
+                : money(t.amount, srcCurrency))
+              : `${t.type === 'income' ? '+' : '-'}${money(t.amount, srcCurrency)}`;
             const linked = t.recurring_transaction_id != null;
             const selected = selectedIds.has(t.id);
             const compatibleCategories = categories.filter((c) => c.type === t.type);
