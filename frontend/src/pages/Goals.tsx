@@ -1,14 +1,25 @@
-import { FormEvent } from 'react';
-import type { SavingsGoal } from '@suzanne-lite/shared';
+import { FormEvent, useState } from 'react';
+import { Coins, Link2 } from 'lucide-react';
+import type { Account, SavingsGoal } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
-import { money } from '../lib/format';
+import { money, todayIso } from '../lib/format';
+import { numberOrNull } from '../lib/forms';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
+import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 
 import type { Run } from '../lib/run';
 
-export function Goals({ userId, goals, run }: { userId: number; goals: SavingsGoal[]; run: Run }) {
+export function Goals({ userId, goals, accounts, accountById, run }: {
+  userId: number;
+  goals: SavingsGoal[];
+  accounts: Account[];
+  accountById: Map<number, Account>;
+  run: Run;
+}) {
+  const [contributing, setContributing] = useState<SavingsGoal | null>(null);
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -18,17 +29,41 @@ export function Goals({ userId, goals, run }: { userId: number; goals: SavingsGo
       current_amount: Number(data.get('current_amount') || 0),
       deadline: String(data.get('deadline') || '') || null,
       color: String(data.get('color')),
+      account_id: numberOrNull(data.get('account_id')),
     }), 'Objectif ajouté');
     event.currentTarget.reset();
   };
+
+  const submitContribution = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!contributing) return;
+    const data = new FormData(event.currentTarget);
+    void run(() => api.contributeGoal(userId, contributing.id, {
+      amount: Number(data.get('amount')),
+      date: String(data.get('date')),
+      source_account_id: numberOrNull(data.get('source_account_id')),
+      description: String(data.get('description') || '') || null,
+    }), 'Versement enregistré');
+    setContributing(null);
+  };
+
   return (
     <section className="split">
       <Panel title="Nouvel objectif" sticky>
-        <p className="panel-note">Compteur cumulatif vers une cible (épargne, voyage, achat…). Indépendant des comptes — c'est un compteur que tu mets à jour à la main.</p>
+        <p className="panel-note">
+          Lié à un compte : la progression peut être alimentée par un versement (transfert depuis un autre compte).
+          Sans compte : reste un compteur manuel.
+        </p>
         <form className="form" onSubmit={submit}>
           <label>Nom<input name="name" required /></label>
           <label>Cible<input name="target_amount" type="number" min="0.01" step="0.01" required /></label>
           <label>Actuel<input name="current_amount" type="number" min="0" step="0.01" defaultValue="0" /></label>
+          <label>Compte de l'objectif
+            <select name="account_id">
+              <option value="">Aucun (compteur manuel)</option>
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </label>
           <label>Échéance<input name="deadline" type="date" /></label>
           <label>Couleur<input name="color" type="color" defaultValue="#4f46e5" /></label>
           <button className="primary">Ajouter</button>
@@ -36,24 +71,56 @@ export function Goals({ userId, goals, run }: { userId: number; goals: SavingsGo
       </Panel>
       <Panel title="Objectifs">
         <DataTable empty={goals.length === 0 ? 'Aucun objectif.' : null}>
-          <thead><tr><th>Objectif</th><th className="amount-cell">Actuel</th><th className="amount-cell">Cible</th><th>Progression</th><th>Échéance</th><th className="actions-cell">Actions</th></tr></thead>
+          <thead><tr><th>Objectif</th><th>Compte</th><th className="amount-cell">Actuel</th><th className="amount-cell">Cible</th><th>Progression</th><th>Échéance</th><th className="actions-cell">Actions</th></tr></thead>
           <tbody>
             {goals.map((g) => {
               const pct = Math.min(100, (g.current_amount / g.target_amount) * 100);
+              const account = g.account_id != null ? accountById.get(g.account_id) : null;
               return (
                 <tr key={g.id}>
                   <td><span className="dot inline" style={{ background: g.color }} /><strong>{g.name}</strong></td>
+                  <td>{account ? <span className="goal-account"><Link2 size={12} /> {account.name}</span> : <span className="muted">Manuel</span>}</td>
                   <td className="amount-cell">{money(g.current_amount)}</td>
                   <td className="amount-cell">{money(g.target_amount)}</td>
                   <td><div className="bar"><span style={{ width: `${pct}%`, background: g.color }} /></div><span>{Math.round(pct)} %</span></td>
                   <td>{g.deadline ? new Date(g.deadline).toLocaleDateString('fr-FR') : '-'}</td>
-                  <td className="actions-cell"><IconButton label="Supprimer" onClick={() => void run(() => api.deleteGoal(userId, g.id), 'Objectif supprimé')} /></td>
+                  <td className="actions-cell">
+                    <IconButton label="Verser" tone="accent" icon={<Coins size={16} />} onClick={() => setContributing(g)} />
+                    <IconButton label="Supprimer" onClick={() => void run(() => api.deleteGoal(userId, g.id), 'Objectif supprimé')} />
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </DataTable>
       </Panel>
+
+      {contributing && (
+        <Modal title={`Verser sur "${contributing.name}"`} onClose={() => setContributing(null)}>
+          <form className="form" onSubmit={submitContribution}>
+            <p className="panel-note">
+              {contributing.account_id
+                ? 'Choisis un compte source : un transfert est créé du compte source vers le compte de l\'objectif.'
+                : 'Cet objectif n\'a pas de compte lié — la contribution incrémente uniquement le compteur.'}
+            </p>
+            <label>Montant<input name="amount" type="number" min="0.01" step="0.01" required /></label>
+            <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
+            {contributing.account_id != null && (
+              <label>Depuis le compte
+                <select name="source_account_id">
+                  <option value="">Aucun (juste compteur)</option>
+                  {accounts.filter((a) => a.id !== contributing.account_id).map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="full">Libellé (optionnel)<input name="description" placeholder="Ex: Versement mensuel" /></label>
+            <button className="primary"><Coins size={16} /> Enregistrer le versement</button>
+            <button type="button" className="secondary" onClick={() => setContributing(null)}>Annuler</button>
+          </form>
+        </Modal>
+      )}
     </section>
   );
 }

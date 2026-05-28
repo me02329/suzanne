@@ -19,7 +19,9 @@ import { currentMonthIso } from './lib/format';
 import { navItems, navSections, type Tab } from './lib/nav';
 import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
+import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
+import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
 import { Assistant } from './pages/Assistant';
 import { Dashboard } from './pages/Dashboard';
@@ -42,6 +44,7 @@ export default function App() {
   const [month, setMonth] = useState<string>(() => currentMonthIso());
   const [reportCurrency, setReportCurrency] = usePersistedState('report_currency', 'EUR');
   const [tab, setTab] = usePersistedState<Tab>('active_tab', 'dashboard');
+  const [theme, setTheme] = useTheme();
   const [openSections, setOpenSections] = usePersistedState<Record<string, boolean>>('nav_sections', {
     pilotage: true,
     structure: true,
@@ -234,7 +237,8 @@ export default function App() {
             <select value={reportCurrency} onChange={(e) => setReportCurrency(e.target.value)} aria-label="Devise d'affichage">
               {REPORT_CURRENCIES.map((option) => <option key={option.value} value={option.value}>{option.value}</option>)}
             </select>
-            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mois" />
+            <MonthPicker value={month} onChange={setMonth} />
+            <ThemeToggle theme={theme} onChange={setTheme} />
           </div>
         </header>
 
@@ -283,7 +287,7 @@ export default function App() {
           <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} run={run} />
         )}
         {tab === 'goals' && userId && (
-          <Goals userId={userId} goals={goals} run={run} />
+          <Goals userId={userId} goals={goals} accounts={accounts} accountById={accountById} run={run} />
         )}
         {tab === 'rules' && userId && (
           <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} run={run} />

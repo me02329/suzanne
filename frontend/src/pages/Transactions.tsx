@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Search } from 'lucide-react';
 import {
   ACCOUNT_GROUPS,
   accountTypeGroup,
@@ -40,6 +40,7 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = usePersistedState<'all' | TransactionType>('tx_filter_type', 'all');
   const [filterAccountGroup, setFilterAccountGroup] = usePersistedState<string>('tx_filter_account_group', 'all');
+  const [addOpen, setAddOpen] = usePersistedState<boolean>('tx_add_open', transactions.length === 0);
 
   const filteredAddCategories = categories.filter((c) => c.type === addType || addType === 'transfer');
   const filteredEditCategories = categories.filter((c) => c.type === editType || editType === 'transfer');
@@ -189,31 +190,44 @@ export function Transactions({ userId, transactions, recurring, accounts, catego
   };
 
   return (
-    <section className="split">
-      <Panel title="Ajouter une transaction" sticky>
-        <form className="form" onSubmit={submitAdd}>
-          <label>Type
-            <select value={addType} onChange={(e) => setAddType(e.target.value as TransactionType)}>
-              <option value="expense">Dépense</option>
-              <option value="income">Revenu</option>
-              <option value="transfer">Transfert</option>
-            </select>
-          </label>
-          <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
-          <label>Montant<input name="amount" type="number" min="0.01" step="0.01" required /></label>
-          <label>{addType === 'transfer' ? 'Depuis le compte' : 'Compte'}
-            <select name="account_id" required={addType === 'transfer'}>
-              <option value="">Aucun</option>
-              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </label>
-          {addType === 'transfer'
-            ? <label>Vers le compte<select name="to_account_id" required><option value="">Choisir...</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-            : <label>Catégorie<select name="category_id"><option value="">Aucune</option>{filteredAddCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
-          <label className="full">Description<input name="description" placeholder="Ex: Carrefour, salaire, loyer..." /></label>
-          <button className="primary"><Plus size={16} /> Ajouter</button>
-        </form>
-      </Panel>
+    <section className="stack">
+      <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
+        <button
+          type="button"
+          className="collapsible-header"
+          onClick={() => setAddOpen(!addOpen)}
+          aria-expanded={addOpen}
+        >
+          <span className="collapsible-title"><Plus size={16} /> Ajouter une transaction</span>
+          {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {addOpen && (
+          <div className="collapsible-body">
+            <form className="form form-inline" onSubmit={submitAdd}>
+              <label>Type
+                <select value={addType} onChange={(e) => setAddType(e.target.value as TransactionType)}>
+                  <option value="expense">Dépense</option>
+                  <option value="income">Revenu</option>
+                  <option value="transfer">Transfert</option>
+                </select>
+              </label>
+              <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
+              <label>Montant<input name="amount" type="number" min="0.01" step="0.01" required /></label>
+              <label>{addType === 'transfer' ? 'Depuis le compte' : 'Compte'}
+                <select name="account_id" required={addType === 'transfer'}>
+                  <option value="">Aucun</option>
+                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </label>
+              {addType === 'transfer'
+                ? <label>Vers le compte<select name="to_account_id" required><option value="">Choisir...</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+                : <label>Catégorie<select name="category_id"><option value="">Aucune</option>{filteredAddCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+              <label className="grow">Description<input name="description" placeholder="Ex: Carrefour, salaire, loyer..." /></label>
+              <button className="primary"><Plus size={16} /> Ajouter</button>
+            </form>
+          </div>
+        )}
+      </div>
 
       <Panel title="Historique du mois">
         <div className="table-tools">

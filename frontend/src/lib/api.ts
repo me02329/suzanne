@@ -34,8 +34,26 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const data = await res.json() as { error?: string };
+      if (data?.error) message = data.error;
+    } catch {
+      /* keep default */
+    }
+    throw new Error(message);
+  }
   return await res.json() as T;
+}
+
+export interface AiHealthStatus {
+  configured: boolean;
+  model: string;
+  baseUrl: string;
+  provider: string;
+  ok?: boolean;
+  error?: { kind: string; message: string; detail: string };
 }
 
 export const api = {
@@ -76,6 +94,8 @@ export const api = {
   goals: (userId: number) => http<SavingsGoal[]>(`/users/${userId}/savings-goals`),
   createGoal: (userId: number, body: CreateSavingsGoalBody) => http<SavingsGoal>(`/users/${userId}/savings-goals`, { method: 'POST', body: JSON.stringify(body) }),
   updateGoal: (userId: number, id: number, body: Partial<CreateSavingsGoalBody>) => http<SavingsGoal>(`/users/${userId}/savings-goals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  contributeGoal: (userId: number, id: number, body: { amount: number; date: string; source_account_id?: number | null; description?: string | null }) =>
+    http<{ goal: SavingsGoal; transaction_id: number | null }>(`/users/${userId}/savings-goals/${id}/contribute`, { method: 'POST', body: JSON.stringify(body) }),
   deleteGoal: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/savings-goals/${id}`, { method: 'DELETE' }),
   snapshots: (userId: number) => http<AccountSnapshot[]>(`/users/${userId}/account-snapshots`),
   setSnapshot: (userId: number, body: CreateAccountSnapshotBody) => http<AccountSnapshot>(`/users/${userId}/account-snapshots`, { method: 'POST', body: JSON.stringify(body) }),
@@ -85,9 +105,30 @@ export const api = {
   importCsv: (userId: number, body: { csv: string; account_id?: number | null; date_format?: string; mapping?: { date: string; amount: string; description?: string | null; type?: string | null } }) => http<{ imported: number; skipped: number }>(`/users/${userId}/import.csv`, { method: 'POST', body: JSON.stringify(body) }),
   exportJsonUrl: (userId: number) => `${API_BASE}/users/${userId}/export.json`,
   exportCsvUrl: (userId: number) => `${API_BASE}/users/${userId}/transactions.csv`,
+  exportSelection: async (userId: number, body: { entities: string[]; from?: string | null; to?: string | null }) => {
+    const res = await fetch(`${API_BASE}/users/${userId}/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let message = `HTTP ${res.status}`;
+      try { const data = await res.json() as { error?: string }; if (data?.error) message = data.error; } catch { /* keep */ }
+      throw new Error(message);
+    }
+    return await res.blob();
+  },
+  importJson: (userId: number, payload: unknown) =>
+    http<{ institutions: { created: number; reused: number }; accounts: { created: number; reused: number }; categories: { created: number; reused: number }; rules: { created: number; reused: number }; transactions: { created: number }; budgets: { created: number; updated: number }; recurring: { created: number }; goals: { created: number; reused: number }; snapshots: { created: number; updated: number } }>(
+      `/users/${userId}/import.json`, { method: 'POST', body: JSON.stringify({ payload }) }),
   search: (userId: number, q: string) => http<SearchResult[]>(`/users/${userId}/search?q=${encodeURIComponent(q)}`),
-  statistics: (userId: number, range: string, currency: string, excludeUncategorized: boolean) =>
-    http<StatisticsSummary>(`/users/${userId}/statistics?range=${encodeURIComponent(range)}&currency=${encodeURIComponent(currency)}&exclude_uncategorized=${excludeUncategorized}`),
+  statistics: (userId: number, range: string, currency: string, excludeUncategorized: boolean, from?: string | null, to?: string | null) => {
+    const params = new URLSearchParams({ range, currency, exclude_uncategorized: String(excludeUncategorized) });
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    return http<StatisticsSummary>(`/users/${userId}/statistics?${params.toString()}`);
+  },
+  aiHealth: () => http<AiHealthStatus>('/ai/health'),
   aiChat: (userId: number, body: { message: string; month: string; currency: string }) =>
     http<AiChatResponse>(`/users/${userId}/ai/chat`, { method: 'POST', body: JSON.stringify(body) }),
   confirmAiAction: (userId: number, action: AiPendingAction) =>

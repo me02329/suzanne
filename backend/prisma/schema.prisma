@@ -93,6 +93,7 @@ model Account {
   incoming_transactions  Transaction[]          @relation("TxDestination")
   recurring_transactions RecurringTransaction[]
   snapshots              AccountSnapshot[]
+  savings_goals          SavingsGoal[]
 
   @@unique([user_id, name])
   @@index([user_id])
@@ -207,6 +208,7 @@ model RecurringTransaction {
 model SavingsGoal {
   id             Int      @id @default(autoincrement())
   user_id        Int
+  account_id     Int?
   name           String
   target_amount  Float
   current_amount Float    @default(0)
@@ -214,9 +216,11 @@ model SavingsGoal {
   color          String   @default("#4f46e5")
   created_at     DateTime @default(now()) @db.Timestamptz(6)
 
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account Account? @relation(fields: [account_id], references: [id], onDelete: SetNull)
 
   @@index([user_id])
+  @@index([account_id])
   @@map("savings_goals")
 }
 

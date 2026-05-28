@@ -2,13 +2,14 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { currencyQuery, idParam } from '../lib/validation.js';
+import { currencyQuery, dateString, idParam } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { buildFx } from '../lib/fxHelper.js';
 
 export const statisticsRouter = Router();
 
-const rangeSchema = z.enum(['3m', '6m', '1y', '2y', 'all']).default('1y');
+const rangeSchema = z.enum(['3m', '6m', '1y', '2y', 'all', 'custom']).default('1y');
+const optionalDate = dateString.optional();
 
 // Long-range expense statistics: a unified endpoint that powers the new
 // "Statistiques" tab. Aggregates spending by category, by merchant
@@ -18,6 +19,8 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   const range = rangeSchema.parse(req.query.range ?? '1y');
   const reportCurrency = currencyQuery.parse(req.query.currency ?? 'EUR');
   const excludeUncategorized = String(req.query.exclude_uncategorized ?? 'true') === 'true';
+  const fromParam = optionalDate.parse(req.query.from ?? undefined);
+  const toParam = optionalDate.parse(req.query.to ?? undefined);
 
   const [transactions, accounts, categories] = await Promise.all([
     // Statistics is intentionally expense-only: income flows aren't
@@ -36,7 +39,9 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   const earliest = transactions.length > 0
     ? transactions.reduce((min, t) => (t.date < min ? t.date : min), transactions[0]!.date)
     : today;
-  const from = rangeStart(range, today, earliest);
+  // Custom mode: any from/to wins. Otherwise the preset range computes from.
+  const from = fromParam ? new Date(`${fromParam}T00:00:00.000Z`) : rangeStart(range, today, earliest);
+  const to = toParam ? new Date(`${toParam}T00:00:00.000Z`) : today;
 
   // Convert raw transaction amounts to the report currency via the source account's
   // currency. Transactions without an account default to EUR (which gets converted).
@@ -45,7 +50,7 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     return t.amount * (fx.get(currency) ?? 1);
   };
 
-  const inRange = transactions.filter((t) => t.date >= from && t.date <= today);
+  const inRange = transactions.filter((t) => t.date >= from && t.date <= to);
   const considered = excludeUncategorized
     ? inRange.filter((t) => t.category_id != null)
     : inRange;
@@ -97,7 +102,7 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   // hiding the gap).
   const monthlyMap = new Map<string, number>();
   const monthCursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
-  const lastMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const lastMonth = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
   while (monthCursor <= lastMonth) {
     monthlyMap.set(monthCursor.toISOString().slice(0, 7), 0);
     monthCursor.setUTCMonth(monthCursor.getUTCMonth() + 1);
@@ -114,7 +119,7 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     range,
     currency: reportCurrency,
     from: from.toISOString().slice(0, 10),
-    to: today.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
     exclude_uncategorized: excludeUncategorized,
     total_expenses: round2(totalExpenses),
     total_categorized: round2(totalCategorized),
@@ -141,5 +146,6 @@ function rangeStart(range: z.infer<typeof rangeSchema>, today: Date, earliest: D
     case '1y': return addMonths(today, -12);
     case '2y': return addMonths(today, -24);
     case 'all': return startOfUtcDay(earliest);
+    case 'custom': return addMonths(today, -12);
   }
 }

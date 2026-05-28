@@ -106,6 +106,7 @@ export interface CategoryRule {
 export interface SavingsGoal {
   id: number;
   user_id: number;
+  account_id: number | null;
   name: string;
   target_amount: number;
   current_amount: number;
@@ -183,6 +184,14 @@ export interface CreateSavingsGoalBody {
   current_amount?: number;
   deadline?: string | null;
   color: string;
+  account_id?: number | null;
+}
+
+export interface ContributeSavingsGoalBody {
+  amount: number;
+  date: string;
+  source_account_id?: number | null;
+  description?: string | null;
 }
 
 export interface CreateAccountSnapshotBody {

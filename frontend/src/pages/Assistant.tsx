@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Check, Loader2, Send, Sparkles, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, Check, Loader2, Send, Sparkles, X } from 'lucide-react';
 import type { AiPendingAction } from '@suzanne-lite/shared';
-import { api } from '../lib/api';
+import { api, type AiHealthStatus } from '../lib/api';
 import type { Run } from '../lib/run';
 
 interface ChatMessage {
@@ -21,6 +21,21 @@ export function Assistant({ userId, month, currency, run }: { userId: number; mo
   ]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(false);
+  const [health, setHealth] = useState<AiHealthStatus | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  const refreshHealth = async () => {
+    setTesting(true);
+    try {
+      setHealth(await api.aiHealth());
+    } catch (e) {
+      setHealth({ configured: false, model: '?', baseUrl: '?', provider: '?', ok: false, error: { kind: 'network', message: (e as Error).message, detail: '' } });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  useEffect(() => { void refreshHealth(); }, []);
 
   const send = async () => {
     const message = draft.trim();
@@ -75,6 +90,26 @@ export function Assistant({ userId, month, currency, run }: { userId: number; mo
             <p className="panel-note">Lecture des données en direct. Écriture uniquement après confirmation.</p>
           </div>
           <span className="assistant-context">{month} · {currency}</span>
+        </div>
+
+        <div className={`assistant-health ${health?.ok ? 'ok' : health?.configured === false ? 'warn' : health?.ok === false ? 'err' : ''}`}>
+          {health ? (
+            <>
+              <span><strong>Modèle :</strong> {health.model} · <strong>endpoint :</strong> {health.baseUrl}</span>
+              <span>
+                {!health.configured && <>Clé absente — définir <code>AI_API_KEY</code> côté backend.</>}
+                {health.configured && health.ok && <>Connexion OK.</>}
+                {health.configured && health.ok === false && health.error && (
+                  <><AlertTriangle size={14} /> {health.error.message} <em>({health.error.kind})</em></>
+                )}
+              </span>
+              <button type="button" className="ghost-button" onClick={refreshHealth} disabled={testing}>
+                {testing ? <Loader2 className="spin-icon" size={14} /> : null} Tester la clé
+              </button>
+            </>
+          ) : (
+            <span>Vérification de la configuration IA…</span>
+          )}
         </div>
 
         <div className="assistant-chat" aria-live="polite">

@@ -24,7 +24,7 @@ const chartGrid = '#e8edf5';
 const expenseColor = '#dc2626';
 
 const RANGE_LABELS: Record<string, string> = {
-  '3m': '3 mois', '6m': '6 mois', '1y': '12 mois', '2y': '2 ans', all: 'Tout',
+  '3m': '3 mois', '6m': '6 mois', '1y': '12 mois', '2y': '2 ans', all: 'Tout', custom: 'Personnalisée',
 };
 
 // "Statistiques" — long-range expense analytics that complement the
@@ -32,20 +32,28 @@ const RANGE_LABELS: Record<string, string> = {
 export function Statistics({ userId, reportCurrency }: { userId: number; reportCurrency: string }) {
   const [range, setRange] = usePersistedState('stats_range', '1y');
   const [excludeUncategorized, setExcludeUncategorized] = usePersistedState('stats_exclude_uncategorized', true);
+  const [customFrom, setCustomFrom] = usePersistedState('stats_custom_from', '');
+  const [customTo, setCustomTo] = usePersistedState('stats_custom_to', '');
   const [data, setData] = useState<StatisticsSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isCustom = range === 'custom';
+  const effectiveFrom = isCustom ? customFrom : null;
+  const effectiveTo = isCustom ? customTo : null;
+  const customReady = !isCustom || (Boolean(customFrom) && Boolean(customTo));
+
   useEffect(() => {
+    if (!customReady) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
-    api.statistics(userId, range, reportCurrency, excludeUncategorized)
+    api.statistics(userId, range, reportCurrency, excludeUncategorized, effectiveFrom, effectiveTo)
       .then((row) => { if (!cancelled) setData(row); })
       .catch((e) => { if (!cancelled) setError((e as Error).message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [userId, range, reportCurrency, excludeUncategorized]);
+  }, [userId, range, reportCurrency, excludeUncategorized, effectiveFrom, effectiveTo, customReady]);
 
   const currency = data?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, currency);
@@ -70,17 +78,26 @@ export function Statistics({ userId, reportCurrency }: { userId: number; reportC
             <option value="1y">12 mois</option>
             <option value="2y">2 ans</option>
             <option value="all">Tout</option>
+            <option value="custom">Personnalisée…</option>
           </select>
+          {isCustom && (
+            <>
+              <label className="inline-date">Du <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /></label>
+              <label className="inline-date">Au <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></label>
+            </>
+          )}
           <label className="series-toggles inline">
             <input type="checkbox" checked={excludeUncategorized} onChange={(e) => setExcludeUncategorized(e.target.checked)} /> Exclure non-catégorisé
           </label>
         </div>
         <p className="panel-note">
-          {data
-            ? `${data.transactions_count} transactions du ${new Date(data.from).toLocaleDateString('fr-FR')} au ${new Date(data.to).toLocaleDateString('fr-FR')}.`
-            : loading
-              ? 'Chargement…'
-              : '—'}
+          {isCustom && !customReady
+            ? 'Choisis une date de début et de fin pour activer la période personnalisée.'
+            : data
+              ? `${data.transactions_count} transactions du ${new Date(data.from).toLocaleDateString('fr-FR')} au ${new Date(data.to).toLocaleDateString('fr-FR')}.`
+              : loading
+                ? 'Chargement…'
+                : '—'}
           {data && excludeUncategorized && data.total_uncategorized > 0 && (
             <> <strong>{money(data.total_uncategorized)}</strong> exclus (non catégorisés).</>
           )}

@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
+import { AiProviderError } from '../ai/client.js';
 
 export function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -10,6 +11,10 @@ export function asyncHandler(fn: (req: Request, res: Response, next: NextFunctio
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof ZodError) {
     res.status(400).json({ error: 'Invalid request', issues: err.issues });
+    return;
+  }
+  if (err instanceof AiProviderError) {
+    res.status(err.status).json({ error: err.message, ai: { kind: err.kind, detail: err.detail } });
     return;
   }
   const message = err instanceof Error ? err.message : 'Internal server error';

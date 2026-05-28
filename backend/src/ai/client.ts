@@ -24,9 +24,49 @@ export interface AiChatResult {
   pendingActions: PendingAiAction[];
 }
 
+export type AiErrorKind = 'not_configured' | 'auth' | 'rate_limit' | 'model_unavailable' | 'bad_request' | 'upstream' | 'network';
+
+export class AiProviderError extends Error {
+  status: number;
+  kind: AiErrorKind;
+  detail: string;
+  constructor(kind: AiErrorKind, status: number, message: string, detail = '') {
+    super(message);
+    this.kind = kind;
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+function classifyUpstream(status: number, body: string): AiProviderError {
+  const trimmed = body.slice(0, 400);
+  if (status === 401 || status === 403) return new AiProviderError('auth', 401, 'Clé API refusée par le fournisseur.', trimmed);
+  if (status === 429) return new AiProviderError('rate_limit', 429, 'Quota dépassé ou trop de requêtes.', trimmed);
+  if (status === 404) return new AiProviderError('model_unavailable', 404, 'Modèle introuvable pour cette clé.', trimmed);
+  if (status === 400) return new AiProviderError('bad_request', 400, 'Requête refusée par le fournisseur.', trimmed);
+  return new AiProviderError('upstream', 502, `Erreur fournisseur IA (${status}).`, trimmed);
+}
+
+export async function checkAiHealth(): Promise<{ configured: boolean; model: string; baseUrl: string; provider: string; ok?: boolean; error?: { kind: AiErrorKind; message: string; detail: string } }> {
+  const info = { configured: Boolean(config.ai.apiKey), model: config.ai.model, baseUrl: config.ai.baseUrl, provider: config.ai.provider };
+  if (!info.configured) return info;
+  try {
+    await createChatCompletion([
+      { role: 'system', content: 'ping' },
+      { role: 'user', content: 'ping' },
+    ], { noTools: true });
+    return { ...info, ok: true };
+  } catch (e) {
+    if (e instanceof AiProviderError) {
+      return { ...info, ok: false, error: { kind: e.kind, message: e.message, detail: e.detail } };
+    }
+    return { ...info, ok: false, error: { kind: 'network', message: (e as Error).message, detail: '' } };
+  }
+}
+
 export async function runAiChat(userId: number, message: string, context: { month: string; currency: string }): Promise<AiChatResult> {
   if (!config.ai.apiKey) {
-    throw new Error('Assistant IA non configuré: définis AI_API_KEY ou OPENAI_API_KEY côté backend.');
+    throw new AiProviderError('not_configured', 503, 'Assistant IA non configuré: définis AI_API_KEY ou OPENAI_API_KEY côté backend.');
   }
 
   const messages: AiMessage[] = [
@@ -65,28 +105,38 @@ export async function runAiChat(userId: number, message: string, context: { mont
   };
 }
 
-async function createChatCompletion(messages: AiMessage[]) {
-  const res = await fetch(`${config.ai.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.ai.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.ai.model,
-      messages,
-      tools: aiToolDefinitions,
-      tool_choice: 'auto',
-      temperature: 0.2,
-    }),
-  });
+async function createChatCompletion(messages: AiMessage[], options: { noTools?: boolean } = {}) {
+  let res: Response;
+  try {
+    res = await fetch(`${config.ai.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.ai.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.ai.model,
+        messages,
+        ...(options.noTools ? {} : { tools: aiToolDefinitions, tool_choice: 'auto' }),
+        temperature: 0.2,
+      }),
+    });
+  } catch (e) {
+    const detail = (e as Error).message;
+    console.error('[ai] network error reaching provider', { baseUrl: config.ai.baseUrl, detail });
+    throw new AiProviderError('network', 502, `Impossible de joindre le fournisseur IA: ${detail}`, detail);
+  }
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Erreur provider IA (${res.status}): ${body.slice(0, 300)}`);
+    console.error('[ai] provider error', { status: res.status, model: config.ai.model, body: body.slice(0, 500) });
+    throw classifyUpstream(res.status, body);
   }
   const data = await res.json() as ChatResponse;
   const message = data.choices?.[0]?.message;
-  if (!message) throw new Error('Réponse IA invalide');
+  if (!message) {
+    console.error('[ai] invalid response shape', data);
+    throw new AiProviderError('upstream', 502, 'Réponse IA invalide.', JSON.stringify(data).slice(0, 400));
+  }
   return { role: 'assistant' as const, content: message.content ?? null, tool_calls: message.tool_calls };
 }
 

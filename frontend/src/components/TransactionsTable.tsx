@@ -67,8 +67,14 @@ export function TransactionsTable({
             const linked = t.recurring_transaction_id != null;
             const selected = selectedIds.has(t.id);
             const compatibleCategories = categories.filter((c) => c.type === t.type);
+            const accent = category?.color
+              ?? (t.type === 'income' ? 'var(--income)' : t.type === 'transfer' ? 'var(--accent)' : 'var(--expense)');
             return (
-              <tr key={t.id} className={[linked ? 'tx-linked' : '', selected ? 'tx-selected' : ''].filter(Boolean).join(' ') || undefined}>
+              <tr
+                key={t.id}
+                className={[linked ? 'tx-linked' : '', selected ? 'tx-selected' : ''].filter(Boolean).join(' ') || undefined}
+                style={{ ['--tx-accent' as string]: accent }}
+              >
                 <td className="select-cell">
                   <input
                     type="checkbox"
@@ -77,7 +83,7 @@ export function TransactionsTable({
                     onChange={(e) => onSelect(t.id, e.target.checked)}
                   />
                 </td>
-                <td className="nowrap">{new Date(t.date).toLocaleDateString('fr-FR')}</td>
+                <td className="nowrap tx-accent">{new Date(t.date).toLocaleDateString('fr-FR')}</td>
                 <td>
                   <strong>
                     {txLabel(t, categoryById)}

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/errors.js';
 import { idParam, monthString } from '../lib/validation.js';
-import { runAiChat } from '../ai/client.js';
+import { checkAiHealth, runAiChat } from '../ai/client.js';
 import { confirmAiAction, type PendingAiAction } from '../ai/tools.js';
 
 export const aiRouter = Router();
@@ -18,6 +18,11 @@ const pendingActionSchema = z.object({
   label: z.string().trim().min(1).max(300),
   payload: z.any(),
 });
+
+aiRouter.get('/ai/health', asyncHandler(async (_req, res) => {
+  const status = await checkAiHealth();
+  res.json(status);
+}));
 
 aiRouter.post('/users/:user_id/ai/chat', asyncHandler(async (req, res) => {
   const userId = idParam.parse(req.params.user_id);

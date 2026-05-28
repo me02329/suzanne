@@ -120,8 +120,16 @@ export const createSavingsGoalSchema = z.object({
   current_amount: z.coerce.number().min(0).default(0).transform(round2),
   deadline: dateString.nullish(),
   color: z.string().trim().min(1).default('#4f46e5'),
+  account_id: z.coerce.number().int().positive().nullish(),
 });
 export const updateSavingsGoalSchema = createSavingsGoalSchema.partial();
+
+export const contributeSavingsGoalSchema = z.object({
+  amount,
+  date: dateString,
+  source_account_id: z.coerce.number().int().positive().nullish(),
+  description: z.string().trim().max(500).nullish(),
+});
 
 export const createAccountSnapshotSchema = z.object({
   account_id: z.coerce.number().int().positive(),
