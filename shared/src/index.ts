@@ -223,7 +223,7 @@ export interface SearchResult {
 }
 
 export interface AiPendingAction {
-  type: 'create_transaction' | 'update_transaction_category';
+  type: string;
   label: string;
   payload: unknown;
 }

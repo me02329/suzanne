@@ -1,11 +1,30 @@
 import { z } from 'zod';
 import { prisma } from '../prisma.js';
-import { createTransactionSchema, monthString } from '../lib/validation.js';
+import {
+  contributeSavingsGoalSchema,
+  createBudgetSchema,
+  createCategorySchema,
+  createCategoryRuleSchema,
+  createRecurringSchema,
+  createSavingsGoalSchema,
+  createTagSchema,
+  createTransactionSchema,
+  monthString,
+  updateCategorySchema,
+  updateRecurringSchema,
+  updateSavingsGoalSchema,
+  updateTagSchema,
+  updateTransactionSchema,
+} from '../lib/validation.js';
 import { fetchExchangeRate } from '../lib/fx.js';
 import { round2 } from '../lib/money.js';
 
+// The AI proposes a write action; the user confirms it from the chat UI.
+// `type` drives the dispatch in confirmAiAction. Keeping payload as `unknown`
+// lets us reuse the existing Zod schemas on confirm so the AI can't bypass
+// any backend invariant.
 export interface PendingAiAction {
-  type: 'create_transaction' | 'update_transaction_category';
+  type: string;
   label: string;
   payload: unknown;
 }
@@ -16,87 +35,6 @@ export interface ToolExecution {
 }
 
 type JsonSchema = Record<string, unknown>;
-
-export const aiToolDefinitions = [
-  toolDefinition('list_accounts', 'Liste les comptes de l’utilisateur avec id, nom, type et devise.', {}),
-  toolDefinition('list_categories', 'Liste les catégories de l’utilisateur avec id, nom et type.', {}),
-  toolDefinition('get_dashboard_summary', 'Retourne le résumé financier d’un mois donné.', {
-    month: { type: 'string', description: 'Mois au format YYYY-MM.' },
-    currency: { type: 'string', description: 'Devise de reporting, ex: EUR.', default: 'EUR' },
-  }, ['month']),
-  toolDefinition('search_transactions', 'Recherche des transactions par texte, mois, type ou catégorie.', {
-    query: { type: 'string', description: 'Texte à rechercher dans la description.', default: '' },
-    month: { type: 'string', description: 'Mois au format YYYY-MM.', default: '' },
-    type: { type: 'string', enum: ['expense', 'income', 'transfer'], description: 'Type de transaction.' },
-    category_id: { type: 'number', description: 'Identifiant de catégorie.' },
-    limit: { type: 'number', description: 'Maximum de lignes, 1 à 30.', default: 10 },
-  }),
-  toolDefinition('propose_create_transaction', 'Prépare une création de transaction. Ne crée rien sans confirmation utilisateur.', {
-    account_id: { type: ['number', 'null'] },
-    to_account_id: { type: ['number', 'null'] },
-    category_id: { type: ['number', 'null'] },
-    amount: { type: 'number' },
-    to_amount: { type: ['number', 'null'] },
-    type: { type: 'string', enum: ['expense', 'income', 'transfer'] },
-    date: { type: 'string', description: 'Date au format YYYY-MM-DD.' },
-    description: { type: ['string', 'null'] },
-  }, ['amount', 'type', 'date']),
-  toolDefinition('propose_update_transaction_category', 'Prépare le changement de catégorie d’une transaction. Ne modifie rien sans confirmation utilisateur.', {
-    transaction_id: { type: 'number' },
-    category_id: { type: ['number', 'null'] },
-  }, ['transaction_id']),
-];
-
-export async function executeAiTool(userId: number, name: string, rawArgs: unknown): Promise<ToolExecution> {
-  switch (name) {
-    case 'list_accounts':
-      return { result: await prisma.account.findMany({ where: { user_id: userId }, orderBy: { name: 'asc' } }) };
-    case 'list_categories':
-      return { result: await prisma.category.findMany({ where: { user_id: userId }, orderBy: [{ type: 'asc' }, { name: 'asc' }] }) };
-    case 'get_dashboard_summary':
-      return { result: await dashboardSummary(userId, rawArgs) };
-    case 'search_transactions':
-      return { result: await searchTransactions(userId, rawArgs) };
-    case 'propose_create_transaction':
-      return await proposeCreateTransaction(userId, rawArgs);
-    case 'propose_update_transaction_category':
-      return await proposeUpdateTransactionCategory(userId, rawArgs);
-    default:
-      throw new Error(`Tool IA inconnue: ${name}`);
-  }
-}
-
-export async function confirmAiAction(userId: number, action: PendingAiAction) {
-  if (action.type === 'create_transaction') {
-    const body = createTransactionSchema.parse(action.payload);
-    await assertTransactionReferences(userId, body);
-    const transfer = await transferAmounts(userId, body);
-    return await prisma.transaction.create({
-      data: {
-        user_id: userId,
-        account_id: body.account_id ?? null,
-        to_account_id: body.type === 'transfer' ? body.to_account_id ?? null : null,
-        category_id: body.category_id ?? null,
-        amount: body.amount,
-        to_amount: transfer.toAmount,
-        exchange_rate: transfer.exchangeRate,
-        type: body.type,
-        date: new Date(body.date),
-        description: body.description ?? null,
-      },
-    });
-  }
-  if (action.type === 'update_transaction_category') {
-    const body = z.object({
-      transaction_id: z.coerce.number().int().positive(),
-      category_id: z.coerce.number().int().positive().nullable(),
-    }).parse(action.payload);
-    const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
-    if (!existing) throw new Error('Transaction introuvable');
-    return await prisma.transaction.update({ where: { id: body.transaction_id }, data: { category_id: body.category_id } });
-  }
-  throw new Error('Action IA non supportée');
-}
 
 function toolDefinition(name: string, description: string, properties: JsonSchema, required: string[] = []) {
   return {
@@ -112,6 +50,453 @@ function toolDefinition(name: string, description: string, properties: JsonSchem
       },
     },
   };
+}
+
+const idProp = { type: 'number' } as const;
+const nullableNumber = { type: ['number', 'null'] } as const;
+const nullableString = { type: ['string', 'null'] } as const;
+
+export const aiToolDefinitions = [
+  // ── Read ──
+  toolDefinition('list_accounts', 'Liste les comptes (id, nom, type, devise, solde initial).', {}),
+  toolDefinition('list_categories', 'Liste les catégories (id, nom, type, couleur).', {}),
+  toolDefinition('list_tags', 'Liste les tags (id, nom, couleur).', {}),
+  toolDefinition('list_recurring', 'Liste les transactions récurrentes actives.', {}),
+  toolDefinition('list_goals', 'Liste les objectifs d\'épargne avec progression.', {}),
+  toolDefinition('list_budgets', 'Liste les budgets mensuels.', { month: { type: 'string', description: 'Mois YYYY-MM (optionnel).' } }),
+  toolDefinition('list_rules', 'Liste les règles d\'auto-catégorisation.', {}),
+  toolDefinition('get_dashboard_summary', 'Résumé financier d\'un mois.', {
+    month: { type: 'string', description: 'Mois YYYY-MM.' },
+    currency: { type: 'string', description: 'Devise reporting.', default: 'EUR' },
+  }, ['month']),
+  toolDefinition('search_transactions', 'Recherche des transactions.', {
+    query: { type: 'string', default: '' },
+    month: { type: 'string', default: '' },
+    type: { type: 'string', enum: ['expense', 'income', 'transfer'] },
+    category_id: { type: 'number' },
+    tag_id: { type: 'number' },
+    limit: { type: 'number', default: 10 },
+  }),
+
+  // ── Write : transactions ──
+  toolDefinition('propose_create_transaction', 'Prépare une création de transaction (confirmation requise).', {
+    account_id: nullableNumber,
+    to_account_id: nullableNumber,
+    category_id: nullableNumber,
+    amount: idProp,
+    to_amount: nullableNumber,
+    type: { type: 'string', enum: ['expense', 'income', 'transfer'] },
+    date: { type: 'string', description: 'YYYY-MM-DD' },
+    description: nullableString,
+    tag_ids: { type: 'array', items: { type: 'number' } },
+  }, ['amount', 'type', 'date']),
+  toolDefinition('propose_update_transaction', 'Prépare la modification d\'une transaction (confirmation requise).', {
+    transaction_id: idProp,
+    account_id: nullableNumber,
+    to_account_id: nullableNumber,
+    category_id: nullableNumber,
+    amount: { type: 'number' },
+    type: { type: 'string', enum: ['expense', 'income', 'transfer'] },
+    date: { type: 'string' },
+    description: nullableString,
+    tag_ids: { type: 'array', items: { type: 'number' } },
+  }, ['transaction_id']),
+  toolDefinition('propose_delete_transaction', 'Prépare la suppression d\'une transaction (confirmation requise).', {
+    transaction_id: idProp,
+  }, ['transaction_id']),
+
+  // ── Write : categories ──
+  toolDefinition('propose_create_category', 'Prépare la création d\'une catégorie.', {
+    name: { type: 'string' },
+    type: { type: 'string', enum: ['expense', 'income'] },
+    color: { type: 'string', description: 'Hex #RRGGBB.', default: '#6366f1' },
+    icon: nullableString,
+  }, ['name', 'type']),
+  toolDefinition('propose_update_category', 'Prépare la modification d\'une catégorie.', {
+    category_id: idProp,
+    name: { type: 'string' },
+    type: { type: 'string', enum: ['expense', 'income'] },
+    color: { type: 'string' },
+    icon: nullableString,
+  }, ['category_id']),
+  toolDefinition('propose_delete_category', 'Prépare la suppression d\'une catégorie.', {
+    category_id: idProp,
+  }, ['category_id']),
+
+  // ── Write : tags ──
+  toolDefinition('propose_create_tag', 'Prépare la création d\'un tag.', {
+    name: { type: 'string' },
+    color: { type: 'string', default: '#6366f1' },
+  }, ['name']),
+  toolDefinition('propose_update_tag', 'Prépare la modification d\'un tag.', {
+    tag_id: idProp,
+    name: { type: 'string' },
+    color: { type: 'string' },
+  }, ['tag_id']),
+  toolDefinition('propose_delete_tag', 'Prépare la suppression d\'un tag.', {
+    tag_id: idProp,
+  }, ['tag_id']),
+
+  // ── Write : goals ──
+  toolDefinition('propose_create_goal', 'Prépare la création d\'un objectif d\'épargne.', {
+    name: { type: 'string' },
+    target_amount: { type: 'number' },
+    current_amount: { type: 'number', default: 0 },
+    deadline: nullableString,
+    color: { type: 'string', default: '#4f46e5' },
+    account_id: nullableNumber,
+  }, ['name', 'target_amount']),
+  toolDefinition('propose_update_goal', 'Prépare la modification d\'un objectif.', {
+    goal_id: idProp,
+    name: { type: 'string' },
+    target_amount: { type: 'number' },
+    current_amount: { type: 'number' },
+    deadline: nullableString,
+    color: { type: 'string' },
+    account_id: nullableNumber,
+  }, ['goal_id']),
+  toolDefinition('propose_delete_goal', 'Prépare la suppression d\'un objectif.', {
+    goal_id: idProp,
+  }, ['goal_id']),
+  toolDefinition('propose_contribute_goal', 'Prépare un versement sur un objectif (transfert + bump du compteur).', {
+    goal_id: idProp,
+    amount: { type: 'number' },
+    date: { type: 'string', description: 'YYYY-MM-DD' },
+    source_account_id: nullableNumber,
+    description: nullableString,
+  }, ['goal_id', 'amount', 'date']),
+
+  // ── Write : recurring ──
+  toolDefinition('propose_create_recurring', 'Prépare la création d\'une transaction récurrente.', {
+    description: { type: 'string' },
+    type: { type: 'string', enum: ['expense', 'income'] },
+    amount: { type: 'number' },
+    frequency: { type: 'string', enum: ['weekly', 'monthly', 'yearly'] },
+    interval: { type: 'number', default: 1 },
+    day_of_month: nullableNumber,
+    account_id: nullableNumber,
+    category_id: nullableNumber,
+    active: { type: 'boolean', default: true },
+  }, ['description', 'type', 'amount', 'frequency']),
+  toolDefinition('propose_update_recurring', 'Prépare la modification d\'une transaction récurrente.', {
+    recurring_id: idProp,
+    description: { type: 'string' },
+    type: { type: 'string', enum: ['expense', 'income'] },
+    amount: { type: 'number' },
+    frequency: { type: 'string', enum: ['weekly', 'monthly', 'yearly'] },
+    interval: { type: 'number' },
+    day_of_month: nullableNumber,
+    account_id: nullableNumber,
+    category_id: nullableNumber,
+    active: { type: 'boolean' },
+  }, ['recurring_id']),
+  toolDefinition('propose_delete_recurring', 'Prépare la suppression d\'une transaction récurrente.', {
+    recurring_id: idProp,
+  }, ['recurring_id']),
+
+  // ── Write : budgets ──
+  toolDefinition('propose_set_budget', 'Prépare la définition/modification d\'un budget mensuel.', {
+    category_id: idProp,
+    month: { type: 'string', description: 'YYYY-MM' },
+    amount_limit: { type: 'number' },
+  }, ['category_id', 'month', 'amount_limit']),
+  toolDefinition('propose_delete_budget', 'Prépare la suppression d\'un budget.', {
+    budget_id: idProp,
+  }, ['budget_id']),
+
+  // ── Write : rules ──
+  toolDefinition('propose_create_rule', 'Prépare la création d\'une règle d\'auto-catégorisation.', {
+    pattern: { type: 'string', description: 'Mot-clé recherché dans les descriptions (UPPERCASE).' },
+    category_id: idProp,
+  }, ['pattern', 'category_id']),
+  toolDefinition('propose_delete_rule', 'Prépare la suppression d\'une règle.', {
+    rule_id: idProp,
+  }, ['rule_id']),
+];
+
+export async function executeAiTool(userId: number, name: string, rawArgs: unknown): Promise<ToolExecution> {
+  switch (name) {
+    // Read
+    case 'list_accounts': return { result: await prisma.account.findMany({ where: { user_id: userId }, orderBy: { name: 'asc' } }) };
+    case 'list_categories': return { result: await prisma.category.findMany({ where: { user_id: userId }, orderBy: [{ type: 'asc' }, { name: 'asc' }] }) };
+    case 'list_tags': return { result: await prisma.tag.findMany({ where: { user_id: userId }, orderBy: { name: 'asc' } }) };
+    case 'list_recurring': return { result: await prisma.recurringTransaction.findMany({ where: { user_id: userId }, orderBy: { description: 'asc' } }) };
+    case 'list_goals': return { result: await prisma.savingsGoal.findMany({ where: { user_id: userId }, orderBy: { name: 'asc' } }) };
+    case 'list_budgets': {
+      const args = z.object({ month: monthString.optional() }).parse(rawArgs);
+      return { result: await prisma.budget.findMany({ where: { user_id: userId, ...(args.month ? { month: args.month } : {}) }, orderBy: [{ month: 'desc' }] }) };
+    }
+    case 'list_rules': return { result: await prisma.categoryRule.findMany({ where: { user_id: userId }, orderBy: { pattern: 'asc' } }) };
+    case 'get_dashboard_summary': return { result: await dashboardSummary(userId, rawArgs) };
+    case 'search_transactions': return { result: await searchTransactions(userId, rawArgs) };
+
+    // Write — propose only
+    case 'propose_create_transaction': return await proposeCreateTransaction(userId, rawArgs);
+    case 'propose_update_transaction': return await proposeUpdateTransaction(userId, rawArgs);
+    case 'propose_delete_transaction': return await proposeDeleteTransaction(userId, rawArgs);
+
+    case 'propose_create_category': return await proposeCreateCategory(rawArgs);
+    case 'propose_update_category': return await proposeUpdateCategory(userId, rawArgs);
+    case 'propose_delete_category': return await proposeDeleteCategory(userId, rawArgs);
+
+    case 'propose_create_tag': return await proposeCreateTag(rawArgs);
+    case 'propose_update_tag': return await proposeUpdateTag(userId, rawArgs);
+    case 'propose_delete_tag': return await proposeDeleteTag(userId, rawArgs);
+
+    case 'propose_create_goal': return await proposeCreateGoal(userId, rawArgs);
+    case 'propose_update_goal': return await proposeUpdateGoal(userId, rawArgs);
+    case 'propose_delete_goal': return await proposeDeleteGoal(userId, rawArgs);
+    case 'propose_contribute_goal': return await proposeContributeGoal(userId, rawArgs);
+
+    case 'propose_create_recurring': return await proposeCreateRecurring(userId, rawArgs);
+    case 'propose_update_recurring': return await proposeUpdateRecurring(userId, rawArgs);
+    case 'propose_delete_recurring': return await proposeDeleteRecurring(userId, rawArgs);
+
+    case 'propose_set_budget': return await proposeSetBudget(userId, rawArgs);
+    case 'propose_delete_budget': return await proposeDeleteBudget(userId, rawArgs);
+
+    case 'propose_create_rule': return await proposeCreateRule(userId, rawArgs);
+    case 'propose_delete_rule': return await proposeDeleteRule(userId, rawArgs);
+
+    default:
+      throw new Error(`Tool IA inconnue: ${name}`);
+  }
+}
+
+export async function confirmAiAction(userId: number, action: PendingAiAction) {
+  switch (action.type) {
+    case 'create_transaction': {
+      const body = createTransactionSchema.parse(action.payload);
+      await assertTransactionReferences(userId, body);
+      const transfer = await transferAmounts(userId, body);
+      return await prisma.transaction.create({
+        data: {
+          user_id: userId,
+          account_id: body.account_id ?? null,
+          to_account_id: body.type === 'transfer' ? body.to_account_id ?? null : null,
+          category_id: body.category_id ?? null,
+          amount: body.amount,
+          to_amount: transfer.toAmount,
+          exchange_rate: transfer.exchangeRate,
+          type: body.type,
+          date: new Date(body.date),
+          description: body.description ?? null,
+          tags: body.tag_ids && body.tag_ids.length > 0
+            ? { create: await resolveTagIds(userId, body.tag_ids).then((ids) => ids.map((tag_id) => ({ tag_id }))) }
+            : undefined,
+        },
+      });
+    }
+    case 'update_transaction_category': {
+      const body = z.object({
+        transaction_id: z.coerce.number().int().positive(),
+        category_id: z.coerce.number().int().positive().nullable(),
+      }).parse(action.payload);
+      const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
+      if (!existing) throw new Error('Transaction introuvable');
+      return await prisma.transaction.update({ where: { id: body.transaction_id }, data: { category_id: body.category_id } });
+    }
+    case 'update_transaction': {
+      const body = z.object({ transaction_id: z.coerce.number().int().positive() })
+        .and(updateTransactionSchema)
+        .parse(action.payload);
+      const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
+      if (!existing) throw new Error('Transaction introuvable');
+      if (body.tag_ids !== undefined) {
+        const tagIds = await resolveTagIds(userId, body.tag_ids);
+        await prisma.transactionTag.deleteMany({ where: { transaction_id: body.transaction_id } });
+        if (tagIds.length > 0) await prisma.transactionTag.createMany({ data: tagIds.map((tag_id) => ({ transaction_id: body.transaction_id, tag_id })) });
+      }
+      return await prisma.transaction.update({
+        where: { id: body.transaction_id },
+        data: {
+          ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
+          ...(body.to_account_id !== undefined ? { to_account_id: body.to_account_id ?? null } : {}),
+          ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
+          ...(body.amount != null ? { amount: body.amount } : {}),
+          ...(body.type != null ? { type: body.type } : {}),
+          ...(body.date != null ? { date: new Date(body.date) } : {}),
+          ...(body.description !== undefined ? { description: body.description ?? null } : {}),
+        },
+      });
+    }
+    case 'delete_transaction': {
+      const id = idOnly('transaction_id').parse(action.payload);
+      return await prisma.transaction.deleteMany({ where: { id, user_id: userId } });
+    }
+
+    case 'create_category': {
+      const body = createCategorySchema.parse(action.payload);
+      return await prisma.category.create({ data: { user_id: userId, name: body.name, type: body.type, color: body.color, icon: body.icon ?? null } });
+    }
+    case 'update_category': {
+      const body = z.object({ category_id: z.coerce.number().int().positive() }).and(updateCategorySchema).parse(action.payload);
+      const existing = await prisma.category.findFirst({ where: { id: body.category_id, user_id: userId } });
+      if (!existing) throw new Error('Catégorie introuvable');
+      return await prisma.category.update({
+        where: { id: body.category_id },
+        data: {
+          ...(body.name != null ? { name: body.name } : {}),
+          ...(body.type != null ? { type: body.type } : {}),
+          ...(body.color != null ? { color: body.color } : {}),
+          ...(body.icon !== undefined ? { icon: body.icon ?? null } : {}),
+        },
+      });
+    }
+    case 'delete_category': {
+      const id = idOnly('category_id').parse(action.payload);
+      return await prisma.category.deleteMany({ where: { id, user_id: userId } });
+    }
+
+    case 'create_tag': {
+      const body = createTagSchema.parse(action.payload);
+      return await prisma.tag.create({ data: { user_id: userId, name: body.name, color: body.color } });
+    }
+    case 'update_tag': {
+      const body = z.object({ tag_id: z.coerce.number().int().positive() }).and(updateTagSchema).parse(action.payload);
+      const existing = await prisma.tag.findFirst({ where: { id: body.tag_id, user_id: userId } });
+      if (!existing) throw new Error('Tag introuvable');
+      return await prisma.tag.update({
+        where: { id: body.tag_id },
+        data: {
+          ...(body.name != null ? { name: body.name } : {}),
+          ...(body.color != null ? { color: body.color } : {}),
+        },
+      });
+    }
+    case 'delete_tag': {
+      const id = idOnly('tag_id').parse(action.payload);
+      return await prisma.tag.deleteMany({ where: { id, user_id: userId } });
+    }
+
+    case 'create_goal': {
+      const body = createSavingsGoalSchema.parse(action.payload);
+      return await prisma.savingsGoal.create({
+        data: {
+          user_id: userId,
+          name: body.name,
+          target_amount: body.target_amount,
+          current_amount: body.current_amount,
+          deadline: body.deadline ? new Date(body.deadline) : null,
+          color: body.color,
+          account_id: body.account_id ?? null,
+        },
+      });
+    }
+    case 'update_goal': {
+      const body = z.object({ goal_id: z.coerce.number().int().positive() }).and(updateSavingsGoalSchema).parse(action.payload);
+      const existing = await prisma.savingsGoal.findFirst({ where: { id: body.goal_id, user_id: userId } });
+      if (!existing) throw new Error('Objectif introuvable');
+      return await prisma.savingsGoal.update({
+        where: { id: body.goal_id },
+        data: {
+          ...(body.name != null ? { name: body.name } : {}),
+          ...(body.target_amount != null ? { target_amount: body.target_amount } : {}),
+          ...(body.current_amount != null ? { current_amount: body.current_amount } : {}),
+          ...(body.deadline !== undefined ? { deadline: body.deadline ? new Date(body.deadline) : null } : {}),
+          ...(body.color != null ? { color: body.color } : {}),
+          ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
+        },
+      });
+    }
+    case 'delete_goal': {
+      const id = idOnly('goal_id').parse(action.payload);
+      return await prisma.savingsGoal.deleteMany({ where: { id, user_id: userId } });
+    }
+    case 'contribute_goal': {
+      const body = z.object({ goal_id: z.coerce.number().int().positive() }).and(contributeSavingsGoalSchema).parse(action.payload);
+      const goal = await prisma.savingsGoal.findFirst({ where: { id: body.goal_id, user_id: userId } });
+      if (!goal) throw new Error('Objectif introuvable');
+      let transactionId: number | null = null;
+      if (body.source_account_id && goal.account_id) {
+        const tx = await prisma.transaction.create({
+          data: {
+            user_id: userId,
+            account_id: body.source_account_id,
+            to_account_id: goal.account_id,
+            type: 'transfer',
+            amount: round2(body.amount),
+            date: new Date(body.date),
+            description: body.description ?? `Versement objectif: ${goal.name}`,
+          },
+        });
+        transactionId = tx.id;
+      }
+      const updated = await prisma.savingsGoal.update({
+        where: { id: body.goal_id },
+        data: { current_amount: round2(goal.current_amount + body.amount) },
+      });
+      return { goal: updated, transaction_id: transactionId };
+    }
+
+    case 'create_recurring': {
+      const body = createRecurringSchema.parse(action.payload);
+      return await prisma.recurringTransaction.create({
+        data: {
+          user_id: userId,
+          account_id: body.account_id ?? null,
+          category_id: body.category_id ?? null,
+          amount: body.amount,
+          type: body.type,
+          description: body.description,
+          frequency: body.frequency,
+          interval: body.interval,
+          day_of_month: body.day_of_month ?? null,
+          active: body.active,
+        },
+      });
+    }
+    case 'update_recurring': {
+      const body = z.object({ recurring_id: z.coerce.number().int().positive() }).and(updateRecurringSchema).parse(action.payload);
+      const existing = await prisma.recurringTransaction.findFirst({ where: { id: body.recurring_id, user_id: userId } });
+      if (!existing) throw new Error('Récurrent introuvable');
+      return await prisma.recurringTransaction.update({
+        where: { id: body.recurring_id },
+        data: {
+          ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
+          ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
+          ...(body.amount != null ? { amount: body.amount } : {}),
+          ...(body.type != null ? { type: body.type } : {}),
+          ...(body.description != null ? { description: body.description } : {}),
+          ...(body.frequency != null ? { frequency: body.frequency } : {}),
+          ...(body.interval != null ? { interval: body.interval } : {}),
+          ...(body.day_of_month !== undefined ? { day_of_month: body.day_of_month ?? null } : {}),
+          ...(body.active != null ? { active: body.active } : {}),
+        },
+      });
+    }
+    case 'delete_recurring': {
+      const id = idOnly('recurring_id').parse(action.payload);
+      return await prisma.recurringTransaction.deleteMany({ where: { id, user_id: userId } });
+    }
+
+    case 'set_budget': {
+      const body = createBudgetSchema.parse(action.payload);
+      const existing = await prisma.budget.findFirst({ where: { user_id: userId, category_id: body.category_id, month: body.month } });
+      if (existing) return await prisma.budget.update({ where: { id: existing.id }, data: { amount_limit: body.amount_limit } });
+      return await prisma.budget.create({ data: { user_id: userId, category_id: body.category_id, month: body.month, amount_limit: body.amount_limit } });
+    }
+    case 'delete_budget': {
+      const id = idOnly('budget_id').parse(action.payload);
+      return await prisma.budget.deleteMany({ where: { id, user_id: userId } });
+    }
+
+    case 'create_rule': {
+      const body = createCategoryRuleSchema.parse(action.payload);
+      return await prisma.categoryRule.create({ data: { user_id: userId, pattern: body.pattern, category_id: body.category_id } });
+    }
+    case 'delete_rule': {
+      const id = idOnly('rule_id').parse(action.payload);
+      return await prisma.categoryRule.deleteMany({ where: { id, user_id: userId } });
+    }
+
+    default:
+      throw new Error(`Action IA non supportée: ${action.type}`);
+  }
+}
+
+function idOnly(field: string) {
+  return z.object({ [field]: z.coerce.number().int().positive() }).transform((value) => (value as Record<string, number>)[field]!);
 }
 
 async function dashboardSummary(userId: number, rawArgs: unknown) {
@@ -145,6 +530,7 @@ async function searchTransactions(userId: number, rawArgs: unknown) {
     month: z.string().trim().default(''),
     type: z.enum(['expense', 'income', 'transfer']).optional(),
     category_id: z.coerce.number().int().positive().optional(),
+    tag_id: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().min(1).max(30).default(10),
   }).parse(rawArgs);
   const where = {
@@ -152,6 +538,7 @@ async function searchTransactions(userId: number, rawArgs: unknown) {
     ...(args.query ? { description: { contains: args.query, mode: 'insensitive' as const } } : {}),
     ...(args.type ? { type: args.type } : {}),
     ...(args.category_id ? { category_id: args.category_id } : {}),
+    ...(args.tag_id ? { tags: { some: { tag_id: args.tag_id } } } : {}),
     ...(args.month ? monthRange(args.month) : {}),
   };
   return await prisma.transaction.findMany({
@@ -161,18 +548,171 @@ async function searchTransactions(userId: number, rawArgs: unknown) {
     include: {
       account: { select: { name: true, currency: true } },
       category: { select: { name: true, type: true } },
+      tags: { include: { tag: { select: { id: true, name: true } } } },
     },
   });
+}
+
+// ── propose_* helpers ──
+
+function propose(type: string, label: string, payload: unknown): ToolExecution {
+  return {
+    result: { ok: true, needs_confirmation: true, label, payload },
+    pendingAction: { type, label, payload },
+  };
 }
 
 async function proposeCreateTransaction(userId: number, rawArgs: unknown): Promise<ToolExecution> {
   const body = createTransactionSchema.parse(rawArgs);
   await assertTransactionReferences(userId, body);
   const label = `${body.type === 'expense' ? 'Créer une dépense' : body.type === 'income' ? 'Créer un revenu' : 'Créer un transfert'} de ${body.amount} le ${body.date}`;
-  return {
-    result: { ok: true, needs_confirmation: true, label, payload: body },
-    pendingAction: { type: 'create_transaction', label, payload: body },
-  };
+  return propose('create_transaction', label, body);
+}
+
+async function proposeUpdateTransaction(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const baseSchema = z.object({ transaction_id: z.coerce.number().int().positive() }).and(updateTransactionSchema);
+  const body = baseSchema.parse(rawArgs);
+  const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
+  if (!existing) throw new Error('Transaction introuvable');
+  const label = `Modifier la transaction "${existing.description ?? `#${existing.id}`}" du ${existing.date.toISOString().slice(0, 10)}`;
+  return propose('update_transaction', label, body);
+}
+
+async function proposeDeleteTransaction(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ transaction_id: z.coerce.number().int().positive() }).parse(rawArgs);
+  const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
+  if (!existing) throw new Error('Transaction introuvable');
+  return propose('delete_transaction', `Supprimer la transaction "${existing.description ?? `#${existing.id}`}" du ${existing.date.toISOString().slice(0, 10)}`, body);
+}
+
+async function proposeCreateCategory(rawArgs: unknown): Promise<ToolExecution> {
+  const body = createCategorySchema.parse(rawArgs);
+  return propose('create_category', `Créer la catégorie "${body.name}" (${body.type})`, body);
+}
+
+async function proposeUpdateCategory(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ category_id: z.coerce.number().int().positive() }).and(updateCategorySchema).parse(rawArgs);
+  const existing = await prisma.category.findFirst({ where: { id: body.category_id, user_id: userId } });
+  if (!existing) throw new Error('Catégorie introuvable');
+  return propose('update_category', `Modifier la catégorie "${existing.name}"`, body);
+}
+
+async function proposeDeleteCategory(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ category_id: z.coerce.number().int().positive() }).parse(rawArgs);
+  const existing = await prisma.category.findFirst({ where: { id: body.category_id, user_id: userId } });
+  if (!existing) throw new Error('Catégorie introuvable');
+  return propose('delete_category', `Supprimer la catégorie "${existing.name}"`, body);
+}
+
+async function proposeCreateTag(rawArgs: unknown): Promise<ToolExecution> {
+  const body = createTagSchema.parse(rawArgs);
+  return propose('create_tag', `Créer le tag "${body.name}"`, body);
+}
+
+async function proposeUpdateTag(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ tag_id: z.coerce.number().int().positive() }).and(updateTagSchema).parse(rawArgs);
+  const existing = await prisma.tag.findFirst({ where: { id: body.tag_id, user_id: userId } });
+  if (!existing) throw new Error('Tag introuvable');
+  return propose('update_tag', `Modifier le tag "${existing.name}"`, body);
+}
+
+async function proposeDeleteTag(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ tag_id: z.coerce.number().int().positive() }).parse(rawArgs);
+  const existing = await prisma.tag.findFirst({ where: { id: body.tag_id, user_id: userId } });
+  if (!existing) throw new Error('Tag introuvable');
+  return propose('delete_tag', `Supprimer le tag "${existing.name}"`, body);
+}
+
+async function proposeCreateGoal(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = createSavingsGoalSchema.parse(rawArgs);
+  if (body.account_id) {
+    const account = await prisma.account.findFirst({ where: { id: body.account_id, user_id: userId } });
+    if (!account) throw new Error('Compte lié introuvable');
+  }
+  return propose('create_goal', `Créer l'objectif "${body.name}" (cible ${body.target_amount})`, body);
+}
+
+async function proposeUpdateGoal(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ goal_id: z.coerce.number().int().positive() }).and(updateSavingsGoalSchema).parse(rawArgs);
+  const existing = await prisma.savingsGoal.findFirst({ where: { id: body.goal_id, user_id: userId } });
+  if (!existing) throw new Error('Objectif introuvable');
+  return propose('update_goal', `Modifier l'objectif "${existing.name}"`, body);
+}
+
+async function proposeDeleteGoal(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ goal_id: z.coerce.number().int().positive() }).parse(rawArgs);
+  const existing = await prisma.savingsGoal.findFirst({ where: { id: body.goal_id, user_id: userId } });
+  if (!existing) throw new Error('Objectif introuvable');
+  return propose('delete_goal', `Supprimer l'objectif "${existing.name}"`, body);
+}
+
+async function proposeContributeGoal(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ goal_id: z.coerce.number().int().positive() }).and(contributeSavingsGoalSchema).parse(rawArgs);
+  const existing = await prisma.savingsGoal.findFirst({ where: { id: body.goal_id, user_id: userId } });
+  if (!existing) throw new Error('Objectif introuvable');
+  return propose('contribute_goal', `Verser ${body.amount} sur l'objectif "${existing.name}" le ${body.date}`, body);
+}
+
+async function proposeCreateRecurring(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = createRecurringSchema.parse(rawArgs);
+  if (body.account_id) {
+    const account = await prisma.account.findFirst({ where: { id: body.account_id, user_id: userId } });
+    if (!account) throw new Error('Compte introuvable');
+  }
+  if (body.category_id) {
+    const category = await prisma.category.findFirst({ where: { id: body.category_id, user_id: userId } });
+    if (!category) throw new Error('Catégorie introuvable');
+  }
+  return propose('create_recurring', `Créer le récurrent "${body.description}" (${body.frequency})`, body);
+}
+
+async function proposeUpdateRecurring(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ recurring_id: z.coerce.number().int().positive() }).and(updateRecurringSchema).parse(rawArgs);
+  const existing = await prisma.recurringTransaction.findFirst({ where: { id: body.recurring_id, user_id: userId } });
+  if (!existing) throw new Error('Récurrent introuvable');
+  return propose('update_recurring', `Modifier le récurrent "${existing.description}"`, body);
+}
+
+async function proposeDeleteRecurring(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ recurring_id: z.coerce.number().int().positive() }).parse(rawArgs);
+  const existing = await prisma.recurringTransaction.findFirst({ where: { id: body.recurring_id, user_id: userId } });
+  if (!existing) throw new Error('Récurrent introuvable');
+  return propose('delete_recurring', `Supprimer le récurrent "${existing.description}"`, body);
+}
+
+async function proposeSetBudget(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = createBudgetSchema.parse(rawArgs);
+  const category = await prisma.category.findFirst({ where: { id: body.category_id, user_id: userId } });
+  if (!category) throw new Error('Catégorie introuvable');
+  return propose('set_budget', `Budget ${body.month} pour "${category.name}" : ${body.amount_limit}`, body);
+}
+
+async function proposeDeleteBudget(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ budget_id: z.coerce.number().int().positive() }).parse(rawArgs);
+  const existing = await prisma.budget.findFirst({ where: { id: body.budget_id, user_id: userId }, include: { category: true } });
+  if (!existing) throw new Error('Budget introuvable');
+  return propose('delete_budget', `Supprimer le budget ${existing.month} pour "${existing.category?.name}"`, body);
+}
+
+async function proposeCreateRule(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = createCategoryRuleSchema.parse(rawArgs);
+  const category = await prisma.category.findFirst({ where: { id: body.category_id, user_id: userId } });
+  if (!category) throw new Error('Catégorie introuvable');
+  return propose('create_rule', `Règle "${body.pattern}" → ${category.name}`, body);
+}
+
+async function proposeDeleteRule(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = z.object({ rule_id: z.coerce.number().int().positive() }).parse(rawArgs);
+  const existing = await prisma.categoryRule.findFirst({ where: { id: body.rule_id, user_id: userId } });
+  if (!existing) throw new Error('Règle introuvable');
+  return propose('delete_rule', `Supprimer la règle "${existing.pattern}"`, body);
+}
+
+async function resolveTagIds(userId: number, tagIds: number[] | undefined): Promise<number[]> {
+  if (!tagIds || tagIds.length === 0) return [];
+  const unique = Array.from(new Set(tagIds));
+  const owned = await prisma.tag.findMany({ where: { id: { in: unique }, user_id: userId } });
+  return owned.map((tag) => tag.id);
 }
 
 async function assertTransactionReferences(
@@ -187,24 +727,6 @@ async function assertTransactionReferences(
   if (body.account_id && !account) throw new Error('Compte source introuvable');
   if (body.to_account_id && !toAccount) throw new Error('Compte destination introuvable');
   if (body.category_id && !category) throw new Error('Catégorie introuvable');
-}
-
-async function proposeUpdateTransactionCategory(userId: number, rawArgs: unknown): Promise<ToolExecution> {
-  const body = z.object({
-    transaction_id: z.coerce.number().int().positive(),
-    category_id: z.coerce.number().int().positive().nullable(),
-  }).parse(rawArgs);
-  const [transaction, category] = await Promise.all([
-    prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } }),
-    body.category_id ? prisma.category.findFirst({ where: { id: body.category_id, user_id: userId } }) : Promise.resolve(null),
-  ]);
-  if (!transaction) throw new Error('Transaction introuvable');
-  if (body.category_id && !category) throw new Error('Catégorie introuvable');
-  const label = `Classer "${transaction.description ?? 'Transaction'}" dans ${category?.name ?? 'Sans catégorie'}`;
-  return {
-    result: { ok: true, needs_confirmation: true, label, payload: body },
-    pendingAction: { type: 'update_transaction_category', label, payload: body },
-  };
 }
 
 function monthRange(month: string) {

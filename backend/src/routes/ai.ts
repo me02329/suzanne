@@ -13,8 +13,11 @@ const aiChatSchema = z.object({
   currency: z.string().trim().min(3).max(3).default('EUR'),
 });
 
+// The type is validated against the dispatch in confirmAiAction; we keep the
+// schema permissive here so adding new propose_* tools doesn't require
+// touching this route every time.
 const pendingActionSchema = z.object({
-  type: z.enum(['create_transaction', 'update_transaction_category']),
+  type: z.string().trim().min(1).max(60),
   label: z.string().trim().min(1).max(300),
   payload: z.any(),
 });
