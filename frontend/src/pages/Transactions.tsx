@@ -1,5 +1,5 @@
-import { FormEvent, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Search } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, Rows2, Rows3, Search } from 'lucide-react';
 import {
   ACCOUNT_GROUPS,
   accountTypeGroup,
@@ -20,6 +20,8 @@ import { TagPicker } from '../components/TagPicker';
 import { TransactionsTable, type TxSort, type TxSortKey } from '../components/TransactionsTable';
 
 import type { Run } from '../lib/run';
+
+const PAGE_SIZE = 50;
 
 export function Transactions({ userId, transactions, unassignedTransactions, issueFilter, onClearIssueFilter, recurring, accounts, categories, tags, categoryById, accountById, run }: {
   userId: number;
@@ -50,7 +52,15 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const [filterType, setFilterType] = usePersistedState<'all' | TransactionType>('tx_filter_type', 'all');
   const [filterAccountGroup, setFilterAccountGroup] = usePersistedState<string>('tx_filter_account_group', 'all');
   const [sort, setSort] = usePersistedState<TxSort>('tx_sort', { key: 'date', dir: 'desc' });
+  const [compact, setCompact] = usePersistedState<boolean>('tx_compact', false);
+  const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = usePersistedState<boolean>('tx_add_open', transactions.length === 0);
+
+  // Any change to what's shown (search, filters, sort, source list) sends the
+  // user back to the first page so they aren't stranded on an out-of-range one.
+  useEffect(() => {
+    setPage(1);
+  }, [query, filterType, filterAccountGroup, filterTagId, sort.key, sort.dir, issueFilter]);
 
   // Clicking a header toggles direction if it's already the sort key, otherwise
   // switches to it with a sensible default (recent/biggest first for date/amount,
@@ -100,6 +110,11 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     if (cmp === 0) cmp = a.id - b.id;
     return cmp * sortDir;
   });
+  const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedTransactions = sortedTransactions.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pageStart = sortedTransactions.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(currentPage * PAGE_SIZE, sortedTransactions.length);
   const txTotals = filteredTransactions.reduce((acc, t) => {
     if (t.type === 'income') acc.income += t.amount;
     if (t.type === 'expense') acc.expenses += t.amount;
@@ -136,7 +151,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const setVisibleTransactionsSelected = (selected: boolean) => {
     setSelectedIds((current) => {
       const next = new Set(current);
-      for (const transaction of filteredTransactions) {
+      for (const transaction of pagedTransactions) {
         if (selected) next.add(transaction.id);
         else next.delete(transaction.id);
       }
@@ -304,6 +319,15 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           <span className="income">+ {money(txTotals.income)}</span>
           <span className="expense">- {money(txTotals.expenses)}</span>
           <span className="transfer">{money(txTotals.transfers)} transférés</span>
+          <button
+            type="button"
+            className="ghost-button tx-density-toggle"
+            onClick={() => setCompact(!compact)}
+            title={compact ? 'Affichage confortable' : 'Affichage compact'}
+          >
+            {compact ? <Rows3 size={15} /> : <Rows2 size={15} />}
+            {compact ? 'Confortable' : 'Compact'}
+          </button>
         </div>
         {selectedCount > 0 && (
           <div className="bulk-bar">
@@ -313,8 +337,9 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           </div>
         )}
         <TransactionsTable
-          transactions={sortedTransactions}
+          transactions={pagedTransactions}
           emptyMessage={issueFilter === 'unassigned_account' ? 'Aucune transaction sans compte.' : 'Aucune transaction sur ce mois.'}
+          compact={compact}
           categories={categories}
           accounts={accounts}
           categoryById={categoryById}
@@ -330,6 +355,27 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           onLink={setLinking}
           onDelete={(t) => void run(() => api.deleteTransaction(userId, t.id), 'Transaction supprimée')}
         />
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button
+              type="button"
+              className="secondary"
+              disabled={currentPage <= 1}
+              onClick={() => setPage(currentPage - 1)}
+            >
+              <ChevronLeft size={16} /> Précédent
+            </button>
+            <span className="pagination-info">{pageStart}–{pageEnd} sur {sortedTransactions.length} · page {currentPage}/{totalPages}</span>
+            <button
+              type="button"
+              className="secondary"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage(currentPage + 1)}
+            >
+              Suivant <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
       </Panel>
 
       {editing && (

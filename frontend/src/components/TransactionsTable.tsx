@@ -12,6 +12,7 @@ export interface TxSort {
 export function TransactionsTable({
   transactions,
   emptyMessage = 'Aucune transaction sur ce mois.',
+  compact = false,
   categories,
   accounts,
   categoryById,
@@ -29,6 +30,7 @@ export function TransactionsTable({
 }: {
   transactions: Transaction[];
   emptyMessage?: string;
+  compact?: boolean;
   categories: Category[];
   accounts: Account[];
   categoryById: Map<number, Category>;
@@ -61,7 +63,7 @@ export function TransactionsTable({
   };
   return (
     <div className="table-wrap">
-      <table className="tx-table">
+      <table className={`tx-table ${compact ? 'compact' : ''}`}>
         <thead>
           <tr>
             <th className="select-cell">
@@ -116,8 +118,8 @@ export function TransactionsTable({
                     onChange={(e) => onSelect(t.id, e.target.checked)}
                   />
                 </td>
-                <td className="nowrap tx-accent">{new Date(t.date).toLocaleDateString('fr-FR')}</td>
-                <td>
+                <td className="nowrap tx-accent" data-label="Date">{new Date(t.date).toLocaleDateString('fr-FR')}</td>
+                <td data-label="Libellé">
                   <strong>
                     {txLabel(t, categoryById)}
                     {linked && <span className="badge-recurring" title="Liée à une récurrence">↻</span>}
@@ -131,8 +133,8 @@ export function TransactionsTable({
                     </span>
                   )}
                 </td>
-                <td><span className={`pill ${t.type}`}>{typeLabel(t.type)}</span></td>
-                <td>
+                <td data-label="Type"><span className={`pill ${t.type}`}>{typeLabel(t.type)}</span></td>
+                <td data-label="Compte">
                   <div className={t.type === 'transfer' ? 'inline-edit-stack' : undefined}>
                     <select
                       className="inline-select"
@@ -156,7 +158,7 @@ export function TransactionsTable({
                     )}
                   </div>
                 </td>
-                <td>
+                <td data-label="Catégorie">
                   {t.type === 'transfer' ? (
                     'Transfert'
                   ) : (
@@ -170,10 +172,10 @@ export function TransactionsTable({
                     </select>
                   )}
                 </td>
-                <td className={`amount-cell ${t.type === 'income' ? 'income' : t.type === 'expense' ? 'expense' : 'transfer'}`}>
+                <td className={`amount-cell ${t.type === 'income' ? 'income' : t.type === 'expense' ? 'expense' : 'transfer'}`} data-label="Montant">
                   {amountLabel}
                 </td>
-                <td className="actions-cell">
+                <td className="actions-cell" data-label="Actions">
                   <IconButton label="Copier" tone="neutral" icon={<Copy size={16} />} onClick={() => onCopy(t)} />
                   <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => onEdit(t)} />
                   <IconButton

@@ -760,6 +760,38 @@ select:focus, input:focus, textarea:focus {
 .th-sort:hover svg { opacity: 0.7; }
 .th-sort.active svg { opacity: 1; }
 
+.tx-table.compact th { padding: 7px 10px; }
+.tx-table.compact td { padding: 6px 10px; }
+.tx-table.compact .inline-select { min-height: 28px; }
+.tx-table.compact td > span { margin-top: 1px; }
+
+.tx-density-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.pagination .secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+}
+
+.pagination .secondary:disabled { opacity: 0.45; cursor: default; }
+.pagination-info { color: var(--muted); font-size: 13px; font-weight: 700; }
+
 .nowrap { white-space: nowrap; }
 .select-cell { width: 34px; text-align: center !important; }
 .amount-cell { text-align: right; white-space: nowrap; font-weight: 900; }
@@ -1770,6 +1802,60 @@ textarea {
   .assistant-composer { grid-template-columns: 1fr; }
   .dashboard-metric { grid-template-columns: 1fr; }
   .table-tools .search-box.inline, .table-tools select { flex-basis: 100%; }
+
+  /* Card view: the wide table becomes one card per transaction so it reads
+     without horizontal scrolling. Each cell shows its header via data-label. */
+  .tx-table { min-width: 0; }
+  .tx-table thead { display: none; }
+  .tx-table, .tx-table tbody { display: block; }
+  .tx-table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  .tx-table tbody tr:hover { background: var(--surface); }
+  .tx-table tbody tr.tx-selected { background: var(--accent-soft); }
+  .tx-table tbody tr.tx-linked td:first-child { border-left: 0; }
+  .tx-table td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 0;
+    border: 0;
+  }
+  .tx-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .tx-table td.tx-accent { padding-left: 0; }
+  .tx-table td.tx-accent::before {
+    content: attr(data-label);
+    position: static;
+    width: auto;
+    background: none;
+    opacity: 1;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .tx-table td.select-cell { grid-column: 1 / -1; flex-direction: row; align-items: center; }
+  .tx-table td.select-cell::before { content: none; }
+  .tx-table td[data-label="Libellé"] { grid-column: 1 / -1; }
+  .tx-table td.amount-cell { font-size: 16px; }
+  .tx-table td.actions-cell { grid-column: 1 / -1; flex-direction: row; justify-content: flex-end; align-items: center; }
+  .tx-table td.actions-cell::before { display: none; }
+  .tx-table td .inline-select { width: 100%; max-width: none; }
+
   .budget { grid-template-columns: 1fr; }
   .cashflow { grid-template-columns: 1fr 1fr; }
   .chart-area, .chart-area.small { height: 290px; }
