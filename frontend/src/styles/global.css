@@ -600,11 +600,14 @@ select:focus, input:focus, textarea:focus {
 }
 
 .table-tools {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) 180px 190px;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 12px;
 }
+
+.table-tools .search-box.inline { flex: 1 1 240px; }
+.table-tools select { flex: 1 1 160px; min-width: 0; }
 
 .search-box.inline {
   min-width: 0;
@@ -679,6 +682,12 @@ select:focus, input:focus, textarea:focus {
   text-transform: uppercase;
 }
 
+/* Headers align with their right-aligned columns (amounts, actions). */
+.tx-table th.amount-cell,
+.tx-table th.actions-cell {
+  text-align: right;
+}
+
 .tx-table td {
   padding: 12px 10px;
   border-bottom: 1px solid var(--border);
@@ -715,16 +724,41 @@ select:focus, input:focus, textarea:focus {
   background: var(--accent-soft);
 }
 
-.tx-table td strong,
-.tx-table td span {
+/* Direct children only: stacking the label + subtitle must not reach nested
+   inline elements like tag chips or the recurring badge (which would otherwise
+   break onto their own line and lose their colour). */
+.tx-table td > strong,
+.tx-table td > span {
   display: block;
 }
 
-.tx-table td span {
+.tx-table td > span {
   margin-top: 3px;
   color: var(--muted);
   font-size: 12px;
 }
+
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.th-sort:hover { color: var(--text); }
+.th-sort.active { color: var(--text); }
+.th-sort svg { opacity: 0.45; flex-shrink: 0; }
+.th-sort:hover svg { opacity: 0.7; }
+.th-sort.active svg { opacity: 1; }
 
 .nowrap { white-space: nowrap; }
 .select-cell { width: 34px; text-align: center !important; }
@@ -1734,7 +1768,8 @@ textarea {
   .search-box { min-width: 0; }
   .stats, .grid, .charts-grid, .split, .chart-split { grid-template-columns: 1fr; }
   .assistant-composer { grid-template-columns: 1fr; }
-  .table-tools, .dashboard-metric { grid-template-columns: 1fr; }
+  .dashboard-metric { grid-template-columns: 1fr; }
+  .table-tools .search-box.inline, .table-tools select { flex-basis: 100%; }
   .budget { grid-template-columns: 1fr; }
   .cashflow { grid-template-columns: 1fr 1fr; }
   .chart-area, .chart-area.small { height: 290px; }

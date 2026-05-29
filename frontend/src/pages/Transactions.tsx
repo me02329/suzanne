@@ -12,12 +12,12 @@ import {
 } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { numberOrNull } from '../lib/forms';
-import { money, todayIso, txLabel } from '../lib/format';
+import { money, todayIso, txLabel, typeLabel } from '../lib/format';
 import { usePersistedState } from '../lib/storage';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 import { TagPicker } from '../components/TagPicker';
-import { TransactionsTable } from '../components/TransactionsTable';
+import { TransactionsTable, type TxSort, type TxSortKey } from '../components/TransactionsTable';
 
 import type { Run } from '../lib/run';
 
@@ -49,7 +49,17 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = usePersistedState<'all' | TransactionType>('tx_filter_type', 'all');
   const [filterAccountGroup, setFilterAccountGroup] = usePersistedState<string>('tx_filter_account_group', 'all');
+  const [sort, setSort] = usePersistedState<TxSort>('tx_sort', { key: 'date', dir: 'desc' });
   const [addOpen, setAddOpen] = usePersistedState<boolean>('tx_add_open', transactions.length === 0);
+
+  // Clicking a header toggles direction if it's already the sort key, otherwise
+  // switches to it with a sensible default (recent/biggest first for date/amount,
+  // alphabetical for text columns).
+  const toggleSort = (key: TxSortKey) => {
+    setSort((prev) => prev.key === key
+      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: key === 'date' || key === 'amount' ? 'desc' : 'asc' });
+  };
 
   const filteredAddCategories = categories.filter((c) => c.type === addType || addType === 'transfer');
   const filteredEditCategories = categories.filter((c) => c.type === editType || editType === 'transfer');
@@ -76,6 +86,19 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       && (filterAccountGroup === 'all' || groups.includes(filterAccountGroup as ReturnType<typeof accountTypeGroup>))
       && tagMatch
       && haystack.includes(query.trim().toLowerCase());
+  });
+  const sortDir = sort.dir === 'asc' ? 1 : -1;
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    let cmp = 0;
+    switch (sort.key) {
+      case 'date': cmp = new Date(a.date).getTime() - new Date(b.date).getTime(); break;
+      case 'amount': cmp = a.amount - b.amount; break;
+      case 'type': cmp = typeLabel(a.type).localeCompare(typeLabel(b.type), 'fr'); break;
+      case 'label': cmp = txLabel(a, categoryById).localeCompare(txLabel(b, categoryById), 'fr'); break;
+    }
+    // Stable, deterministic tiebreak so equal keys keep a consistent order.
+    if (cmp === 0) cmp = a.id - b.id;
+    return cmp * sortDir;
   });
   const txTotals = filteredTransactions.reduce((acc, t) => {
     if (t.type === 'income') acc.income += t.amount;
@@ -290,13 +313,15 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           </div>
         )}
         <TransactionsTable
-          transactions={filteredTransactions}
+          transactions={sortedTransactions}
           emptyMessage={issueFilter === 'unassigned_account' ? 'Aucune transaction sans compte.' : 'Aucune transaction sur ce mois.'}
           categories={categories}
           accounts={accounts}
           categoryById={categoryById}
           accountById={accountById}
           selectedIds={selectedIds}
+          sort={sort}
+          onSort={toggleSort}
           onSelect={setTransactionSelected}
           onSelectAll={setVisibleTransactionsSelected}
           onInlineUpdate={updateTransactionInline}

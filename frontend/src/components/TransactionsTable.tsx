@@ -1,7 +1,13 @@
-import { Copy, Pencil, Repeat } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronsUpDown, Copy, Pencil, Repeat } from 'lucide-react';
 import type { Account, Category, Transaction } from '@suzanne-lite/shared';
 import { money, txLabel, typeLabel } from '../lib/format';
 import { IconButton } from './IconButton';
+
+export type TxSortKey = 'date' | 'label' | 'type' | 'amount';
+export interface TxSort {
+  key: TxSortKey;
+  dir: 'asc' | 'desc';
+}
 
 export function TransactionsTable({
   transactions,
@@ -11,6 +17,8 @@ export function TransactionsTable({
   categoryById,
   accountById,
   selectedIds,
+  sort,
+  onSort,
   onSelect,
   onSelectAll,
   onInlineUpdate,
@@ -26,6 +34,8 @@ export function TransactionsTable({
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
   selectedIds: Set<number>;
+  sort: TxSort;
+  onSort: (key: TxSortKey) => void;
   onSelect: (transactionId: number, selected: boolean) => void;
   onSelectAll: (selected: boolean) => void;
   onInlineUpdate: (transaction: Transaction, patch: Partial<Pick<Transaction, 'account_id' | 'to_account_id' | 'category_id'>>) => void;
@@ -36,6 +46,19 @@ export function TransactionsTable({
 }) {
   if (transactions.length === 0) return <p className="empty">{emptyMessage}</p>;
   const allSelected = transactions.length > 0 && transactions.every((t) => selectedIds.has(t.id));
+  const sortableTh = (key: TxSortKey, label: string, thClass?: string) => {
+    const active = sort.key === key;
+    return (
+      <th className={thClass}>
+        <button type="button" className={`th-sort ${active ? 'active' : ''}`} onClick={() => onSort(key)}>
+          <span>{label}</span>
+          {active
+            ? (sort.dir === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />)
+            : <ChevronsUpDown size={13} />}
+        </button>
+      </th>
+    );
+  };
   return (
     <div className="table-wrap">
       <table className="tx-table">
@@ -49,12 +72,12 @@ export function TransactionsTable({
                 onChange={(e) => onSelectAll(e.target.checked)}
               />
             </th>
-            <th>Date</th>
-            <th>Libellé</th>
-            <th>Type</th>
+            {sortableTh('date', 'Date')}
+            {sortableTh('label', 'Libellé')}
+            {sortableTh('type', 'Type')}
             <th>Compte</th>
             <th>Catégorie</th>
-            <th className="amount-cell">Montant</th>
+            {sortableTh('amount', 'Montant', 'amount-cell')}
             <th className="actions-cell">Actions</th>
           </tr>
         </thead>
