@@ -554,6 +554,35 @@ async function listAccountSnapshots(userId: number, rawArgs: unknown) {
   });
 }
 
+type DateRange = { gte?: Date; lte?: Date; lt?: Date };
+
+// Pure, exported for unit testing. `uncategorized` must only force
+// `category_id: null` — it may not clobber an explicit `type` filter, so the
+// `type: { not: 'transfer' }` default is applied only when no type is given.
+export function buildSearchTransactionsWhere(
+  userId: number,
+  args: {
+    query?: string;
+    type?: 'expense' | 'income' | 'transfer';
+    category_id?: number;
+    uncategorized?: boolean;
+    tag_id?: number;
+  },
+  range: DateRange | null,
+) {
+  return {
+    user_id: userId,
+    ...(args.query ? { description: { contains: args.query, mode: 'insensitive' as const } } : {}),
+    ...(args.type ? { type: args.type } : {}),
+    ...(args.category_id ? { category_id: args.category_id } : {}),
+    ...(args.uncategorized
+      ? { category_id: null, ...(args.type ? {} : { type: { not: 'transfer' as const } }) }
+      : {}),
+    ...(args.tag_id ? { tags: { some: { tag_id: args.tag_id } } } : {}),
+    ...(range ? { date: range } : {}),
+  };
+}
+
 async function searchTransactions(userId: number, rawArgs: unknown) {
   const args = z.object({
     query: z.string().trim().default(''),
@@ -568,15 +597,7 @@ async function searchTransactions(userId: number, rawArgs: unknown) {
   }).parse(rawArgs);
   const month = parseMonth(args.month);
   const range = month ? monthRange(month) : dateRange(args.from, args.to);
-  const where = {
-    user_id: userId,
-    ...(args.query ? { description: { contains: args.query, mode: 'insensitive' as const } } : {}),
-    ...(args.type ? { type: args.type } : {}),
-    ...(args.category_id ? { category_id: args.category_id } : {}),
-    ...(args.uncategorized ? { type: { not: 'transfer' as const }, category_id: null } : {}),
-    ...(args.tag_id ? { tags: { some: { tag_id: args.tag_id } } } : {}),
-    ...(range ? { date: range } : {}),
-  };
+  const where = buildSearchTransactionsWhere(userId, args, range);
   return await prisma.transaction.findMany({
     where,
     take: args.limit,

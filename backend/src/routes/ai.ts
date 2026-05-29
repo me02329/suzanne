@@ -13,7 +13,10 @@ const aiChatSchema = z.object({
   currency: z.string().trim().min(3).max(3).default('EUR'),
   history: z.array(z.object({
     role: z.enum(['user', 'assistant']),
-    content: z.string().trim().min(1).max(4000),
+    // Truncate rather than reject: a long assistant answer (markdown analyses
+    // easily exceed 4000 chars) must not 400 the whole follow-up. initialMessages
+    // trims further to 2000 before sending upstream.
+    content: z.string().trim().min(1).transform((c) => c.slice(0, 4000)),
   })).max(12).default([]),
 });
 

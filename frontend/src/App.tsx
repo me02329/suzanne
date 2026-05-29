@@ -24,7 +24,7 @@ import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
 import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
-import { Assistant } from './pages/Assistant';
+import { Assistant, initialAssistantMessages, type ChatMessage } from './pages/Assistant';
 import { Dashboard } from './pages/Dashboard';
 import { Statistics } from './pages/Statistics';
 import { Transactions } from './pages/Transactions';
@@ -72,6 +72,9 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [transactionIssueFilter, setTransactionIssueFilter] = useState<'unassigned_account' | null>(null);
+  // Lifted out of the Assistant page so the conversation persists across tab
+  // switches — re-asking the model the same thing burns tokens for nothing.
+  const [aiMessages, setAiMessages] = useState<ChatMessage[]>(initialAssistantMessages);
   // Bumped on every successful reload. Children that fetch derived data not
   // covered by the main reload (e.g. Dashboard's wealth history) observe this
   // to re-fetch after snapshots/transactions are created.
@@ -138,6 +141,11 @@ export default function App() {
     setError(null);
     reload().catch((e) => setError((e as Error).message));
   }, [userId, month, reportCurrency]);
+
+  // Don't leak one user's conversation into another's when switching accounts.
+  useEffect(() => {
+    setAiMessages(initialAssistantMessages());
+  }, [userId]);
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -274,7 +282,7 @@ export default function App() {
           />
         )}
         {tab === 'assistant' && userId && (
-          <Assistant userId={userId} month={month} currency={reportCurrency} run={run} />
+          <Assistant userId={userId} month={month} currency={reportCurrency} run={run} messages={aiMessages} setMessages={setAiMessages} />
         )}
         {tab === 'transactions' && userId && (
           <Transactions

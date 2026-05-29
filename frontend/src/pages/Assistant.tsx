@@ -1,4 +1,4 @@
-import { KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Dispatch, KeyboardEvent, SetStateAction, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, Loader2, RotateCcw, Send, Sparkles, Wrench, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -13,7 +13,7 @@ interface ToolEvent {
   preview?: string;
 }
 
-interface ChatMessage {
+export interface ChatMessage {
   id: number;
   role: 'user' | 'assistant';
   content: string;
@@ -28,8 +28,20 @@ const WELCOME: ChatMessage = {
   content: 'Je peux analyser tes finances, rechercher des transactions, créer / modifier / supprimer (catégories, tags, objectifs, récurrents, budgets, règles, transactions). Toute écriture demande confirmation.',
 };
 
-export function Assistant({ userId, month, currency, run }: { userId: number; month: string; currency: string; run: Run }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+// The conversation is owned by App so it survives tab switches (avoids re-asking
+// the model the same thing). App resets it when the active user changes.
+export function initialAssistantMessages(): ChatMessage[] {
+  return [WELCOME];
+}
+
+export function Assistant({ userId, month, currency, run, messages, setMessages }: {
+  userId: number;
+  month: string;
+  currency: string;
+  run: Run;
+  messages: ChatMessage[];
+  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+}) {
   const [draft, setDraft] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [health, setHealth] = useState<AiHealthStatus | null>(null);
