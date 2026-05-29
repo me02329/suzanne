@@ -208,7 +208,8 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
     .filter((t) => t.type === 'expense')
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5);
-  const alerts = buildAccountAlerts(
+  const fxDegraded = summary?.fx_degraded ?? [];
+  const accountAlerts = buildAccountAlerts(
     accountBalances,
     summary?.balance_assets ?? 0,
     displayCurrency,
@@ -216,6 +217,18 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
     summary?.unassigned_count ?? 0,
     onOpenUnassignedTransactions,
   );
+  // Surface stale/unavailable exchange rates first: when present, every
+  // converted total on the page may be off, so it outranks account alerts.
+  const alerts: typeof accountAlerts = [
+    ...(fxDegraded.length > 0
+      ? [{
+          title: 'Taux de change indisponibles',
+          detail: `Impossible de rafraîchir le taux pour ${fxDegraded.join(', ')}. Les montants convertis utilisent un taux périmé ou approché — réessaie plus tard.`,
+          tone: 'warning' as const,
+        }]
+      : []),
+    ...accountAlerts,
+  ];
   const wealthChartRows = wealthHistory.map((point) => {
     const row: Record<string, unknown> = {
       ...point,

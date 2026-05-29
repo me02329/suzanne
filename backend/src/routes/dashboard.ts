@@ -30,7 +30,7 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
     prisma.category.findMany({ where: { user_id } }),
     prisma.accountSnapshot.findMany({ where: { user_id } }),
   ]);
-  const fx = await buildFx(accounts, reportCurrency);
+  const { rates: fx, degraded: fxDegraded } = await buildFx(accounts, reportCurrency);
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const txValue = (t: Tx) => round2(t.amount * (fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1));
 
@@ -59,6 +59,7 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
     month,
     currency: reportCurrency,
     exchange_rates: Object.fromEntries(fx.entries()),
+    fx_degraded: fxDegraded,
     income: round2(income),
     expenses: round2(expenses),
     net: round2(income - expenses),
@@ -90,7 +91,7 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
     prisma.account.findMany({ where: { user_id } }),
     prisma.accountSnapshot.findMany({ where: { user_id } }),
   ]);
-  const fx = await buildFx(accounts, reportCurrency);
+  const { rates: fx } = await buildFx(accounts, reportCurrency);
 
   const today = startOfUtcDay(new Date());
   const firstDate = firstRelevantDate(accounts, transactions, snapshots) ?? today;

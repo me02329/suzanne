@@ -31,7 +31,7 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     prisma.account.findMany({ where: { user_id } }),
     prisma.category.findMany({ where: { user_id } }),
   ]);
-  const fx = await buildFx(accounts, reportCurrency);
+  const { rates: fx } = await buildFx(accounts, reportCurrency);
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const categoryById = new Map(categories.map((category) => [category.id, category]));
 

@@ -242,6 +242,8 @@ export interface DashboardSummary {
   month: string;
   currency: string;
   exchange_rates: Record<string, number>;
+  // Currencies whose rate could not be refreshed (stale or 1 fallback used).
+  fx_degraded: string[];
   income: number;
   expenses: number;
   net: number;
