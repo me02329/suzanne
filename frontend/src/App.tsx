@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { ChevronDown, ChevronRight, Menu, X } from 'lucide-react';
 import {
   REPORT_CURRENCIES,
@@ -72,9 +72,25 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [transactionIssueFilter, setTransactionIssueFilter] = useState<'unassigned_account' | null>(null);
-  // Lifted out of the Assistant page so the conversation persists across tab
-  // switches — re-asking the model the same thing burns tokens for nothing.
-  const [aiMessages, setAiMessages] = useState<ChatMessage[]>(initialAssistantMessages);
+  // The assistant conversation lives here (not in the Assistant page) so it
+  // survives tab switches AND full reloads — re-asking the model the same thing
+  // burns tokens for nothing. Persisted alongside the user it belongs to so we
+  // never show one user's chat to another. Streaming/abort live here too so a
+  // tab switch mid-stream keeps the cancel button working.
+  const [aiChat, setAiChat] = usePersistedState<{ userId: number | null; messages: ChatMessage[] }>(
+    'ai_chat',
+    { userId: null, messages: initialAssistantMessages() },
+  );
+  const [aiStreaming, setAiStreaming] = useState(false);
+  const aiAbortRef = useRef<AbortController | null>(null);
+  const aiMessages = aiChat.userId === userId ? aiChat.messages : initialAssistantMessages();
+  const setAiMessages: Dispatch<SetStateAction<ChatMessage[]>> = (update) => {
+    setAiChat((prev) => {
+      const base = prev.userId === userId ? prev.messages : initialAssistantMessages();
+      const next = typeof update === 'function' ? (update as (p: ChatMessage[]) => ChatMessage[])(base) : update;
+      return { userId, messages: next };
+    });
+  };
   // Bumped on every successful reload. Children that fetch derived data not
   // covered by the main reload (e.g. Dashboard's wealth history) observe this
   // to re-fetch after snapshots/transactions are created.
@@ -142,10 +158,15 @@ export default function App() {
     reload().catch((e) => setError((e as Error).message));
   }, [userId, month, reportCurrency]);
 
-  // Don't leak one user's conversation into another's when switching accounts.
+  // A stream can't survive a reload: clear any persisted "streaming" flag once
+  // on mount so a restored conversation doesn't show a stuck cursor.
   useEffect(() => {
-    setAiMessages(initialAssistantMessages());
-  }, [userId]);
+    setAiChat((prev) => ({
+      ...prev,
+      messages: prev.messages.map((m) => m.streaming ? { ...m, streaming: false, content: m.content || '(interrompu)' } : m),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -282,7 +303,7 @@ export default function App() {
           />
         )}
         {tab === 'assistant' && userId && (
-          <Assistant userId={userId} month={month} currency={reportCurrency} run={run} messages={aiMessages} setMessages={setAiMessages} />
+          <Assistant userId={userId} month={month} currency={reportCurrency} run={run} messages={aiMessages} setMessages={setAiMessages} streaming={aiStreaming} setStreaming={setAiStreaming} abortRef={aiAbortRef} />
         )}
         {tab === 'transactions' && userId && (
           <Transactions

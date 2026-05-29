@@ -1,4 +1,4 @@
-import { Dispatch, KeyboardEvent, SetStateAction, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Dispatch, KeyboardEvent, MutableRefObject, SetStateAction, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, Loader2, RotateCcw, Send, Sparkles, Wrench, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -34,21 +34,24 @@ export function initialAssistantMessages(): ChatMessage[] {
   return [WELCOME];
 }
 
-export function Assistant({ userId, month, currency, run, messages, setMessages }: {
+export function Assistant({ userId, month, currency, run, messages, setMessages, streaming, setStreaming, abortRef }: {
   userId: number;
   month: string;
   currency: string;
   run: Run;
   messages: ChatMessage[];
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+  // Streaming state and the abort controller are owned by App so that leaving
+  // the tab mid-stream keeps the cancel button wired up on return.
+  streaming: boolean;
+  setStreaming: Dispatch<SetStateAction<boolean>>;
+  abortRef: MutableRefObject<AbortController | null>;
 }) {
   const [draft, setDraft] = useState('');
-  const [streaming, setStreaming] = useState(false);
   const [health, setHealth] = useState<AiHealthStatus | null>(null);
   const [testing, setTesting] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   const refreshHealth = async () => {
     setTesting(true);

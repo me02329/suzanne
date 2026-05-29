@@ -1,4 +1,4 @@
-import { getAiConfig } from '../lib/settingsStore.js';
+import { getAiConfig, type AiRuntimeConfig } from '../lib/settingsStore.js';
 import { aiToolDefinitions, executeAiTool, type PendingAiAction } from './tools.js';
 
 type AiMessage =
@@ -77,7 +77,7 @@ export async function checkAiHealth(): Promise<{ configured: boolean; model: str
     await createChatCompletion([
       { role: 'system', content: 'ping' },
       { role: 'user', content: 'ping' },
-    ], { noTools: true });
+    ], cfg, { noTools: true });
     return { ...info, ok: true };
   } catch (e) {
     if (e instanceof AiProviderError) {
@@ -97,7 +97,7 @@ export async function runAiChat(userId: number, message: string, context: { mont
   const pendingActions: PendingAiAction[] = [];
 
   for (let step = 0; step < 4; step += 1) {
-    const assistantMessage = await createChatCompletion(messages);
+    const assistantMessage = await createChatCompletion(messages, cfg);
     messages.push(assistantMessage);
 
     const calls = assistantMessage.tool_calls ?? [];
@@ -146,7 +146,7 @@ export async function* streamAiChat(userId: number, message: string, context: { 
       // as we read deltas, and resolves to the assembled message at the end
       // so we can decide whether to loop (tool calls) or stop.
       const assembled = { content: '', tool_calls: [] as ToolCall[] };
-      for await (const delta of streamChatCompletion(messages)) {
+      for await (const delta of streamChatCompletion(messages, cfg)) {
         if (delta.contentDelta) {
           assembled.content += delta.contentDelta;
           yield { kind: 'token', text: delta.contentDelta };
@@ -215,8 +215,7 @@ interface StreamDelta {
   toolCallDelta?: { index: number; id?: string; name?: string; argsDelta?: string };
 }
 
-async function* streamChatCompletion(messages: AiMessage[]): AsyncGenerator<StreamDelta> {
-  const cfg = await getAiConfig();
+async function* streamChatCompletion(messages: AiMessage[], cfg: AiRuntimeConfig): AsyncGenerator<StreamDelta> {
   let res: Response;
   try {
     res = await fetch(`${cfg.baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -306,8 +305,7 @@ function previewResult(result: unknown): string {
   }
 }
 
-async function createChatCompletion(messages: AiMessage[], options: { noTools?: boolean } = {}) {
-  const cfg = await getAiConfig();
+async function createChatCompletion(messages: AiMessage[], cfg: AiRuntimeConfig, options: { noTools?: boolean } = {}) {
   let res: Response;
   try {
     res = await fetch(`${cfg.baseUrl.replace(/\/$/, '')}/chat/completions`, {

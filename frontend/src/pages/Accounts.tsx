@@ -273,9 +273,12 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
             {institutionOrder.map((institution) => {
               const accountsHere = accountsByInstitution.get(institution.id) ?? [];
               if (institution.id === null && !hasUnassigned) return null;
+              // signed_balance is already converted to the report currency by
+              // the backend, which produces a row for every account — the `?? 0`
+              // is just a guard, never a native-currency value mixed into the sum.
               const total = accountsHere.reduce((sum, a) => {
                 const est = estimatedByAccount.get(a.id);
-                return sum + (est?.signed_balance ?? a.initial_balance);
+                return sum + (est?.signed_balance ?? 0);
               }, institution.id === null ? unassignedBalance : 0);
               const showUnassignedTransactions = institution.id === null && hasUnassignedTransactions;
               return (
@@ -322,7 +325,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                               <span>{accountTypeLabel(account.type)} · {account.currency}</span>
                             </div>
                             <div className="account-line-amount">
-                              {estimated ? money(estimated.signed_balance, reportCurrency) : money(account.initial_balance, account.currency)}
+                              {money(estimated?.signed_balance ?? account.initial_balance, reportCurrency)}
                             </div>
                             <div className="account-line-actions">
                               <IconButton label="Modifier" tone="neutral" icon={<Pencil size={14} />} onClick={() => { setEditingAccount(account); setAccountOpen(true); }} />
