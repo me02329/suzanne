@@ -1,10 +1,59 @@
 import { Dispatch, KeyboardEvent, MutableRefObject, SetStateAction, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertTriangle, Check, Loader2, RotateCcw, Send, Sparkles, Wrench, X } from 'lucide-react';
+import { AlertTriangle, Check, Loader2, RotateCcw, Send, Sparkles, Wand2, Wrench, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { AiPendingAction } from '@suzanne-lite/shared';
 import { api, type AiChatHistoryMessage, type AiHealthStatus } from '../lib/api';
 import type { Run } from '../lib/run';
+import { Modal } from '../components/Modal';
+
+// Catalogue lisible des capacités de l'assistant, affiché dans la modale
+// « Que puis-je demander ? ». Reflète les tools de backend/src/ai/tools.ts.
+const CAPABILITIES: Array<{
+  title: string;
+  note: string;
+  items: string[];
+  examples: string[];
+}> = [
+  {
+    title: 'Analyser & consulter',
+    note: 'Exécuté immédiatement, en lecture seule.',
+    items: [
+      'Comptes, soldes et snapshots',
+      'Transactions (recherche par mois, type, catégorie, tag, non-catégorisées…)',
+      'Catégories, tags et règles d’auto-catégorisation',
+      'Budgets mensuels',
+      'Récurrents : prochaine échéance et coût mensuel équivalent',
+      'Objectifs d’épargne : progression et montant restant',
+      'Résumé financier d’un mois (revenus, dépenses, net)',
+    ],
+    examples: [
+      'Combien j’ai dépensé ce mois-ci en courses ?',
+      'Quels sont mes abonnements et leur coût mensuel total ?',
+      'Quelle est la prochaine échéance de mes récurrents ?',
+      'Où en est mon objectif vacances ?',
+      'Montre mes transactions non catégorisées de ce mois.',
+    ],
+  },
+  {
+    title: 'Créer & modifier',
+    note: 'L’assistant prépare l’action ; rien n’est enregistré sans ton clic « Confirmer ».',
+    items: [
+      'Transactions : créer, modifier, supprimer, catégoriser',
+      'Catégories, tags : créer, modifier, supprimer',
+      'Objectifs : créer, modifier, supprimer, verser',
+      'Récurrents : créer, modifier, supprimer',
+      'Budgets : définir, modifier, supprimer',
+      'Règles d’auto-catégorisation : créer, supprimer',
+    ],
+    examples: [
+      'Crée une dépense de 12,50 € aujourd’hui pour le déjeuner.',
+      'Catégorise mes transactions Carrefour en Courses.',
+      'Crée un objectif d’épargne Vacances de 2000 €.',
+      'Ajoute un budget de 300 € pour Restaurants ce mois-ci.',
+    ],
+  },
+];
 
 interface ToolEvent {
   id: string;
@@ -50,6 +99,7 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
   const [draft, setDraft] = useState('');
   const [health, setHealth] = useState<AiHealthStatus | null>(null);
   const [testing, setTesting] = useState(false);
+  const [capsOpen, setCapsOpen] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -96,8 +146,8 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
     }));
   };
 
-  const send = async () => {
-    const message = draft.trim();
+  const send = async (text?: string) => {
+    const message = (text ?? draft).trim();
     if (!message || streaming) return;
     const userId2 = Date.now();
     const assistantId = userId2 + 1;
@@ -190,6 +240,18 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
     );
   };
 
+  // Depuis la modale « Capacités » : envoie directement l'exemple choisi, ou,
+  // si une réponse est déjà en cours, le place dans le champ pour plus tard.
+  const askExample = (question: string) => {
+    setCapsOpen(false);
+    if (streaming) {
+      setDraft(question);
+      textareaRef.current?.focus();
+    } else {
+      void send(question);
+    }
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
@@ -207,6 +269,9 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
           </div>
           <div className="assistant-header-actions">
             <span className="assistant-context">{month} · {currency}</span>
+            <button type="button" className="ghost-button" onClick={() => setCapsOpen(true)} title="Que puis-je demander ?">
+              <Wand2 size={14} /> Que puis-je demander ?
+            </button>
             <button type="button" className="ghost-button" onClick={resetConversation} title="Nouvelle conversation">
               <RotateCcw size={14} /> Nouvelle conversation
             </button>
@@ -314,6 +379,33 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
           )}
         </form>
       </div>
+
+      {capsOpen && (
+        <Modal title="Que puis-je demander à l’assistant ?" onClose={() => setCapsOpen(false)} wide>
+          <div className="assistant-caps">
+            <p className="panel-note">
+              L’assistant lit tes données en direct et peut préparer des modifications.
+              Toute écriture passe par un bouton « Confirmer ». Clique un exemple pour le lancer.
+            </p>
+            {CAPABILITIES.map((group) => (
+              <div className="assistant-caps-group" key={group.title}>
+                <h3>{group.title}</h3>
+                <p className="panel-note">{group.note}</p>
+                <ul className="assistant-caps-list">
+                  {group.items.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+                <div className="assistant-caps-examples">
+                  {group.examples.map((example) => (
+                    <button type="button" className="assistant-example" key={example} onClick={() => askExample(example)}>
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
     </section>
   );
 }

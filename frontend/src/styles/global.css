@@ -1256,6 +1256,23 @@ select:focus, input:focus, textarea:focus {
   flex: 0 0 auto;
 }
 
+.assistant-caps { display: grid; gap: 20px; }
+.assistant-caps-group { display: grid; gap: 8px; }
+.assistant-caps-group h3 { margin: 0; font-size: 15px; }
+.assistant-caps-list { margin: 0; padding-left: 18px; display: grid; gap: 3px; color: var(--muted); font-size: 13px; }
+.assistant-caps-examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.assistant-example {
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.assistant-example:hover { border-color: var(--accent); }
+
 .assistant-tools {
   display: grid;
   gap: 4px;
