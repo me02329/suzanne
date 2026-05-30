@@ -21,10 +21,6 @@ import { usePersistedState } from '../lib/storage';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
 
-const RANGE_LABELS: Record<string, string> = {
-  '3m': '3 mois', '6m': '6 mois', '1y': '12 mois', '2y': '2 ans', all: 'Tout', custom: 'Personnalisée',
-};
-
 // "Statistiques" — long-range expense analytics that complement the
 // month-scoped dashboard.
 export function Statistics({ userId, reportCurrency }: { userId: number; reportCurrency: string }) {
@@ -70,41 +66,39 @@ export function Statistics({ userId, reportCurrency }: { userId: number; reportC
   const averagePerMonth = monthsCount > 0 ? totalDisplayed / monthsCount : 0;
 
   return (
-    <>
-      <Panel title={`Statistiques — ${RANGE_LABELS[range] ?? range}`}>
-        <div className="panel-toolbar">
-          <select value={range} onChange={(e) => setRange(e.target.value)}>
-            <option value="3m">3 mois</option>
-            <option value="6m">6 mois</option>
-            <option value="1y">12 mois</option>
-            <option value="2y">2 ans</option>
-            <option value="all">Tout</option>
-            <option value="custom">Personnalisée…</option>
-          </select>
-          {isCustom && (
-            <>
-              <label className="inline-date">Du <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /></label>
-              <label className="inline-date">Au <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></label>
-            </>
-          )}
-          <label className="series-toggles inline">
-            <input type="checkbox" checked={excludeUncategorized} onChange={(e) => setExcludeUncategorized(e.target.checked)} /> Exclure non-catégorisé
-          </label>
-        </div>
-        <p className="panel-note">
+    <section className="stack">
+      <div className="stats-controls">
+        <select value={range} onChange={(e) => setRange(e.target.value)}>
+          <option value="3m">3 mois</option>
+          <option value="6m">6 mois</option>
+          <option value="1y">12 mois</option>
+          <option value="2y">2 ans</option>
+          <option value="all">Tout</option>
+          <option value="custom">Personnalisée…</option>
+        </select>
+        {isCustom && (
+          <>
+            <label className="inline-date">Du <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /></label>
+            <label className="inline-date">Au <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></label>
+          </>
+        )}
+        <label className="series-toggles inline">
+          <input type="checkbox" checked={excludeUncategorized} onChange={(e) => setExcludeUncategorized(e.target.checked)} /> Exclure non-catégorisé
+        </label>
+        <span className="stats-controls-note">
           {isCustom && !customReady
-            ? 'Choisis une date de début et de fin pour activer la période personnalisée.'
+            ? 'Choisis une date de début et de fin.'
             : data
-              ? `${data.transactions_count} transactions du ${new Date(data.from).toLocaleDateString('fr-FR')} au ${new Date(data.to).toLocaleDateString('fr-FR')}.`
+              ? `${data.transactions_count} transactions · ${new Date(data.from).toLocaleDateString('fr-FR')} → ${new Date(data.to).toLocaleDateString('fr-FR')}`
               : loading
                 ? 'Chargement…'
                 : '—'}
           {data && excludeUncategorized && data.total_uncategorized > 0 && (
-            <> <strong>{money(data.total_uncategorized)}</strong> exclus (non catégorisés).</>
+            <> · <strong>{money(data.total_uncategorized)}</strong> exclus</>
           )}
-        </p>
-        {error && <div className="error">{error}</div>}
-      </Panel>
+        </span>
+      </div>
+      {error && <div className="error">{error}</div>}
 
       <section className="stats">
         <div className="stat">
@@ -202,6 +196,6 @@ export function Statistics({ userId, reportCurrency }: { userId: number; reportC
           </div>
         </Panel>
       </section>
-    </>
+    </section>
   );
 }

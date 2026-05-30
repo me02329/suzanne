@@ -221,7 +221,7 @@ button, select, input, textarea { font: inherit; }
   align-items: center;
   gap: 8px;
   max-width: calc(100vw - 48px);
-  padding: 7px 9px;
+  padding: 7px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface);
@@ -229,7 +229,9 @@ button, select, input, textarea { font: inherit; }
 }
 .floating-controls select { font-size: 13px; padding: 6px 8px; }
 .floating-controls .search-box { min-width: 0; }
-.floating-controls .search-box input { width: 170px; }
+/* Round the search field so its left edge nests inside the round pill instead
+   of sitting flush against the curve. */
+.floating-controls .search-box input { width: 170px; border-radius: 999px; }
 
 /* Page heading now lives in the content flow instead of a heavy top bar. The
    right padding keeps a long title clear of the floating pill. */
@@ -240,6 +242,20 @@ button, select, input, textarea { font: inherit; }
   min-height: 44px;
   margin: 0 0 22px;
   padding-right: 220px;
+}
+
+/* Compact, card-less range toolbar for the Statistics page (replaces the bulky
+   title panel that duplicated the page heading). */
+.stats-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.stats-controls-note {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .eyebrow {
