@@ -258,6 +258,37 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   const netMonthly = summary?.net ?? null;
   const monthLabel = summary?.month ? formatMonthLong(summary.month) : 'Mois sélectionné';
 
+  // Comparaison N vs N-1 : 100% côté front à partir des 12 mois déjà présents
+  // dans summary.monthly_cashflow. La ligne du mois précédent est celle juste
+  // avant le mois sélectionné dans la série.
+  const prevMonthRow = (() => {
+    const idx = monthRows.findIndex((row) => row.month === summary?.month);
+    return idx > 0 ? monthRows[idx - 1] : null;
+  })();
+  const prevSavingRate = prevMonthRow && prevMonthRow.income > 0
+    ? Math.round((prevMonthRow.net / prevMonthRow.income) * 100)
+    : null;
+
+  // Petit libellé de variation coloré (vert = évolution favorable). `goodWhen`
+  // dit quel sens est positif : 'up' pour revenus/net, 'down' pour dépenses.
+  const moneyDelta = (current: number, previous: number | null | undefined, goodWhen: 'up' | 'down') => {
+    if (previous == null || !prevMonthRow) return null;
+    const diff = current - previous;
+    if (Math.abs(previous) < 0.005 && Math.abs(diff) < 0.005) return null;
+    const pct = Math.abs(previous) >= 0.005 ? Math.round((diff / Math.abs(previous)) * 100) : null;
+    const arrow = diff === 0 ? '→' : diff > 0 ? '↑' : '↓';
+    const tone = diff === 0 ? '' : (diff > 0) === (goodWhen === 'up') ? 'income' : 'expense';
+    const pctText = pct == null ? '' : `${Math.abs(pct)}% `;
+    return <span className={tone}>{arrow} {pctText}vs {formatMonth(prevMonthRow.month)} ({money(previous)})</span>;
+  };
+  const savingRateDelta = (() => {
+    if (prevSavingRate == null || !prevMonthRow) return null;
+    const diff = savingRate - prevSavingRate;
+    const arrow = diff === 0 ? '→' : diff > 0 ? '↑' : '↓';
+    const tone = diff === 0 ? '' : diff > 0 ? 'income' : 'expense';
+    return <span className={tone}>{arrow} {Math.abs(diff)} pts vs {formatMonth(prevMonthRow.month)} ({prevSavingRate}%)</span>;
+  })();
+
   return (
     <>
       <DashboardSection title="Vue d'ensemble" subtitle="État actuel du patrimoine — indépendant du mois sélectionné">
@@ -409,10 +440,10 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
 
       <DashboardSection title={monthLabel} subtitle="Change le mois via le sélecteur en haut à droite">
         <section className="stats">
-          <Stat icon={<ArrowUpCircle />} label="Revenus" value={money(summary?.income ?? 0)} positive />
-          <Stat icon={<ArrowDownCircle />} label="Dépenses" value={money(summary?.expenses ?? 0)} negative />
-          <Stat icon={<Euro />} label="Net mensuel" value={money(netMonthly ?? 0)} signed={netMonthly} />
-          <Stat icon={<BarChart3 />} label="Taux d'épargne" value={`${savingRate}%`} />
+          <Stat icon={<ArrowUpCircle />} label="Revenus" value={money(summary?.income ?? 0)} positive delta={moneyDelta(summary?.income ?? 0, prevMonthRow?.income, 'up')} />
+          <Stat icon={<ArrowDownCircle />} label="Dépenses" value={money(summary?.expenses ?? 0)} negative delta={moneyDelta(summary?.expenses ?? 0, prevMonthRow?.expenses, 'down')} />
+          <Stat icon={<Euro />} label="Net mensuel" value={money(netMonthly ?? 0)} signed={netMonthly} delta={moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up')} />
+          <Stat icon={<BarChart3 />} label="Taux d'épargne" value={`${savingRate}%`} delta={savingRateDelta} />
           <Stat icon={<CreditCard />} label="Transactions" value={String(transactionCount)} />
           <Stat icon={<Banknote />} label="Dépense moyenne" value={money(averageExpense)} />
         </section>
