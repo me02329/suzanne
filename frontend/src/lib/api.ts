@@ -78,6 +78,14 @@ export type AiStreamEvent =
   | { kind: 'done'; answer: string; pendingActions: AiPendingAction[] }
   | { kind: 'error'; error: { kind: string; message: string; detail: string } };
 
+export interface SnapshotSuggestion {
+  account_id: number;
+  suggested_balance: number;
+  last_snapshot_date: string | null;
+  last_snapshot_balance: number | null;
+  delta: number;
+}
+
 export type AiChatHistoryMessage = { role: 'user' | 'assistant'; content: string };
 
 export const api = {
@@ -132,6 +140,8 @@ export const api = {
     http<{ goal: SavingsGoal; transaction_id: number | null }>(`/users/${userId}/savings-goals/${id}/contribute`, { method: 'POST', body: JSON.stringify(body) }),
   deleteGoal: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/savings-goals/${id}`, { method: 'DELETE' }),
   snapshots: (userId: number) => http<AccountSnapshot[]>(`/users/${userId}/account-snapshots`),
+  snapshotSuggestions: (userId: number, date: string) =>
+    http<SnapshotSuggestion[]>(`/users/${userId}/account-snapshots/suggestions?date=${encodeURIComponent(date)}`),
   setSnapshot: (userId: number, body: CreateAccountSnapshotBody) => http<AccountSnapshot>(`/users/${userId}/account-snapshots`, { method: 'POST', body: JSON.stringify(body) }),
   setSnapshotBatch: (userId: number, body: { date: string; balances: Array<{ account_id: number; balance: number }> }) =>
     http<{ saved: number; created: number; updated: number }>(`/users/${userId}/account-snapshots/batch`, { method: 'POST', body: JSON.stringify(body) }),

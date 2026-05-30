@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { CalendarCheck, ChevronDown, ChevronUp, Landmark, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarCheck, ChevronDown, ChevronUp, Landmark, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
 import {
   ACCOUNT_TYPES,
   REPORT_CURRENCIES,
@@ -35,6 +35,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [snapshotDate, setSnapshotDate] = useState<string>(() => lastDayOfPreviousMonthIso());
   const [snapshotInputs, setSnapshotInputs] = useState<Record<number, string>>({});
+  const [prefilling, setPrefilling] = useState(false);
   const [snapshotsOpen, setSnapshotsOpen] = usePersistedState<boolean>('accounts_snapshots_open', false);
   const [accountOpen, setAccountOpen] = usePersistedState<boolean>('accounts_account_open', accounts.length === 0);
   const [institutionOpen, setInstitutionOpen] = usePersistedState<boolean>('accounts_institution_open', false);
@@ -88,6 +89,23 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       },
     );
     setSnapshotInputs({});
+  };
+
+  // Pré-remplit chaque champ avec le dernier solde connu + delta des
+  // transactions jusqu'à la date du snapshot (calcul côté backend, dans la
+  // devise propre de chaque compte). L'utilisateur valide ou corrige.
+  const prefillSnapshots = async () => {
+    setPrefilling(true);
+    try {
+      const suggestions = await api.snapshotSuggestions(userId, snapshotDate);
+      setSnapshotInputs((current) => {
+        const next = { ...current };
+        for (const s of suggestions) next[s.account_id] = String(s.suggested_balance);
+        return next;
+      });
+    } finally {
+      setPrefilling(false);
+    }
   };
 
   const submitAccount = (event: FormEvent<HTMLFormElement>) => {
@@ -145,9 +163,20 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
               Re-saisir la même date écrase la valeur précédente.
             </p>
             <form className="form snapshot-batch-form" onSubmit={submitSnapshotBatch}>
-              <label>Date du snapshot
-                <input type="date" value={snapshotDate} onChange={(e) => setSnapshotDate(e.target.value)} required />
-              </label>
+              <div className="snapshot-batch-controls">
+                <label>Date du snapshot
+                  <input type="date" value={snapshotDate} onChange={(e) => setSnapshotDate(e.target.value)} required />
+                </label>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => void prefillSnapshots()}
+                  disabled={prefilling || accounts.length === 0}
+                  title="Remplir avec le dernier solde connu + transactions"
+                >
+                  <Wand2 size={16} /> {prefilling ? 'Calcul…' : 'Pré-remplir'}
+                </button>
+              </div>
               {accounts.length === 0 ? (
                 <p className="empty">Crée d'abord un compte pour saisir des snapshots.</p>
               ) : (
