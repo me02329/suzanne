@@ -1683,6 +1683,14 @@ textarea {
 .account-line-actions {
   display: inline-flex;
   gap: 4px;
+  align-items: center;
+}
+
+.reassign-select {
+  font-size: 12px;
+  padding: 2px 6px;
+  max-width: 150px;
+  color: var(--muted);
 }
 
 .empty.inline {

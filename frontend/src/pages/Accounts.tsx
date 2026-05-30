@@ -33,6 +33,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
   run: Run;
 }) {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [editingInstitution, setEditingInstitution] = useState<Institution | null>(null);
   const [snapshotDate, setSnapshotDate] = useState<string>(() => lastDayOfPreviousMonthIso());
   const [snapshotInputs, setSnapshotInputs] = useState<Record<number, string>>({});
   const [prefilling, setPrefilling] = useState(false);
@@ -135,6 +136,21 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
     const data = new FormData(form);
     void run(() => api.createInstitution(userId, { name: String(data.get('name')) }), 'Institution ajoutée');
     form.reset();
+  };
+
+  const submitInstitutionEdit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingInstitution) return;
+    const name = String(new FormData(event.currentTarget).get('name')).trim();
+    if (!name) return;
+    void run(() => api.updateInstitution(userId, editingInstitution.id, { name }), 'Institution renommée');
+    setEditingInstitution(null);
+  };
+
+  // Réassignation rapide d'un compte à une autre institution (ou aucune).
+  const reassignAccount = (account: Account, institutionId: number | null) => {
+    if ((account.institution_id ?? null) === institutionId) return;
+    void run(() => api.updateAccount(userId, account.id, { institution_id: institutionId }), 'Compte réassigné');
   };
 
   const filledCount = Object.values(snapshotInputs).filter((v) => v.trim() !== '').length;
@@ -319,6 +335,14 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                     </div>
                     <div className="institution-card-actions">
                       <span className="institution-total">{money(total, reportCurrency)}</span>
+                      {institution.id !== null && (
+                        <IconButton
+                          label="Renommer l'institution"
+                          tone="neutral"
+                          icon={<Pencil size={14} />}
+                          onClick={() => setEditingInstitution(institutions.find((i) => i.id === institution.id) ?? null)}
+                        />
+                      )}
                       {institution.id !== null && accountsHere.length === 0 && (
                         <IconButton
                           label="Supprimer l'institution"
@@ -357,6 +381,16 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                               {money(estimated?.signed_balance ?? account.initial_balance, reportCurrency)}
                             </div>
                             <div className="account-line-actions">
+                              <select
+                                className="reassign-select"
+                                aria-label={`Réassigner ${account.name} à une institution`}
+                                title="Réassigner à…"
+                                value={account.institution_id ?? ''}
+                                onChange={(e) => reassignAccount(account, e.target.value ? Number(e.target.value) : null)}
+                              >
+                                <option value="">Sans institution</option>
+                                {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                              </select>
                               <IconButton label="Modifier" tone="neutral" icon={<Pencil size={14} />} onClick={() => { setEditingAccount(account); setAccountOpen(true); }} />
                               <IconButton label="Supprimer" icon={<Trash2 size={14} />} confirm={`Supprimer le compte « ${account.name} » et toutes ses transactions ?`} onClick={() => void run(() => api.deleteAccount(userId, account.id), 'Compte supprimé')} />
                             </div>
@@ -402,6 +436,16 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
             <label>Date initiale<input name="initial_balance_date" type="date" defaultValue={editingAccount.initial_balance_date.slice(0, 10)} required /></label>
             <button className="primary">Enregistrer</button>
             <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>Annuler</button>
+          </form>
+        </Modal>
+      )}
+
+      {editingInstitution && (
+        <Modal title={`Renommer « ${editingInstitution.name} »`} onClose={() => setEditingInstitution(null)}>
+          <form className="form" onSubmit={submitInstitutionEdit} key={`inst-${editingInstitution.id}`}>
+            <label>Nom<input name="name" defaultValue={editingInstitution.name} required maxLength={120} autoFocus /></label>
+            <button className="primary">Enregistrer</button>
+            <button type="button" className="secondary" onClick={() => setEditingInstitution(null)}>Annuler</button>
           </form>
         </Modal>
       )}
