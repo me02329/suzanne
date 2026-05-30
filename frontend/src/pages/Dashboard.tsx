@@ -197,6 +197,46 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   const budgetUsed = summary?.expenses ?? 0;
   const budgetPct = budgetLimit > 0 ? Math.min(100, (budgetUsed / budgetLimit) * 100) : 0;
 
+  // Budgets en alerte : catégories à >80% de leur plafond, triées par % décroissant.
+  // Pour le mois courant on extrapole linéairement la date de dépassement à
+  // partir du rythme de dépense observé depuis le début du mois.
+  const budgetAlerts = (() => {
+    if (budgets.length === 0) return [];
+    const spentByCategory = new Map<number, number>();
+    for (const row of categoryRows) {
+      if (row.category_id != null) spentByCategory.set(row.category_id, row.amount);
+    }
+    const now = new Date();
+    const selectedMonth = summary?.month ?? '';
+    const isCurrentMonth = selectedMonth === now.toISOString().slice(0, 10).slice(0, 7);
+    const [yearStr, monthStr] = selectedMonth.split('-');
+    const year = Number(yearStr);
+    const monthIdx = Number(monthStr) - 1;
+    const daysInSelectedMonth = year && monthStr ? new Date(year, monthIdx + 1, 0).getDate() : 30;
+    const dayOfMonth = isCurrentMonth ? now.getDate() : daysInSelectedMonth;
+
+    return budgets
+      .map((b) => {
+        const spent = spentByCategory.get(b.category_id) ?? 0;
+        const pct = b.amount_limit > 0 ? (spent / b.amount_limit) * 100 : 0;
+        const category = categoryById.get(b.category_id);
+        // Projection de dépassement (mois courant, pas encore dépassé).
+        let forecast: string | null = null;
+        if (isCurrentMonth && pct < 100 && spent > 0 && dayOfMonth > 0) {
+          const dailyRate = spent / dayOfMonth;
+          const daysToLimit = (b.amount_limit - spent) / dailyRate;
+          const overshootDay = dayOfMonth + Math.ceil(daysToLimit);
+          if (overshootDay <= daysInSelectedMonth) {
+            const date = new Date(Date.UTC(year, monthIdx, overshootDay));
+            forecast = `dépassement prévu le ${date.toISOString().slice(8, 10)}/${monthStr}`;
+          }
+        }
+        return { id: b.id, name: category?.name ?? 'Catégorie', color: category?.color ?? '#94a3b8', spent, limit: b.amount_limit, pct, forecast };
+      })
+      .filter((row) => row.pct >= 80)
+      .sort((a, b) => b.pct - a.pct);
+  })();
+
   // Sort accounts by signed balance descending so the largest positive
   // balances sit on top and liabilities settle at the bottom. Names are
   // truncated by the tickFormatter to avoid the chart overlapping.
@@ -477,6 +517,28 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
               </div>
             </div>
           </Panel>
+
+          {budgetAlerts.length > 0 && (
+            <Panel title="Budgets en alerte">
+              <div className="category-list compact">
+                {budgetAlerts.map((row) => (
+                  <div className="category-row budget-alert-row" key={row.id}>
+                    <span className="dot inline" style={{ background: row.color }} />
+                    <div className="budget-alert-info">
+                      <span className="budget-alert-name">{row.name}</span>
+                      <span className={`budget-alert-note ${row.pct >= 100 ? 'over' : ''}`}>
+                        {money(row.spent)} / {money(row.limit)}
+                        {row.pct >= 100
+                          ? ` · dépassé de ${money(row.spent - row.limit)}`
+                          : row.forecast ? ` · ${row.forecast}` : ''}
+                      </span>
+                    </div>
+                    <strong className={row.pct >= 100 ? 'expense' : undefined}>{Math.round(row.pct)} %</strong>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          )}
 
           <Panel title="Budget du mois">
             <div className="dashboard-metric">
