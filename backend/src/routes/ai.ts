@@ -1,11 +1,20 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/errors.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 import { idParam, monthString } from '../lib/validation.js';
 import { checkAiHealth, runAiChat, streamAiChat } from '../ai/client.js';
 import { confirmAiAction, type PendingAiAction } from '../ai/tools.js';
 
 export const aiRouter = Router();
+
+// Cap calls to the paid chat endpoints per user (keyed by route param, with an
+// IP fallback) so a stuck client can't run up the AI bill. Overridable via env.
+const aiChatLimiter = rateLimit({
+  windowMs: 60_000,
+  max: Number(process.env.AI_RATE_LIMIT_PER_MIN ?? 20),
+  key: (req) => `ai:${req.params.user_id ?? req.ip}`,
+});
 
 const aiChatSchema = z.object({
   message: z.string().trim().min(1).max(2000),
@@ -34,14 +43,14 @@ aiRouter.get('/ai/health', asyncHandler(async (_req, res) => {
   res.json(status);
 }));
 
-aiRouter.post('/users/:user_id/ai/chat', asyncHandler(async (req, res) => {
+aiRouter.post('/users/:user_id/ai/chat', aiChatLimiter, asyncHandler(async (req, res) => {
   const userId = idParam.parse(req.params.user_id);
   const body = aiChatSchema.parse(req.body);
   const result = await runAiChat(userId, body.message, { month: body.month, currency: body.currency }, body.history);
   res.json(result);
 }));
 
-aiRouter.post('/users/:user_id/ai/chat/stream', asyncHandler(async (req, res) => {
+aiRouter.post('/users/:user_id/ai/chat/stream', aiChatLimiter, asyncHandler(async (req, res) => {
   const userId = idParam.parse(req.params.user_id);
   const body = aiChatSchema.parse(req.body);
 
