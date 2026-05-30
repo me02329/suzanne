@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Menu, X } from 'lucide-react';
 import {
   REPORT_CURRENCIES,
@@ -17,7 +18,7 @@ import {
 } from '@suzanne-lite/shared';
 import { api } from './lib/api';
 import { currentMonthIso } from './lib/format';
-import { navItems, navSections, type Tab } from './lib/nav';
+import { navItems, navSections, pathForTab, tabFromPath, type Tab } from './lib/nav';
 import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
 import { useGlobalShortcuts } from './lib/useGlobalShortcuts';
@@ -56,7 +57,12 @@ export default function App() {
   // month is rarely what you want to land on tomorrow.
   const [month, setMonth] = useState<string>(() => currentMonthIso());
   const [reportCurrency, setReportCurrency] = usePersistedState('report_currency', 'EUR');
-  const [tab, setTab] = usePersistedState<Tab>('active_tab', 'dashboard');
+  // The URL is the source of truth for the active page; we mirror it into a
+  // persisted value only to decide where "/" should land on next launch.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const tab = tabFromPath(location.pathname);
+  const [lastTab, setLastTab] = usePersistedState<Tab>('active_tab', 'dashboard');
   const [theme, setTheme] = useTheme();
   const [openSections, setOpenSections] = usePersistedState<Record<string, boolean>>('nav_sections', {
     pilotage: true,
@@ -175,7 +181,7 @@ export default function App() {
   });
 
   useGlobalShortcuts({
-    goto: setTab,
+    goto: (nextTab) => setActiveTab(nextTab),
     prevMonth: () => shiftMonth(-1),
     nextMonth: () => shiftMonth(1),
     focusSearch: () => (document.querySelector('.search-box input') as HTMLInputElement | null)?.focus(),
@@ -246,9 +252,14 @@ export default function App() {
   };
 
   const activeNav = navItems.find((item) => item.tab === tab);
+  // Remember the current page so a fresh "/" reopens where the user left off.
+  // Skip "/" itself (it only redirects) so it can't overwrite the saved tab.
+  useEffect(() => {
+    if (location.pathname !== '/') setLastTab(tab);
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
   const setActiveTab = (nextTab: Tab) => {
     if (nextTab !== 'transactions') setTransactionIssueFilter(null);
-    setTab(nextTab);
+    navigate(pathForTab(nextTab));
     setSidebarOpen(false);
   };
   const openUnassignedTransactions = () => {
@@ -321,71 +332,64 @@ export default function App() {
         </header>
 
         <Suspense fallback={<div className="page-loading">Chargement…</div>}>
-        {tab === 'dashboard' && (
-          <Dashboard
-            userId={userId}
-            summary={summary}
-            transactions={transactions}
-            budgets={budgets}
-            recurring={recurring}
-            accounts={accounts}
-            reportCurrency={reportCurrency}
-            categoryById={categoryById}
-            accountById={accountById}
-            dataVersion={dataVersion}
-            onOpenUnassignedTransactions={openUnassignedTransactions}
+        <Routes>
+          <Route path="/" element={<Navigate to={pathForTab(lastTab)} replace />} />
+          <Route
+            path="/dashboard"
+            element={(
+              <Dashboard
+                userId={userId}
+                summary={summary}
+                transactions={transactions}
+                budgets={budgets}
+                recurring={recurring}
+                accounts={accounts}
+                reportCurrency={reportCurrency}
+                categoryById={categoryById}
+                accountById={accountById}
+                dataVersion={dataVersion}
+                onOpenUnassignedTransactions={openUnassignedTransactions}
+              />
+            )}
           />
-        )}
-        {tab === 'assistant' && userId && (
-          <Assistant userId={userId} month={month} currency={reportCurrency} run={run} messages={aiMessages} setMessages={setAiMessages} streaming={aiStreaming} setStreaming={setAiStreaming} abortRef={aiAbortRef} />
-        )}
-        {tab === 'transactions' && userId && (
-          <Transactions
-            userId={userId}
-            transactions={transactions}
-            unassignedTransactions={unassignedTransactions}
-            issueFilter={transactionIssueFilter}
-            onClearIssueFilter={() => setTransactionIssueFilter(null)}
-            recurring={recurring}
-            accounts={accounts}
-            categories={categories}
-            tags={tags}
-            categoryById={categoryById}
-            accountById={accountById}
-            run={run}
+          <Route
+            path="/assistant"
+            element={userId ? (
+              <Assistant userId={userId} month={month} currency={reportCurrency} run={run} messages={aiMessages} setMessages={setAiMessages} streaming={aiStreaming} setStreaming={setAiStreaming} abortRef={aiAbortRef} />
+            ) : null}
           />
-        )}
-        {tab === 'tags' && userId && (
-          <Tags userId={userId} tags={tags} run={run} />
-        )}
-        {tab === 'statistics' && userId && (
-          <Statistics userId={userId} reportCurrency={reportCurrency} />
-        )}
-        {tab === 'accounts' && userId && (
-          <Accounts userId={userId} accounts={accounts} institutions={institutions} snapshots={snapshots} institutionById={institutionById} summary={summary} run={run} />
-        )}
-        {tab === 'categories' && userId && (
-          <Categories userId={userId} categories={categories} run={run} />
-        )}
-        {tab === 'budgets' && userId && (
-          <Budgets userId={userId} month={month} categories={categories} budgets={budgets} summary={summary} run={run} />
-        )}
-        {tab === 'recurring' && userId && (
-          <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} run={run} />
-        )}
-        {tab === 'goals' && userId && (
-          <Goals userId={userId} goals={goals} accounts={accounts} accountById={accountById} run={run} />
-        )}
-        {tab === 'rules' && userId && (
-          <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} run={run} />
-        )}
-        {tab === 'tools' && userId && (
-          <Tools userId={userId} accounts={accounts} run={run} />
-        )}
-        {tab === 'users' && (
-          <UsersPage users={users} currentUserId={userId} run={runUsers} />
-        )}
-        {tab === 'settings' && <Settings />}
+          <Route
+            path="/transactions"
+            element={userId ? (
+              <Transactions
+                userId={userId}
+                transactions={transactions}
+                unassignedTransactions={unassignedTransactions}
+                issueFilter={transactionIssueFilter}
+                onClearIssueFilter={() => setTransactionIssueFilter(null)}
+                recurring={recurring}
+                accounts={accounts}
+                categories={categories}
+                tags={tags}
+                categoryById={categoryById}
+                accountById={accountById}
+                run={run}
+              />
+            ) : null}
+          />
+          <Route path="/tags" element={userId ? <Tags userId={userId} tags={tags} run={run} /> : null} />
+          <Route path="/statistics" element={userId ? <Statistics userId={userId} reportCurrency={reportCurrency} /> : null} />
+          <Route path="/accounts" element={userId ? <Accounts userId={userId} accounts={accounts} institutions={institutions} snapshots={snapshots} institutionById={institutionById} summary={summary} run={run} /> : null} />
+          <Route path="/categories" element={userId ? <Categories userId={userId} categories={categories} run={run} /> : null} />
+          <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} budgets={budgets} summary={summary} run={run} /> : null} />
+          <Route path="/recurring" element={userId ? <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} run={run} /> : null} />
+          <Route path="/goals" element={userId ? <Goals userId={userId} goals={goals} accounts={accounts} accountById={accountById} run={run} /> : null} />
+          <Route path="/rules" element={userId ? <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} run={run} /> : null} />
+          <Route path="/tools" element={userId ? <Tools userId={userId} accounts={accounts} run={run} /> : null} />
+          <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to={pathForTab(lastTab)} replace />} />
+        </Routes>
         </Suspense>
       </main>
 

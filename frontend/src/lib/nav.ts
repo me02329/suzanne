@@ -64,3 +64,16 @@ export function tabForSearchResult(type: SearchResult['type']): Tab {
     case 'goal': return 'goals';
   }
 }
+
+// Tab values double as URL path segments (/dashboard, /transactions, ...).
+const TAB_SET = new Set<string>(navItems.map((item) => item.tab));
+
+export function pathForTab(tab: Tab): string {
+  return `/${tab}`;
+}
+
+// Derives the active tab from a pathname; unknown paths fall back to dashboard.
+export function tabFromPath(pathname: string): Tab {
+  const segment = pathname.replace(/^\/+/, '').split('/')[0] ?? '';
+  return TAB_SET.has(segment) ? (segment as Tab) : 'dashboard';
+}
