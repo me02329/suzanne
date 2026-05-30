@@ -1,5 +1,7 @@
 # suzanne-lite
 
+[![CI](https://github.com/me02329/suzanne-lite/actions/workflows/ci.yml/badge.svg)](https://github.com/me02329/suzanne-lite/actions/workflows/ci.yml)
+
 > Application personnelle de suivi de finances quotidiennes : comptes, transactions, budgets, catégories, récurrents, objectifs d'épargne, statistiques et import/export.
 
 suzanne-lite est une application web auto-hébergée, pensée pour suivre simplement les flux du quotidien : *« combien j'ai dépensé ce mois-ci, sur quels postes, depuis quels comptes, et quels mouvements restent à catégoriser ? »*
@@ -220,3 +222,12 @@ En conséquence :
 - fais des exports JSON réguliers si la base contient des données importantes.
 
 La suppression d'un utilisateur efface ses données liées via les contraintes de base.
+
+### Token d'accès optionnel (`APP_TOKEN`)
+
+Pour une couche de protection légère — utile notamment parce que l'assistant IA consomme la clé OpenAI à chaque requête —, tu peux définir la variable d'environnement `APP_TOKEN` côté backend :
+
+- **non définie** → comportement historique, aucune auth ;
+- **définie** → toute requête `/api/*` doit présenter l'en-tête `Authorization: Bearer <APP_TOKEN>`, sinon `401`. Au premier `401`, le frontend ouvre un modal de saisie ; le token est ensuite stocké en `localStorage` et envoyé sur chaque requête.
+
+Ce n'est **pas** de la gestion d'utilisateurs : juste un secret partagé. Les téléchargements directs (`export.json`, `transactions.csv`) ouverts via un lien `<a>` ne portent pas l'en-tête et ne fonctionneront donc pas tant que `APP_TOKEN` est défini — utilise l'export sélectif depuis l'interface dans ce cas.

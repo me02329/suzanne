@@ -29,14 +29,17 @@ import type {
   WealthHistoryPoint,
 } from '@suzanne-lite/shared';
 
+import { authHeaders, notifyUnauthorized } from './authToken.js';
+
 const API_BASE = '/api';
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
+    if (res.status === 401) notifyUnauthorized();
     let message = `HTTP ${res.status}`;
     try {
       const data = await res.json() as { error?: string };
@@ -139,10 +142,11 @@ export const api = {
   exportSelection: async (userId: number, body: { entities: string[]; from?: string | null; to?: string | null }) => {
     const res = await fetch(`${API_BASE}/users/${userId}/export`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body),
     });
     if (!res.ok) {
+      if (res.status === 401) notifyUnauthorized();
       let message = `HTTP ${res.status}`;
       try { const data = await res.json() as { error?: string }; if (data?.error) message = data.error; } catch { /* keep */ }
       throw new Error(message);
@@ -172,11 +176,12 @@ export const api = {
   ): AsyncGenerator<AiStreamEvent> {
     const res = await fetch(`${API_BASE}/users/${userId}/ai/chat/stream`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(body),
       signal,
     });
     if (!res.ok || !res.body) {
+      if (res.status === 401) notifyUnauthorized();
       let message = `HTTP ${res.status}`;
       try { const data = await res.json() as { error?: string }; if (data?.error) message = data.error; } catch { /* keep */ }
       throw new Error(message);

@@ -24,6 +24,8 @@ import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
 import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
+import { TokenModal } from './components/TokenModal';
+import { onUnauthorized } from './lib/authToken';
 import { Assistant, initialAssistantMessages, type ChatMessage } from './pages/Assistant';
 import { Dashboard } from './pages/Dashboard';
 import { Statistics } from './pages/Statistics';
@@ -72,6 +74,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [transactionIssueFilter, setTransactionIssueFilter] = useState<'unassigned_account' | null>(null);
+  const [tokenPromptOpen, setTokenPromptOpen] = useState(false);
   // The assistant conversation lives here (not in the Assistant page) so it
   // survives tab switches AND full reloads — re-asking the model the same thing
   // burns tokens for nothing. Persisted alongside the user it belongs to so we
@@ -148,6 +151,11 @@ export default function App() {
       if (version === reloadVersion.current) setLoading(false);
     }
   };
+
+  // Le backend peut exiger un APP_TOKEN : sur un 401, on ouvre le modal de saisie.
+  useEffect(() => {
+    onUnauthorized(() => setTokenPromptOpen(true));
+  }, []);
 
   useEffect(() => {
     reloadUsers().catch((e) => setError((e as Error).message));
@@ -353,6 +361,18 @@ export default function App() {
         )}
         {tab === 'settings' && <Settings />}
       </main>
+
+      {tokenPromptOpen && (
+        <TokenModal
+          onClose={() => setTokenPromptOpen(false)}
+          onSaved={() => {
+            setTokenPromptOpen(false);
+            setError(null);
+            reloadUsers().catch((e) => setError((e as Error).message));
+            reload().catch((e) => setError((e as Error).message));
+          }}
+        />
+      )}
 
       <div className="toast-stack" aria-live="polite" aria-atomic="false">
         {error && <Toast kind="error" message={error} onDismiss={() => setError(null)} />}
