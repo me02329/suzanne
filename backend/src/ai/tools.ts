@@ -18,6 +18,7 @@ import {
 } from '../lib/validation.js';
 import { fetchExchangeRate } from '../lib/fx.js';
 import { round2 } from '../lib/money.js';
+import { nextRecurringOccurrence, recurringMonthlyEquivalent } from '@suzanne-lite/shared';
 
 // The AI proposes a write action; the user confirms it from the chat UI.
 // `type` drives the dispatch in confirmAiAction. Keeping payload as `unknown`
@@ -61,8 +62,11 @@ export const aiToolDefinitions = [
   toolDefinition('list_accounts', 'Liste les comptes (id, nom, type, devise, solde initial).', {}),
   toolDefinition('list_categories', 'Liste les catégories (id, nom, type, couleur).', {}),
   toolDefinition('list_tags', 'Liste les tags (id, nom, couleur).', {}),
-  toolDefinition('list_recurring', 'Liste les transactions récurrentes actives.', {}),
-  toolDefinition('list_goals', 'Liste les objectifs d\'épargne avec progression.', {}),
+  toolDefinition('list_recurring', 'Liste les transactions récurrentes avec leur prochaine occurrence prévue et leur coût mensuel équivalent.', {}),
+  toolDefinition('list_goals', 'Liste les objectifs d\'épargne avec progression (%, restant, échéance, compte lié).', {}),
+  toolDefinition('get_goal_progress', 'Détail de progression d\'un objectif d\'épargne par son nom.', {
+    name: { type: 'string', description: 'Nom (ou fragment) de l\'objectif.' },
+  }, ['name']),
   toolDefinition('list_budgets', 'Liste les budgets mensuels.', { month: { type: 'string', description: 'Mois YYYY-MM (optionnel).' } }),
   toolDefinition('list_rules', 'Liste les règles d\'auto-catégorisation.', {}),
   toolDefinition('list_account_snapshots', 'Liste les snapshots de solde par compte.', {
@@ -229,8 +233,9 @@ export async function executeAiTool(userId: number, name: string, rawArgs: unkno
     case 'list_accounts': return { result: await prisma.account.findMany({ where: { user_id: userId }, orderBy: { name: 'asc' } }) };
     case 'list_categories': return { result: await prisma.category.findMany({ where: { user_id: userId }, orderBy: [{ type: 'asc' }, { name: 'asc' }] }) };
     case 'list_tags': return { result: await prisma.tag.findMany({ where: { user_id: userId }, orderBy: { name: 'asc' } }) };
-    case 'list_recurring': return { result: await prisma.recurringTransaction.findMany({ where: { user_id: userId }, orderBy: { description: 'asc' } }) };
-    case 'list_goals': return { result: await prisma.savingsGoal.findMany({ where: { user_id: userId }, orderBy: { name: 'asc' } }) };
+    case 'list_recurring': return { result: await listRecurring(userId) };
+    case 'list_goals': return { result: await listGoals(userId) };
+    case 'get_goal_progress': return { result: await getGoalProgress(userId, rawArgs) };
     case 'list_budgets': {
       const args = z.object({ month: monthString.optional() }).parse(rawArgs);
       return { result: await prisma.budget.findMany({ where: { user_id: userId, ...(args.month ? { month: args.month } : {}) }, orderBy: [{ month: 'desc' }] }) };
@@ -507,6 +512,80 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
 
 function idOnly(field: string) {
   return z.object({ [field]: z.coerce.number().int().positive() }).transform((value) => (value as Record<string, number>)[field]!);
+}
+
+async function listRecurring(userId: number) {
+  const rows = await prisma.recurringTransaction.findMany({
+    where: { user_id: userId },
+    orderBy: { description: 'asc' },
+    include: {
+      account: { select: { name: true } },
+      category: { select: { name: true } },
+    },
+  });
+  const now = new Date();
+  return rows.map((row) => ({
+    ...row,
+    last_executed: row.last_executed ? row.last_executed.toISOString().slice(0, 10) : null,
+    next_occurrence: row.active
+      ? nextRecurringOccurrence(
+          {
+            frequency: row.frequency as 'weekly' | 'monthly' | 'yearly',
+            interval: row.interval,
+            day_of_month: row.day_of_month,
+            last_executed: row.last_executed ? row.last_executed.toISOString() : null,
+          },
+          now,
+        )
+      : null,
+    monthly_equivalent: round2(
+      recurringMonthlyEquivalent({
+        amount: row.amount,
+        frequency: row.frequency as 'weekly' | 'monthly' | 'yearly',
+        interval: row.interval,
+      }),
+    ),
+    account_name: row.account?.name ?? null,
+    category_name: row.category?.name ?? null,
+  }));
+}
+
+function goalProgress(goal: { target_amount: number; current_amount: number }) {
+  const remaining = round2(Math.max(goal.target_amount - goal.current_amount, 0));
+  const progress_pct = goal.target_amount > 0
+    ? Math.round((goal.current_amount / goal.target_amount) * 1000) / 10
+    : 0;
+  return { remaining, progress_pct };
+}
+
+async function listGoals(userId: number) {
+  const rows = await prisma.savingsGoal.findMany({
+    where: { user_id: userId },
+    orderBy: { name: 'asc' },
+    include: { account: { select: { name: true } } },
+  });
+  return rows.map((goal) => ({
+    ...goal,
+    deadline: goal.deadline ? goal.deadline.toISOString().slice(0, 10) : null,
+    ...goalProgress(goal),
+    account_name: goal.account?.name ?? null,
+  }));
+}
+
+async function getGoalProgress(userId: number, rawArgs: unknown) {
+  const args = z.object({ name: z.string().trim().min(1) }).parse(rawArgs);
+  const goal = await prisma.savingsGoal.findFirst({
+    where: { user_id: userId, name: { contains: args.name, mode: 'insensitive' } },
+    orderBy: { name: 'asc' },
+    include: { account: { select: { name: true } } },
+  });
+  if (!goal) throw new Error(`Aucun objectif ne correspond à "${args.name}"`);
+  return {
+    ...goal,
+    deadline: goal.deadline ? goal.deadline.toISOString().slice(0, 10) : null,
+    ...goalProgress(goal),
+    account_name: goal.account?.name ?? null,
+  };
 }
 
 async function dashboardSummary(userId: number, rawArgs: unknown) {
