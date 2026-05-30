@@ -374,3 +374,79 @@ export const REPORT_CURRENCIES: ReadonlyArray<{ value: string; label: string }> 
   { value: 'CAD', label: 'CAD - Dollar canadien' },
   { value: 'AUD', label: 'AUD - Dollar australien' },
 ];
+
+// ── Récurrents : calculs partagés frontend/backend ──
+
+type RecurrenceShape = Pick<
+  RecurringTransaction,
+  'frequency' | 'interval' | 'day_of_month' | 'last_executed'
+>;
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function daysInMonthYM(year: number, month: number): number {
+  return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+}
+
+// Avance `date` de `months` mois en clampant le jour au `day` souhaité (sans
+// déborder sur le mois suivant si le mois est plus court).
+function addMonthsClamped(date: Date, months: number, day: number): Date {
+  const total = date.getUTCMonth() + months;
+  const year = date.getUTCFullYear() + Math.floor(total / 12);
+  const month = ((total % 12) + 12) % 12;
+  return new Date(Date.UTC(year, month, Math.min(day, daysInMonthYM(year, month))));
+}
+
+/**
+ * Prochaine occurrence prévue d'un récurrent, en `YYYY-MM-DD` (UTC).
+ *
+ * On renvoie la première date planifiée strictement postérieure à la dernière
+ * exécution connue **et** à aujourd'hui — c'est-à-dire la prochaine échéance à
+ * venir, pas une échéance déjà en retard. `null` si la fréquence est inconnue.
+ */
+export function nextRecurringOccurrence(
+  recurring: RecurrenceShape,
+  from: Date = new Date(),
+): string | null {
+  const step = Math.max(1, recurring.interval || 1);
+  const today = startOfUtcDay(from);
+  const last = recurring.last_executed ? startOfUtcDay(new Date(recurring.last_executed)) : null;
+  // L'occurrence doit tomber après aujourd'hui et après la dernière exécution.
+  const ref = last && last > today ? last : today;
+
+  if (recurring.frequency === 'weekly') {
+    const stepDays = 7 * step;
+    let cursor = last ? new Date(last) : new Date(today);
+    do {
+      cursor.setUTCDate(cursor.getUTCDate() + stepDays);
+    } while (cursor <= ref);
+    return cursor.toISOString().slice(0, 10);
+  }
+
+  if (recurring.frequency === 'monthly' || recurring.frequency === 'yearly') {
+    const monthStep = recurring.frequency === 'yearly' ? 12 * step : step;
+    const day = recurring.day_of_month ?? 1;
+    let cursor = last
+      ? addMonthsClamped(last, monthStep, day)
+      : new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(),
+          Math.min(day, daysInMonthYM(ref.getUTCFullYear(), ref.getUTCMonth()))));
+    while (cursor <= ref) cursor = addMonthsClamped(cursor, monthStep, day);
+    return cursor.toISOString().slice(0, 10);
+  }
+
+  return null;
+}
+
+/** Coût/revenu mensuel moyen équivalent d'un récurrent (magnitude, signe ignoré). */
+export function recurringMonthlyEquivalent(
+  recurring: Pick<RecurringTransaction, 'amount' | 'frequency' | 'interval'>,
+): number {
+  const step = Math.max(1, recurring.interval || 1);
+  const perMonth =
+    recurring.frequency === 'weekly' ? 52 / 12 / step
+    : recurring.frequency === 'yearly' ? 1 / 12 / step
+    : 1 / step;
+  return Math.round(recurring.amount * perMonth * 100) / 100;
+}
