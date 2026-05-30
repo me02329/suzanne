@@ -20,6 +20,8 @@ import { currentMonthIso } from './lib/format';
 import { navItems, navSections, type Tab } from './lib/nav';
 import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
+import { useGlobalShortcuts } from './lib/useGlobalShortcuts';
+import { Modal } from './components/Modal';
 import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
 import { ThemeToggle, useTheme } from './components/ThemeToggle';
@@ -75,6 +77,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [transactionIssueFilter, setTransactionIssueFilter] = useState<'unassigned_account' | null>(null);
   const [tokenPromptOpen, setTokenPromptOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // The assistant conversation lives here (not in the Assistant page) so it
   // survives tab switches AND full reloads — re-asking the model the same thing
   // burns tokens for nothing. Persisted alongside the user it belongs to so we
@@ -156,6 +159,22 @@ export default function App() {
   useEffect(() => {
     onUnauthorized(() => setTokenPromptOpen(true));
   }, []);
+
+  const shiftMonth = (delta: number) => setMonth((current) => {
+    const [year, monthNum] = current.split('-').map(Number);
+    const index = (monthNum - 1) + delta;
+    const nextYear = year + Math.floor(index / 12);
+    const nextMonth = ((index % 12) + 12) % 12;
+    return `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}`;
+  });
+
+  useGlobalShortcuts({
+    goto: setTab,
+    prevMonth: () => shiftMonth(-1),
+    nextMonth: () => shiftMonth(1),
+    focusSearch: () => (document.querySelector('.search-box input') as HTMLInputElement | null)?.focus(),
+    showHelp: () => setShortcutsOpen(true),
+  });
 
   useEffect(() => {
     reloadUsers().catch((e) => setError((e as Error).message));
@@ -361,6 +380,23 @@ export default function App() {
         )}
         {tab === 'settings' && <Settings />}
       </main>
+
+      {shortcutsOpen && (
+        <Modal title="Raccourcis clavier" onClose={() => setShortcutsOpen(false)}>
+          <div className="shortcuts-help">
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>d</kbd></span> Vue générale</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>t</kbd></span> Transactions</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>s</kbd></span> Statistiques</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>a</kbd></span> Comptes</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>b</kbd></span> Budgets</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>c</kbd></span> Catégories</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>g</kbd></span> Objectifs</div>
+            <div className="shortcuts-row"><span><kbd>/</kbd></span> Rechercher</div>
+            <div className="shortcuts-row"><span><kbd>[</kbd> <kbd>]</kbd></span> Mois précédent / suivant</div>
+            <div className="shortcuts-row"><span><kbd>?</kbd></span> Cette aide</div>
+          </div>
+        </Modal>
+      )}
 
       {tokenPromptOpen && (
         <TokenModal

@@ -1027,6 +1027,20 @@ select:focus, input:focus, textarea:focus {
 .recurring-soon { color: #b45309; font-weight: 600; }
 [data-theme="dark"] .recurring-soon { color: #fbbf24; }
 
+/* Modale d'aide des raccourcis clavier. */
+.shortcuts-help { display: grid; gap: 8px; }
+.shortcuts-row { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.shortcuts-row > span { min-width: 96px; display: inline-flex; gap: 4px; }
+.shortcuts-help kbd {
+  font: 600 12px/1 ui-monospace, monospace;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
 /* Panneau "Budgets en alerte". */
 .budget-alert-row { align-items: center; }
 .budget-alert-info { display: grid; gap: 2px; flex: 1; min-width: 0; }
