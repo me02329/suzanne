@@ -404,6 +404,9 @@ select:focus, input:focus, textarea:focus {
 .stat svg { width: 23px; height: 23px; }
 .stat span { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; }
 .stat strong { font-size: 20px; overflow-wrap: anywhere; }
+.stat-delta { font-size: 12px; font-weight: 600; color: var(--muted); }
+.stat-delta .income { color: var(--income); }
+.stat-delta .expense { color: var(--expense); }
 
 .grid, .charts-grid {
   display: grid;
@@ -1012,6 +1015,10 @@ select:focus, input:focus, textarea:focus {
 .income { color: var(--income); }
 .expense { color: var(--expense); }
 .transfer { color: var(--accent); }
+
+/* Récurrent dont la prochaine occurrence tombe sous 7 jours. */
+.recurring-soon { color: #b45309; font-weight: 600; }
+[data-theme="dark"] .recurring-soon { color: #fbbf24; }
 
 /* Inline error/notice blocks (still used inside specific panels). */
 .error, .notice { padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; font-weight: 700; }

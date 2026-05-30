@@ -60,6 +60,27 @@ export function lastDayOfPreviousMonthIso(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// Formate une date `YYYY-MM-DD` en jj/mm/aaaa + écart relatif en jours.
+// Renvoie aussi `days` (entier de jours depuis aujourd'hui) pour la mise en
+// surbrillance des échéances proches.
+export function formatRelativeDate(iso: string | null): { label: string; days: number | null } {
+  if (!iso) return { label: '—', days: null };
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return { label: '—', days: null };
+  const target = Date.UTC(y, m - 1, d);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((target - today) / 86_400_000);
+  const date = `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+  let rel: string;
+  if (days === 0) rel = "aujourd'hui";
+  else if (days === 1) rel = 'demain';
+  else if (days > 1) rel = `dans ${days} jours`;
+  else if (days === -1) rel = 'hier';
+  else rel = `il y a ${-days} jours`;
+  return { label: `${date} (${rel})`, days };
+}
+
 export function txLabel(t: Transaction, categoryById: Map<number, Category>) {
   return t.description || (t.type === 'transfer' ? 'Transfert' : categoryById.get(t.category_id ?? -1)?.name) || 'Transaction';
 }

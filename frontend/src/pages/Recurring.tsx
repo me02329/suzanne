@@ -1,9 +1,9 @@
-import { FormEvent } from 'react';
+import { FormEvent, useMemo } from 'react';
 import { CalendarClock, ChevronDown, ChevronUp, Plus } from 'lucide-react';
-import type { Account, Category, RecurringFrequency, RecurringTransaction } from '@suzanne-lite/shared';
+import { nextRecurringOccurrence, type Account, type Category, type RecurringFrequency, type RecurringTransaction } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { numberOrNull } from '../lib/forms';
-import { money, recurringFrequencyLabel } from '../lib/format';
+import { formatRelativeDate, money, recurringFrequencyLabel } from '../lib/format';
 import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
@@ -21,6 +21,22 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
   run: Run;
 }) {
   const [addOpen, setAddOpen] = usePersistedState<boolean>('recurring_add_open', recurring.length === 0);
+
+  // Calcule la prochaine occurrence de chaque récurrent actif et trie par
+  // échéance croissante (les inactifs, sans prochaine date, vont en fin de liste).
+  const rows = useMemo(() => {
+    return recurring
+      .map((r) => ({
+        r,
+        next: r.active ? nextRecurringOccurrence(r) : null,
+      }))
+      .sort((a, b) => {
+        if (a.next && b.next) return a.next.localeCompare(b.next);
+        if (a.next) return -1;
+        if (b.next) return 1;
+        return a.r.description.localeCompare(b.r.description);
+      });
+  }, [recurring]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -71,17 +87,19 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
 
       <Panel title="Récurrents">
         <DataTable empty={recurring.length === 0 ? 'Aucune transaction récurrente.' : null}>
-          <thead><tr><th>Description</th><th>Type</th><th className="amount-cell">Montant</th><th>Fréquence</th><th>Jour</th><th>Compte</th><th>Catégorie</th><th className="actions-cell">Actions</th></tr></thead>
+          <thead><tr><th>Description</th><th>Type</th><th className="amount-cell">Montant</th><th>Fréquence</th><th>Prochaine</th><th>Compte</th><th>Catégorie</th><th className="actions-cell">Actions</th></tr></thead>
           <tbody>
-            {recurring.map((r) => {
+            {rows.map(({ r, next }) => {
               const account = accountById.get(r.account_id ?? -1);
+              const occurrence = formatRelativeDate(next);
+              const soon = occurrence.days != null && occurrence.days <= 7;
               return (
                 <tr key={r.id}>
                   <td><strong>{r.description}</strong><span>{r.active ? 'Actif' : 'Inactif'}</span></td>
                   <td><span className={`pill ${r.type}`}>{r.type === 'income' ? 'Revenu' : 'Dépense'}</span></td>
                   <td className={`amount-cell ${r.type === 'income' ? 'income' : 'expense'}`}>{r.type === 'income' ? '+' : '-'}{money(r.amount, account?.currency ?? 'EUR')}</td>
                   <td>{recurringFrequencyLabel(r.frequency, r.interval ?? 1)}</td>
-                  <td>{r.day_of_month ?? 1}</td>
+                  <td className={soon ? 'recurring-soon' : undefined}>{occurrence.label}</td>
                   <td>{account?.name ?? 'Sans compte'}</td>
                   <td>{categoryById.get(r.category_id ?? -1)?.name ?? 'Sans catégorie'}</td>
                   <td className="actions-cell"><IconButton label="Supprimer" onClick={() => void run(() => api.deleteRecurring(userId, r.id), 'Récurrent supprimé')} /></td>
