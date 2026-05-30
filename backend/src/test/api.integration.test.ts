@@ -116,6 +116,17 @@ describe('export / import round trip', () => {
   });
 });
 
+describe('error handling', () => {
+  it('returns a friendly message instead of leaking the Prisma error', async () => {
+    const userId = await createUser();
+    await api.post(`/api/users/${userId}/categories`).send({ name: 'Doublon', type: 'expense', color: '#000000' }).expect(201);
+    const res = await api.post(`/api/users/${userId}/categories`).send({ name: 'Doublon', type: 'expense', color: '#000000' });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Cette entrée existe déjà.');
+    expect(JSON.stringify(res.body)).not.toMatch(/prisma|invocation|\.create\(/i);
+  });
+});
+
 describe('ai health', () => {
   it('responds with a configured flag', async () => {
     const res = await api.get('/api/ai/health').expect(200);
