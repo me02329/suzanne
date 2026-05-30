@@ -27,6 +27,7 @@ COPY --from=build /app/backend/package.json ./backend/package.json
 COPY --from=build /app/shared/dist ./shared/dist
 COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/backend/prisma ./backend/prisma
+COPY --from=build /app/backend/prisma.config.ts ./backend/prisma.config.ts
 COPY --from=build /app/frontend/dist ./backend/public
 COPY --from=build /app/node_modules ./node_modules
 
