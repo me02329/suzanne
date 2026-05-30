@@ -307,29 +307,31 @@ export default function App() {
       </aside>
 
       <main className="content">
-        <header className="topbar">
-          <div className="topbar-title">
-            <button className="menu-toggle" type="button" aria-label="Ouvrir le menu" onClick={() => setSidebarOpen(true)}>
-              <Menu size={22} />
-            </button>
-            <div>
-              <p className="eyebrow">{activeNav?.label ?? 'Vue générale'}</p>
-              <h1>{tab === 'dashboard' ? 'Pilotage financier' : activeNav?.label}</h1>
-            </div>
-            {loading && <span className="spinner" aria-label="Chargement" />}
+        <div className="page-head">
+          <button className="menu-toggle" type="button" aria-label="Ouvrir le menu" onClick={() => setSidebarOpen(true)}>
+            <Menu size={22} />
+          </button>
+          <div>
+            <p className="eyebrow">{activeNav?.label ?? 'Vue générale'}</p>
+            <h1>{tab === 'dashboard' ? 'Pilotage financier' : activeNav?.label}</h1>
           </div>
-          <div className="toolbar">
-            {userId && <SearchBox userId={userId} onNavigate={setActiveTab} />}
-            <select value={userId ?? ''} onChange={(e) => setUserId(Number(e.target.value))} aria-label="Utilisateur">
-              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-            <select value={reportCurrency} onChange={(e) => setReportCurrency(e.target.value)} aria-label="Devise d'affichage">
-              {REPORT_CURRENCIES.map((option) => <option key={option.value} value={option.value}>{option.value}</option>)}
-            </select>
-            <MonthPicker value={month} onChange={setMonth} />
-            <ThemeToggle theme={theme} onChange={setTheme} />
-          </div>
-        </header>
+          {loading && <span className="spinner" aria-label="Chargement" />}
+        </div>
+
+        {/* Controls live in a compact pill pinned top-right; it floats over the
+            content and stays put on scroll, so it no longer eats a full bar on
+            every page. On small screens it drops back into the flow. */}
+        <div className="floating-controls">
+          {userId && <SearchBox userId={userId} onNavigate={setActiveTab} />}
+          <select value={userId ?? ''} onChange={(e) => setUserId(Number(e.target.value))} aria-label="Utilisateur">
+            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+          <select value={reportCurrency} onChange={(e) => setReportCurrency(e.target.value)} aria-label="Devise d'affichage">
+            {REPORT_CURRENCIES.map((option) => <option key={option.value} value={option.value}>{option.value}</option>)}
+          </select>
+          <MonthPicker value={month} onChange={setMonth} />
+          <ThemeToggle theme={theme} onChange={setTheme} />
+        </div>
 
         <Suspense fallback={<div className="page-loading">Chargement…</div>}>
         <Routes>

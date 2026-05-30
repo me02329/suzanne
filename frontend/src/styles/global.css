@@ -210,17 +210,36 @@ button, select, input, textarea { font: inherit; }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.topbar {
+/* Compact control pill, pinned top-right and floating over the content so it
+   no longer eats a full bar on every page. Stays put on scroll. */
+.floating-controls {
+  position: fixed;
+  top: 16px;
+  right: 24px;
+  z-index: 60;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 22px;
-  padding: 18px 20px;
+  gap: 8px;
+  max-width: calc(100vw - 48px);
+  padding: 7px 9px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 999px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+.floating-controls select { font-size: 13px; padding: 6px 8px; }
+.floating-controls .search-box { min-width: 0; }
+.floating-controls .search-box input { width: 170px; }
+
+/* Page heading now lives in the content flow instead of a heavy top bar. The
+   right padding keeps a long title clear of the floating pill. */
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 0 0 22px;
+  padding-right: 220px;
 }
 
 .eyebrow {
@@ -1855,11 +1874,18 @@ textarea {
 }
 
 @media (max-width: 860px) {
-  .topbar, .toolbar {
-    align-items: stretch;
-    flex-direction: column;
+  /* On small screens the pill can't float without covering content: drop it
+     back into the flow as a full-width wrapping toolbar. */
+  .floating-controls {
+    position: static;
+    flex-wrap: wrap;
+    max-width: none;
+    margin-bottom: 16px;
+    border-radius: 14px;
   }
-  .toolbar { width: 100%; }
+  .floating-controls .search-box,
+  .floating-controls .search-box input { width: 100%; }
+  .page-head { padding-right: 0; flex-wrap: wrap; }
   .search-box { min-width: 0; }
   .stats, .grid, .charts-grid, .split, .chart-split { grid-template-columns: 1fr; }
   .assistant-composer { grid-template-columns: 1fr; }
