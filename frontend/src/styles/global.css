@@ -1027,6 +1027,9 @@ select:focus, input:focus, textarea:focus {
 .recurring-soon { color: #b45309; font-weight: 600; }
 [data-theme="dark"] .recurring-soon { color: #fbbf24; }
 
+/* Fallback de chargement d'une page code-splittée. */
+.page-loading { padding: 48px 0; text-align: center; color: var(--muted); }
+
 /* Modale d'aide des raccourcis clavier. */
 .shortcuts-help { display: grid; gap: 8px; }
 .shortcuts-row { display: flex; align-items: center; gap: 12px; font-size: 14px; }

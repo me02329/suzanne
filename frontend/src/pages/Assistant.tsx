@@ -6,6 +6,7 @@ import type { AiPendingAction } from '@suzanne-lite/shared';
 import { api, type AiChatHistoryMessage, type AiHealthStatus } from '../lib/api';
 import type { Run } from '../lib/run';
 import { Modal } from '../components/Modal';
+import { WELCOME, type ChatMessage, type ToolEvent } from '../lib/assistantState';
 
 // Catalogue lisible des capacités de l'assistant, affiché dans la modale
 // « Que puis-je demander ? ». Reflète les tools de backend/src/ai/tools.ts.
@@ -54,34 +55,6 @@ const CAPABILITIES: Array<{
     ],
   },
 ];
-
-interface ToolEvent {
-  id: string;
-  name: string;
-  status: 'running' | 'ok' | 'error';
-  preview?: string;
-}
-
-export interface ChatMessage {
-  id: number;
-  role: 'user' | 'assistant';
-  content: string;
-  streaming?: boolean;
-  actions?: AiPendingAction[];
-  tools?: ToolEvent[];
-}
-
-const WELCOME: ChatMessage = {
-  id: 1,
-  role: 'assistant',
-  content: 'Je peux analyser tes finances, rechercher des transactions, créer / modifier / supprimer (catégories, tags, objectifs, récurrents, budgets, règles, transactions). Toute écriture demande confirmation.',
-};
-
-// The conversation is owned by App so it survives tab switches (avoids re-asking
-// the model the same thing). App resets it when the active user changes.
-export function initialAssistantMessages(): ChatMessage[] {
-  return [WELCOME];
-}
 
 export function Assistant({ userId, month, currency, run, messages, setMessages, streaming, setStreaming, abortRef }: {
   userId: number;

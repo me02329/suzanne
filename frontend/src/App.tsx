@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { ChevronDown, ChevronRight, Menu, X } from 'lucide-react';
 import {
   REPORT_CURRENCIES,
@@ -28,20 +28,26 @@ import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
 import { TokenModal } from './components/TokenModal';
 import { onUnauthorized } from './lib/authToken';
-import { Assistant, initialAssistantMessages, type ChatMessage } from './pages/Assistant';
-import { Dashboard } from './pages/Dashboard';
-import { Statistics } from './pages/Statistics';
-import { Transactions } from './pages/Transactions';
-import { Accounts } from './pages/Accounts';
-import { Categories } from './pages/Categories';
-import { Budgets } from './pages/Budgets';
-import { Recurring } from './pages/Recurring';
-import { Goals } from './pages/Goals';
-import { Rules } from './pages/Rules';
-import { Settings } from './pages/Settings';
-import { Tags } from './pages/Tags';
-import { Tools } from './pages/Tools';
-import { UsersPage } from './pages/Users';
+import { initialAssistantMessages, type ChatMessage } from './lib/assistantState';
+
+// Pages are code-split: each becomes its own chunk so the initial bundle no
+// longer ships every page (and Recharts/react-markdown) up front. The active
+// page loads on demand behind a Suspense fallback. Named exports are remapped
+// to a default so React.lazy keeps each component's prop types.
+const Assistant = lazy(() => import('./pages/Assistant').then((m) => ({ default: m.Assistant })));
+const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
+const Statistics = lazy(() => import('./pages/Statistics').then((m) => ({ default: m.Statistics })));
+const Transactions = lazy(() => import('./pages/Transactions').then((m) => ({ default: m.Transactions })));
+const Accounts = lazy(() => import('./pages/Accounts').then((m) => ({ default: m.Accounts })));
+const Categories = lazy(() => import('./pages/Categories').then((m) => ({ default: m.Categories })));
+const Budgets = lazy(() => import('./pages/Budgets').then((m) => ({ default: m.Budgets })));
+const Recurring = lazy(() => import('./pages/Recurring').then((m) => ({ default: m.Recurring })));
+const Goals = lazy(() => import('./pages/Goals').then((m) => ({ default: m.Goals })));
+const Rules = lazy(() => import('./pages/Rules').then((m) => ({ default: m.Rules })));
+const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
+const Tags = lazy(() => import('./pages/Tags').then((m) => ({ default: m.Tags })));
+const Tools = lazy(() => import('./pages/Tools').then((m) => ({ default: m.Tools })));
+const UsersPage = lazy(() => import('./pages/Users').then((m) => ({ default: m.UsersPage })));
 
 export default function App() {
   const [users, setUsers] = useState<User[]>([]);
@@ -314,6 +320,7 @@ export default function App() {
           </div>
         </header>
 
+        <Suspense fallback={<div className="page-loading">Chargement…</div>}>
         {tab === 'dashboard' && (
           <Dashboard
             userId={userId}
@@ -379,6 +386,7 @@ export default function App() {
           <UsersPage users={users} currentUserId={userId} run={runUsers} />
         )}
         {tab === 'settings' && <Settings />}
+        </Suspense>
       </main>
 
       {shortcutsOpen && (
