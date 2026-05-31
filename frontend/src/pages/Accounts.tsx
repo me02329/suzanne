@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { CalendarCheck, ChevronDown, ChevronUp, Landmark, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CalendarCheck, ChevronDown, ChevronUp, Landmark, LineChart, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
 import {
   ACCOUNT_TYPES,
   REPORT_CURRENCIES,
@@ -374,13 +375,14 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                         return (
                           <li key={account.id}>
                             <div className="account-line-main">
-                              <strong>{account.name}</strong>
+                              <Link className="account-line-name" to={`/accounts/${account.id}`}>{account.name}</Link>
                               <span>{accountTypeLabel(account.type)} · {account.currency}</span>
                             </div>
                             <div className="account-line-amount">
                               {money(estimated?.signed_balance ?? account.initial_balance, reportCurrency)}
                             </div>
                             <div className="account-line-actions">
+                              <Link className="icon-button neutral" to={`/accounts/${account.id}`} aria-label={`Voir la fiche de ${account.name}`} title="Voir la fiche"><LineChart size={14} /></Link>
                               <select
                                 className="reassign-select"
                                 aria-label={`Réassigner ${account.name} à une institution`}

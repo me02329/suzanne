@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Activity,
   BarChart3,
   CalendarClock,
   CreditCard,
@@ -17,7 +18,7 @@ import {
 } from 'lucide-react';
 import type { SearchResult } from '@suzanne-lite/shared';
 
-export type Tab = 'dashboard' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'goals' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast';
+export type Tab = 'dashboard' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'goals' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health';
 
 export interface NavItem {
   tab: Tab;
@@ -37,6 +38,7 @@ export const navItems: NavItem[] = [
   { tab: 'recurring', label: 'Récurrents', icon: React.createElement(Repeat, { size: 18 }) },
   { tab: 'forecast', label: 'Prévisionnel', icon: React.createElement(CalendarClock, { size: 18 }) },
   { tab: 'statistics', label: 'Statistiques', icon: React.createElement(PieChart, { size: 18 }) },
+  { tab: 'health', label: 'Santé financière', icon: React.createElement(Activity, { size: 18 }) },
   { tab: 'accounts', label: 'Comptes', icon: React.createElement(Landmark, { size: 18 }) },
   { tab: 'categories', label: 'Catégories', icon: React.createElement(Tags, { size: 18 }) },
   { tab: 'tags', label: 'Tags', icon: React.createElement(TagIcon, { size: 18 }) },
@@ -50,7 +52,7 @@ export const navItems: NavItem[] = [
 ];
 
 export const navSections: NavSection[] = [
-  { id: 'pilotage', label: 'Pilotage', items: navItems.filter((item) => ['dashboard', 'transactions', 'recurring', 'forecast', 'statistics', 'budgets'].includes(item.tab)) },
+  { id: 'pilotage', label: 'Pilotage', items: navItems.filter((item) => ['dashboard', 'transactions', 'recurring', 'forecast', 'statistics', 'health', 'budgets'].includes(item.tab)) },
   { id: 'structure', label: 'Structure', items: navItems.filter((item) => ['accounts', 'categories', 'tags', 'goals', 'rules'].includes(item.tab)) },
   { id: 'admin', label: 'Administration', items: navItems.filter((item) => ['tools', 'users', 'settings'].includes(item.tab)) },
   { id: 'ai', label: 'Intelligence', items: navItems.filter((item) => ['assistant'].includes(item.tab)) },

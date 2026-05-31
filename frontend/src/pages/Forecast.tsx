@@ -14,15 +14,12 @@ import type { Account, Category, DashboardSummary, RecurringTransaction, Savings
 import { money as moneyFmt, moneyCompact as moneyCompactFmt, formatRelativeDate } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
+import { liquidBalance } from '../lib/balances';
 import { buildForecast } from '../lib/forecast';
 import { EmptyChart } from '../components/EmptyChart';
 import { DataTable } from '../components/DataTable';
 import { Panel } from '../components/Panel';
 import { Stat } from '../components/Stat';
-
-// Liquid accounts whose balance the recurring income/expenses actually move.
-// Investments, crypto and liabilities are excluded from the cash projection.
-const LIQUID_GROUPS = new Set(['cash', 'regulated_savings']);
 
 const HORIZONS: Array<{ value: string; label: string }> = [
   { value: '30', label: '30 jours' },
@@ -54,12 +51,7 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
 
   // Starting point: sum of the liquid accounts' balances, already converted to
   // the report currency by the dashboard endpoint.
-  const startingBalance = useMemo(() => {
-    if (!summary) return 0;
-    return summary.account_balances
-      .filter((a) => LIQUID_GROUPS.has(a.group))
-      .reduce((sum, a) => sum + a.signed_balance, 0);
-  }, [summary]);
+  const startingBalance = useMemo(() => liquidBalance(summary), [summary]);
 
   const rateFor = useMemo(() => {
     const rates = summary?.exchange_rates ?? {};

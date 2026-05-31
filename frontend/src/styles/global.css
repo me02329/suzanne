@@ -443,6 +443,66 @@ select:focus, input:focus, textarea:focus {
 .stat-delta .income { color: var(--income); }
 .stat-delta .expense { color: var(--expense); }
 
+/* Financial-health page: metric cards with a rating badge, the fixed/variable
+   split bar and the budget-adherence list. */
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.health-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 17px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.health-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.health-icon { display: inline-flex; color: var(--accent); }
+.health-icon svg { width: 20px; height: 20px; }
+.health-label { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; }
+.health-value { font-size: 24px; overflow-wrap: anywhere; }
+.health-sub { color: var(--muted); font-size: 12px; }
+.health-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.health-badge.good { background: rgba(21, 128, 61, 0.12); color: var(--income); }
+.health-badge.warn { background: rgba(217, 119, 6, 0.14); color: #b45309; }
+.health-badge.bad { background: rgba(220, 38, 38, 0.12); color: var(--expense); }
+.health-badge.unknown { background: var(--surface-muted); color: var(--muted); }
+
+.health-split { display: grid; gap: 12px; }
+.health-split-bar { display: flex; height: 16px; border-radius: 999px; overflow: hidden; background: var(--surface-muted); }
+.health-split-bar .fixed { background: var(--accent); }
+.health-split-bar .variable { background: var(--income); }
+.health-split-legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; color: var(--muted); }
+.health-split-legend strong { margin-left: 6px; color: var(--text); }
+.health-split-legend .dot { display: inline-block; margin-right: 8px; vertical-align: middle; }
+.health-split-legend .dot.fixed { background: var(--accent); }
+.health-split-legend .dot.variable { background: var(--income); }
+
+.health-budgets { display: grid; gap: 14px; }
+.health-budget { display: grid; gap: 6px; }
+.health-budget-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 700; }
+
+/* Account detail (drill-down) page. */
+.back-link { align-self: start; }
+.account-line-name {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+.account-line-name:hover { color: var(--accent); text-decoration: underline; }
+.account-ceiling { display: grid; gap: 6px; margin-top: 6px; }
+.account-ceiling-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 700; }
+
 .grid, .charts-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
