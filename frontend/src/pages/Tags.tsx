@@ -60,7 +60,7 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
           <tbody>
             {tags.map((t) => (
               <tr key={t.id}>
-                <td><span className="tag-chip" style={{ background: t.color }}>{t.name}</span></td>
+                <td><span className="tag-chip" style={{ background: t.color }} title={t.name}>{t.name}</span></td>
                 <td><code>{t.color}</code></td>
                 <td>{new Date(t.created_at).toLocaleDateString('fr-FR')}</td>
                 <td className="actions-cell">

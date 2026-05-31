@@ -95,7 +95,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
               const soon = occurrence.days != null && occurrence.days <= 7;
               return (
                 <tr key={r.id}>
-                  <td><strong>{r.description}</strong><span>{r.active ? 'Actif' : 'Inactif'}</span></td>
+                  <td><strong title={r.description}>{r.description}</strong><span>{r.active ? 'Actif' : 'Inactif'}</span></td>
                   <td><span className={`pill ${r.type}`}>{r.type === 'income' ? 'Revenu' : 'Dépense'}</span></td>
                   <td className={`amount-cell ${r.type === 'income' ? 'income' : 'expense'}`}>{r.type === 'income' ? '+' : '-'}{money(r.amount, account?.currency ?? 'EUR')}</td>
                   <td>{recurringFrequencyLabel(r.frequency, r.interval ?? 1)}</td>

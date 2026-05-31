@@ -155,7 +155,7 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
                 return (
                   <tr key={`${event.recurringId}-${event.date}-${index}`}>
                     <td data-label="Date">{formatRelativeDate(event.date).label}</td>
-                    <td data-label="Libellé"><strong>{event.description}</strong></td>
+                    <td data-label="Libellé"><strong title={event.description}>{event.description}</strong></td>
                     <td data-label="Compte">{account?.name ?? <span className="muted">—</span>}</td>
                     <td data-label="Catégorie">{category?.name ?? <span className="muted">—</span>}</td>
                     <td className={`amount-cell ${event.type === 'income' ? 'income' : 'expense'}`} data-label="Montant">

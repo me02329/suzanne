@@ -331,7 +331,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                 <div className="institution-card" key={institution.id ?? 'none'}>
                   <div className="institution-card-header">
                     <div>
-                      <strong>{institution.name}</strong>
+                      <strong title={institution.name}>{institution.name}</strong>
                       <span>{accountsHere.length} compte{accountsHere.length > 1 ? 's' : ''}</span>
                     </div>
                     <div className="institution-card-actions">
@@ -375,7 +375,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                         return (
                           <li key={account.id}>
                             <div className="account-line-main">
-                              <Link className="account-line-name" to={`/accounts/${account.id}`}>{account.name}</Link>
+                              <Link className="account-line-name" to={`/accounts/${account.id}`} title={account.name}>{account.name}</Link>
                               <span>{accountTypeLabel(account.type)} · {account.currency}</span>
                             </div>
                             <div className="account-line-amount">

@@ -1119,6 +1119,37 @@ select:focus, input:focus, textarea:focus {
 .category-row span:nth-child(2), .row > div, .budget > div:first-child { flex: 1; min-width: 0; }
 .tx > div, .row > div, .budget > div:first-child { display: grid; gap: 4px; min-width: 0; }
 .tx span, .row span, .budget span { color: var(--muted); font-size: 13px; }
+
+/* --- Text truncation -------------------------------------------------------
+   Long dynamic text (names, descriptions) is capped to a single line with an
+   ellipsis instead of wrapping onto — or overflowing over — neighbouring
+   content, which is what caused the overlaps on mobile. min-width:0 lets the
+   element shrink inside its flex/grid parent; pair with a title attribute in
+   JSX so the full text shows on hover. */
+.truncate,
+.tx > div > strong,
+.tx > div > span,
+.row > div > strong,
+.row > div > span,
+.budget > div:first-child > strong,
+.budget > div:first-child > span,
+.category-row > span:nth-child(2),
+.account-line-name,
+.account-line-main span,
+.institution-card-header > div > strong,
+.goal-account,
+.budget-alert-name,
+.budget-alert-note {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tag chips keep their pill shape but can't push past their container. */
+.tag-chip { max-width: 100%; overflow: hidden; }
+
 .income { color: var(--income); }
 .expense { color: var(--expense); }
 .transfer { color: var(--accent); }
@@ -2020,7 +2051,13 @@ textarea {
     gap: 3px;
     padding: 0;
     border: 0;
+    min-width: 0;
+    max-width: 100%;
   }
+  /* In the card layout there's vertical room, so wrap long values/labels rather
+     than hide them — this is what stops text spilling over its neighbour. */
+  .tx-table td > strong,
+  .tx-table td > span { max-width: 100%; overflow-wrap: anywhere; }
   .tx-table td::before {
     content: attr(data-label);
     color: var(--muted);

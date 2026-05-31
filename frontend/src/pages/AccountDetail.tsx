@@ -191,7 +191,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                 return (
                   <tr key={tx.id}>
                     <td data-label="Date">{new Date(tx.date).toLocaleDateString('fr-FR')}</td>
-                    <td data-label="Libellé"><strong>{label}</strong></td>
+                    <td data-label="Libellé"><strong title={label}>{label}</strong></td>
                     <td data-label="Catégorie">{category?.name ?? <span className="muted">—</span>}</td>
                     <td className={`amount-cell ${signed >= 0 ? 'income' : 'expense'}`} data-label="Montant">
                       {signed >= 0 ? '+' : '-'}{nativeMoney(Math.abs(signed))}

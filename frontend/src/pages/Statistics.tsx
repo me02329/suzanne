@@ -130,7 +130,7 @@ export function Statistics({ userId, reportCurrency }: { userId: number; reportC
               {byCategory.slice(0, 12).map((row) => (
                 <div className="category-row" key={row.category_id ?? row.name}>
                   <span className="dot" style={{ background: row.color }} />
-                  <span>{row.name}</span>
+                  <span title={row.name}>{row.name}</span>
                   <strong>{money(row.amount)}</strong>
                 </div>
               ))}

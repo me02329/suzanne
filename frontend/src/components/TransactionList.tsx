@@ -15,8 +15,8 @@ export function TransactionList({ transactions, categoryById, accountById }: {
         return (
           <div className="tx" key={t.id}>
             <div>
-              <strong>{txLabel(t, categoryById)}</strong>
-              <span>{new Date(t.date).toLocaleDateString('fr-FR')} · {accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · {categoryById.get(t.category_id ?? -1)?.name ?? 'Sans catégorie'}</span>
+              <strong title={txLabel(t, categoryById)}>{txLabel(t, categoryById)}</strong>
+              <span title={`${accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · ${categoryById.get(t.category_id ?? -1)?.name ?? 'Sans catégorie'}`}>{new Date(t.date).toLocaleDateString('fr-FR')} · {accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · {categoryById.get(t.category_id ?? -1)?.name ?? 'Sans catégorie'}</span>
             </div>
             {t.type === 'transfer'
               ? <strong className="transfer">{money(t.amount, sourceCurrency)} {'->'} {money(t.to_amount ?? t.amount, destinationCurrency)}</strong>

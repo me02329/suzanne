@@ -4,8 +4,8 @@ export function Row({ title, detail, onDelete, confirm }: { title: string; detai
   return (
     <div className="row">
       <div>
-        <strong>{title}</strong>
-        <span>{detail}</span>
+        <strong title={title}>{title}</strong>
+        <span title={detail}>{detail}</span>
       </div>
       <IconButton label="Supprimer" confirm={confirm} onClick={onDelete} />
     </div>

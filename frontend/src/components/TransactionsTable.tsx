@@ -120,7 +120,7 @@ export function TransactionsTable({
                 </td>
                 <td className="nowrap tx-accent" data-label="Date">{new Date(t.date).toLocaleDateString('fr-FR')}</td>
                 <td data-label="Libellé">
-                  <strong>
+                  <strong title={txLabel(t, categoryById)}>
                     {txLabel(t, categoryById)}
                     {linked && <span className="badge-recurring" title="Liée à une récurrence">↻</span>}
                   </strong>

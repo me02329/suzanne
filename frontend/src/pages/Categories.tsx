@@ -64,7 +64,7 @@ export function Categories({ userId, categories, run }: { userId: number; catego
           <tbody>
             {categories.map((c) => (
               <tr key={c.id}>
-                <td><span className="dot inline" style={{ background: c.color }} /><strong>{c.name}</strong></td>
+                <td><span className="dot inline" style={{ background: c.color }} /><strong title={c.name}>{c.name}</strong></td>
                 <td><span className={`pill ${c.type}`}>{c.type === 'income' ? 'Revenu' : 'Dépense'}</span></td>
                 <td>{c.icon ?? '-'}</td>
                 <td className="actions-cell">

@@ -104,7 +104,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
               const account = g.account_id != null ? accountById.get(g.account_id) : null;
               return (
                 <tr key={g.id}>
-                  <td><span className="dot inline" style={{ background: g.color }} /><strong>{g.name}</strong></td>
+                  <td><span className="dot inline" style={{ background: g.color }} /><strong title={g.name}>{g.name}</strong></td>
                   <td>{account ? <span className="goal-account"><Link2 size={12} /> {account.name}</span> : <span className="muted">Manuel</span>}</td>
                   <td className="amount-cell">{money(g.current_amount)}</td>
                   <td className="amount-cell">{money(g.target_amount)}</td>

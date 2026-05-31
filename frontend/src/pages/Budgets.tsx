@@ -59,7 +59,7 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
               const pct = Math.min(100, (spent / b.amount_limit) * 100);
               return (
                 <tr key={b.id}>
-                  <td><strong>{category?.name ?? 'Catégorie'}</strong></td>
+                  <td><strong title={category?.name ?? 'Catégorie'}>{category?.name ?? 'Catégorie'}</strong></td>
                   <td className="amount-cell expense">{money(spent)}</td>
                   <td className="amount-cell">{money(b.amount_limit)}</td>
                   <td>

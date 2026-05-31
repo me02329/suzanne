@@ -511,7 +511,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
                 {categoryRows.map((row) => (
                   <div className="category-row" key={row.category_id ?? 'none'}>
                     <span className="dot" style={{ background: row.color }} />
-                    <span>{row.name}</span>
+                    <span title={row.name}>{row.name}</span>
                     <strong>{money(row.amount)}</strong>
                   </div>
                 ))}
@@ -527,7 +527,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
                   <div className="category-row budget-alert-row" key={row.id}>
                     <span className="dot inline" style={{ background: row.color }} />
                     <div className="budget-alert-info">
-                      <span className="budget-alert-name">{row.name}</span>
+                      <span className="budget-alert-name" title={row.name}>{row.name}</span>
                       <span className={`budget-alert-note ${row.pct >= 100 ? 'over' : ''}`}>
                         {money(row.spent)} / {money(row.limit)}
                         {row.pct >= 100
@@ -642,7 +642,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
               {activeRecurring.slice(0, 6).map((r) => (
                 <div className="category-row" key={r.id}>
                   <span className="dot" style={{ background: r.type === 'income' ? incomeColor : expenseColor }} />
-                  <span>{r.description}</span>
+                  <span title={r.description}>{r.description}</span>
                   <strong className={r.type === 'income' ? 'income' : 'expense'}>{r.type === 'income' ? '+' : '-'}{money(r.amount)}</strong>
                 </div>
               ))}
