@@ -11,7 +11,6 @@ import {
 } from 'recharts';
 import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, Landmark, Loader2, Wallet } from 'lucide-react';
 import {
-  LIVRET_CEILINGS,
   accountTypeLabel,
   type Account,
   type AccountSnapshot,
@@ -23,7 +22,7 @@ import { api } from '../lib/api';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
-import { accountSignedAmount, touchesAccount } from '../lib/account';
+import { accountSignedAmount, livretCeiling, touchesAccount } from '../lib/account';
 import { DataTable } from '../components/DataTable';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
@@ -109,8 +108,8 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
 
   const balanceRow = summary?.account_balances.find((a) => a.account_id === account.id);
   const currentBalance = balanceRow?.signed_balance ?? account.initial_balance;
-  const ceiling = LIVRET_CEILINGS[account.type];
-  const showCeiling = ceiling != null && reportCurrency === 'EUR';
+  const ceiling = livretCeiling(account, reportCurrency);
+  const showCeiling = ceiling != null;
   const ceilingPct = ceiling ? Math.min(100, (currentBalance / ceiling) * 100) : 0;
   const accountSnapshots = snapshots.filter((s) => s.account_id === account.id);
   const chartData = history.map((p) => ({ ...p, label: formatMonth(p.date.slice(0, 7)) }));

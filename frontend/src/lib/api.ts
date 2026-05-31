@@ -125,6 +125,8 @@ export const api = {
   deleteBudget: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/budgets/${id}`, { method: 'DELETE' }),
   recurring: (userId: number) => http<RecurringTransaction[]>(`/users/${userId}/recurring-transactions`),
   createRecurring: (userId: number, body: CreateRecurringBody) => http<RecurringTransaction>(`/users/${userId}/recurring-transactions`, { method: 'POST', body: JSON.stringify(body) }),
+  updateRecurring: (userId: number, id: number, body: Partial<CreateRecurringBody>) =>
+    http<RecurringTransaction>(`/users/${userId}/recurring-transactions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteRecurring: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/recurring-transactions/${id}`, { method: 'DELETE' }),
   generateRecurring: (userId: number) => http<{ generated: number }>(`/users/${userId}/recurring-transactions/generate`, { method: 'POST' }),
   rules: (userId: number) => http<CategoryRule[]>(`/users/${userId}/category-rules`),

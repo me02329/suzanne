@@ -1158,6 +1158,22 @@ select:focus, input:focus, textarea:focus {
 .recurring-soon { color: #b45309; font-weight: 600; }
 [data-theme="dark"] .recurring-soon { color: #fbbf24; }
 
+/* Ligne d'un récurrent désactivé : atténuée, exclue des totaux. */
+tr.row-muted td { opacity: 0.55; }
+
+/* Récurrents groupés par cadence (mensuels / périodiques / hebdo). */
+.cadence-group + .cadence-group { margin-top: 1.25rem; }
+.cadence-group-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 0.4rem; padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+.cadence-group-head span { font-weight: 600; }
+.cadence-group-head strong { font-variant-numeric: tabular-nums; }
+.cadence-group-head small,
+.cadence-unit { color: var(--muted); font-weight: 400; margin-left: 1px; }
+.cadence-summary { display: flex; flex-wrap: wrap; gap: 0.15rem; }
+
 /* Fallback de chargement d'une page code-splittée. */
 .page-loading { padding: 48px 0; text-align: center; color: var(--muted); }
 

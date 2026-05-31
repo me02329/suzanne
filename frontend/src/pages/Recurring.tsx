@@ -1,9 +1,10 @@
 import { FormEvent, useMemo } from 'react';
-import { CalendarClock, ChevronDown, ChevronUp, Plus } from 'lucide-react';
-import { nextRecurringOccurrence, type Account, type Category, type RecurringFrequency, type RecurringTransaction } from '@suzanne-lite/shared';
+import { ArrowUpCircle, CalendarClock, ChevronDown, ChevronUp, PauseCircle, PlayCircle, Plus, Repeat } from 'lucide-react';
+import { nextRecurringOccurrence, type Account, type Category, type DashboardSummary, type RecurringFrequency, type RecurringTransaction } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { numberOrNull } from '../lib/forms';
 import { formatRelativeDate, money, recurringFrequencyLabel } from '../lib/format';
+import { cadenceTotals, groupByCadence, type CadenceGroup } from '../lib/subscriptions';
 import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
@@ -11,32 +12,45 @@ import { Panel } from '../components/Panel';
 
 import type { Run } from '../lib/run';
 
-export function Recurring({ userId, recurring, accounts, categories, categoryById, accountById, run }: {
+export function Recurring({ userId, recurring, accounts, categories, categoryById, accountById, summary, reportCurrency, run }: {
   userId: number;
   recurring: RecurringTransaction[];
   accounts: Account[];
   categories: Category[];
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
+  summary: DashboardSummary | null;
+  reportCurrency: string;
   run: Run;
 }) {
   const [addOpen, setAddOpen] = usePersistedState<boolean>('recurring_add_open', recurring.length === 0);
 
-  // Calcule la prochaine occurrence de chaque récurrent actif et trie par
-  // échéance croissante (les inactifs, sans prochaine date, vont en fin de liste).
-  const rows = useMemo(() => {
-    return recurring
-      .map((r) => ({
-        r,
-        next: r.active ? nextRecurringOccurrence(r) : null,
-      }))
-      .sort((a, b) => {
-        if (a.next && b.next) return a.next.localeCompare(b.next);
-        if (a.next) return -1;
-        if (b.next) return 1;
-        return a.r.description.localeCompare(b.r.description);
-      });
-  }, [recurring]);
+  const displayCurrency = summary?.currency ?? reportCurrency;
+
+  // Converts a recurring amount (in its account's currency) to the report
+  // currency, mirroring the dashboard/forecast wiring.
+  const rateFor = useMemo(() => {
+    const rates = summary?.exchange_rates ?? {};
+    return (accountId: number | null) => {
+      const currency = (accountId != null ? accountById.get(accountId)?.currency : null) ?? 'EUR';
+      return rates[currency] ?? 1;
+    };
+  }, [summary, accountById]);
+
+  // Recurring split by direction, then bucketed by cadence so each payment is
+  // shown at its real period (a yearly charge stays yearly, never ÷12).
+  const expenseGroups = useMemo(
+    () => groupByCadence(recurring.filter((r) => r.type === 'expense'), rateFor),
+    [recurring, rateFor],
+  );
+  const incomeGroups = useMemo(
+    () => groupByCadence(recurring.filter((r) => r.type === 'income'), rateFor),
+    [recurring, rateFor],
+  );
+  const expenseTotals = useMemo(
+    () => cadenceTotals(recurring.filter((r) => r.type === 'expense' && r.active), rateFor),
+    [recurring, rateFor],
+  );
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -55,6 +69,67 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
     }), 'Récurrent ajouté');
     form.reset();
   };
+
+  const renderGroups = (groups: CadenceGroup[]) => groups.map((group) => (
+    <div className="cadence-group" key={group.cadence}>
+      <div className="cadence-group-head">
+        <span>{group.label}</span>
+        <strong>{money(group.total, displayCurrency)}<small>{group.unit}</small></strong>
+      </div>
+      <DataTable empty={null}>
+        <thead>
+          <tr>
+            <th>Libellé</th>
+            <th className="amount-cell">Montant</th>
+            <th>Prochaine</th>
+            <th>Compte</th>
+            <th>Catégorie</th>
+            <th className="actions-cell">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {group.rows.map(({ r, native }) => {
+            const account = accountById.get(r.account_id ?? -1);
+            const currency = account?.currency ?? 'EUR';
+            const occurrence = formatRelativeDate(r.active ? nextRecurringOccurrence(r) : null);
+            const soon = occurrence.days != null && occurrence.days <= 7;
+            const sign = r.type === 'income' ? '+' : '-';
+            const tone = r.type === 'income' ? 'income' : 'expense';
+            return (
+              <tr key={r.id} className={r.active ? undefined : 'row-muted'}>
+                <td data-label="Libellé">
+                  <strong title={r.description}>{r.description}</strong>
+                  <span>{recurringFrequencyLabel(r.frequency, r.interval ?? 1)}{r.active ? '' : ' · Inactif'}</span>
+                </td>
+                <td className={`amount-cell ${tone}`} data-label="Montant">{sign}{money(native, currency)}<small className="cadence-unit">{group.unit}</small></td>
+                <td data-label="Prochaine" className={soon ? 'recurring-soon' : undefined}>{r.active ? occurrence.label : '—'}</td>
+                <td data-label="Compte">{account?.name ?? 'Sans compte'}</td>
+                <td data-label="Catégorie">{categoryById.get(r.category_id ?? -1)?.name ?? 'Sans catégorie'}</td>
+                <td className="actions-cell">
+                  <IconButton
+                    label={r.active ? 'Désactiver' : 'Activer'}
+                    tone="neutral"
+                    icon={r.active ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
+                    onClick={() => void run(() => api.updateRecurring(userId, r.id, { active: !r.active }), r.active ? 'Récurrent désactivé' : 'Récurrent activé')}
+                  />
+                  <IconButton label="Supprimer" onClick={() => void run(() => api.deleteRecurring(userId, r.id), 'Récurrent supprimé')} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </DataTable>
+    </div>
+  ));
+
+  // At-a-glance totals, each in its own unit and never summed across cadences —
+  // a yearly lump and a monthly charge aren't the same kind of money.
+  const summaryParts = ([
+    ['Mensuels', expenseTotals.monthly, '/mois'],
+    ['Périodiques', expenseTotals.periodic, '/an'],
+    ['Hebdo', expenseTotals.weekly, '/sem'],
+  ] as const).filter(([, value]) => value > 0);
+
   return (
     <section className="stack">
       <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
@@ -85,30 +160,22 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
         )}
       </div>
 
-      <Panel title="Récurrents" icon={<CalendarClock />}>
-        <DataTable empty={recurring.length === 0 ? 'Aucune transaction récurrente.' : null}>
-          <thead><tr><th>Description</th><th>Type</th><th className="amount-cell">Montant</th><th>Fréquence</th><th>Prochaine</th><th>Compte</th><th>Catégorie</th><th className="actions-cell">Actions</th></tr></thead>
-          <tbody>
-            {rows.map(({ r, next }) => {
-              const account = accountById.get(r.account_id ?? -1);
-              const occurrence = formatRelativeDate(next);
-              const soon = occurrence.days != null && occurrence.days <= 7;
-              return (
-                <tr key={r.id}>
-                  <td><strong title={r.description}>{r.description}</strong><span>{r.active ? 'Actif' : 'Inactif'}</span></td>
-                  <td><span className={`pill ${r.type}`}>{r.type === 'income' ? 'Revenu' : 'Dépense'}</span></td>
-                  <td className={`amount-cell ${r.type === 'income' ? 'income' : 'expense'}`}>{r.type === 'income' ? '+' : '-'}{money(r.amount, account?.currency ?? 'EUR')}</td>
-                  <td>{recurringFrequencyLabel(r.frequency, r.interval ?? 1)}</td>
-                  <td className={soon ? 'recurring-soon' : undefined}>{occurrence.label}</td>
-                  <td>{account?.name ?? 'Sans compte'}</td>
-                  <td>{categoryById.get(r.category_id ?? -1)?.name ?? 'Sans catégorie'}</td>
-                  <td className="actions-cell"><IconButton label="Supprimer" onClick={() => void run(() => api.deleteRecurring(userId, r.id), 'Récurrent supprimé')} /></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </DataTable>
+      <Panel title="Engagements récurrents" icon={<Repeat />}>
+        {summaryParts.length > 0 && (
+          <p className="panel-note cadence-summary">
+            {summaryParts.map(([label, value, unit], i) => (
+              <span key={label}>{i > 0 ? ' · ' : ''}{label} <strong className="expense">{money(value, displayCurrency)}{unit}</strong></span>
+            ))}
+          </p>
+        )}
+        {expenseGroups.length > 0 ? renderGroups(expenseGroups) : <p className="empty">Aucune dépense récurrente.</p>}
       </Panel>
+
+      {incomeGroups.length > 0 && (
+        <Panel title="Revenus récurrents" icon={<ArrowUpCircle />}>
+          {renderGroups(incomeGroups)}
+        </Panel>
+      )}
     </section>
   );
 }

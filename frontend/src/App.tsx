@@ -388,7 +388,7 @@ export default function App() {
           <Route path="/accounts/:id" element={userId ? <AccountDetail userId={userId} accounts={accounts} summary={summary} snapshots={snapshots} categoryById={categoryById} reportCurrency={reportCurrency} /> : null} />
           <Route path="/categories" element={userId ? <Categories userId={userId} categories={categories} run={run} /> : null} />
           <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} budgets={budgets} summary={summary} run={run} /> : null} />
-          <Route path="/recurring" element={userId ? <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} run={run} /> : null} />
+          <Route path="/recurring" element={userId ? <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} summary={summary} reportCurrency={reportCurrency} run={run} /> : null} />
           <Route path="/forecast" element={userId ? <Forecast recurring={recurring} accounts={accounts} goals={goals} summary={summary} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
           <Route path="/health" element={userId ? <Health summary={summary} recurring={recurring} budgets={budgets} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
           <Route path="/goals" element={userId ? <Goals userId={userId} goals={goals} accounts={accounts} accountById={accountById} run={run} /> : null} />

@@ -49,6 +49,7 @@ import {
 } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
+import { CADENCE_META, cadenceAmount, cadenceOf, cadenceTotals } from '../lib/subscriptions';
 import { DashboardSection } from '../components/DashboardSection';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
@@ -185,9 +186,24 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   const wealthByGroup = (summary?.balance_by_group ?? []).filter((row) => Math.abs(row.signed_amount) > 0);
   const accountBalances = summary?.account_balances ?? [];
   const savingRate = summary && summary.income > 0 ? Math.round((summary.net / summary.income) * 100) : 0;
-  const activeRecurring = recurring.filter((r) => r.active);
-  const subscriptionExpenses = activeRecurring.filter((r) => r.type === 'expense').reduce((sum, r) => sum + r.amount, 0);
-  const subscriptionIncomes = activeRecurring.filter((r) => r.type === 'income').reduce((sum, r) => sum + r.amount, 0);
+  const recurringRate = (accountId: number | null) => {
+    const accountCurrency = (accountId != null ? accountById.get(accountId)?.currency : null) ?? 'EUR';
+    return (summary?.exchange_rates ?? {})[accountCurrency] ?? 1;
+  };
+  // Active subscriptions bucketed by cadence — never smeared across months, so a
+  // yearly charge stays yearly. Same logic as the Récurrents and Santé pages.
+  const activeExpenseRecurring = recurring.filter((r) => r.active && r.type === 'expense');
+  const subTotals = cadenceTotals(activeExpenseRecurring, recurringRate);
+  const topRecurring = activeExpenseRecurring
+    .map((r) => ({ r, native: cadenceAmount(r), unit: CADENCE_META[cadenceOf(r)].unit, report: cadenceAmount(r) * recurringRate(r.account_id) }))
+    .sort((a, b) => b.report - a.report)
+    .slice(0, 6);
+  // Lumps that don't fall every month, kept in their own units beside the
+  // monthly figure rather than folded into it.
+  const subExtras = [
+    subTotals.periodic > 0 ? `${money(subTotals.periodic)}/an` : null,
+    subTotals.weekly > 0 ? `${money(subTotals.weekly)}/sem` : null,
+  ].filter(Boolean).join(' · ');
   const transactionCount = transactions.length;
   const expenseTransactions = transactions.filter((t) => t.type === 'expense');
   const averageExpense = expenseTransactions.length > 0
@@ -336,7 +352,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
           <Stat icon={<Wallet />} label="Patrimoine net" value={money(netWorth ?? 0)} signed={netWorth} />
           <Stat icon={<ArrowUpCircle />} label="Actifs" value={money(summary?.balance_assets ?? 0)} positive />
           <Stat icon={<ArrowDownCircle />} label="Passifs" value={money(summary?.balance_liabilities ?? 0)} negative />
-          <Stat icon={<Repeat />} label="Abonnements/mois" value={money(subscriptionExpenses)} negative />
+          <Stat icon={<Repeat />} label="Abonnements/mois" value={money(subTotals.monthly)} negative delta={subExtras || undefined} />
         </section>
 
         <section className="chart-full">
@@ -628,26 +644,39 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
 
         <section className="charts-grid">
           <Panel title="Abonnements actifs">
-            <div className="dashboard-metric">
-              <div>
-                <span>Sorties mensuelles</span>
-                <strong className="expense">{money(subscriptionExpenses)}</strong>
-              </div>
-              <div>
-                <span>Entrées récurrentes</span>
-                <strong className="income">{money(subscriptionIncomes)}</strong>
-              </div>
-            </div>
-            <div className="category-list compact">
-              {activeRecurring.slice(0, 6).map((r) => (
-                <div className="category-row" key={r.id}>
-                  <span className="dot" style={{ background: r.type === 'income' ? incomeColor : expenseColor }} />
-                  <span title={r.description}>{r.description}</span>
-                  <strong className={r.type === 'income' ? 'income' : 'expense'}>{r.type === 'income' ? '+' : '-'}{money(r.amount)}</strong>
+            {topRecurring.length > 0 ? (
+              <>
+                <div className="dashboard-metric">
+                  <div>
+                    <span>Mensuels</span>
+                    <strong className="expense">{money(subTotals.monthly)}<small className="cadence-unit">/mois</small></strong>
+                  </div>
+                  {subTotals.periodic > 0 && (
+                    <div>
+                      <span>Périodiques</span>
+                      <strong className="expense">{money(subTotals.periodic)}<small className="cadence-unit">/an</small></strong>
+                    </div>
+                  )}
+                  {subTotals.weekly > 0 && (
+                    <div>
+                      <span>Hebdo</span>
+                      <strong className="expense">{money(subTotals.weekly)}<small className="cadence-unit">/sem</small></strong>
+                    </div>
+                  )}
                 </div>
-              ))}
-              {activeRecurring.length === 0 && <p className="empty">Aucun récurrent actif.</p>}
-            </div>
+                <div className="category-list compact">
+                  {topRecurring.map(({ r, report, unit }) => (
+                    <div className="category-row" key={r.id}>
+                      <span className="dot" style={{ background: expenseColor }} />
+                      <span title={r.description}>{r.description}</span>
+                      <strong className="expense">-{money(report)}<small className="cadence-unit">{unit}</small></strong>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="empty">Aucun abonnement actif.</p>
+            )}
           </Panel>
         </section>
       </DashboardSection>

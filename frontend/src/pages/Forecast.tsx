@@ -14,7 +14,7 @@ import type { Account, Category, DashboardSummary, RecurringTransaction, Savings
 import { money as moneyFmt, moneyCompact as moneyCompactFmt, formatRelativeDate } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
-import { liquidBalance } from '../lib/balances';
+import { isLiquidRecurring, liquidBalance } from '../lib/balances';
 import { buildForecast } from '../lib/forecast';
 import { EmptyChart } from '../components/EmptyChart';
 import { DataTable } from '../components/DataTable';
@@ -53,6 +53,14 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
   // the report currency by the dashboard endpoint.
   const startingBalance = useMemo(() => liquidBalance(summary), [summary]);
 
+  // Project only the recurring that actually move that liquid balance — a
+  // recurring on an investment/crypto/liability account would distort a
+  // projection meant to track cash alone.
+  const liquidRecurring = useMemo(
+    () => recurring.filter((r) => isLiquidRecurring(r, accountById)),
+    [recurring, accountById],
+  );
+
   const rateFor = useMemo(() => {
     const rates = summary?.exchange_rates ?? {};
     return (accountId: number | null) => {
@@ -64,10 +72,10 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
   const forecast = useMemo(() => buildForecast({
     horizonDays: Number(horizon),
     startingBalance,
-    recurring,
+    recurring: liquidRecurring,
     goals,
     rateFor,
-  }), [horizon, startingBalance, recurring, goals, rateFor]);
+  }), [horizon, startingBalance, liquidRecurring, goals, rateFor]);
 
   const netFlow = forecast.totalIncome - forecast.totalExpenses;
   const goesNegative = forecast.lowestBalance < 0;

@@ -1,4 +1,14 @@
-import type { Transaction } from '@suzanne-lite/shared';
+import { LIVRET_CEILINGS, type Account, type Transaction } from '@suzanne-lite/shared';
+
+// Regulatory livret ceiling to display for an account, or null when none
+// applies. The ceiling is a French amount in EUR, and the bar compares it
+// against a balance shown in the report currency — so it is only meaningful
+// when the account itself is in EUR *and* the report currency is EUR. Either
+// being non-EUR would compare or display mismatched currencies.
+export function livretCeiling(account: Account, reportCurrency: string): number | null {
+  if (account.currency !== 'EUR' || reportCurrency !== 'EUR') return null;
+  return LIVRET_CEILINGS[account.type] ?? null;
+}
 
 // Signed effect of a transaction on a given account, in that account's own
 // currency. A transfer debits its source (account_id) and credits its
