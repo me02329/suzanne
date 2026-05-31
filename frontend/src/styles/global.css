@@ -1164,13 +1164,16 @@ tr.row-muted td { opacity: 0.55; }
 /* Récurrents groupés par cadence (mensuels / périodiques / hebdo). */
 .cadence-group + .cadence-group { margin-top: 1.25rem; }
 .cadence-group-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  margin-bottom: 0.4rem; padding-bottom: 0.3rem;
-  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; margin-bottom: 0.4rem; padding: 0.2rem 0 0.3rem;
+  border: none; border-bottom: 1px solid var(--border);
+  background: none; color: inherit; font: inherit; cursor: pointer;
 }
-.cadence-group-head span { font-weight: 600; }
+.cadence-group-head:hover .cadence-group-title { color: var(--accent); }
+.cadence-group-title { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; }
+.cadence-group-title small { color: var(--muted); font-weight: 400; }
 .cadence-group-head strong { font-variant-numeric: tabular-nums; }
-.cadence-group-head small,
+.cadence-group-head strong small,
 .cadence-unit { color: var(--muted); font-weight: 400; margin-left: 1px; }
 .cadence-summary { display: flex; flex-wrap: wrap; gap: 0.15rem; }
 

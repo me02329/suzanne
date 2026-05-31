@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { ArrowUpCircle, CalendarClock, ChevronDown, ChevronUp, PauseCircle, Pencil, PlayCircle, Plus, Repeat } from 'lucide-react';
+import { ArrowUpCircle, CalendarClock, ChevronDown, ChevronRight, ChevronUp, PauseCircle, Pencil, PlayCircle, Plus, Repeat } from 'lucide-react';
 import { nextRecurringOccurrence, type Account, type Category, type DashboardSummary, type RecurringFrequency, type RecurringTransaction } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { numberOrNull } from '../lib/forms';
@@ -26,6 +26,11 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
 }) {
   const [addOpen, setAddOpen] = usePersistedState<boolean>('recurring_add_open', recurring.length === 0);
   const [editing, setEditing] = useState<RecurringTransaction | null>(null);
+  // Per-cadence collapse, persisted across sessions. Default open (a missing
+  // key means expanded); keys are namespaced by panel so the monthly section of
+  // expenses and of income fold independently.
+  const [collapsed, setCollapsed] = usePersistedState<Record<string, boolean>>('recurring_groups_collapsed', {});
+  const toggleGroup = (key: string) => setCollapsed({ ...collapsed, [key]: !collapsed[key] });
 
   const displayCurrency = summary?.currency ?? reportCurrency;
 
@@ -92,12 +97,20 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
     setEditing(null);
   };
 
-  const renderGroups = (groups: CadenceGroup[]) => groups.map((group) => (
+  const renderGroups = (groups: CadenceGroup[], prefix: string) => groups.map((group) => {
+    const key = `${prefix}:${group.cadence}`;
+    const open = !collapsed[key];
+    return (
     <div className="cadence-group" key={group.cadence}>
-      <div className="cadence-group-head">
-        <span>{group.label}</span>
+      <button type="button" className="cadence-group-head" onClick={() => toggleGroup(key)} aria-expanded={open}>
+        <span className="cadence-group-title">
+          {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          {group.label}
+          <small>{group.rows.length}</small>
+        </span>
         <strong>{money(group.total, displayCurrency)}<small>{group.unit}</small></strong>
-      </div>
+      </button>
+      {open && (
       <DataTable empty={null}>
         <thead>
           <tr>
@@ -142,8 +155,10 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
           })}
         </tbody>
       </DataTable>
+      )}
     </div>
-  ));
+    );
+  });
 
   // At-a-glance totals, each in its own unit and never summed across cadences —
   // a yearly lump and a monthly charge aren't the same kind of money.
@@ -191,12 +206,12 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
             ))}
           </p>
         )}
-        {expenseGroups.length > 0 ? renderGroups(expenseGroups) : <p className="empty">Aucune dépense récurrente.</p>}
+        {expenseGroups.length > 0 ? renderGroups(expenseGroups, 'exp') : <p className="empty">Aucune dépense récurrente.</p>}
       </Panel>
 
       {incomeGroups.length > 0 && (
         <Panel title="Revenus récurrents" icon={<ArrowUpCircle />}>
-          {renderGroups(incomeGroups)}
+          {renderGroups(incomeGroups, 'inc')}
         </Panel>
       )}
 
