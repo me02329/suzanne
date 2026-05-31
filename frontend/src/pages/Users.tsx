@@ -27,7 +27,7 @@ export function UsersPage({ users, currentUserId, run }: { users: User[]; curren
         {addOpen && (
           <div className="collapsible-body">
             <form className="form form-inline" onSubmit={submit}>
-              <label className="grow">Nom<input name="name" required placeholder="Ex: Démo, Suzanne..." /></label>
+              <label className="grow">Nom<input name="name" required placeholder="Ex: Démo, Famille..." /></label>
               <button className="primary"><UsersIcon size={16} /> Créer</button>
             </form>
           </div>

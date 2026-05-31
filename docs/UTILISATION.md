@@ -10,12 +10,13 @@ Ce guide explique comment utiliser suzanne-lite au quotidien pour suivre comptes
 4. [Le rythme mensuel](#4-le-rythme-mensuel)
 5. [Saisir et corriger les transactions](#5-saisir-et-corriger-les-transactions)
 6. [Lire le tableau de bord](#6-lire-le-tableau-de-bord)
-7. [Utiliser les statistiques](#7-utiliser-les-statistiques)
-8. [Budgets, récurrents et objectifs](#8-budgets-récurrents-et-objectifs)
-9. [Import, règles et exports](#9-import-règles-et-exports)
-10. [Multi-utilisateurs et recherche](#10-multi-utilisateurs-et-recherche)
-11. [Bonnes pratiques](#11-bonnes-pratiques)
-12. [Questions fréquentes](#12-questions-fréquentes)
+7. [Prévisionnel et santé financière](#7-prévisionnel-et-santé-financière)
+8. [Utiliser les statistiques](#8-utiliser-les-statistiques)
+9. [Budgets, récurrents et objectifs](#9-budgets-récurrents-et-objectifs)
+10. [Import, règles et exports](#10-import-règles-et-exports)
+11. [Multi-utilisateurs, recherche et assistant](#11-multi-utilisateurs-recherche-et-assistant)
+12. [Bonnes pratiques](#12-bonnes-pratiques)
+13. [Questions fréquentes](#13-questions-fréquentes)
 
 ---
 
@@ -24,7 +25,7 @@ Ce guide explique comment utiliser suzanne-lite au quotidien pour suivre comptes
 suzanne-lite est accessible à l'URL de ton instance, par exemple :
 
 ```txt
-http://localhost:5173
+http://localhost:5174
 ```
 
 En production, utilise l'adresse configurée derrière ton VPN ou ton reverse-proxy.
@@ -38,6 +39,7 @@ Il n'y a **pas de page de connexion**. Si tu atteins l'application, tu peux cons
 | **Compte** | Support où passent les flux : compte courant, livret, espèces, crédit, emprunt, etc. | *Comptes* |
 | **Transaction** | Mouvement daté : dépense, revenu ou transfert entre comptes. | *Transactions* |
 | **Catégorie** | Poste de classement d'une dépense ou d'un revenu. | *Catégories* |
+| **Tag** | Étiquette libre, multi-valeurs, utile pour croiser les transactions sans changer la catégorie. | *Tags* |
 | **Budget** | Limite mensuelle associée à une catégorie. | *Budgets* |
 | **Snapshot** | Solde réel d'un compte à une date donnée. | *Comptes* |
 | **Récurrent** | Transaction régulière à générer automatiquement. | *Récurrents* |
@@ -49,10 +51,11 @@ Les dépenses diminuent le solde, les revenus l'augmentent, et les transferts d�
 
 1. **Utilisateurs** — crée ou sélectionne ton profil.
 2. **Comptes** — ajoute tes comptes principaux : compte courant, épargne, espèces, crédits ou emprunts. Renseigne la devise, le solde initial et sa date.
-3. **Catégories** — vérifie les catégories de départ, puis ajoute celles qui te manquent.
+3. **Catégories et tags** — vérifie les catégories de départ, puis ajoute les tags qui te serviront à filtrer autrement : perso/pro, vacances, enfant, remboursable, etc.
 4. **Transactions** — commence par le mois courant ou importe ton historique via CSV.
 5. **Budgets** — définis les limites mensuelles des catégories importantes.
-6. **Snapshots** — saisis les soldes réels si tu veux fiabiliser le suivi patrimonial.
+6. **Récurrents** — saisis les revenus et charges fixes pour alimenter les abonnements, la santé financière et le prévisionnel.
+7. **Snapshots** — saisis les soldes réels si tu veux fiabiliser le suivi patrimonial.
 
 Le seed crée un utilisateur, un compte courant et un jeu de catégories de base. Tu peux tout adapter ensuite.
 
@@ -74,6 +77,7 @@ Dans **Transactions**, le panneau de gauche sert à créer une transaction :
 - **Dépense** — compte, catégorie, montant, date et description.
 - **Revenu** — même logique, avec des catégories de type revenu.
 - **Transfert** — compte source, compte destination, montant source et conversion éventuelle côté backend si les devises diffèrent.
+- **Tags** — plusieurs tags peuvent être associés à la même transaction.
 
 La table du mois permet ensuite de travailler vite :
 
@@ -84,7 +88,7 @@ La table du mois permet ensuite de travailler vite :
 - coche plusieurs transactions pour ouvrir **Modifier la sélection** et appliquer un compte ou une catégorie en lot ;
 - lie une transaction à un récurrent pour garder une trace de son origine.
 
-La recherche filtre par date, description, compte, catégorie ou montant. Les filtres permettent de limiter par type de transaction et groupe de comptes.
+La recherche filtre par date, description, compte, catégorie ou montant. Les filtres permettent de limiter par type de transaction, groupe de comptes et tag.
 
 ## 6. Lire le tableau de bord
 
@@ -95,12 +99,41 @@ Tu y retrouves :
 - les totaux **revenus**, **dépenses** et **net** ;
 - le solde estimé et le patrimoine net selon les comptes ;
 - les comptes groupés par type : liquidités, livrets, investissements, crypto, passifs, autres ;
+- les abonnements actifs et leur coût par cadence ;
 - la ventilation des dépenses par catégorie ;
 - les flux mensuels et annuels.
 
 La devise d'affichage se choisit dans la barre supérieure. Les montants sont convertis pour les vues de reporting quand les comptes utilisent plusieurs devises.
 
-## 7. Utiliser les statistiques
+Depuis la page **Comptes**, clique sur un compte pour ouvrir son détail : historique de solde, mouvements récents, snapshots et plafond restant pour les livrets réglementés en euros.
+
+## 7. Prévisionnel et santé financière
+
+### Prévisionnel
+
+L'onglet **Prévisionnel** projette le solde liquide sur 30 jours, 60 jours, 90 jours, 6 mois ou 12 mois.
+
+Il se base sur :
+
+- le solde des comptes liquides ;
+- les récurrents actifs qui impactent ces comptes ;
+- les échéances d'objectifs présentes dans l'horizon.
+
+Il sert surtout à repérer une baisse future : salaire attendu, loyer, abonnements, assurances, échéances annuelles.
+
+### Santé financière
+
+L'onglet **Santé financière** donne des ratios synthétiques :
+
+- taux d'épargne courant et moyen ;
+- fonds d'urgence exprimé en mois de dépenses ;
+- part des récurrents dans les revenus ;
+- charges fixes vs variables ;
+- budgets dépassés ou tenus.
+
+Ces indicateurs ne remplacent pas le détail transactionnel : ils donnent une lecture rapide de la tendance.
+
+## 8. Utiliser les statistiques
 
 L'onglet **Statistiques** analyse les dépenses sur une plage longue : 3 mois, 6 mois, 12 mois, 2 ans ou tout l'historique.
 
@@ -113,7 +146,7 @@ Il affiche :
 
 L'option **Exclure non-catégorisé** s'applique aux analyses par catégorie et marchand. Le graphique d'évolution mensuelle reste volontairement basé sur toutes les dépenses pour refléter le niveau réel de sortie d'argent.
 
-## 8. Budgets, récurrents et objectifs
+## 9. Budgets, récurrents et objectifs
 
 ### Budgets
 
@@ -123,15 +156,17 @@ Associe une limite mensuelle à une catégorie. Le suivi se base sur les transac
 
 Crée les charges et revenus réguliers : loyer, abonnements, salaire, assurances. Le bouton de génération crée les transactions attendues selon la fréquence configurée. Une transaction réelle peut ensuite être liée à son récurrent.
 
+La page regroupe aussi les abonnements par cadence : hebdomadaire, mensuelle, annuelle. Cela évite de lisser artificiellement une dépense annuelle dans un mois où elle ne passe pas réellement.
+
 ### Objectifs
 
 Utilise les objectifs pour suivre une réserve ou un projet : vacances, matelas de sécurité, achat prévu. Chaque objectif a un montant cible, un montant courant, une couleur et éventuellement une échéance.
 
-## 9. Import, règles et exports
+## 10. Import, règles et exports
 
 ### Import CSV
 
-Dans **Import/Export**, colle ou charge un CSV, choisis le format de date et associe les colonnes : date, montant, description et type si disponible. Tu peux aussi choisir un compte par défaut.
+Dans **Import/Export**, clique sur **Importer des transactions**, colle ou charge un CSV, choisis le format de date et associe les colonnes : date, montant, description et type si disponible. Tu peux aussi choisir un compte par défaut.
 
 Après import, les règles de catégorisation sont appliquées aux descriptions reconnues.
 
@@ -141,12 +176,16 @@ Une règle associe un mot-clé à une catégorie. Exemple : `carrefour` → Cour
 
 ### Exports
 
-Deux exports sont disponibles :
+Les raccourcis disponibles :
 
-- **transactions CSV** — historique exploitable dans un tableur ;
-- **sauvegarde JSON** — export complet des données utilisateur.
+- **Backup complet** — export JSON réimportable de toutes les données ;
+- **Année en cours** — export JSON limité aux données financières récentes ;
+- **CSV transactions** — historique exploitable dans un tableur ;
+- **Export sur mesure** — choix des entités et de la plage de dates.
 
-## 10. Multi-utilisateurs et recherche
+La restauration JSON réutilise les entités existantes quand c'est possible. Les transactions sont recréées : restaure plutôt sur un profil vide si tu veux éviter les doublons.
+
+## 11. Multi-utilisateurs, recherche et assistant
 
 Le sélecteur d'utilisateur en haut de l'application change le profil courant. Chaque utilisateur a ses propres comptes, catégories, transactions, budgets et objectifs.
 
@@ -159,16 +198,22 @@ La recherche globale permet de retrouver rapidement :
 
 Cliquer sur un résultat t'amène dans l'onglet concerné.
 
-## 11. Bonnes pratiques
+L'**assistant IA** est optionnel. Il peut analyser les données, chercher des transactions et proposer certaines actions. Les écritures ne sont pas appliquées directement : l'interface demande toujours une confirmation.
+
+La configuration IA se fait via les variables d'environnement ou depuis **Paramètres**. Si aucune clé n'est configurée, l'application reste utilisable sans assistant.
+
+## 12. Bonnes pratiques
 
 - **Catégorise régulièrement.** Les statistiques et budgets deviennent utiles seulement si les transactions sont classées.
 - **Utilise des descriptions stables.** Des libellés cohérents améliorent les règles et le top marchands.
 - **Garde les transferts comme transferts.** Ne les saisis pas comme dépense + revenu, sinon les graphiques de flux seront faussés.
 - **Saisis les snapshots à date fixe.** Une fin de mois régulière rend le suivi de solde plus lisible.
 - **Sauvegarde en JSON avant les grosses opérations.** C'est le moyen le plus simple de conserver une copie complète.
+- **Utilise les tags pour les axes secondaires.** Une transaction garde une seule catégorie, mais peut avoir plusieurs tags.
+- **Vérifie le prévisionnel après avoir modifié les récurrents.** C'est là que les charges fixes oubliées se voient le plus vite.
 - **Ne supprime pas trop vite les catégories.** Recategorise d'abord les transactions qui les utilisent.
 
-## 12. Questions fréquentes
+## 13. Questions fréquentes
 
 **Pourquoi une transaction n'apparaît-elle pas dans le mois courant ?**
 Vérifie la date de la transaction et le mois sélectionné dans la barre supérieure.

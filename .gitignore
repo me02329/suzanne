@@ -1,6 +1,8 @@
 node_modules
 dist
 .env
+.env.*
+!.env.example
 .data
 .DS_Store
 frontend/dist
@@ -8,3 +10,7 @@ backend/dist
 
 *.tsbuildinfo
 AGENTS.md
+CLAUDE.md
+.agents/
+.claude/
+.codex/

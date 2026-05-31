@@ -75,7 +75,7 @@ async function main() {
     });
   }
 
-  console.log('[seed] ensured Démo, default account and categories');
+  console.log('[seed] ensured demo user, default account and categories');
 }
 
 main()

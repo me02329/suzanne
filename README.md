@@ -1,8 +1,6 @@
 # suzanne-lite
 
-[![CI](https://github.com/me02329/suzanne-lite/actions/workflows/ci.yml/badge.svg)](https://github.com/me02329/suzanne-lite/actions/workflows/ci.yml)
-
-> Application personnelle de suivi de finances quotidiennes : comptes, transactions, budgets, catégories, récurrents, objectifs d'épargne, statistiques et import/export.
+> Application auto-hébergée de suivi de finances quotidiennes : comptes, transactions, budgets, catégories, tags, récurrents, objectifs d'épargne, prévisionnel, santé financière, statistiques, assistant IA optionnel et import/export.
 
 suzanne-lite est une application web auto-hébergée, pensée pour suivre simplement les flux du quotidien : *« combien j'ai dépensé ce mois-ci, sur quels postes, depuis quels comptes, et quels mouvements restent à catégoriser ? »*
 
@@ -18,6 +16,7 @@ suzanne-lite est une application web auto-hébergée, pensée pour suivre simple
 - [Architecture](#architecture)
 - [Démarrage rapide (dev)](#démarrage-rapide-dev)
 - [Validation](#validation)
+- [Partager le dépôt](#partager-le-dépôt)
 - [Déploiement (VPS)](#déploiement-vps)
 - [Variables d'environnement](#variables-denvironnement)
 - [Référence API](#référence-api)
@@ -28,17 +27,22 @@ suzanne-lite est une application web auto-hébergée, pensée pour suivre simple
 ## Fonctionnalités
 
 - **Tableau de bord mensuel** — revenus, dépenses, net, solde estimé, comptes, ventilation par catégorie et évolution des flux.
-- **Transactions** — dépenses, revenus et transferts, filtre par mois, recherche, édition inline du compte/de la catégorie, sélection multiple et modification en lot.
+- **Transactions** — dépenses, revenus et transferts, tags, filtre par mois, recherche, édition inline du compte/de la catégorie, sélection multiple et modification en lot.
 - **Comptes** — comptes bancaires, livrets, investissements, crypto, espèces, crédits et emprunts, avec devises et regroupement par type.
-- **Snapshots de solde** — suivi de soldes datés par compte, avec saisie individuelle ou batch.
+- **Détail par compte** — historique de solde, mouvements récents, snapshots et alertes de plafond pour les livrets réglementés.
+- **Snapshots de solde** — suivi de soldes datés par compte, avec saisie batch et pré-remplissage depuis le dernier solde connu.
 - **Catégories** — catégories dépenses/revenus personnalisables, couleurs et icônes.
+- **Tags** — étiquettes libres multi-valeurs sur les transactions, indépendantes des catégories.
 - **Budgets** — limites mensuelles par catégorie, avec suivi du dépensé.
-- **Transactions récurrentes** — charges ou revenus réguliers, génération automatique et liaison à une transaction existante.
+- **Transactions récurrentes / abonnements** — charges ou revenus réguliers, cadence hebdomadaire/mensuelle/annuelle, génération automatique et liaison à une transaction existante.
+- **Prévisionnel** — projection du solde liquide à partir des récurrents actifs et des échéances d'objectifs.
+- **Santé financière** — taux d'épargne, fonds d'urgence, poids des récurrents, charges fixes/variables et adhérence aux budgets.
 - **Règles d'auto-catégorisation** — mots-clés appliqués à l'import CSV.
 - **Statistiques** — répartition par catégorie, top marchands, évolution mensuelle des dépenses et prise en charge des non-catégorisées.
 - **Objectifs d'épargne** — suivi d'objectifs avec montant cible, progression et échéance.
-- **Import / Export** — import CSV configurable, export CSV des transactions et sauvegarde JSON complète.
-- **Confort** — multi-utilisateurs, recherche globale, devise de reporting, interface responsive.
+- **Import / Export** — import CSV configurable, exports rapides, export sélectif JSON réimportable et restauration JSON.
+- **Assistant IA optionnel** — analyse et actions proposées avec confirmation utilisateur, compatible OpenAI ou endpoint Chat Completions équivalent.
+- **Confort** — multi-utilisateurs, recherche globale, devise de reporting, raccourcis clavier, thème clair/sombre et interface responsive.
 
 Interface entièrement en français.
 
@@ -48,12 +52,10 @@ suzanne-lite est volontairement centrée sur le suivi quotidien. Elle ne remplac
 
 Hors périmètre :
 
-- PEA, CTO et suivi de positions boursières ;
+- suivi de positions boursières ou de performance d'actifs ;
 - dividendes, allocation, rebalancing ;
 - récupération de cours de marché ;
-- authentification applicative intégrée.
-
-Pour le suivi PEA, voir le projet séparé `njord`.
+- authentification multi-utilisateurs complète.
 
 ## Stack technique
 
@@ -92,10 +94,10 @@ docker compose -f compose.dev.yml up -d postgres
 npm run migrate:dev -w @suzanne-lite/backend
 npm run db:seed
 
-# 5. Lancer backend (port 3000) et frontend (port 5173) dans deux terminaux
+# 5. Lancer backend (port 3000) et frontend (port 5174) dans deux terminaux
 npm run dev:backend
 npm run dev:frontend
-# Vite proxie /api -> http://localhost:3000 — ouvrir http://localhost:5173
+# Vite proxie /api -> http://localhost:3000 — ouvrir http://localhost:5174
 ```
 
 Pour valider la chaîne conteneur + migrations + healthcheck :
@@ -114,6 +116,17 @@ npm run build
 
 La suite Vitest couvre les helpers partagés, la validation backend, les formats de dates/montants et les utilitaires frontend purs. Le build compile les types partagés, le frontend et le backend, puis génère le client Prisma.
 
+## Partager le dépôt
+
+Le dépôt est prévu pour être partagé sans données personnelles :
+
+- `.env`, `.env.*`, `.data/`, `node_modules/`, les builds et les fichiers locaux d'assistants (`AGENTS.md`, `CLAUDE.md`, `.agents/`, `.claude/`, `.codex/`) sont ignorés ;
+- `.env.example` contient uniquement des valeurs de développement génériques ;
+- le seed crée un utilisateur `Démo`, un compte courant vide et des catégories génériques ;
+- la documentation utilise des domaines et IP d'exemple (`finance.example.internal`, `10.0.0.10`).
+
+Avant de publier une archive manuelle, vérifie qu'elle ne contient pas ton `.env` local ni une sauvegarde JSON réelle.
+
 ## Déploiement (VPS)
 
 > ⚠️ suzanne-lite n'a **aucune authentification intégrée**. Déploie-la derrière un VPN, un reverse-proxy avec authentification, ou sur une interface privée.
@@ -122,11 +135,13 @@ Le fichier `compose.yml` attend un PostgreSQL joignable via `DATABASE_URL` et un
 
 ```bash
 cd /opt/stacks
-gh repo clone me02329/suzanne-lite suzanne-lite
+git clone https://github.com/<owner>/suzanne-lite.git suzanne-lite
 cd suzanne-lite
 
 cat > .env <<ENV
 DATABASE_URL=postgres://suzanne:<password>@postgres:5432/suzanne
+APP_TOKEN=<long-random-shared-secret>
+NODE_ENV=production
 ENV
 
 docker compose up -d --build
@@ -166,6 +181,8 @@ Les migrations sont appliquées automatiquement au démarrage du conteneur.
 | `DATABASE_URL` | *(requis)* | URL PostgreSQL (`postgres://user:pwd@host:5432/db`) |
 | `PORT` | `3000` | Port HTTP interne |
 | `NODE_ENV` | `development` | `production` en prod |
+| `APP_TOKEN` | *(vide)* | Secret partagé optionnel exigé par les routes `/api/*` |
+| `AI_PROVIDER` | `openai` | Libellé du fournisseur IA affiché côté paramètres |
 | `AI_API_KEY` / `OPENAI_API_KEY` | *(vide)* | Clé API utilisée par l'assistant IA |
 | `AI_MODEL` | `gpt-4.1-mini` | Modèle compatible Chat Completions |
 | `AI_BASE_URL` | `https://api.openai.com/v1` | Endpoint OpenAI-compatible (OpenAI, proxy, local, etc.) |
@@ -185,6 +202,8 @@ Toutes les routes métier sont préfixées par `/api`.
 | DELETE | `/api/users/:user_id/institutions/:id` | Supprimer une institution |
 | GET / POST | `/api/users/:user_id/categories` | Lister / créer les catégories |
 | PATCH / DELETE | `/api/users/:user_id/categories/:id` | Modifier / supprimer une catégorie |
+| GET / POST | `/api/users/:user_id/tags` | Lister / créer les tags |
+| PATCH / DELETE | `/api/users/:user_id/tags/:id` | Modifier / supprimer un tag |
 | GET / POST | `/api/users/:user_id/transactions` | Lister / créer les transactions |
 | PATCH / DELETE | `/api/users/:user_id/transactions/:id` | Modifier / supprimer une transaction |
 | POST | `/api/users/:user_id/transactions/:id/link-recurring` | Lier / délier une transaction récurrente |
@@ -209,6 +228,10 @@ Toutes les routes métier sont préfixées par `/api`.
 | POST | `/api/users/:user_id/import.csv` | Import CSV de transactions |
 | GET | `/api/users/:user_id/transactions.csv` | Export CSV des transactions |
 | GET | `/api/users/:user_id/export.json` | Sauvegarde JSON |
+| POST | `/api/users/:user_id/export` | Export JSON sélectif |
+| POST | `/api/users/:user_id/import.json` | Restauration JSON |
+| GET / PUT | `/api/settings/ai` | Lire / modifier la configuration IA stockée |
+| GET | `/api/ai/health` | État de configuration et test de connexion IA |
 
 ## Sécurité
 
