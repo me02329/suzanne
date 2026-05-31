@@ -124,7 +124,17 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const showCeiling = ceiling != null;
   const ceilingPct = ceiling ? Math.min(100, (currentBalance / ceiling) * 100) : 0;
   const accountSnapshots = snapshots.filter((s) => s.account_id === account.id);
-  const chartData = history.map((p) => ({ ...p, label: formatMonth(p.date.slice(0, 7)) }));
+  // This account's own earliest data point — its opening date, or an older
+  // back-dated snapshot if one exists. The global wealth-history can reach
+  // further back (other accounts), which would pad this chart with a long flat
+  // run of 0 before the account had any value; clip that off so the chart
+  // starts where the account actually does.
+  const accountStart = [account.initial_balance_date, ...accountSnapshots.map((s) => s.date)]
+    .map((d) => d.slice(0, 10))
+    .reduce((min, d) => (d < min ? d : min));
+  const chartData = history
+    .filter((p) => p.date.slice(0, 10) >= accountStart)
+    .map((p) => ({ ...p, label: formatMonth(p.date.slice(0, 7)) }));
   const balanceDomain = fitDomain(chartData.map((p) => p.balance));
 
   // Add a balance snapshot for *this* account alone — no need to go through the
