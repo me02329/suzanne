@@ -385,7 +385,7 @@ export default function App() {
           <Route path="/tags" element={userId ? <Tags userId={userId} tags={tags} run={run} /> : null} />
           <Route path="/statistics" element={userId ? <Statistics userId={userId} reportCurrency={reportCurrency} /> : null} />
           <Route path="/accounts" element={userId ? <Accounts userId={userId} accounts={accounts} institutions={institutions} snapshots={snapshots} institutionById={institutionById} summary={summary} run={run} /> : null} />
-          <Route path="/accounts/:id" element={userId ? <AccountDetail userId={userId} accounts={accounts} summary={summary} snapshots={snapshots} categoryById={categoryById} reportCurrency={reportCurrency} /> : null} />
+          <Route path="/accounts/:id" element={userId ? <AccountDetail userId={userId} accounts={accounts} summary={summary} snapshots={snapshots} categoryById={categoryById} reportCurrency={reportCurrency} run={run} /> : null} />
           <Route path="/categories" element={userId ? <Categories userId={userId} categories={categories} run={run} /> : null} />
           <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} budgets={budgets} summary={summary} run={run} /> : null} />
           <Route path="/recurring" element={userId ? <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} summary={summary} reportCurrency={reportCurrency} run={run} /> : null} />

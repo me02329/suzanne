@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   Area,
@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, Landmark, Loader2, Wallet } from 'lucide-react';
+import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, Landmark, Loader2, Plus, Wallet } from 'lucide-react';
 import {
   accountTypeLabel,
   type Account,
@@ -19,14 +19,17 @@ import {
   type Transaction,
 } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
-import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt } from '../lib/format';
+import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, todayIso } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { accountSignedAmount, livretCeiling, touchesAccount } from '../lib/account';
 import { DataTable } from '../components/DataTable';
 import { EmptyChart } from '../components/EmptyChart';
+import { IconButton } from '../components/IconButton';
 import { Panel } from '../components/Panel';
 import { Stat } from '../components/Stat';
+
+import type { Run } from '../lib/run';
 
 const RANGES: Array<{ value: string; label: string }> = [
   { value: '6m', label: '6 mois' },
@@ -35,13 +38,14 @@ const RANGES: Array<{ value: string; label: string }> = [
   { value: 'all', label: 'Tout' },
 ];
 
-export function AccountDetail({ userId, accounts, summary, snapshots, categoryById, reportCurrency }: {
+export function AccountDetail({ userId, accounts, summary, snapshots, categoryById, reportCurrency, run }: {
   userId: number;
   accounts: Account[];
   summary: DashboardSummary | null;
   snapshots: AccountSnapshot[];
   categoryById: Map<number, Category>;
   reportCurrency: string;
+  run: Run;
 }) {
   const params = useParams();
   const accountId = Number(params.id);
@@ -113,6 +117,20 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const ceilingPct = ceiling ? Math.min(100, (currentBalance / ceiling) * 100) : 0;
   const accountSnapshots = snapshots.filter((s) => s.account_id === account.id);
   const chartData = history.map((p) => ({ ...p, label: formatMonth(p.date.slice(0, 7)) }));
+
+  // Add a balance snapshot for *this* account alone — no need to go through the
+  // end-of-month batch form on the accounts page just to record one account.
+  const submitSnapshot = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    void run(() => api.setSnapshot(userId, {
+      account_id: account.id,
+      date: String(data.get('date')),
+      balance: Number(data.get('balance')),
+    }), 'Relevé enregistré');
+    form.reset();
+  };
 
   return (
     <section className="stack">
@@ -204,23 +222,27 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
         </Panel>
       </section>
 
-      {accountSnapshots.length > 0 && (
-        <section className="chart-full">
-          <Panel title="Snapshots de solde" icon={<Wallet />}>
-            <DataTable empty={null}>
-              <thead><tr><th>Date</th><th className="amount-cell">Solde relevé</th></tr></thead>
-              <tbody>
-                {accountSnapshots.slice(0, 24).map((s) => (
-                  <tr key={s.id}>
-                    <td data-label="Date">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
-                    <td className="amount-cell" data-label="Solde relevé">{nativeMoney(s.balance)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </DataTable>
-          </Panel>
-        </section>
-      )}
+      <section className="chart-full">
+        <Panel title="Snapshots de solde" icon={<Wallet />}>
+          <form className="form form-inline" onSubmit={submitSnapshot}>
+            <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
+            <label className="grow">Solde relevé ({account.currency})<input name="balance" type="number" step="0.01" required /></label>
+            <button className="primary"><Plus size={16} /> Enregistrer le relevé</button>
+          </form>
+          <DataTable empty={accountSnapshots.length === 0 ? 'Aucun relevé pour ce compte. Saisis un solde ci-dessus pour démarrer l\'historique.' : null}>
+            <thead><tr><th>Date</th><th className="amount-cell">Solde relevé</th><th className="actions-cell">Actions</th></tr></thead>
+            <tbody>
+              {accountSnapshots.slice(0, 24).map((s) => (
+                <tr key={s.id}>
+                  <td data-label="Date">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
+                  <td className="amount-cell" data-label="Solde relevé">{nativeMoney(s.balance)}</td>
+                  <td className="actions-cell"><IconButton label="Supprimer" onClick={() => void run(() => api.deleteSnapshot(userId, s.id), 'Relevé supprimé')} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        </Panel>
+      </section>
     </section>
   );
 }
