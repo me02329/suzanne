@@ -51,7 +51,7 @@ import {
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { CADENCE_META, cadenceAmount, cadenceOf, cadenceTotals } from '../lib/subscriptions';
-import { canUseLogScale, fitDomain, fitPositiveLogDomain, toBase100, type ChartScaleMode } from '../lib/chartScale';
+import { fitDomain, symlogConstant, symlogInverse, toBase100, toSymlog, type ChartScaleMode } from '../lib/chartScale';
 import { DashboardSection } from '../components/DashboardSection';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
@@ -178,9 +178,10 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   // Merge the persisted preference on top of the default so newly-created
   // accounts (or new groups) show up enabled by default even after the user
   // has customised some toggles.
-  const wealthSeries = wealthSeriesPref
-    ? { ...defaultWealthSeries, ...wealthSeriesPref }
-    : defaultWealthSeries;
+  const wealthSeries = useMemo(
+    () => (wealthSeriesPref ? { ...defaultWealthSeries, ...wealthSeriesPref } : defaultWealthSeries),
+    [wealthSeriesPref, defaultWealthSeries],
+  );
   const toggleWealthSeries = (key: string) => {
     const next = { ...wealthSeries, [key]: !wealthSeries[key] };
     if (wealthViewMode === 'account') setWealthSeriesAccountPref(next);
@@ -294,7 +295,10 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
       : []),
     ...accountAlerts,
   ];
-  const wealthChartRows = wealthHistory.map((point) => {
+  // These derived series are rebuilt only when their real inputs change, not on
+  // every render (e.g. toggling a checkbox no longer re-maps the whole history,
+  // and the base100/symlog transform doesn't re-run on unrelated re-renders).
+  const wealthChartRows = useMemo(() => wealthHistory.map((point) => {
     const row: Record<string, unknown> = {
       ...point,
       label: wealthGranularity === 'day' || wealthGranularity === 'week'
@@ -313,38 +317,48 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
       row[`account_${id}`] = value;
     }
     return row;
-  });
+  }), [wealthHistory, wealthGranularity]);
   const wealthHasData = wealthChartRows.length > 0;
-  const wealthVisibleKeys = wealthSeriesConfig.filter((s) => wealthSeries[s.key]).map((s) => s.key);
-  const wealthVisibleValues = wealthChartRows.flatMap((row) =>
-    wealthVisibleKeys
-      .map((key) => row[key])
-      .filter((v): v is number => typeof v === 'number' && Number.isFinite(v)),
+  const wealthVisibleKeys = useMemo(
+    () => wealthSeriesConfig.filter((s) => wealthSeries[s.key]).map((s) => s.key),
+    [wealthSeriesConfig, wealthSeries],
   );
-  const wealthLogAvailable = canUseLogScale(wealthVisibleValues);
-  const effectiveWealthScaleMode: ChartScaleMode = wealthScaleMode === 'log' && !wealthLogAvailable ? 'linear' : wealthScaleMode;
-  const displayedWealthRows = effectiveWealthScaleMode === 'base100'
-    ? toBase100(wealthChartRows, wealthVisibleKeys)
-    : wealthChartRows;
+  const effectiveWealthScaleMode = wealthScaleMode;
+  const wealthSymlogConstant = useMemo(() => symlogConstant(
+    wealthChartRows.flatMap((row) =>
+      wealthVisibleKeys.map((key) => row[key]).filter((v): v is number => typeof v === 'number' && Number.isFinite(v))),
+  ), [wealthChartRows, wealthVisibleKeys]);
+  const displayedWealthRows = useMemo(() => (
+    effectiveWealthScaleMode === 'base100'
+      ? toBase100(wealthChartRows, wealthVisibleKeys)
+      : effectiveWealthScaleMode === 'symlog'
+        ? toSymlog(wealthChartRows, wealthVisibleKeys, wealthSymlogConstant)
+        : wealthChartRows
+  ), [wealthChartRows, wealthVisibleKeys, effectiveWealthScaleMode, wealthSymlogConstant]);
   // Fit the Y axis to the *visible* series only, so toggling an account on/off
   // re-scales the chart instead of always anchoring at zero.
-  const wealthDomain = effectiveWealthScaleMode === 'log'
-    ? fitPositiveLogDomain(wealthVisibleValues)
-    : fitDomain(
-        displayedWealthRows.flatMap((row) =>
-          wealthVisibleKeys
-            .map((key) => row[key])
-            .filter((v): v is number => typeof v === 'number' && Number.isFinite(v)),
-        ),
-      );
+  const wealthDomain = useMemo(() => fitDomain(
+    displayedWealthRows.flatMap((row) =>
+      wealthVisibleKeys
+        .map((key) => row[key])
+        .filter((v): v is number => typeof v === 'number' && Number.isFinite(v)),
+    ),
+  ), [displayedWealthRows, wealthVisibleKeys]);
   const wealthTickFormatter = (value: number) =>
-    effectiveWealthScaleMode === 'base100' ? `${Math.round(value)}` : moneyCompact(Number(value));
+    effectiveWealthScaleMode === 'base100'
+      ? `${Math.round(value)}`
+      : effectiveWealthScaleMode === 'symlog'
+        ? moneyCompact(symlogInverse(Number(value), wealthSymlogConstant))
+        : moneyCompact(Number(value));
   const wealthTooltipFormatter = (value: unknown, name: unknown, item: { dataKey?: unknown; payload?: Record<string, unknown> }): [string, string] => {
     const dataKey = typeof item.dataKey === 'string' ? item.dataKey : '';
     const raw = item.payload?.[`${dataKey}__raw`];
     if (effectiveWealthScaleMode === 'base100') {
       const rawText = typeof raw === 'number' && Number.isFinite(raw) ? ` · ${money(raw)}` : '';
       return [`${Number(value).toFixed(1)}${rawText}`, String(name)];
+    }
+    if (effectiveWealthScaleMode === 'symlog') {
+      return [typeof raw === 'number' && Number.isFinite(raw) ? money(raw) : money(symlogInverse(Number(value), wealthSymlogConstant)), String(name)];
     }
     return [money(Number(value)), String(name)];
   };
@@ -443,12 +457,12 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
               </select>
               <select value={wealthScaleMode} onChange={(e) => setWealthScaleMode(e.target.value as ChartScaleMode)} aria-label="Échelle du graphique patrimoine">
                 <option value="linear">Linéaire</option>
-                <option value="log">Logarithmique</option>
+                <option value="symlog">Pseudo-log</option>
                 <option value="base100">Base 100</option>
               </select>
             </div>
-            {wealthScaleMode === 'log' && !wealthLogAvailable && (
-              <p className="panel-note">L'échelle logarithmique nécessite des séries visibles strictement positives. Le graphique reste en linéaire tant qu'une série vaut 0 ou moins.</p>
+            {effectiveWealthScaleMode === 'symlog' && (
+              <p className="panel-note">Pseudo-log : zéro et les soldes négatifs restent affichables, tandis que les gros écarts sont compressés. Le tooltip conserve le montant réel.</p>
             )}
             {effectiveWealthScaleMode === 'base100' && (
               <p className="panel-note">Base 100 : chaque série démarre à 100 depuis son premier solde non nul. Le tooltip conserve le montant réel.</p>
@@ -466,7 +480,6 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
                     <XAxis dataKey="label" tickLine={false} axisLine={false} />
                     <YAxis
                       domain={wealthDomain}
-                      scale={effectiveWealthScaleMode === 'log' ? 'log' : 'auto'}
                       tickFormatter={(value) => wealthTickFormatter(Number(value))}
                       tickLine={false}
                       axisLine={false}

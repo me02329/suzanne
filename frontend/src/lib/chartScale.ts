@@ -1,6 +1,6 @@
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
-export type ChartScaleMode = 'linear' | 'log' | 'base100';
+export type ChartScaleMode = 'linear' | 'symlog' | 'base100';
 
 // Y-axis domain that fits a balance/trend series instead of always anchoring at
 // zero, so small variations far from zero (100 → 101 → 110) stay visible
@@ -28,45 +28,63 @@ export function fitDomain(values: number[], pad = 0.12): [number, number] {
   return [round2(lo), round2(hi)];
 }
 
-// True logarithmic axes cannot display 0 or negative values. Keep this check
-// scoped to the visible values so users can hide liabilities/empty accounts and
-// still use the log view.
-export function canUseLogScale(values: number[]): boolean {
-  const finite = values.filter((value) => Number.isFinite(value));
-  return finite.length > 0 && finite.every((value) => value > 0);
-}
-
-export function fitPositiveLogDomain(values: number[]): [number, number] {
-  const positive = values.filter((value) => Number.isFinite(value) && value > 0);
-  if (positive.length === 0) return [1, 10];
-  const min = Math.min(...positive);
-  const max = Math.max(...positive);
-  if (min === max) {
-    return [round2(Math.max(min / 1.5, Number.MIN_VALUE)), round2(max * 1.5)];
-  }
-  return [round2(Math.max(min / 1.15, Number.MIN_VALUE)), round2(max * 1.15)];
-}
-
 export function toBase100<T extends Record<string, unknown>>(rows: T[], keys: string[]): T[] {
-  const bases = new Map<string, number>();
+  // For each series, the first row index holding a real (non-zero) value, used
+  // as the 100 base. Rows before it are left as gaps (null) rather than 0, so a
+  // late-starting account begins its line at 100 instead of spiking up from 0.
+  const baseInfo = new Map<string, { base: number; index: number }>();
   for (const key of keys) {
-    const first = rows
-      .map((row) => row[key])
-      .find((value): value is number => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) > 0.000001);
-    if (first != null) bases.set(key, first);
+    const index = rows.findIndex((row) => {
+      const value = row[key];
+      return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) > 0.000001;
+    });
+    if (index >= 0) baseInfo.set(key, { base: rows[index]![key] as number, index });
   }
 
+  return rows.map((row, rowIndex) => {
+    const next: Record<string, unknown> = { ...row };
+    for (const key of keys) {
+      const value = row[key];
+      const info = baseInfo.get(key);
+      next[`${key}__raw`] = value;
+      if (info == null || rowIndex < info.index || typeof value !== 'number' || !Number.isFinite(value)) {
+        next[key] = null; // before the series exists, or no real value at all
+      } else {
+        next[key] = round2((value / info.base) * 100);
+      }
+    }
+    return next as T;
+  });
+}
+
+export function symlog(value: number, constant: number): number {
+  if (!Number.isFinite(value)) return value;
+  const c = Math.max(1, constant);
+  return Math.sign(value) * Math.log10(1 + Math.abs(value) / c);
+}
+
+export function symlogInverse(value: number, constant: number): number {
+  if (!Number.isFinite(value)) return value;
+  const c = Math.max(1, constant);
+  return Math.sign(value) * c * (10 ** Math.abs(value) - 1);
+}
+
+export function symlogConstant(values: number[]): number {
+  const positive = values.map((value) => Math.abs(value)).filter((value) => Number.isFinite(value) && value > 0);
+  if (positive.length === 0) return 100;
+  positive.sort((a, b) => a - b);
+  const mid = positive[Math.floor(positive.length / 2)] ?? 100;
+  // Keep a useful near-zero linear-ish area without making large accounts flat.
+  return Math.max(1, round2(mid / 10));
+}
+
+export function toSymlog<T extends Record<string, unknown>>(rows: T[], keys: string[], constant: number): T[] {
   return rows.map((row) => {
     const next: Record<string, unknown> = { ...row };
     for (const key of keys) {
       const value = row[key];
-      const base = bases.get(key);
       next[`${key}__raw`] = value;
-      if (typeof value === 'number' && Number.isFinite(value) && base != null) {
-        next[key] = round2((value / base) * 100);
-      } else {
-        next[key] = null;
-      }
+      next[key] = typeof value === 'number' && Number.isFinite(value) ? round2(symlog(value, constant)) : null;
     }
     return next as T;
   });

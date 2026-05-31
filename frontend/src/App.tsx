@@ -117,10 +117,12 @@ export default function App() {
   // to re-fetch after snapshots/transactions are created.
   const [dataVersion, setDataVersion] = useState(0);
 
-  // Version token: every reload bumps this; only the latest in-flight reload
-  // is allowed to write into React state, so rapid month/currency/user changes
-  // never resurrect stale data.
-  const reloadVersion = useRef(0);
+  // Version tokens: every reload bumps its stream's token; only the latest
+  // in-flight reload of that stream writes into React state, so rapid changes
+  // never resurrect stale data. Static (per-user) and month-scoped data are
+  // tracked separately so paging months doesn't refetch the whole app.
+  const staticVersion = useRef(0);
+  const monthVersion = useRef(0);
   // Re-entry guard for run(): a rapid double-click on a primary button could
   // otherwise fire the same mutation twice and create duplicates server-side.
   // Cheaper than passing a `pending` flag to every page/form.
@@ -132,42 +134,61 @@ export default function App() {
     setUserId((current) => rows.some((u) => u.id === current) ? current : rows[0]?.id ?? null);
   };
 
-  const reload = async () => {
+  // Month-independent data: only refetched when the user changes (or after a
+  // mutation), never on month navigation. Bumps dataVersion because accounts /
+  // snapshots changing means the wealth-history chart must refetch.
+  const reloadStatic = async () => {
     if (!userId) return;
-    const version = ++reloadVersion.current;
+    const version = ++staticVersion.current;
+    const [unassignedTxs, accs, insts, cats, recs, rls, gls, snaps, tgs] = await Promise.all([
+      api.transactions(userId, undefined, 'unassigned_account'),
+      api.accounts(userId),
+      api.institutions(userId),
+      api.categories(userId),
+      api.recurring(userId),
+      api.rules(userId),
+      api.goals(userId),
+      api.snapshots(userId),
+      api.tags(userId),
+    ]);
+    if (version !== staticVersion.current) return;
+    setUnassignedTransactions(unassignedTxs);
+    setAccounts(accs);
+    setInstitutions(insts);
+    setCategories(cats);
+    setRecurring(recs);
+    setRules(rls);
+    setGoals(gls);
+    setSnapshots(snaps);
+    setTags(tgs);
+    setDataVersion((v) => v + 1);
+  };
+
+  // Month-scoped data: the only thing paging months refetches. Drives the
+  // loading spinner. Deliberately does NOT bump dataVersion, so the (expensive,
+  // month-independent) wealth-history chart isn't re-fetched on month nav.
+  const reloadMonth = async () => {
+    if (!userId) return;
+    const version = ++monthVersion.current;
     setLoading(true);
     try {
-      const [dash, txs, unassignedTxs, accs, insts, cats, bds, recs, rls, gls, snaps, tgs] = await Promise.all([
+      const [dash, txs, bds] = await Promise.all([
         api.dashboard(userId, month, reportCurrency),
         api.transactions(userId, month),
-        api.transactions(userId, undefined, 'unassigned_account'),
-        api.accounts(userId),
-        api.institutions(userId),
-        api.categories(userId),
         api.budgets(userId, month),
-        api.recurring(userId),
-        api.rules(userId),
-        api.goals(userId),
-        api.snapshots(userId),
-        api.tags(userId),
       ]);
-      if (version !== reloadVersion.current) return;
+      if (version !== monthVersion.current) return;
       setSummary(dash);
       setTransactions(txs);
-      setUnassignedTransactions(unassignedTxs);
-      setAccounts(accs);
-      setInstitutions(insts);
-      setCategories(cats);
       setBudgets(bds);
-      setRecurring(recs);
-      setRules(rls);
-      setGoals(gls);
-      setSnapshots(snaps);
-      setTags(tgs);
-      setDataVersion((v) => v + 1);
     } finally {
-      if (version === reloadVersion.current) setLoading(false);
+      if (version === monthVersion.current) setLoading(false);
     }
+  };
+
+  // Full refresh after a mutation: anything could have changed.
+  const reload = async () => {
+    await Promise.all([reloadStatic(), reloadMonth()]);
   };
 
   // Le backend peut exiger un APP_TOKEN : sur un 401, on ouvre le modal de saisie.
@@ -195,9 +216,17 @@ export default function App() {
     reloadUsers().catch((e) => setError((e as Error).message));
   }, []);
 
+  // Static data follows the user only; month data follows month/currency. On a
+  // user change both fire (disjoint sets, no double-fetch); on month navigation
+  // only the month effect runs.
   useEffect(() => {
     setError(null);
-    reload().catch((e) => setError((e as Error).message));
+    reloadStatic().catch((e) => setError((e as Error).message));
+  }, [userId]);
+
+  useEffect(() => {
+    setError(null);
+    reloadMonth().catch((e) => setError((e as Error).message));
   }, [userId, month, reportCurrency]);
 
   // A stream can't survive a reload: clear any persisted "streaming" flag once

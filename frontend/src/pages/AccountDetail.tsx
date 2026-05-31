@@ -23,7 +23,7 @@ import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, todayI
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { accountSignedAmount, livretCeiling, touchesAccount } from '../lib/account';
-import { canUseLogScale, fitDomain, fitPositiveLogDomain, toBase100, type ChartScaleMode } from '../lib/chartScale';
+import { fitDomain, symlogConstant, symlogInverse, toBase100, toSymlog, type ChartScaleMode } from '../lib/chartScale';
 import { DataTable } from '../components/DataTable';
 import { EmptyChart } from '../components/EmptyChart';
 import { IconButton } from '../components/IconButton';
@@ -137,18 +137,29 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
     .filter((p) => p.date.slice(0, 10) >= accountStart)
     .map((p) => ({ ...p, label: formatMonth(p.date.slice(0, 7)) }));
   const balanceValues = chartData.map((p) => p.balance).filter((v) => Number.isFinite(v));
-  const logAvailable = canUseLogScale(balanceValues);
-  const effectiveScaleMode: ChartScaleMode = scaleMode === 'log' && !logAvailable ? 'linear' : scaleMode;
-  const displayedChartData = effectiveScaleMode === 'base100' ? toBase100(chartData, ['balance']) : chartData;
-  const balanceDomain = effectiveScaleMode === 'log'
-    ? fitPositiveLogDomain(balanceValues)
-    : fitDomain(displayedChartData.map((p) => p.balance).filter((v): v is number => typeof v === 'number' && Number.isFinite(v)));
-  const yTick = (value: number) => effectiveScaleMode === 'base100' ? `${Math.round(value)}` : moneyCompact(Number(value));
+  const effectiveScaleMode = scaleMode;
+  const balanceSymlogConstant = symlogConstant(balanceValues);
+  const displayedChartData = effectiveScaleMode === 'base100'
+    ? toBase100(chartData, ['balance'])
+    : effectiveScaleMode === 'symlog'
+      ? toSymlog(chartData, ['balance'], balanceSymlogConstant)
+      : chartData;
+  const balanceDomain = fitDomain(displayedChartData.map((p) => p.balance).filter((v): v is number => typeof v === 'number' && Number.isFinite(v)));
+  const yTick = (value: number) =>
+    effectiveScaleMode === 'base100'
+      ? `${Math.round(value)}`
+      : effectiveScaleMode === 'symlog'
+        ? moneyCompact(symlogInverse(Number(value), balanceSymlogConstant))
+        : moneyCompact(Number(value));
   const tooltipValue = (value: unknown, name: unknown, item: { payload?: Record<string, unknown> }): [string, string] => {
     if (effectiveScaleMode === 'base100') {
       const raw = item.payload?.balance__raw;
       const rawText = typeof raw === 'number' && Number.isFinite(raw) ? ` · ${money(raw)}` : '';
       return [`${Number(value).toFixed(1)}${rawText}`, String(name)];
+    }
+    if (effectiveScaleMode === 'symlog') {
+      const raw = item.payload?.balance__raw;
+      return [typeof raw === 'number' && Number.isFinite(raw) ? money(raw) : money(symlogInverse(Number(value), balanceSymlogConstant)), String(name)];
     }
     return [money(Number(value)), String(name)];
   };
@@ -209,14 +220,14 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
               )}
               <select value={scaleMode} onChange={(e) => setScaleMode(e.target.value as ChartScaleMode)} aria-label="Échelle du graphique">
                 <option value="linear">Linéaire</option>
-                <option value="log">Logarithmique</option>
+                <option value="symlog">Pseudo-log</option>
                 <option value="base100">Base 100</option>
               </select>
             </div>
           )}
         >
-          {scaleMode === 'log' && !logAvailable && (
-            <p className="panel-note">L'échelle logarithmique nécessite des soldes strictement positifs. Le graphique reste en linéaire tant que le solde vaut 0 ou moins.</p>
+          {effectiveScaleMode === 'symlog' && (
+            <p className="panel-note">Pseudo-log : zéro et les soldes négatifs restent affichables, tandis que les gros écarts sont compressés. Le tooltip conserve le montant réel.</p>
           )}
           {effectiveScaleMode === 'base100' && (
             <p className="panel-note">Base 100 : le solde démarre à 100 depuis sa première valeur non nulle. Le tooltip conserve le montant réel.</p>
@@ -233,7 +244,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                   </defs>
                   <CartesianGrid stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={20} />
-                  <YAxis domain={balanceDomain} scale={effectiveScaleMode === 'log' ? 'log' : 'auto'} tickFormatter={(v) => yTick(Number(v))} tickLine={false} axisLine={false} width={64} />
+                  <YAxis domain={balanceDomain} tickFormatter={(v) => yTick(Number(v))} tickLine={false} axisLine={false} width={64} />
                   <Tooltip formatter={tooltipValue} />
                   <Area type="monotone" dataKey="balance" name="Solde" stroke={chartTheme.net} strokeWidth={2} fill="url(#accountFill)" dot={false} />
                 </AreaChart>

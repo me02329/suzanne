@@ -165,17 +165,31 @@ export function computeAccountBalances(
     if (!current || s.date > current.date) latestSnapshot.set(s.account_id, { date: s.date, balance: s.balance });
   }
 
+  // Index transactions by the account they touch, once, so each account reads
+  // only its own movements instead of re-scanning the whole table per account
+  // (which made wealth-history O(dates × accounts × transactions)).
+  const bySource = new Map<number, Tx[]>();
+  const byDest = new Map<number, Tx[]>();
+  for (const t of transactions) {
+    if (t.account_id != null) {
+      const list = bySource.get(t.account_id);
+      if (list) list.push(t); else bySource.set(t.account_id, [t]);
+    }
+    if (t.type === 'transfer' && t.to_account_id != null) {
+      const list = byDest.get(t.to_account_id);
+      if (list) list.push(t); else byDest.set(t.to_account_id, [t]);
+    }
+  }
+
   return accounts.map((account) => {
     const snap = latestSnapshot.get(account.id);
     const base = snap ? snap.balance : account.initial_balance;
     const since = snap ? snap.date : account.initial_balance_date;
     const matches = (txDate: Date) => (snap ? txDate > since : txDate >= since);
-    const outgoing = transactions
-      .filter((t) => t.account_id === account.id && matches(t.date))
-      .reduce((s, t) => s + sourceDelta(t), 0);
-    const incoming = transactions
-      .filter((t) => t.type === 'transfer' && t.to_account_id === account.id && matches(t.date))
-      .reduce((s, t) => s + (t.to_amount ?? t.amount), 0);
+    const outgoing = (bySource.get(account.id) ?? [])
+      .reduce((s, t) => (matches(t.date) ? s + sourceDelta(t) : s), 0);
+    const incoming = (byDest.get(account.id) ?? [])
+      .reduce((s, t) => (matches(t.date) ? s + (t.to_amount ?? t.amount) : s), 0);
     const rawBalance = (base + outgoing + incoming) * (fx.get(account.currency) ?? 1);
     const isLiability = isLiabilityAccount(account.type);
     const balance = isLiability ? Math.abs(rawBalance) : rawBalance;
