@@ -106,9 +106,10 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
   if (from > to) [from, to] = [to, from]; // tolerate an inverted range
   const dates = buildHistoryDates(from, to, granularity);
 
-  const points = dates.map((date) => {
-    const accountBalances = computeAccountBalancesAt(accounts, transactions, snapshots, date, fx);
-    const unassignedBalance = computeUnassignedBalanceUntil(transactions, date);
+  // One chronological sweep instead of recomputing every account at every date.
+  const series = computeWealthSeries(accounts, transactions, snapshots, dates, fx);
+  const points = dates.map((date, di) => {
+    const { accountBalances, unassignedBalance } = series[di]!;
     const assets = accountBalances.filter((a) => !a.is_liability).reduce((s, a) => s + a.balance, 0) + unassignedBalance;
     const liabilities = accountBalances.filter((a) => a.is_liability).reduce((s, a) => s + a.balance, 0);
     const byGroup = buildBalanceByGroup(accountBalances, unassignedBalance).reduce<Record<string, number>>((acc, row) => {
@@ -208,7 +209,9 @@ export function computeAccountBalances(
   });
 }
 
-function computeAccountBalancesAt(
+// Kept as the reference single-date computation that computeWealthSeries is
+// validated against (dashboard.test.ts). No longer on the hot path.
+export function computeAccountBalancesAt(
   accounts: AccountRow[],
   transactions: Tx[],
   snapshots: Array<{ account_id: number; date: Date; balance: number }>,
@@ -228,6 +231,132 @@ function computeAccountBalancesAt(
   return computeAccountBalances(eligibleAccounts, transactionsUntil, snapshotsUntil, fx);
 }
 
+type AccountBalanceRow = ReturnType<typeof computeAccountBalances>[number];
+
+// Per-date account balances + unassigned balance over an ascending date range,
+// computed in a single forward sweep instead of recomputing every account from
+// scratch at every date. Each account's events (opening balance, its own
+// transactions, its snapshots) are merged once and replayed in order, recording
+// the running balance at each requested date. Equivalent to calling
+// computeAccountBalancesAt for every date, but O(transactions + dates×accounts)
+// instead of O(dates × accounts × transactions). Validated against
+// computeAccountBalancesAt in dashboard.test.ts.
+export function computeWealthSeries(
+  accounts: AccountRow[],
+  transactions: Tx[],
+  snapshots: Array<{ account_id: number; date: Date; balance: number }>,
+  dates: Date[],
+  fx: Map<string, number>,
+): Array<{ accountBalances: AccountBalanceRow[]; unassignedBalance: number }> {
+  const bySource = new Map<number, Tx[]>();
+  const byDest = new Map<number, Tx[]>();
+  for (const t of transactions) {
+    if (t.account_id != null) {
+      const l = bySource.get(t.account_id); if (l) l.push(t); else bySource.set(t.account_id, [t]);
+    }
+    if (t.type === 'transfer' && t.to_account_id != null) {
+      const l = byDest.get(t.to_account_id); if (l) l.push(t); else byDest.set(t.to_account_id, [t]);
+    }
+  }
+  const snapsByAccount = new Map<number, Array<{ date: Date; balance: number }>>();
+  for (const s of snapshots) {
+    const l = snapsByAccount.get(s.account_id); if (l) l.push(s); else snapsByAccount.set(s.account_id, [s]);
+  }
+
+  // raw[di] is the account's own-currency balance at dates[di], or null before
+  // the account is eligible (opening date not reached and no earlier snapshot).
+  const rawByAccount = new Map<number, Array<number | null>>();
+  for (const account of accounts) {
+    rawByAccount.set(account.id, sweepAccount(
+      account,
+      bySource.get(account.id) ?? [],
+      byDest.get(account.id) ?? [],
+      snapsByAccount.get(account.id) ?? [],
+      dates,
+    ));
+  }
+
+  // Account-less, non-transfer transactions: a single running sum across dates.
+  const unassignedEvents = transactions
+    .filter((t) => t.account_id == null && t.type !== 'transfer')
+    .map((t) => ({ t: t.date.getTime(), delta: sourceDelta(t) }))
+    .sort((a, b) => a.t - b.t);
+  const unassignedByDate: number[] = [];
+  let uAcc = 0;
+  let uIdx = 0;
+  for (const date of dates) {
+    const dt = date.getTime();
+    while (uIdx < unassignedEvents.length && unassignedEvents[uIdx]!.t <= dt) uAcc += unassignedEvents[uIdx++]!.delta;
+    unassignedByDate.push(uAcc);
+  }
+
+  return dates.map((_, di) => {
+    const accountBalances: AccountBalanceRow[] = [];
+    for (const account of accounts) {
+      const raw = rawByAccount.get(account.id)![di];
+      if (raw == null) continue; // not eligible at this date — excluded like computeAccountBalancesAt
+      const rawBalance = raw * (fx.get(account.currency) ?? 1);
+      const isLiability = isLiabilityAccount(account.type);
+      const balance = isLiability ? Math.abs(rawBalance) : rawBalance;
+      accountBalances.push({
+        account_id: account.id,
+        name: account.name,
+        type: account.type,
+        currency: account.currency,
+        type_label: accountTypeLabel(account.type),
+        group: accountTypeGroup(account.type),
+        group_label: accountGroupLabel(accountTypeGroup(account.type)),
+        balance,
+        signed_balance: isLiability ? -balance : balance,
+        is_liability: isLiability,
+      });
+    }
+    return { accountBalances, unassignedBalance: unassignedByDate[di]! };
+  });
+}
+
+// Replay one account's events over ascending `dates`, returning its raw
+// own-currency balance at each date (null until the account becomes eligible).
+// Order within a day: opening (0) < transactions (1) < snapshot (2). So a
+// same-day transaction is added then discarded by a same-day snapshot
+// (snapshots are authoritative and count only strictly-later transactions),
+// while the opening balance counts same-day transactions (>= its date). A
+// snapshot also supersedes the opening balance, so once any snapshot has been
+// seen the opening event no longer resets the running balance.
+function sweepAccount(
+  account: AccountRow,
+  sourceTxns: Tx[],
+  transferIns: Tx[],
+  snaps: Array<{ date: Date; balance: number }>,
+  dates: Date[],
+): Array<number | null> {
+  type Ev = { t: number; order: 0 | 1 | 2; kind: 'init' | 'tx' | 'snap'; v: number };
+  const events: Ev[] = [
+    { t: account.initial_balance_date.getTime(), order: 0, kind: 'init', v: account.initial_balance },
+  ];
+  for (const x of sourceTxns) events.push({ t: x.date.getTime(), order: 1, kind: 'tx', v: sourceDelta(x) });
+  for (const x of transferIns) events.push({ t: x.date.getTime(), order: 1, kind: 'tx', v: x.to_amount ?? x.amount });
+  for (const s of snaps) events.push({ t: s.date.getTime(), order: 2, kind: 'snap', v: s.balance });
+  events.sort((a, b) => a.t - b.t || a.order - b.order);
+
+  const out: Array<number | null> = [];
+  let balance = 0;
+  let started = false;
+  let snapped = false;
+  let ei = 0;
+  for (const date of dates) {
+    const dt = date.getTime();
+    while (ei < events.length && events[ei]!.t <= dt) {
+      const e = events[ei++]!;
+      if (e.kind === 'init') { if (!snapped) balance = e.v; started = true; }
+      else if (e.kind === 'snap') { balance = e.v; snapped = true; started = true; }
+      else if (started) balance += e.v;
+    }
+    out.push(started ? balance : null);
+  }
+  return out;
+}
+
 function computeUnassignedBalance(transactions: Tx[]): number {
   // Transactions sans compte : seuls revenus/dépenses comptent (un transfert sans compte n'a pas de sens).
   return transactions
@@ -235,9 +364,6 @@ function computeUnassignedBalance(transactions: Tx[]): number {
     .reduce((s, t) => s + sourceDelta(t), 0);
 }
 
-function computeUnassignedBalanceUntil(transactions: Tx[], at: Date): number {
-  return computeUnassignedBalance(transactions.filter((t) => t.date <= at));
-}
 
 function buildBalanceByGroup(
   accountBalances: Array<{ group: string; group_label: string; signed_balance: number; balance: number; is_liability: boolean }>,

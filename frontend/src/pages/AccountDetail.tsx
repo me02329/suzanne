@@ -22,7 +22,7 @@ import { api } from '../lib/api';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, todayIso } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
-import { accountSignedAmount, livretCeiling, touchesAccount } from '../lib/account';
+import { accountSignedAmount, livretCeiling } from '../lib/account';
 import { fitDomain, symlogConstant, symlogInverse, toBase100, toSymlog, type ChartScaleMode } from '../lib/chartScale';
 import { DataTable } from '../components/DataTable';
 import { EmptyChart } from '../components/EmptyChart';
@@ -60,7 +60,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const [rangeTo, setRangeTo] = usePersistedState('account_detail_to', '');
   const [scaleMode, setScaleMode] = usePersistedState<ChartScaleMode>('account_detail_scale_mode', 'linear');
   const [history, setHistory] = useState<{ date: string; balance: number }[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [activity, setActivity] = useState<{ inflow: number; outflow: number; recent: Transaction[] }>({ inflow: 0, outflow: 0, recent: [] });
   const [loading, setLoading] = useState(true);
   const chartTheme = useChartTheme();
 
@@ -84,31 +84,27 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
     return () => { cancelled = true; };
   }, [userId, account, range, reportCurrency, rangeFrom, rangeTo]);
 
-  // All-time transactions touching this account (one fetch, filtered client-side).
+  // Inflow/outflow totals + recent movements, computed server-side and scoped to
+  // this account (no longer fetches every user transaction to filter on screen).
   useEffect(() => {
     if (!account) return;
     let cancelled = false;
     setLoading(true);
-    api.transactions(userId)
-      .then((all) => { if (!cancelled) setTransactions(all.filter((t) => touchesAccount(t, account.id))); })
-      .catch(() => { if (!cancelled) setTransactions([]); })
+    api.accountActivity(userId, account.id, 40)
+      .then((a) => { if (!cancelled) setActivity(a); })
+      .catch(() => { if (!cancelled) setActivity({ inflow: 0, outflow: 0, recent: [] }); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [userId, account]);
 
   const { inflow, outflow, recent } = useMemo(() => {
     if (!account) return { inflow: 0, outflow: 0, recent: [] as Array<{ tx: Transaction; signed: number }> };
-    let inflow = 0;
-    let outflow = 0;
-    const rows = transactions
-      .map((tx) => ({ tx, signed: accountSignedAmount(tx, account.id) }))
-      .filter((r) => r.signed !== 0);
-    for (const r of rows) {
-      if (r.signed > 0) inflow += r.signed; else outflow += -r.signed;
-    }
-    rows.sort((a, b) => b.tx.date.localeCompare(a.tx.date) || b.tx.id - a.tx.id);
-    return { inflow, outflow, recent: rows.slice(0, 40) };
-  }, [transactions, account]);
+    return {
+      inflow: activity.inflow,
+      outflow: activity.outflow,
+      recent: activity.recent.map((tx) => ({ tx, signed: accountSignedAmount(tx, account.id) })),
+    };
+  }, [activity, account]);
 
   if (!account) {
     return (

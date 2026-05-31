@@ -1,13 +1,60 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { createAccountSchema, idParam, updateAccountSchema } from '../lib/validation.js';
+import { round2 } from '../lib/money.js';
+import { serializeTransaction } from './transactions.js';
 
 export const accountsRouter = Router();
 
 accountsRouter.get('/users/:user_id/accounts', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   res.json(await prisma.account.findMany({ where: { user_id }, orderBy: { name: 'asc' } }));
+}));
+
+// Activity for one account: all-time inflow/outflow totals + the most recent
+// movements. Replaces the account detail page fetching every user transaction
+// and filtering client-side — here the query is scoped to the account (indexed
+// on account_id / to_account_id) and only `limit` rows cross the wire.
+accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const id = idParam.parse(req.params.id);
+  const limit = z.coerce.number().int().min(1).max(200).default(40).parse(req.query.limit ?? 40);
+
+  const account = await prisma.account.findFirst({ where: { id, user_id }, select: { id: true } });
+  if (!account) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+
+  const rows = await prisma.transaction.findMany({
+    where: { user_id, OR: [{ account_id: id }, { to_account_id: id }] },
+    orderBy: [{ date: 'desc' }, { id: 'desc' }],
+    include: { tags: { include: { tag: true } } },
+  });
+
+  // Signed effect on this account, mirroring frontend lib/account.ts
+  // accountSignedAmount: a transfer debits its source and credits its
+  // destination (to_amount when the currencies differ).
+  let inflow = 0;
+  let outflow = 0;
+  for (const t of rows) {
+    let signed = 0;
+    if (t.type === 'transfer') {
+      if (t.account_id === id) signed = -t.amount;
+      else if (t.to_account_id === id) signed = t.to_amount ?? t.amount;
+    } else if (t.account_id === id) {
+      signed = t.type === 'income' ? t.amount : -t.amount;
+    }
+    if (signed > 0) inflow += signed; else outflow += -signed;
+  }
+
+  res.json({
+    inflow: round2(inflow),
+    outflow: round2(outflow),
+    recent: rows.slice(0, limit).map(serializeTransaction),
+  });
 }));
 
 accountsRouter.post('/users/:user_id/accounts', asyncHandler(async (req, res) => {

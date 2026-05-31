@@ -171,7 +171,7 @@ async function resolveTagIds(userId: number, tagIds: number[] | undefined): Prom
   return owned.map((tag) => tag.id);
 }
 
-function serializeTransaction(row: {
+export function serializeTransaction(row: {
   id: number;
   user_id: number;
   account_id: number | null;

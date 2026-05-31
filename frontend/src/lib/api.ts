@@ -93,6 +93,8 @@ export const api = {
   createUser: (body: { name: string }) => http<User>('/users', { method: 'POST', body: JSON.stringify(body) }),
   deleteUser: (id: number) => http<{ deleted: boolean }>(`/users/${id}`, { method: 'DELETE' }),
   accounts: (userId: number) => http<Account[]>(`/users/${userId}/accounts`),
+  accountActivity: (userId: number, id: number, limit = 40) =>
+    http<{ inflow: number; outflow: number; recent: Transaction[] }>(`/users/${userId}/accounts/${id}/activity?limit=${limit}`),
   createAccount: (userId: number, body: CreateAccountBody) => http<Account>(`/users/${userId}/accounts`, { method: 'POST', body: JSON.stringify(body) }),
   updateAccount: (userId: number, id: number, body: Partial<CreateAccountBody>) => http<Account>(`/users/${userId}/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteAccount: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/accounts/${id}`, { method: 'DELETE' }),
