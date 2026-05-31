@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { DatabaseBackup, Download, FileUp, Upload } from 'lucide-react';
+import { CalendarDays, CheckSquare, DatabaseBackup, Download, FileJson, FileUp, RotateCcw, Table2, Upload, WalletCards } from 'lucide-react';
 import type { Account } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { numberOrNull } from '../lib/forms';
@@ -14,6 +14,7 @@ const EXPORT_ENTITIES = [
   { key: 'accounts', label: 'Comptes' },
   { key: 'institutions', label: 'Institutions' },
   { key: 'categories', label: 'Catégories' },
+  { key: 'tags', label: 'Tags' },
   { key: 'category_rules', label: 'Règles d\'auto-catégorisation' },
   { key: 'budgets', label: 'Budgets' },
   { key: 'recurring', label: 'Récurrents' },
@@ -22,6 +23,18 @@ const EXPORT_ENTITIES = [
 ] as const;
 
 const PLACEHOLDER_CSV = `dateOp\tdateVal\tlabel\tamount\n2026-05-24\t2026-05-24\tCourses\t-12,50`;
+const ALL_EXPORT_KEYS = EXPORT_ENTITIES.map((e) => e.key);
+const FINANCE_EXPORT_KEYS = ['transactions', 'accounts', 'categories', 'budgets', 'recurring', 'goals', 'snapshots'];
+const STRUCTURE_EXPORT_KEYS = ['accounts', 'institutions', 'categories', 'category_rules', 'tags'];
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function currentYearRange() {
+  const year = new Date().getFullYear();
+  return { from: `${year}-01-01`, to: todayIso() };
+}
 
 export function Tools({ userId, accounts, run }: { userId: number; accounts: Account[]; run: Run }) {
   const [csv, setCsv] = useState('');
@@ -41,7 +54,19 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [restorePayload, setRestorePayload] = useState<string>('');
   const [restoring, setRestoring] = useState(false);
+  const [restoreFileName, setRestoreFileName] = useState<string | null>(null);
+  const [restoreDragActive, setRestoreDragActive] = useState(false);
   const restoreFileRef = useRef<HTMLInputElement>(null);
+
+  const setExportPreset = (keys: string[]) => {
+    setExportEntities(new Set(keys));
+  };
+
+  const setCurrentYearExportRange = () => {
+    const range = currentYearRange();
+    setExportFrom(range.from);
+    setExportTo(range.to);
+  };
 
   const toggleEntity = (key: string) => {
     setExportEntities((current) => {
@@ -51,13 +76,15 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     });
   };
 
-  const runExport = async () => {
+  const runExport = async (options?: { entities?: string[]; from?: string | null; to?: string | null; closeModal?: boolean }) => {
+    const entities = options?.entities ?? Array.from(exportEntities);
+    if (entities.length === 0) return;
     setExporting(true);
     try {
       const blob = await api.exportSelection(userId, {
-        entities: Array.from(exportEntities),
-        from: exportFrom || null,
-        to: exportTo || null,
+        entities,
+        from: options?.from ?? (exportFrom || null),
+        to: options?.to ?? (exportTo || null),
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -67,7 +94,9 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      setExportOpen(false);
+      if (options?.closeModal ?? true) setExportOpen(false);
+    } catch (e) {
+      window.alert(`Export échoué: ${(e as Error).message}`);
     } finally {
       setExporting(false);
     }
@@ -95,6 +124,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     const file = event.target.files?.[0];
     if (!file) return;
     setRestorePayload(await file.text());
+    setRestoreFileName(file.name);
   };
 
   useEffect(() => {
@@ -134,6 +164,15 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     if (file) void readFile(file);
   };
 
+  const onRestoreDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setRestoreDragActive(false);
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    setRestorePayload(await file.text());
+    setRestoreFileName(file.name);
+  };
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -159,30 +198,74 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
   );
 
   return (
-    <section className="split">
-      <Panel title="Importer CSV" icon={<FileUp />}>
-        <p className="panel-note">Colle un CSV, glisse-dépose un fichier ou utilise le sélecteur dans la modale d'import.</p>
-        <div className="export-actions">
-          <button className="primary" type="button" onClick={() => setImportOpen(true)}>
-            <Upload size={16} /> Importer CSV
-          </button>
+    <section className="tools-page">
+      <section className="tools-hero">
+        <div>
+          <span className="tools-kicker">Maintenance des données</span>
+          <h2>Importer, exporter, restaurer</h2>
+          <p>Actions rapides pour sauvegarder Suzanne, alimenter les transactions et reprendre un export JSON.</p>
         </div>
-      </Panel>
-      <Panel title="Sauvegarde" icon={<DatabaseBackup />}>
-        <p className="panel-note">Exporte ou restaure tes données. Le JSON est réimportable : à chaque entité importée, les doublons sont détectés par nom/clé naturelle.</p>
-        <div className="export-actions">
-          <button className="primary" type="button" onClick={() => setExportOpen(true)}>
-            <Download size={16} /> Exporter
+        <div className="tools-hero-actions">
+          <button className="primary" type="button" onClick={() => void runExport({ entities: ALL_EXPORT_KEYS, from: null, to: null, closeModal: false })} disabled={exporting}>
+            <DatabaseBackup size={16} /> Sauvegarde complète
           </button>
-          <button className="secondary" type="button" onClick={() => setRestoreOpen(true)}>
-            <Upload size={16} /> Restaurer
-          </button>
-          <a className="secondary link-button" href={api.exportCsvUrl(userId)}>CSV transactions</a>
+          <a className="secondary link-button" href={api.exportCsvUrl(userId)}>
+            <Table2 size={16} /> CSV transactions
+          </a>
         </div>
-      </Panel>
+      </section>
+
+      <section className="tools-action-grid">
+        <button className="tool-card primary-card" type="button" onClick={() => setImportOpen(true)}>
+          <span className="tool-card-icon"><FileUp size={20} /></span>
+          <strong>Importer des transactions</strong>
+          <span>CSV bancaire avec détection des colonnes et aperçu avant validation.</span>
+        </button>
+        <button className="tool-card" type="button" onClick={() => setExportOpen(true)}>
+          <span className="tool-card-icon"><Download size={20} /></span>
+          <strong>Exporter sur mesure</strong>
+          <span>Choisir les entités et limiter la sauvegarde à une plage de dates.</span>
+        </button>
+        <button className="tool-card" type="button" onClick={() => setRestoreOpen(true)}>
+          <span className="tool-card-icon"><RotateCcw size={20} /></span>
+          <strong>Restaurer un JSON</strong>
+          <span>Réimporter un export Suzanne en réutilisant les entités existantes.</span>
+        </button>
+      </section>
+
+      <section className="tools-grid">
+        <Panel title="Raccourcis d'export" icon={<DatabaseBackup />}>
+          <div className="quick-export-list">
+            <button type="button" onClick={() => void runExport({ entities: ALL_EXPORT_KEYS, from: null, to: null, closeModal: false })} disabled={exporting}>
+              <DatabaseBackup size={16} />
+              <span><strong>Backup complet</strong><small>Tout le modèle, sans filtre de date</small></span>
+            </button>
+            <button type="button" onClick={() => void runExport({ entities: FINANCE_EXPORT_KEYS, ...currentYearRange(), closeModal: false })} disabled={exporting}>
+              <CalendarDays size={16} />
+              <span><strong>Année en cours</strong><small>Transactions, budgets, récurrents, objectifs, snapshots</small></span>
+            </button>
+            <a href={api.exportCsvUrl(userId)}>
+              <Table2 size={16} />
+              <span><strong>CSV transactions</strong><small>Fichier plat pour tableur ou rapprochement</small></span>
+            </a>
+          </div>
+        </Panel>
+
+        <Panel title="Bonnes pratiques" icon={<WalletCards />}>
+          <div className="tools-checklist">
+            <div><CheckSquare size={16} /> Faire un backup complet avant un gros import.</div>
+            <div><CheckSquare size={16} /> Restaurer un JSON sur un profil vide si tu veux éviter les transactions doublonnées.</div>
+            <div><CheckSquare size={16} /> Pour un CSV bancaire, choisir le compte source avant d'importer.</div>
+          </div>
+        </Panel>
+      </section>
       {importOpen && (
         <Modal title="Importer CSV" onClose={() => setImportOpen(false)} wide>
-          <form className="form" onSubmit={submit}>
+          <form className="form tools-modal-form" onSubmit={submit}>
+            <div className="modal-intro full">
+              <FileUp size={18} />
+              <span>Importe un relevé bancaire. Les colonnes date et montant sont obligatoires ; les autres peuvent rester ignorées.</span>
+            </div>
             <label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}</select></label>
             <label>Format de date<select name="date_format" defaultValue="auto">
               <option value="auto">Détection auto</option>
@@ -230,15 +313,27 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
                 </div>
               </>
             )}
-            <button className="primary" disabled={!mapping.date || !mapping.amount}>Importer</button>
-            <button type="button" className="secondary" onClick={() => setImportOpen(false)}>Annuler</button>
+            <div className="modal-actions full">
+              <button className="primary" disabled={!mapping.date || !mapping.amount}>Importer</button>
+              <button type="button" className="secondary" onClick={() => setImportOpen(false)}>Annuler</button>
+            </div>
           </form>
         </Modal>
       )}
 
       {exportOpen && (
         <Modal title="Exporter une sauvegarde" onClose={() => setExportOpen(false)}>
-          <div className="form">
+          <div className="form tools-modal-form">
+            <div className="modal-intro full">
+              <FileJson size={18} />
+              <span>Le JSON est le format de sauvegarde réimportable. Le CSV transactions sert plutôt à consulter ou traiter dans un tableur.</span>
+            </div>
+            <div className="preset-row full">
+              <button type="button" className="secondary" onClick={() => setExportPreset(ALL_EXPORT_KEYS)}>Tout cocher</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset(FINANCE_EXPORT_KEYS)}>Données financières</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset(STRUCTURE_EXPORT_KEYS)}>Structure seule</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset([])}>Vider</button>
+            </div>
             <div className="form-section-title">Données à inclure</div>
             <div className="checkbox-grid">
               {EXPORT_ENTITIES.map((entity) => (
@@ -255,30 +350,39 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
             <div className="form-section-title">Plage de dates (transactions et snapshots)</div>
             <label>Du<input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} /></label>
             <label>Au<input type="date" value={exportTo} onChange={(e) => setExportTo(e.target.value)} /></label>
+            <div className="preset-row full">
+              <button type="button" className="secondary" onClick={setCurrentYearExportRange}>Année en cours</button>
+              <button type="button" className="secondary" onClick={() => { setExportFrom(''); setExportTo(''); }}>Sans filtre</button>
+            </div>
             <p className="panel-note">Laisser vide pour exporter sans filtre de date. Les budgets sont filtrés par mois équivalent.</p>
-            <button className="primary" type="button" onClick={runExport} disabled={exporting || exportEntities.size === 0}>
-              <Download size={16} /> {exporting ? 'Export en cours…' : 'Télécharger'}
-            </button>
-            <button type="button" className="secondary" onClick={() => setExportOpen(false)}>Annuler</button>
+            <div className="modal-actions full">
+              <button className="primary" type="button" onClick={() => void runExport()} disabled={exporting || exportEntities.size === 0}>
+                <Download size={16} /> {exporting ? 'Export en cours…' : 'Télécharger'}
+              </button>
+              <button type="button" className="secondary" onClick={() => setExportOpen(false)}>Annuler</button>
+            </div>
           </div>
         </Modal>
       )}
 
       {restoreOpen && (
         <Modal title="Restaurer une sauvegarde" onClose={() => setRestoreOpen(false)}>
-          <div className="form">
+          <div className="form tools-modal-form">
             <p className="panel-note">
               Importe un export JSON Suzanne. Les entités existantes (mêmes noms / mêmes clés) sont réutilisées, pas dupliquées.
               Les transactions sont créées même si elles ressemblent à des doublons — restaure sur un compte vide pour éviter les surprises.
             </p>
             <div
-              className="csv-drop"
+              className={`csv-drop${restoreDragActive ? ' active' : ''}`}
+              onDragOver={(event) => { event.preventDefault(); setRestoreDragActive(true); }}
+              onDragLeave={() => setRestoreDragActive(false)}
+              onDrop={(event) => void onRestoreDrop(event)}
               onClick={() => restoreFileRef.current?.click()}
               role="button"
               tabIndex={0}
             >
               <Upload size={20} />
-              <span>Glisser un fichier JSON ou cliquer pour parcourir.</span>
+              <span>{restoreFileName ? `${restoreFileName} chargé. Cliquez pour changer.` : 'Glisser un fichier JSON ou cliquer pour parcourir.'}</span>
             </div>
             <input ref={restoreFileRef} type="file" accept="application/json,.json" hidden onChange={onRestoreFile} />
             <label className="full">JSON
@@ -289,10 +393,12 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
                 rows={8}
               />
             </label>
-            <button className="primary" type="button" onClick={runRestore} disabled={restoring || !restorePayload.trim()}>
-              <Upload size={16} /> {restoring ? 'Import en cours…' : 'Restaurer'}
-            </button>
-            <button type="button" className="secondary" onClick={() => setRestoreOpen(false)}>Annuler</button>
+            <div className="modal-actions full">
+              <button className="primary" type="button" onClick={runRestore} disabled={restoring || !restorePayload.trim()}>
+                <Upload size={16} /> {restoring ? 'Import en cours…' : 'Restaurer'}
+              </button>
+              <button type="button" className="secondary" onClick={() => setRestoreOpen(false)}>Annuler</button>
+            </div>
           </div>
         </Modal>
       )}

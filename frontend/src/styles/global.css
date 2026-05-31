@@ -1764,6 +1764,188 @@ textarea {
 
 .export-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 
+.tools-page {
+  display: grid;
+  gap: 18px;
+}
+
+.tools-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.tools-hero h2 {
+  margin: 4px 0 6px;
+  font-size: 28px;
+}
+
+.tools-hero p {
+  max-width: 680px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.tools-kicker {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.tools-hero-actions,
+.modal-actions,
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tools-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tool-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: start;
+  min-height: 132px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tool-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--surface-muted);
+}
+
+.tool-card.primary-card {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.tool-card-icon {
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  padding: 9px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.tool-card strong {
+  font-size: 16px;
+}
+
+.tool-card span:last-child {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.quick-export-list,
+.tools-checklist {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-export-list button,
+.quick-export-list a {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+}
+
+.quick-export-list button:hover,
+.quick-export-list a:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.quick-export-list svg {
+  color: var(--accent);
+}
+
+.quick-export-list span {
+  display: grid;
+  gap: 2px;
+}
+
+.quick-export-list small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.tools-checklist div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.tools-checklist svg {
+  color: var(--income);
+  margin-top: 1px;
+}
+
+.tools-modal-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modal-intro {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.modal-intro svg {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
 .checkbox-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -2040,7 +2222,13 @@ textarea {
   .floating-controls .search-box input { width: 100%; }
   .page-head { padding-right: 0; flex-wrap: wrap; }
   .search-box { min-width: 0; }
-  .stats, .grid, .charts-grid, .split, .chart-split { grid-template-columns: 1fr; }
+  .stats, .grid, .charts-grid, .split, .chart-split, .tools-hero, .tools-action-grid, .tools-grid, .tools-modal-form { grid-template-columns: 1fr; }
+  .tools-hero-actions .primary,
+  .tools-hero-actions .secondary,
+  .modal-actions .primary,
+  .modal-actions .secondary,
+  .preset-row .secondary { flex: 1 1 auto; }
+  .tool-card { min-height: 0; }
   .assistant-composer { grid-template-columns: 1fr; }
 
   /* The assistant header can't fit its title plus the two labelled buttons on a
