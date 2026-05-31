@@ -51,7 +51,7 @@ import {
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { CADENCE_META, cadenceAmount, cadenceOf, cadenceTotals } from '../lib/subscriptions';
-import { fitDomain } from '../lib/chartScale';
+import { canUseLogScale, fitDomain, fitPositiveLogDomain, toBase100, type ChartScaleMode } from '../lib/chartScale';
 import { DashboardSection } from '../components/DashboardSection';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
@@ -101,6 +101,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
   const [wealthTo, setWealthTo] = usePersistedState('wealth_to', '');
   const [wealthChartMode, setWealthChartMode] = usePersistedState<'area' | 'line'>('wealth_chart_mode', 'area');
   const [wealthViewMode, setWealthViewMode] = usePersistedState<'group' | 'account'>('wealth_view_mode', 'account');
+  const [wealthScaleMode, setWealthScaleMode] = usePersistedState<ChartScaleMode>('wealth_scale_mode', 'linear');
   // Two separate persisted preferences so toggling Group ↔ Account preserves
   // each side's checkbox state independently.
   const [wealthSeriesGroupPref, setWealthSeriesGroupPref] = usePersistedState<Record<string, boolean> | null>('wealth_series_groups', null);
@@ -314,16 +315,39 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
     return row;
   });
   const wealthHasData = wealthChartRows.length > 0;
+  const wealthVisibleKeys = wealthSeriesConfig.filter((s) => wealthSeries[s.key]).map((s) => s.key);
+  const wealthVisibleValues = wealthChartRows.flatMap((row) =>
+    wealthVisibleKeys
+      .map((key) => row[key])
+      .filter((v): v is number => typeof v === 'number' && Number.isFinite(v)),
+  );
+  const wealthLogAvailable = canUseLogScale(wealthVisibleValues);
+  const effectiveWealthScaleMode: ChartScaleMode = wealthScaleMode === 'log' && !wealthLogAvailable ? 'linear' : wealthScaleMode;
+  const displayedWealthRows = effectiveWealthScaleMode === 'base100'
+    ? toBase100(wealthChartRows, wealthVisibleKeys)
+    : wealthChartRows;
   // Fit the Y axis to the *visible* series only, so toggling an account on/off
   // re-scales the chart instead of always anchoring at zero.
-  const wealthDomain = fitDomain(
-    wealthChartRows.flatMap((row) =>
-      wealthSeriesConfig
-        .filter((s) => wealthSeries[s.key])
-        .map((s) => row[s.key])
-        .filter((v): v is number => typeof v === 'number' && Number.isFinite(v)),
-    ),
-  );
+  const wealthDomain = effectiveWealthScaleMode === 'log'
+    ? fitPositiveLogDomain(wealthVisibleValues)
+    : fitDomain(
+        displayedWealthRows.flatMap((row) =>
+          wealthVisibleKeys
+            .map((key) => row[key])
+            .filter((v): v is number => typeof v === 'number' && Number.isFinite(v)),
+        ),
+      );
+  const wealthTickFormatter = (value: number) =>
+    effectiveWealthScaleMode === 'base100' ? `${Math.round(value)}` : moneyCompact(Number(value));
+  const wealthTooltipFormatter = (value: unknown, name: unknown, item: { dataKey?: unknown; payload?: Record<string, unknown> }): [string, string] => {
+    const dataKey = typeof item.dataKey === 'string' ? item.dataKey : '';
+    const raw = item.payload?.[`${dataKey}__raw`];
+    if (effectiveWealthScaleMode === 'base100') {
+      const rawText = typeof raw === 'number' && Number.isFinite(raw) ? ` · ${money(raw)}` : '';
+      return [`${Number(value).toFixed(1)}${rawText}`, String(name)];
+    }
+    return [money(Number(value)), String(name)];
+  };
   const cashflowHasData = monthRows.some((row) => row.income !== 0 || row.expenses !== 0);
   const categoryHasData = categoryRows.length > 0;
   const accountsHasData = accountRows.length > 0;
@@ -417,7 +441,18 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
                 <option value="area">Zones</option>
                 <option value="line">Lignes</option>
               </select>
+              <select value={wealthScaleMode} onChange={(e) => setWealthScaleMode(e.target.value as ChartScaleMode)} aria-label="Échelle du graphique patrimoine">
+                <option value="linear">Linéaire</option>
+                <option value="log">Logarithmique</option>
+                <option value="base100">Base 100</option>
+              </select>
             </div>
+            {wealthScaleMode === 'log' && !wealthLogAvailable && (
+              <p className="panel-note">L'échelle logarithmique nécessite des séries visibles strictement positives. Le graphique reste en linéaire tant qu'une série vaut 0 ou moins.</p>
+            )}
+            {effectiveWealthScaleMode === 'base100' && (
+              <p className="panel-note">Base 100 : chaque série démarre à 100 depuis son premier solde non nul. Le tooltip conserve le montant réel.</p>
+            )}
             <div className="series-toggles">
               {wealthSeriesConfig.map(({ key, label }) => (
                 <label key={key}><input type="checkbox" checked={wealthSeries[key] ?? false} onChange={() => toggleWealthSeries(key)} /> {label}</label>
@@ -426,11 +461,18 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
             <div className="chart-area">
               {wealthHasData ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={wealthChartRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <ComposedChart data={displayedWealthRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid stroke={chartGrid} vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                    <YAxis domain={wealthDomain} tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
-                    <Tooltip formatter={(value) => money(Number(value))} />
+                    <YAxis
+                      domain={wealthDomain}
+                      scale={effectiveWealthScaleMode === 'log' ? 'log' : 'auto'}
+                      tickFormatter={(value) => wealthTickFormatter(Number(value))}
+                      tickLine={false}
+                      axisLine={false}
+                      width={70}
+                    />
+                    <Tooltip formatter={wealthTooltipFormatter} />
                     <Legend />
                     {wealthSeriesConfig.map(({ key, label, color, width }) => {
                       if (!wealthSeries[key]) return null;

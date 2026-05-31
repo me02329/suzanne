@@ -23,7 +23,7 @@ import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, todayI
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { accountSignedAmount, livretCeiling, touchesAccount } from '../lib/account';
-import { fitDomain } from '../lib/chartScale';
+import { canUseLogScale, fitDomain, fitPositiveLogDomain, toBase100, type ChartScaleMode } from '../lib/chartScale';
 import { DataTable } from '../components/DataTable';
 import { EmptyChart } from '../components/EmptyChart';
 import { IconButton } from '../components/IconButton';
@@ -58,6 +58,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   // means open — from falls back to the earliest data, to to today.
   const [rangeFrom, setRangeFrom] = usePersistedState('account_detail_from', '');
   const [rangeTo, setRangeTo] = usePersistedState('account_detail_to', '');
+  const [scaleMode, setScaleMode] = usePersistedState<ChartScaleMode>('account_detail_scale_mode', 'linear');
   const [history, setHistory] = useState<{ date: string; balance: number }[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,7 +136,22 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const chartData = history
     .filter((p) => p.date.slice(0, 10) >= accountStart)
     .map((p) => ({ ...p, label: formatMonth(p.date.slice(0, 7)) }));
-  const balanceDomain = fitDomain(chartData.map((p) => p.balance));
+  const balanceValues = chartData.map((p) => p.balance).filter((v) => Number.isFinite(v));
+  const logAvailable = canUseLogScale(balanceValues);
+  const effectiveScaleMode: ChartScaleMode = scaleMode === 'log' && !logAvailable ? 'linear' : scaleMode;
+  const displayedChartData = effectiveScaleMode === 'base100' ? toBase100(chartData, ['balance']) : chartData;
+  const balanceDomain = effectiveScaleMode === 'log'
+    ? fitPositiveLogDomain(balanceValues)
+    : fitDomain(displayedChartData.map((p) => p.balance).filter((v): v is number => typeof v === 'number' && Number.isFinite(v)));
+  const yTick = (value: number) => effectiveScaleMode === 'base100' ? `${Math.round(value)}` : moneyCompact(Number(value));
+  const tooltipValue = (value: unknown, name: unknown, item: { payload?: Record<string, unknown> }): [string, string] => {
+    if (effectiveScaleMode === 'base100') {
+      const raw = item.payload?.balance__raw;
+      const rawText = typeof raw === 'number' && Number.isFinite(raw) ? ` · ${money(raw)}` : '';
+      return [`${Number(value).toFixed(1)}${rawText}`, String(name)];
+    }
+    return [money(Number(value)), String(name)];
+  };
 
   // Add a balance snapshot for *this* account alone — no need to go through the
   // end-of-month batch form on the accounts page just to record one account.
@@ -191,13 +207,24 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                   <input type="date" value={rangeTo} min={rangeFrom || undefined} max={todayIso()} onChange={(e) => setRangeTo(e.target.value)} aria-label="Fin de la période (vide = aujourd'hui)" />
                 </>
               )}
+              <select value={scaleMode} onChange={(e) => setScaleMode(e.target.value as ChartScaleMode)} aria-label="Échelle du graphique">
+                <option value="linear">Linéaire</option>
+                <option value="log">Logarithmique</option>
+                <option value="base100">Base 100</option>
+              </select>
             </div>
           )}
         >
+          {scaleMode === 'log' && !logAvailable && (
+            <p className="panel-note">L'échelle logarithmique nécessite des soldes strictement positifs. Le graphique reste en linéaire tant que le solde vaut 0 ou moins.</p>
+          )}
+          {effectiveScaleMode === 'base100' && (
+            <p className="panel-note">Base 100 : le solde démarre à 100 depuis sa première valeur non nulle. Le tooltip conserve le montant réel.</p>
+          )}
           <div className="chart-area">
             {chartData.length > 1 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <AreaChart data={displayedChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="accountFill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={chartTheme.net} stopOpacity={0.35} />
@@ -206,8 +233,8 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                   </defs>
                   <CartesianGrid stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={20} />
-                  <YAxis domain={balanceDomain} tickFormatter={(v) => moneyCompact(Number(v))} tickLine={false} axisLine={false} width={64} />
-                  <Tooltip formatter={(v) => money(Number(v))} />
+                  <YAxis domain={balanceDomain} scale={effectiveScaleMode === 'log' ? 'log' : 'auto'} tickFormatter={(v) => yTick(Number(v))} tickLine={false} axisLine={false} width={64} />
+                  <Tooltip formatter={tooltipValue} />
                   <Area type="monotone" dataKey="balance" name="Solde" stroke={chartTheme.net} strokeWidth={2} fill="url(#accountFill)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
