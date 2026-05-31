@@ -104,6 +104,7 @@ export interface RecurringTransaction {
   frequency: RecurringFrequency;
   interval: number;
   day_of_month: number | null;
+  month_of_year: number | null; // 1-12, only meaningful for yearly recurrences
   active: boolean;
   last_executed: string | null;
   created_at: string;
@@ -185,6 +186,7 @@ export interface CreateRecurringBody {
   frequency: RecurringFrequency;
   interval?: number;
   day_of_month?: number | null;
+  month_of_year?: number | null;
   active?: boolean;
 }
 
@@ -379,7 +381,7 @@ export const REPORT_CURRENCIES: ReadonlyArray<{ value: string; label: string }> 
 
 type RecurrenceShape = Pick<
   RecurringTransaction,
-  'frequency' | 'interval' | 'day_of_month' | 'last_executed'
+  'frequency' | 'interval' | 'day_of_month' | 'month_of_year' | 'last_executed'
 >;
 
 function startOfUtcDay(date: Date): Date {
@@ -428,10 +430,24 @@ export function nextRecurringOccurrence(
   if (recurring.frequency === 'monthly' || recurring.frequency === 'yearly') {
     const monthStep = recurring.frequency === 'yearly' ? 12 * step : step;
     const day = recurring.day_of_month ?? 1;
-    let cursor = last
-      ? addMonthsClamped(last, monthStep, day)
-      : new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(),
-          Math.min(day, daysInMonthYM(ref.getUTCFullYear(), ref.getUTCMonth()))));
+    // For a yearly recurrence with a chosen month, anchor the occurrence on that
+    // month (e.g. "every March") instead of the month it happened to be created
+    // in. We anchor in the reference year (or last_executed's year for the step
+    // cadence) and let the loop below carry it forward by whole years.
+    const anchorMonth =
+      recurring.frequency === 'yearly' && recurring.month_of_year != null
+        ? recurring.month_of_year - 1
+        : null;
+    let cursor: Date;
+    if (anchorMonth != null) {
+      const baseYear = (last ?? ref).getUTCFullYear();
+      cursor = new Date(Date.UTC(baseYear, anchorMonth, Math.min(day, daysInMonthYM(baseYear, anchorMonth))));
+    } else {
+      cursor = last
+        ? addMonthsClamped(last, monthStep, day)
+        : new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(),
+            Math.min(day, daysInMonthYM(ref.getUTCFullYear(), ref.getUTCMonth()))));
+    }
     while (cursor <= ref) cursor = addMonthsClamped(cursor, monthStep, day);
     return cursor.toISOString().slice(0, 10);
   }

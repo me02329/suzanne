@@ -13,6 +13,11 @@ import { Panel } from '../components/Panel';
 
 import type { Run } from '../lib/run';
 
+const MONTHS = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+].map((label, i) => ({ value: i + 1, label }));
+
 export function Recurring({ userId, recurring, accounts, categories, categoryById, accountById, summary, reportCurrency, run }: {
   userId: number;
   recurring: RecurringTransaction[];
@@ -26,6 +31,11 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
 }) {
   const [addOpen, setAddOpen] = usePersistedState<boolean>('recurring_add_open', recurring.length === 0);
   const [editing, setEditing] = useState<RecurringTransaction | null>(null);
+  // Frequency is tracked in state so the "Mois" selector can appear only for
+  // yearly recurrences, in both the add form and the edit modal.
+  const [addFreq, setAddFreq] = useState<RecurringFrequency>('monthly');
+  const [editFreq, setEditFreq] = useState<RecurringFrequency>('monthly');
+  const currentMonth = new Date().getMonth() + 1;
   // Per-cadence collapse, persisted across sessions. Default open (a missing
   // key means expanded); keys are namespaced by panel so the monthly section of
   // expenses and of income fold independently.
@@ -72,9 +82,11 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
       frequency: String(data.get('frequency')) as RecurringFrequency,
       interval: Number(data.get('interval') || 1),
       day_of_month: Number(data.get('day_of_month') || 1),
+      month_of_year: numberOrNull(data.get('month_of_year')),
       active: true,
     }), 'Récurrent ajouté');
     form.reset();
+    setAddFreq('monthly');
   };
 
   // Édition d'un récurrent existant : une augmentation de prix ou un changement
@@ -93,6 +105,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
       frequency: String(data.get('frequency')) as RecurringFrequency,
       interval: Number(data.get('interval') || 1),
       day_of_month: Number(data.get('day_of_month') || 1),
+      month_of_year: numberOrNull(data.get('month_of_year')),
     }), 'Récurrent modifié');
     setEditing(null);
   };
@@ -141,7 +154,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
                 <td data-label="Compte">{account?.name ?? 'Sans compte'}</td>
                 <td data-label="Catégorie">{categoryById.get(r.category_id ?? -1)?.name ?? 'Sans catégorie'}</td>
                 <td className="actions-cell">
-                  <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(r)} />
+                  <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => { setEditing(r); setEditFreq(r.frequency); }} />
                   <IconButton
                     label={r.active ? 'Désactiver' : 'Activer'}
                     tone="neutral"
@@ -186,8 +199,11 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
               <label className="grow">Description<input name="description" required /></label>
               <label>Type<select name="type"><option value="expense">Dépense</option><option value="income">Revenu</option></select></label>
               <label>Montant<input name="amount" type="number" min="0.01" step="0.01" required /></label>
-              <label>Fréquence<select name="frequency" defaultValue="monthly"><option value="weekly">Semaines</option><option value="monthly">Mois</option><option value="yearly">Années</option></select></label>
+              <label>Fréquence<select name="frequency" value={addFreq} onChange={(e) => setAddFreq(e.target.value as RecurringFrequency)}><option value="weekly">Semaines</option><option value="monthly">Mois</option><option value="yearly">Années</option></select></label>
               <label>Tous les<input name="interval" type="number" min="1" max="120" defaultValue="1" required /></label>
+              {addFreq === 'yearly' && (
+                <label>Mois<select name="month_of_year" defaultValue={currentMonth}>{MONTHS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}</select></label>
+              )}
               <label>Jour<input name="day_of_month" type="number" min="1" max="31" defaultValue="1" /></label>
               <label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
               <label>Catégorie<select name="category_id"><option value="">Aucune</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -227,13 +243,20 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
             </label>
             <label>Montant<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editing.amount} required /></label>
             <label>Fréquence
-              <select name="frequency" defaultValue={editing.frequency}>
+              <select name="frequency" value={editFreq} onChange={(e) => setEditFreq(e.target.value as RecurringFrequency)}>
                 <option value="weekly">Semaines</option>
                 <option value="monthly">Mois</option>
                 <option value="yearly">Années</option>
               </select>
             </label>
             <label>Tous les<input name="interval" type="number" min="1" max="120" defaultValue={editing.interval ?? 1} required /></label>
+            {editFreq === 'yearly' && (
+              <label>Mois
+                <select name="month_of_year" defaultValue={editing.month_of_year ?? currentMonth}>
+                  {MONTHS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+              </label>
+            )}
             <label>Jour<input name="day_of_month" type="number" min="1" max="31" defaultValue={editing.day_of_month ?? 1} /></label>
             <label>Compte
               <select name="account_id" defaultValue={editing.account_id ?? ''}>

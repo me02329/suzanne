@@ -219,6 +219,7 @@ model RecurringTransaction {
   frequency     RecurringFrequency
   interval      Int       @default(1)
   day_of_month  Int?
+  month_of_year Int?
   active        Boolean   @default(true)
   last_executed DateTime? @db.Date
   created_at    DateTime  @default(now()) @db.Timestamptz(6)

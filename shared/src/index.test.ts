@@ -34,7 +34,7 @@ describe('account taxonomy', () => {
 });
 
 describe('nextRecurringOccurrence', () => {
-  const base = { interval: 1, day_of_month: null, last_executed: null } as const;
+  const base = { interval: 1, day_of_month: null, month_of_year: null, last_executed: null } as const;
   const from = new Date('2026-05-30T12:00:00.000Z');
 
   it('returns the next monthly date after today when never executed', () => {
@@ -72,10 +72,30 @@ describe('nextRecurringOccurrence', () => {
     // 2026-05-30, so the next *upcoming* occurrence is 2028.
     expect(
       nextRecurringOccurrence(
-        { frequency: 'yearly', interval: 2, day_of_month: 15, last_executed: '2024-03-15' },
+        { frequency: 'yearly', interval: 2, day_of_month: 15, month_of_year: null, last_executed: '2024-03-15' },
         from,
       ),
     ).toBe('2028-03-15');
+  });
+
+  it('anchors a yearly recurrence on its chosen month, regardless of "today"', () => {
+    // month_of_year = 3 (March), day 15: March is behind us on 2026-05-30, so
+    // the next occurrence is next year — not "12 months from creation".
+    expect(
+      nextRecurringOccurrence(
+        { ...base, frequency: 'yearly', day_of_month: 15, month_of_year: 3 },
+        from,
+      ),
+    ).toBe('2027-03-15');
+  });
+
+  it('keeps the chosen month within the current year when it is still ahead', () => {
+    expect(
+      nextRecurringOccurrence(
+        { ...base, frequency: 'yearly', day_of_month: 15, month_of_year: 8 },
+        from,
+      ),
+    ).toBe('2026-08-15');
   });
 });
 

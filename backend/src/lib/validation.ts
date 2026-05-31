@@ -111,6 +111,7 @@ export const createRecurringSchema = z.object({
   frequency: z.enum(['weekly', 'monthly', 'yearly']),
   interval: z.coerce.number().int().min(1).max(120).default(1),
   day_of_month: z.coerce.number().int().min(1).max(31).nullish(),
+  month_of_year: z.coerce.number().int().min(1).max(12).nullish(),
   active: z.coerce.boolean().default(true),
 });
 export const updateRecurringSchema = createRecurringSchema.partial();

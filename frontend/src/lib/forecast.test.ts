@@ -16,6 +16,7 @@ function recurring(overrides: Partial<RecurringTransaction>): RecurringTransacti
     frequency: 'monthly',
     interval: 1,
     day_of_month: 1,
+    month_of_year: null,
     active: true,
     last_executed: null,
     created_at: '2025-01-01T00:00:00.000Z',

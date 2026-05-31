@@ -27,6 +27,7 @@ recurringRouter.post('/users/:user_id/recurring-transactions', asyncHandler(asyn
       frequency: body.frequency,
       interval: body.interval,
       day_of_month: body.day_of_month ?? null,
+      month_of_year: body.month_of_year ?? null,
       active: body.active,
     },
   });
@@ -53,6 +54,7 @@ recurringRouter.patch('/users/:user_id/recurring-transactions/:id', asyncHandler
       ...(body.frequency != null ? { frequency: body.frequency } : {}),
       ...(body.interval != null ? { interval: body.interval } : {}),
       ...(body.day_of_month !== undefined ? { day_of_month: body.day_of_month ?? null } : {}),
+      ...(body.month_of_year !== undefined ? { month_of_year: body.month_of_year ?? null } : {}),
       ...(body.active != null ? { active: body.active } : {}),
     },
   });
