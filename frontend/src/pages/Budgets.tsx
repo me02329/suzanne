@@ -1,4 +1,5 @@
 import { FormEvent } from 'react';
+import { Plus, Target } from 'lucide-react';
 import type { Budget, Category, DashboardSummary } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { money } from '../lib/format';
@@ -35,10 +36,10 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
         <form className="form" onSubmit={submit}>
           <label>Catégorie<select name="category_id" required>{expenseCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <label>Limite<input name="amount_limit" type="number" min="0.01" step="0.01" required /></label>
-          <button className="primary">Enregistrer</button>
+          <button className="primary"><Plus size={16} /> Enregistrer</button>
         </form>
       </Panel>
-      <Panel title="Suivi">
+      <Panel title="Suivi" icon={<Target />}>
         <DataTable empty={budgets.length === 0 ? 'Aucun budget pour ce mois.' : null}>
           <thead><tr><th>Catégorie</th><th className="amount-cell">Dépensé</th><th className="amount-cell">Limite</th><th>Progression</th><th className="actions-cell">Actions</th></tr></thead>
           <tbody>

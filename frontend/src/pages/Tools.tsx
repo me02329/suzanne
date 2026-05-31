@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Upload } from 'lucide-react';
+import { DatabaseBackup, Download, FileUp, Upload } from 'lucide-react';
 import type { Account } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { numberOrNull } from '../lib/forms';
@@ -160,7 +160,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
 
   return (
     <section className="split">
-      <Panel title="Importer CSV">
+      <Panel title="Importer CSV" icon={<FileUp />}>
         <p className="panel-note">Colle un CSV, glisse-dépose un fichier ou utilise le sélecteur dans la modale d'import.</p>
         <div className="export-actions">
           <button className="primary" type="button" onClick={() => setImportOpen(true)}>
@@ -168,7 +168,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
           </button>
         </div>
       </Panel>
-      <Panel title="Sauvegarde">
+      <Panel title="Sauvegarde" icon={<DatabaseBackup />}>
         <p className="panel-note">Exporte ou restaure tes données. Le JSON est réimportable : à chaque entité importée, les doublons sont détectés par nom/clé naturelle.</p>
         <div className="export-actions">
           <button className="primary" type="button" onClick={() => setExportOpen(true)}>

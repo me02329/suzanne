@@ -1,4 +1,5 @@
 import { FormEvent } from 'react';
+import { Plus, Wand2 } from 'lucide-react';
 import type { Category, CategoryRule } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { DataTable } from '../components/DataTable';
@@ -30,10 +31,10 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
         <form className="form" onSubmit={submit}>
           <label>Mot-clé<input name="pattern" placeholder="CARREFOUR" required /></label>
           <label>Catégorie<select name="category_id" required>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <button className="primary">Enregistrer</button>
+          <button className="primary"><Plus size={16} /> Enregistrer</button>
         </form>
       </Panel>
-      <Panel title="Règles">
+      <Panel title="Règles" icon={<Wand2 />}>
         <DataTable empty={rules.length === 0 ? 'Aucune règle.' : null}>
           <thead><tr><th>Mot-clé</th><th>Catégorie</th><th>Créée le</th><th className="actions-cell">Actions</th></tr></thead>
           <tbody>

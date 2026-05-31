@@ -339,7 +339,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
           <Stat icon={<Repeat />} label="Abonnements/mois" value={money(subscriptionExpenses)} negative />
         </section>
 
-        <section className="charts-grid">
+        <section className="chart-full">
           <Panel title="Évolution du patrimoine">
             <div className="panel-toolbar">
               <select value={wealthViewMode} onChange={(e) => setWealthViewMode(e.target.value as 'group' | 'account')} aria-label="Découpage des séries">
@@ -403,7 +403,9 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
               )}
             </div>
           </Panel>
+        </section>
 
+        <section className="chart-full">
           <Panel title="Répartition du patrimoine">
             <div className="chart-split">
               <div className="donut-area">

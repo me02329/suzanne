@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { CalendarDays, Gauge, Tags, TrendingDown } from 'lucide-react';
 import type { StatisticsSummary } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { useChartTheme } from '../lib/chartTheme';
@@ -20,6 +21,7 @@ import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, trunca
 import { usePersistedState } from '../lib/storage';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
+import { Stat } from '../components/Stat';
 
 // "Statistiques" — long-range expense analytics that complement the
 // month-scoped dashboard.
@@ -101,26 +103,10 @@ export function Statistics({ userId, reportCurrency }: { userId: number; reportC
       {error && <div className="error">{error}</div>}
 
       <section className="stats">
-        <div className="stat">
-          <div className="stat-icon" />
-          <span>Dépenses sur la plage</span>
-          <strong className="expense">{money(totalDisplayed)}</strong>
-        </div>
-        <div className="stat">
-          <div className="stat-icon" />
-          <span>Moyenne mensuelle</span>
-          <strong>{money(averagePerMonth)}</strong>
-        </div>
-        <div className="stat">
-          <div className="stat-icon" />
-          <span>Catégories actives</span>
-          <strong>{byCategory.length}</strong>
-        </div>
-        <div className="stat">
-          <div className="stat-icon" />
-          <span>Mois couverts</span>
-          <strong>{monthsCount}</strong>
-        </div>
+        <Stat icon={<TrendingDown />} label="Dépenses sur la plage" value={money(totalDisplayed)} negative />
+        <Stat icon={<Gauge />} label="Moyenne mensuelle" value={money(averagePerMonth)} />
+        <Stat icon={<Tags />} label="Catégories actives" value={String(byCategory.length)} />
+        <Stat icon={<CalendarDays />} label="Mois couverts" value={String(monthsCount)} />
       </section>
 
       <section className="charts-grid">

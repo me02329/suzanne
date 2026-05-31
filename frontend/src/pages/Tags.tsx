@@ -44,7 +44,7 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
           <button className="primary"><TagIcon size={16} /> Ajouter</button>
         </form>
       </Panel>
-      <Panel title="Tags">
+      <Panel title="Tags" icon={<TagIcon />}>
         <DataTable empty={tags.length === 0 ? 'Aucun tag pour l\'instant.' : null}>
           <thead><tr><th>Nom</th><th>Couleur</th><th>Créé le</th><th className="actions-cell">Actions</th></tr></thead>
           <tbody>

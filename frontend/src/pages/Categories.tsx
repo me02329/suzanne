@@ -48,7 +48,7 @@ export function Categories({ userId, categories, run }: { userId: number; catego
           <button className="primary"><FolderTree size={16} /> Ajouter</button>
         </form>
       </Panel>
-      <Panel title="Catégories">
+      <Panel title="Catégories" icon={<FolderTree />}>
         <DataTable empty={categories.length === 0 ? 'Aucune catégorie.' : null}>
           <thead><tr><th>Nom</th><th>Type</th><th>Icône</th><th className="actions-cell">Actions</th></tr></thead>
           <tbody>

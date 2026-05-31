@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Coins, Link2, Pencil } from 'lucide-react';
+import { Coins, Link2, Pencil, PiggyBank, Plus } from 'lucide-react';
 import type { Account, SavingsGoal } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { money, todayIso } from '../lib/format';
@@ -82,10 +82,10 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
           </label>
           <label>Échéance<input name="deadline" type="date" /></label>
           <label>Couleur<input name="color" type="color" defaultValue="#4f46e5" /></label>
-          <button className="primary">Ajouter</button>
+          <button className="primary"><Plus size={16} /> Ajouter</button>
         </form>
       </Panel>
-      <Panel title="Objectifs">
+      <Panel title="Objectifs" icon={<PiggyBank />}>
         <DataTable empty={goals.length === 0 ? 'Aucun objectif.' : null}>
           <thead><tr><th>Objectif</th><th>Compte</th><th className="amount-cell">Actuel</th><th className="amount-cell">Cible</th><th>Progression</th><th>Échéance</th><th className="actions-cell">Actions</th></tr></thead>
           <tbody>

@@ -450,6 +450,11 @@ select:focus, input:focus, textarea:focus {
   margin-bottom: 18px;
 }
 
+/* A single chart panel that spans the whole content width, stacked on its own
+   row instead of sharing the 2-column charts-grid. The next panel sizes to its
+   own content rather than stretching to match a tall neighbour. */
+.chart-full { margin-bottom: 18px; }
+
 .split {
   display: grid;
   grid-template-columns: 360px minmax(0, 1fr);
@@ -1256,6 +1261,17 @@ select:focus, input:focus, textarea:focus {
   margin: 0;
 }
 
+/* Optional accent icon before a panel title, giving each page an identity. */
+.panel-title { display: inline-flex; align-items: center; gap: 9px; }
+.panel-icon {
+  display: inline-flex;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 6px;
+  border-radius: 8px;
+}
+.panel-icon svg { width: 17px; height: 17px; }
+
 .assistant-layout {
   max-width: 980px;
 }
@@ -1905,6 +1921,17 @@ textarea {
   .search-box { min-width: 0; }
   .stats, .grid, .charts-grid, .split, .chart-split { grid-template-columns: 1fr; }
   .assistant-composer { grid-template-columns: 1fr; }
+
+  /* The assistant header can't fit its title plus the two labelled buttons on a
+     narrow screen, so let everything wrap and the actions span the full width. */
+  .panel-header { flex-wrap: wrap; }
+  .assistant-header-actions {
+    flex-wrap: wrap;
+    flex-basis: 100%;
+    gap: 8px;
+  }
+  .assistant-header-actions .ghost-button { flex: 1 1 auto; justify-content: center; }
+  .assistant-health button { margin-left: 0; }
   .dashboard-metric { grid-template-columns: 1fr; }
   .table-tools .search-box.inline, .table-tools select { flex-basis: 100%; }
 

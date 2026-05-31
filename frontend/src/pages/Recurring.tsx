@@ -85,7 +85,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
         )}
       </div>
 
-      <Panel title="Récurrents">
+      <Panel title="Récurrents" icon={<CalendarClock />}>
         <DataTable empty={recurring.length === 0 ? 'Aucune transaction récurrente.' : null}>
           <thead><tr><th>Description</th><th>Type</th><th className="amount-cell">Montant</th><th>Fréquence</th><th>Prochaine</th><th>Compte</th><th>Catégorie</th><th className="actions-cell">Actions</th></tr></thead>
           <tbody>

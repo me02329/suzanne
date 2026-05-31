@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { CheckCircle2, KeyRound, Loader2, Save, Trash2 } from 'lucide-react';
+import { CheckCircle2, KeyRound, Loader2, Save, Sparkles, Trash2 } from 'lucide-react';
 import { api, type AiSettings } from '../lib/api';
 import { Panel } from '../components/Panel';
 
@@ -75,7 +75,7 @@ export function Settings() {
 
   return (
     <section className="stack">
-      <Panel title="Assistant IA">
+      <Panel title="Assistant IA" icon={<Sparkles />}>
         <p className="panel-note">
           Configure ici la clé API et le modèle utilisés par l'assistant. Les valeurs définies depuis cette page
           ont priorité sur les variables d'environnement <code>AI_API_KEY</code> / <code>AI_MODEL</code> / <code>AI_BASE_URL</code>.
@@ -125,7 +125,7 @@ export function Settings() {
         </form>
       </Panel>
 
-      <Panel title="Comment obtenir une clé ?">
+      <Panel title="Comment obtenir une clé ?" icon={<KeyRound />}>
         <p className="panel-note">
           <KeyRound size={14} /> OpenAI : <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">platform.openai.com/api-keys</a> — modèle conseillé : <code>gpt-4.1-mini</code> (peu cher, sait utiliser les tools).
         </p>
