@@ -35,7 +35,7 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
         </button>
         {addOpen && (
           <div className="collapsible-body">
-            <p className="panel-note">Appliquées <strong>uniquement lors de l'import CSV</strong> : si le libellé d'une transaction contient le mot-clé, elle reçoit automatiquement la catégorie choisie. Inutile en saisie manuelle.</p>
+            <p className="panel-note">Si le libellé d'une transaction contient le mot-clé, elle reçoit automatiquement la catégorie choisie. Appliquées à l'<strong>import CSV</strong>, et rétroactivement aux transactions sans catégorie via le bouton <strong>« Appliquer »</strong> ci-dessous.</p>
             <form className="form form-inline" onSubmit={submit}>
               <label className="grow">Mot-clé<input name="pattern" placeholder="CARREFOUR" required /></label>
               <label>Catégorie<select name="category_id" required>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -44,7 +44,30 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
           </div>
         )}
       </div>
-      <Panel title="Règles" icon={<Wand2 />}>
+      <Panel
+        title="Règles"
+        icon={<Wand2 />}
+        action={rules.length > 0 ? (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              if (!window.confirm('Appliquer les règles à toutes les transactions sans catégorie ?')) return;
+              void run(
+                () => api.applyRules(userId),
+                (result) => {
+                  const { categorized } = result as { categorized: number };
+                  return categorized > 0
+                    ? `${categorized} transaction${categorized > 1 ? 's' : ''} catégorisée${categorized > 1 ? 's' : ''}`
+                    : 'Aucune transaction sans catégorie à classer';
+                },
+              );
+            }}
+          >
+            <Wand2 size={16} /> Appliquer aux transactions sans catégorie
+          </button>
+        ) : undefined}
+      >
         <DataTable empty={rules.length === 0 ? 'Aucune règle.' : null}>
           <thead><tr><th>Mot-clé</th><th>Catégorie</th><th>Créée le</th><th className="actions-cell">Actions</th></tr></thead>
           <tbody>

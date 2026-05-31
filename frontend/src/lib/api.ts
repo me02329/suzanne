@@ -138,6 +138,7 @@ export const api = {
   rules: (userId: number) => http<CategoryRule[]>(`/users/${userId}/category-rules`),
   setRule: (userId: number, body: CreateCategoryRuleBody) => http<CategoryRule>(`/users/${userId}/category-rules`, { method: 'POST', body: JSON.stringify(body) }),
   deleteRule: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/category-rules/${id}`, { method: 'DELETE' }),
+  applyRules: (userId: number) => http<{ categorized: number; scanned: number }>(`/users/${userId}/category-rules/apply`, { method: 'POST' }),
   tags: (userId: number) => http<Tag[]>(`/users/${userId}/tags`),
   createTag: (userId: number, body: CreateTagBody) => http<Tag>(`/users/${userId}/tags`, { method: 'POST', body: JSON.stringify(body) }),
   updateTag: (userId: number, id: number, body: Partial<CreateTagBody>) => http<Tag>(`/users/${userId}/tags/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
