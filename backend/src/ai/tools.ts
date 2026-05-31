@@ -18,6 +18,7 @@ import {
 } from '../lib/validation.js';
 import { fetchExchangeRate } from '../lib/fx.js';
 import { round2 } from '../lib/money.js';
+import { applyRulesToUncategorized, bucketByRule } from '../lib/categoryRules.js';
 import { nextRecurringOccurrence, recurringMonthlyEquivalent } from '@suzanne-lite/shared';
 
 // The AI proposes a write action; the user confirms it from the chat UI.
@@ -224,6 +225,18 @@ export const aiToolDefinitions = [
     pattern: { type: 'string', description: 'Mot-clé recherché dans les descriptions (UPPERCASE).' },
     category_id: idProp,
   }, ['pattern', 'category_id']),
+  toolDefinition('propose_create_rules', 'Prépare la création de PLUSIEURS règles d\'auto-catégorisation ET leur application immédiate aux transactions sans catégorie. À privilégier pour catégoriser un backlog en masse (une entrée par marchand récurrent) au lieu de modifier les transactions une par une.', {
+    rules: {
+      type: 'array',
+      description: 'Une règle par marchand : motif (mot-clé UPPERCASE présent dans les libellés) → catégorie.',
+      items: {
+        type: 'object',
+        properties: { pattern: { type: 'string' }, category_id: { type: 'number' } },
+        required: ['pattern', 'category_id'],
+        additionalProperties: false,
+      },
+    },
+  }, ['rules']),
   toolDefinition('propose_delete_rule', 'Prépare la suppression d\'une règle.', {
     rule_id: idProp,
   }, ['rule_id']),
@@ -273,6 +286,7 @@ export async function executeAiTool(userId: number, name: string, rawArgs: unkno
     case 'propose_delete_budget': return await proposeDeleteBudget(userId, rawArgs);
 
     case 'propose_create_rule': return await proposeCreateRule(userId, rawArgs);
+    case 'propose_create_rules': return await proposeCreateRules(userId, rawArgs);
     case 'propose_delete_rule': return await proposeDeleteRule(userId, rawArgs);
 
     default:
@@ -504,6 +518,27 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
       const body = createCategoryRuleSchema.parse(action.payload);
       return await prisma.categoryRule.create({ data: { user_id: userId, pattern: body.pattern, category_id: body.category_id } });
     }
+    case 'apply_rules': {
+      const body = createRulesSchema.parse(action.payload);
+      // Re-validate the categories at confirmation time (the route schema is
+      // permissive; this is where invariants are enforced).
+      const categoryIds = Array.from(new Set(body.rules.map((r) => r.category_id)));
+      const owned = await prisma.category.findMany({ where: { id: { in: categoryIds }, user_id: userId }, select: { id: true } });
+      const ownedIds = new Set(owned.map((c) => c.id));
+      for (const r of body.rules) {
+        if (!ownedIds.has(r.category_id)) throw new Error('Catégorie introuvable');
+      }
+      for (const r of body.rules) {
+        const pattern = r.pattern.toUpperCase();
+        await prisma.categoryRule.upsert({
+          where: { user_id_pattern: { user_id: userId, pattern } },
+          create: { user_id: userId, pattern, category_id: r.category_id },
+          update: { category_id: r.category_id },
+        });
+      }
+      const result = await applyRulesToUncategorized(userId);
+      return { rules_created: body.rules.length, ...result };
+    }
     case 'delete_rule': {
       const id = idOnly('rule_id').parse(action.payload);
       return await prisma.categoryRule.deleteMany({ where: { id, user_id: userId } });
@@ -682,16 +717,22 @@ async function searchTransactions(userId: number, rawArgs: unknown) {
   const month = parseMonth(args.month);
   const range = month ? monthRange(month) : dateRange(args.from, args.to);
   const where = buildSearchTransactionsWhere(userId, args, range);
-  return await prisma.transaction.findMany({
-    where,
-    take: args.limit,
-    orderBy: [{ date: 'desc' }, { id: 'desc' }],
-    include: {
-      account: { select: { name: true, currency: true } },
-      category: { select: { name: true, type: true } },
-      tags: { include: { tag: { select: { id: true, name: true } } } },
-    },
-  });
+  // Return the total alongside the page so the model knows when the result is
+  // truncated (has_more) instead of assuming it has seen everything.
+  const [total, transactions] = await Promise.all([
+    prisma.transaction.count({ where }),
+    prisma.transaction.findMany({
+      where,
+      take: args.limit,
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
+      include: {
+        account: { select: { name: true, currency: true } },
+        category: { select: { name: true, type: true } },
+        tags: { include: { tag: { select: { id: true, name: true } } } },
+      },
+    }),
+  ]);
+  return { total, returned: transactions.length, has_more: total > transactions.length, transactions };
 }
 
 // ── propose_* helpers ──
@@ -840,6 +881,38 @@ async function proposeCreateRule(userId: number, rawArgs: unknown): Promise<Tool
   const category = await prisma.category.findFirst({ where: { id: body.category_id, user_id: userId } });
   if (!category) throw new Error('Catégorie introuvable');
   return propose('create_rule', `Règle "${body.pattern}" → ${category.name}`, body);
+}
+
+const createRulesSchema = z.object({
+  rules: z.array(z.object({
+    pattern: z.string().trim().min(1).max(100),
+    category_id: z.coerce.number().int().positive(),
+  })).min(1).max(100),
+});
+
+async function proposeCreateRules(userId: number, rawArgs: unknown): Promise<ToolExecution> {
+  const body = createRulesSchema.parse(rawArgs);
+  const rules = body.rules.map((r) => ({ pattern: r.pattern.toUpperCase(), category_id: r.category_id }));
+
+  // Every referenced category must exist and belong to the user.
+  const categoryIds = Array.from(new Set(rules.map((r) => r.category_id)));
+  const categories = await prisma.category.findMany({ where: { id: { in: categoryIds }, user_id: userId } });
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const missing = categoryIds.filter((id) => !categoryById.has(id));
+  if (missing.length > 0) throw new Error(`Catégorie(s) introuvable(s): ${missing.join(', ')}`);
+
+  // Estimate how many of the current backlog these rules would catch, for the
+  // confirmation label (the actual count is reported after confirmation).
+  const uncategorized = await prisma.transaction.findMany({
+    where: { user_id: userId, category_id: null, type: { not: 'transfer' } },
+    select: { id: true, description: true },
+  });
+  const matched = Array.from(bucketByRule(uncategorized, rules).values()).reduce((sum, ids) => sum + ids.length, 0);
+
+  const preview = rules.slice(0, 6).map((r) => `${r.pattern}→${categoryById.get(r.category_id)!.name}`).join(', ');
+  const more = rules.length > 6 ? `, +${rules.length - 6}` : '';
+  const label = `Créer ${rules.length} règle${rules.length > 1 ? 's' : ''} et catégoriser ${matched} transaction${matched > 1 ? 's' : ''} (${preview}${more})`;
+  return propose('apply_rules', label, { rules });
 }
 
 async function proposeDeleteRule(userId: number, rawArgs: unknown): Promise<ToolExecution> {

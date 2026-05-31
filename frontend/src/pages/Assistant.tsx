@@ -209,7 +209,16 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
         dismissAction(messageId, actionIndex);
         return result;
       },
-      'Action IA appliquée',
+      (result) => {
+        // Bulk rule application reports how many transactions it classified.
+        const r = (result as { result?: { categorized?: number; rules_created?: number } }).result;
+        if (r && typeof r.categorized === 'number') {
+          return r.categorized > 0
+            ? `${r.categorized} transaction${r.categorized > 1 ? 's' : ''} catégorisée${r.categorized > 1 ? 's' : ''} via ${r.rules_created} règle${(r.rules_created ?? 0) > 1 ? 's' : ''}`
+            : 'Règles créées — aucune transaction sans catégorie à classer';
+        }
+        return 'Action IA appliquée';
+      },
     );
   };
 
@@ -395,6 +404,7 @@ function toolLabel(name: string): string {
     list_rules: 'Lecture des règles',
     get_dashboard_summary: 'Résumé du dashboard',
     search_transactions: 'Recherche de transactions',
+    propose_create_rules: 'Préparation des règles de catégorisation',
   };
   if (labels[name]) return labels[name]!;
   if (name.startsWith('propose_create_')) return `Préparation création ${name.slice('propose_create_'.length)}`;
