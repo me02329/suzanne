@@ -1980,6 +1980,13 @@ textarea {
     cursor: pointer;
   }
 
+  /* Drop the floating month/controls pill below the menu and its backdrop, so
+     opening the menu dims it like the rest of the page instead of leaving it
+     floating brightly on top. */
+  .floating-controls {
+    z-index: 30;
+  }
+
   .sidebar-close {
     display: inline-flex;
     align-items: center;
