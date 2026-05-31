@@ -1,7 +1,8 @@
 import { FormEvent } from 'react';
-import { Plus, Wand2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Wand2 } from 'lucide-react';
 import type { Category, CategoryRule } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
+import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Panel } from '../components/Panel';
@@ -15,6 +16,7 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
   categoryById: Map<number, Category>;
   run: Run;
 }) {
+  const [addOpen, setAddOpen] = usePersistedState<boolean>('rules_add_open', rules.length === 0);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -25,15 +27,23 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
     event.currentTarget.reset();
   };
   return (
-    <section className="split">
-      <Panel title="Nouvelle règle" sticky>
-        <p className="panel-note">Appliquées <strong>uniquement lors de l'import CSV</strong> : si le libellé d'une transaction contient le mot-clé, elle reçoit automatiquement la catégorie choisie. Inutile en saisie manuelle.</p>
-        <form className="form" onSubmit={submit}>
-          <label>Mot-clé<input name="pattern" placeholder="CARREFOUR" required /></label>
-          <label>Catégorie<select name="category_id" required>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <button className="primary"><Plus size={16} /> Enregistrer</button>
-        </form>
-      </Panel>
+    <section className="stack">
+      <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
+        <button type="button" className="collapsible-header" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
+          <span className="collapsible-title"><Plus size={16} /> Nouvelle règle</span>
+          {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {addOpen && (
+          <div className="collapsible-body">
+            <p className="panel-note">Appliquées <strong>uniquement lors de l'import CSV</strong> : si le libellé d'une transaction contient le mot-clé, elle reçoit automatiquement la catégorie choisie. Inutile en saisie manuelle.</p>
+            <form className="form form-inline" onSubmit={submit}>
+              <label className="grow">Mot-clé<input name="pattern" placeholder="CARREFOUR" required /></label>
+              <label>Catégorie<select name="category_id" required>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+              <button className="primary"><Plus size={16} /> Enregistrer</button>
+            </form>
+          </div>
+        )}
+      </div>
       <Panel title="Règles" icon={<Wand2 />}>
         <DataTable empty={rules.length === 0 ? 'Aucune règle.' : null}>
           <thead><tr><th>Mot-clé</th><th>Catégorie</th><th>Créée le</th><th className="actions-cell">Actions</th></tr></thead>

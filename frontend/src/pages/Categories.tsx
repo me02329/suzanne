@@ -1,7 +1,8 @@
 import { FormEvent, useState } from 'react';
-import { FolderTree, Pencil } from 'lucide-react';
+import { ChevronDown, ChevronUp, FolderTree, Pencil, Plus } from 'lucide-react';
 import type { Category } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
+import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Modal } from '../components/Modal';
@@ -11,6 +12,7 @@ import type { Run } from '../lib/run';
 
 export function Categories({ userId, categories, run }: { userId: number; categories: Category[]; run: Run }) {
   const [editing, setEditing] = useState<Category | null>(null);
+  const [addOpen, setAddOpen] = usePersistedState<boolean>('categories_add_open', categories.length === 0);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -38,16 +40,24 @@ export function Categories({ userId, categories, run }: { userId: number; catego
   };
 
   return (
-    <section className="split">
-      <Panel title="Nouvelle catégorie" sticky>
-        <form className="form" onSubmit={submit}>
-          <label>Nom<input name="name" required /></label>
-          <label>Type<select name="type"><option value="expense">Dépense</option><option value="income">Revenu</option></select></label>
-          <label>Couleur<input name="color" type="color" defaultValue="#6366f1" /></label>
-          <label>Icône<input name="icon" placeholder="shopping-cart" /></label>
-          <button className="primary"><FolderTree size={16} /> Ajouter</button>
-        </form>
-      </Panel>
+    <section className="stack">
+      <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
+        <button type="button" className="collapsible-header" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
+          <span className="collapsible-title"><Plus size={16} /> Nouvelle catégorie</span>
+          {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {addOpen && (
+          <div className="collapsible-body">
+            <form className="form form-inline" onSubmit={submit}>
+              <label className="grow">Nom<input name="name" required /></label>
+              <label>Type<select name="type"><option value="expense">Dépense</option><option value="income">Revenu</option></select></label>
+              <label>Couleur<input name="color" type="color" defaultValue="#6366f1" /></label>
+              <label>Icône<input name="icon" placeholder="shopping-cart" /></label>
+              <button className="primary"><Plus size={16} /> Ajouter</button>
+            </form>
+          </div>
+        )}
+      </div>
       <Panel title="Catégories" icon={<FolderTree />}>
         <DataTable empty={categories.length === 0 ? 'Aucune catégorie.' : null}>
           <thead><tr><th>Nom</th><th>Type</th><th>Icône</th><th className="actions-cell">Actions</th></tr></thead>

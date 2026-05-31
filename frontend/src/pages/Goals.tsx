@@ -1,9 +1,10 @@
 import { FormEvent, useState } from 'react';
-import { Coins, Link2, Pencil, PiggyBank, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Coins, Link2, Pencil, PiggyBank, Plus } from 'lucide-react';
 import type { Account, SavingsGoal } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { money, todayIso } from '../lib/format';
 import { numberOrNull } from '../lib/forms';
+import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Modal } from '../components/Modal';
@@ -20,6 +21,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
 }) {
   const [contributing, setContributing] = useState<SavingsGoal | null>(null);
   const [editing, setEditing] = useState<SavingsGoal | null>(null);
+  const [addOpen, setAddOpen] = usePersistedState<boolean>('goals_add_open', goals.length === 0);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -64,27 +66,35 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
   };
 
   return (
-    <section className="split">
-      <Panel title="Nouvel objectif" sticky>
-        <p className="panel-note">
-          Lié à un compte : la progression peut être alimentée par un versement (transfert depuis un autre compte).
-          Sans compte : reste un compteur manuel.
-        </p>
-        <form className="form" onSubmit={submit}>
-          <label>Nom<input name="name" required /></label>
-          <label>Cible<input name="target_amount" type="number" min="0.01" step="0.01" required /></label>
-          <label>Actuel<input name="current_amount" type="number" min="0" step="0.01" defaultValue="0" /></label>
-          <label>Compte de l'objectif
-            <select name="account_id">
-              <option value="">Aucun (compteur manuel)</option>
-              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </label>
-          <label>Échéance<input name="deadline" type="date" /></label>
-          <label>Couleur<input name="color" type="color" defaultValue="#4f46e5" /></label>
-          <button className="primary"><Plus size={16} /> Ajouter</button>
-        </form>
-      </Panel>
+    <section className="stack">
+      <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
+        <button type="button" className="collapsible-header" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
+          <span className="collapsible-title"><Plus size={16} /> Nouvel objectif</span>
+          {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {addOpen && (
+          <div className="collapsible-body">
+            <p className="panel-note">
+              Lié à un compte : la progression peut être alimentée par un versement (transfert depuis un autre compte).
+              Sans compte : reste un compteur manuel.
+            </p>
+            <form className="form form-inline" onSubmit={submit}>
+              <label className="grow">Nom<input name="name" required /></label>
+              <label>Cible<input name="target_amount" type="number" min="0.01" step="0.01" required /></label>
+              <label>Actuel<input name="current_amount" type="number" min="0" step="0.01" defaultValue="0" /></label>
+              <label>Compte de l'objectif
+                <select name="account_id">
+                  <option value="">Aucun (compteur manuel)</option>
+                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </label>
+              <label>Échéance<input name="deadline" type="date" /></label>
+              <label>Couleur<input name="color" type="color" defaultValue="#4f46e5" /></label>
+              <button className="primary"><Plus size={16} /> Ajouter</button>
+            </form>
+          </div>
+        )}
+      </div>
       <Panel title="Objectifs" icon={<PiggyBank />}>
         <DataTable empty={goals.length === 0 ? 'Aucun objectif.' : null}>
           <thead><tr><th>Objectif</th><th>Compte</th><th className="amount-cell">Actuel</th><th className="amount-cell">Cible</th><th>Progression</th><th>Échéance</th><th className="actions-cell">Actions</th></tr></thead>
