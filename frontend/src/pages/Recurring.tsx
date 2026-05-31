@@ -1,5 +1,5 @@
-import { FormEvent, useMemo } from 'react';
-import { ArrowUpCircle, CalendarClock, ChevronDown, ChevronUp, PauseCircle, PlayCircle, Plus, Repeat } from 'lucide-react';
+import { FormEvent, useMemo, useState } from 'react';
+import { ArrowUpCircle, CalendarClock, ChevronDown, ChevronUp, PauseCircle, Pencil, PlayCircle, Plus, Repeat } from 'lucide-react';
 import { nextRecurringOccurrence, type Account, type Category, type DashboardSummary, type RecurringFrequency, type RecurringTransaction } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { numberOrNull } from '../lib/forms';
@@ -8,6 +8,7 @@ import { cadenceTotals, groupByCadence, type CadenceGroup } from '../lib/subscri
 import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
+import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 
 import type { Run } from '../lib/run';
@@ -24,6 +25,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
   run: Run;
 }) {
   const [addOpen, setAddOpen] = usePersistedState<boolean>('recurring_add_open', recurring.length === 0);
+  const [editing, setEditing] = useState<RecurringTransaction | null>(null);
 
   const displayCurrency = summary?.currency ?? reportCurrency;
 
@@ -70,6 +72,26 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
     form.reset();
   };
 
+  // Édition d'un récurrent existant : une augmentation de prix ou un changement
+  // de cadence reste le même abonnement, on modifie en place plutôt que de
+  // supprimer/recréer (ce qui perdrait l'historique de génération).
+  const submitEdit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editing) return;
+    const data = new FormData(event.currentTarget);
+    void run(() => api.updateRecurring(userId, editing.id, {
+      account_id: numberOrNull(data.get('account_id')),
+      category_id: numberOrNull(data.get('category_id')),
+      amount: Number(data.get('amount')),
+      type: String(data.get('type')) as 'expense' | 'income',
+      description: String(data.get('description')),
+      frequency: String(data.get('frequency')) as RecurringFrequency,
+      interval: Number(data.get('interval') || 1),
+      day_of_month: Number(data.get('day_of_month') || 1),
+    }), 'Récurrent modifié');
+    setEditing(null);
+  };
+
   const renderGroups = (groups: CadenceGroup[]) => groups.map((group) => (
     <div className="cadence-group" key={group.cadence}>
       <div className="cadence-group-head">
@@ -106,6 +128,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
                 <td data-label="Compte">{account?.name ?? 'Sans compte'}</td>
                 <td data-label="Catégorie">{categoryById.get(r.category_id ?? -1)?.name ?? 'Sans catégorie'}</td>
                 <td className="actions-cell">
+                  <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(r)} />
                   <IconButton
                     label={r.active ? 'Désactiver' : 'Activer'}
                     tone="neutral"
@@ -175,6 +198,44 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
         <Panel title="Revenus récurrents" icon={<ArrowUpCircle />}>
           {renderGroups(incomeGroups)}
         </Panel>
+      )}
+
+      {editing && (
+        <Modal title={`Modifier "${editing.description}"`} onClose={() => setEditing(null)}>
+          <form className="form" onSubmit={submitEdit}>
+            <label>Description<input name="description" defaultValue={editing.description} required /></label>
+            <label>Type
+              <select name="type" defaultValue={editing.type}>
+                <option value="expense">Dépense</option>
+                <option value="income">Revenu</option>
+              </select>
+            </label>
+            <label>Montant<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editing.amount} required /></label>
+            <label>Fréquence
+              <select name="frequency" defaultValue={editing.frequency}>
+                <option value="weekly">Semaines</option>
+                <option value="monthly">Mois</option>
+                <option value="yearly">Années</option>
+              </select>
+            </label>
+            <label>Tous les<input name="interval" type="number" min="1" max="120" defaultValue={editing.interval ?? 1} required /></label>
+            <label>Jour<input name="day_of_month" type="number" min="1" max="31" defaultValue={editing.day_of_month ?? 1} /></label>
+            <label>Compte
+              <select name="account_id" defaultValue={editing.account_id ?? ''}>
+                <option value="">Aucun</option>
+                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </label>
+            <label>Catégorie
+              <select name="category_id" defaultValue={editing.category_id ?? ''}>
+                <option value="">Aucune</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+            <button className="primary">Enregistrer</button>
+            <button type="button" className="secondary" onClick={() => setEditing(null)}>Annuler</button>
+          </form>
+        </Modal>
       )}
     </section>
   );
