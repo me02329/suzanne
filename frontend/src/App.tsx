@@ -43,6 +43,7 @@ const Accounts = lazy(() => import('./pages/Accounts').then((m) => ({ default: m
 const Categories = lazy(() => import('./pages/Categories').then((m) => ({ default: m.Categories })));
 const Budgets = lazy(() => import('./pages/Budgets').then((m) => ({ default: m.Budgets })));
 const Recurring = lazy(() => import('./pages/Recurring').then((m) => ({ default: m.Recurring })));
+const Forecast = lazy(() => import('./pages/Forecast').then((m) => ({ default: m.Forecast })));
 const Goals = lazy(() => import('./pages/Goals').then((m) => ({ default: m.Goals })));
 const Rules = lazy(() => import('./pages/Rules').then((m) => ({ default: m.Rules })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
@@ -385,6 +386,7 @@ export default function App() {
           <Route path="/categories" element={userId ? <Categories userId={userId} categories={categories} run={run} /> : null} />
           <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} budgets={budgets} summary={summary} run={run} /> : null} />
           <Route path="/recurring" element={userId ? <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} run={run} /> : null} />
+          <Route path="/forecast" element={userId ? <Forecast recurring={recurring} accounts={accounts} goals={goals} summary={summary} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
           <Route path="/goals" element={userId ? <Goals userId={userId} goals={goals} accounts={accounts} accountById={accountById} run={run} /> : null} />
           <Route path="/rules" element={userId ? <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} run={run} /> : null} />
           <Route path="/tools" element={userId ? <Tools userId={userId} accounts={accounts} run={run} /> : null} />
