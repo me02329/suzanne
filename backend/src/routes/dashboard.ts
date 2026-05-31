@@ -95,8 +95,16 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
 
   const today = startOfUtcDay(new Date());
   const firstDate = firstRelevantDate(accounts, transactions, snapshots) ?? today;
-  const from = rangeStart(range, today, firstDate);
-  const dates = buildHistoryDates(from, today, granularity);
+
+  // Custom range: explicit from/to days (either may be omitted — from falls back
+  // to the user's first data point, to falls back to today). Otherwise the
+  // preset range maps to a start and ends today.
+  const customFrom = range === 'custom' ? parseDayParam(req.query.from) : null;
+  const customTo = range === 'custom' ? parseDayParam(req.query.to) : null;
+  let from = customFrom ?? rangeStart(range, today, firstDate);
+  let to = customTo ?? today;
+  if (from > to) [from, to] = [to, from]; // tolerate an inverted range
+  const dates = buildHistoryDates(from, to, granularity);
 
   const points = dates.map((date) => {
     const accountBalances = computeAccountBalancesAt(accounts, transactions, snapshots, date, fx);
@@ -304,6 +312,13 @@ function firstRelevantDate(
     ...snapshots.map((s) => s.date),
   ].sort((a, b) => a.getTime() - b.getTime());
   return dates[0] ?? null;
+}
+
+// Parse a YYYY-MM-DD query param to a UTC day, or null when absent/invalid.
+function parseDayParam(value: unknown): Date | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : startOfUtcDay(date);
 }
 
 function rangeStart(range: string, today: Date, firstDate: Date): Date {

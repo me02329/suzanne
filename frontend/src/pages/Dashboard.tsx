@@ -45,6 +45,7 @@ import {
   formatMonthLong,
   money as moneyFmt,
   moneyCompact as moneyCompactFmt,
+  todayIso,
   truncate,
 } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
@@ -94,6 +95,10 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
 
   const [wealthRange, setWealthRange] = usePersistedState('wealth_range', '12m');
   const [wealthGranularity, setWealthGranularity] = usePersistedState('wealth_granularity', 'month');
+  // Custom range bounds (persisted), used only when wealthRange === 'custom'.
+  // An empty value means "open" — from falls back to the earliest data, to to today.
+  const [wealthFrom, setWealthFrom] = usePersistedState('wealth_from', '');
+  const [wealthTo, setWealthTo] = usePersistedState('wealth_to', '');
   const [wealthChartMode, setWealthChartMode] = usePersistedState<'area' | 'line'>('wealth_chart_mode', 'area');
   const [wealthViewMode, setWealthViewMode] = usePersistedState<'group' | 'account'>('wealth_view_mode', 'account');
   // Two separate persisted preferences so toggling Group ↔ Account preserves
@@ -107,12 +112,14 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
     if (!userId) return;
     let cancelled = false;
     setWealthLoading(true);
-    api.wealthHistory(userId, wealthRange, wealthGranularity, reportCurrency)
+    const from = wealthRange === 'custom' ? wealthFrom : undefined;
+    const to = wealthRange === 'custom' ? wealthTo : undefined;
+    api.wealthHistory(userId, wealthRange, wealthGranularity, reportCurrency, from, to)
       .then((rows) => { if (!cancelled) setWealthHistory(rows); })
       .catch(() => { if (!cancelled) setWealthHistory([]); })
       .finally(() => { if (!cancelled) setWealthLoading(false); });
     return () => { cancelled = true; };
-  }, [userId, wealthRange, wealthGranularity, reportCurrency, dataVersion]);
+  }, [userId, wealthRange, wealthGranularity, reportCurrency, wealthFrom, wealthTo, dataVersion]);
 
   // Series configuration depends on the active view mode. In account mode the
   // list is dynamic (one entry per account) so we compute it from `accounts`.
@@ -379,7 +386,28 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
                 <option value="12m">12 mois</option>
                 <option value="ytd">YTD</option>
                 <option value="all">Tout</option>
+                <option value="custom">Personnalisé</option>
               </select>
+              {wealthRange === 'custom' && (
+                <>
+                  <input
+                    type="date"
+                    value={wealthFrom}
+                    max={wealthTo || todayIso()}
+                    onChange={(e) => setWealthFrom(e.target.value)}
+                    aria-label="Début de la période"
+                  />
+                  <span className="range-sep">→</span>
+                  <input
+                    type="date"
+                    value={wealthTo}
+                    min={wealthFrom || undefined}
+                    max={todayIso()}
+                    onChange={(e) => setWealthTo(e.target.value)}
+                    aria-label="Fin de la période (vide = aujourd'hui)"
+                  />
+                </>
+              )}
               <select value={wealthGranularity} onChange={(e) => setWealthGranularity(e.target.value)}>
                 <option value="day">Jour</option>
                 <option value="week">Semaine</option>

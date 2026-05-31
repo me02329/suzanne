@@ -37,6 +37,7 @@ const RANGES: Array<{ value: string; label: string }> = [
   { value: '12m', label: '12 mois' },
   { value: 'ytd', label: 'Depuis janvier' },
   { value: 'all', label: 'Tout' },
+  { value: 'custom', label: 'Personnalisé' },
 ];
 
 export function AccountDetail({ userId, accounts, summary, snapshots, categoryById, reportCurrency, run }: {
@@ -53,6 +54,10 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const account = accounts.find((a) => a.id === accountId);
 
   const [range, setRange] = usePersistedState('account_detail_range', '12m');
+  // Custom range bounds (persisted), used only when range === 'custom'. Empty
+  // means open — from falls back to the earliest data, to to today.
+  const [rangeFrom, setRangeFrom] = usePersistedState('account_detail_from', '');
+  const [rangeTo, setRangeTo] = usePersistedState('account_detail_to', '');
   const [history, setHistory] = useState<{ date: string; balance: number }[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,14 +72,16 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   useEffect(() => {
     if (!account) return;
     let cancelled = false;
-    api.wealthHistory(userId, range, 'month', reportCurrency)
+    const from = range === 'custom' ? rangeFrom : undefined;
+    const to = range === 'custom' ? rangeTo : undefined;
+    api.wealthHistory(userId, range, 'month', reportCurrency, from, to)
       .then((points) => {
         if (cancelled) return;
         setHistory(points.map((p) => ({ date: p.date, balance: p.by_account[account.id] ?? 0 })));
       })
       .catch(() => { if (!cancelled) setHistory([]); });
     return () => { cancelled = true; };
-  }, [userId, account, range, reportCurrency]);
+  }, [userId, account, range, reportCurrency, rangeFrom, rangeTo]);
 
   // All-time transactions touching this account (one fetch, filtered client-side).
   useEffect(() => {
@@ -163,9 +170,18 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
           title="Évolution du solde"
           icon={<Wallet />}
           action={(
-            <select value={range} onChange={(e) => setRange(e.target.value)} aria-label="Plage de l'historique">
-              {RANGES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
+            <div className="range-controls">
+              <select value={range} onChange={(e) => setRange(e.target.value)} aria-label="Plage de l'historique">
+                {RANGES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+              {range === 'custom' && (
+                <>
+                  <input type="date" value={rangeFrom} max={rangeTo || todayIso()} onChange={(e) => setRangeFrom(e.target.value)} aria-label="Début de la période" />
+                  <span className="range-sep">→</span>
+                  <input type="date" value={rangeTo} min={rangeFrom || undefined} max={todayIso()} onChange={(e) => setRangeTo(e.target.value)} aria-label="Fin de la période (vide = aujourd'hui)" />
+                </>
+              )}
+            </div>
           )}
         >
           <div className="chart-area">

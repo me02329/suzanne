@@ -1177,6 +1177,10 @@ tr.row-muted td { opacity: 0.55; }
 .cadence-unit { color: var(--muted); font-weight: 400; margin-left: 1px; }
 .cadence-summary { display: flex; flex-wrap: wrap; gap: 0.15rem; }
 
+/* Période personnalisée : sélecteur + deux dates alignés. */
+.range-controls { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.range-sep { color: var(--muted); align-self: center; padding: 0 2px; }
+
 /* Fallback de chargement d'une page code-splittée. */
 .page-loading { padding: 48px 0; text-align: center; color: var(--muted); }
 

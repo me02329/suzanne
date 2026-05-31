@@ -113,8 +113,12 @@ export const api = {
   },
   dashboard: (userId: number, month: string, currency = 'EUR') =>
     http<DashboardSummary>(`/users/${userId}/dashboard?month=${month}&currency=${encodeURIComponent(currency)}`),
-  wealthHistory: (userId: number, range: string, granularity: string, currency = 'EUR') =>
-    http<WealthHistoryPoint[]>(`/users/${userId}/wealth-history?range=${encodeURIComponent(range)}&granularity=${encodeURIComponent(granularity)}&currency=${encodeURIComponent(currency)}`),
+  wealthHistory: (userId: number, range: string, granularity: string, currency = 'EUR', from?: string, to?: string) => {
+    const params = new URLSearchParams({ range, granularity, currency });
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    return http<WealthHistoryPoint[]>(`/users/${userId}/wealth-history?${params.toString()}`);
+  },
   createTransaction: (userId: number, body: CreateTransactionBody) => http<Transaction>(`/users/${userId}/transactions`, { method: 'POST', body: JSON.stringify(body) }),
   updateTransaction: (userId: number, id: number, body: Partial<CreateTransactionBody>) => http<Transaction>(`/users/${userId}/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   linkTransactionRecurring: (userId: number, id: number, body: { recurring_transaction_id: number | null; sync_description?: boolean; sync_amount?: boolean; sync_category_account?: boolean }) =>
