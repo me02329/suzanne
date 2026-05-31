@@ -23,6 +23,7 @@ import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, todayI
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { accountSignedAmount, livretCeiling, touchesAccount } from '../lib/account';
+import { fitDomain } from '../lib/chartScale';
 import { DataTable } from '../components/DataTable';
 import { EmptyChart } from '../components/EmptyChart';
 import { IconButton } from '../components/IconButton';
@@ -117,6 +118,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const ceilingPct = ceiling ? Math.min(100, (currentBalance / ceiling) * 100) : 0;
   const accountSnapshots = snapshots.filter((s) => s.account_id === account.id);
   const chartData = history.map((p) => ({ ...p, label: formatMonth(p.date.slice(0, 7)) }));
+  const balanceDomain = fitDomain(chartData.map((p) => p.balance));
 
   // Add a balance snapshot for *this* account alone — no need to go through the
   // end-of-month batch form on the accounts page just to record one account.
@@ -178,7 +180,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                   </defs>
                   <CartesianGrid stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={20} />
-                  <YAxis tickFormatter={(v) => moneyCompact(Number(v))} tickLine={false} axisLine={false} width={64} />
+                  <YAxis domain={balanceDomain} tickFormatter={(v) => moneyCompact(Number(v))} tickLine={false} axisLine={false} width={64} />
                   <Tooltip formatter={(v) => money(Number(v))} />
                   <Area type="monotone" dataKey="balance" name="Solde" stroke={chartTheme.net} strokeWidth={2} fill="url(#accountFill)" dot={false} />
                 </AreaChart>

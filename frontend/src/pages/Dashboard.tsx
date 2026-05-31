@@ -50,6 +50,7 @@ import {
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { CADENCE_META, cadenceAmount, cadenceOf, cadenceTotals } from '../lib/subscriptions';
+import { fitDomain } from '../lib/chartScale';
 import { DashboardSection } from '../components/DashboardSection';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
@@ -306,6 +307,16 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
     return row;
   });
   const wealthHasData = wealthChartRows.length > 0;
+  // Fit the Y axis to the *visible* series only, so toggling an account on/off
+  // re-scales the chart instead of always anchoring at zero.
+  const wealthDomain = fitDomain(
+    wealthChartRows.flatMap((row) =>
+      wealthSeriesConfig
+        .filter((s) => wealthSeries[s.key])
+        .map((s) => row[s.key])
+        .filter((v): v is number => typeof v === 'number' && Number.isFinite(v)),
+    ),
+  );
   const cashflowHasData = monthRows.some((row) => row.income !== 0 || row.expenses !== 0);
   const categoryHasData = categoryRows.length > 0;
   const accountsHasData = accountRows.length > 0;
@@ -390,7 +401,7 @@ export function Dashboard({ userId, summary, transactions, budgets, recurring, a
                   <ComposedChart data={wealthChartRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid stroke={chartGrid} vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                    <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
+                    <YAxis domain={wealthDomain} tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
                     <Tooltip formatter={(value) => money(Number(value))} />
                     <Legend />
                     {wealthSeriesConfig.map(({ key, label, color, width }) => {
