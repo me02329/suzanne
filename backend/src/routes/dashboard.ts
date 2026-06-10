@@ -12,6 +12,30 @@ export const dashboardRouter = Router();
 type Tx = { id: number; type: string; amount: number; to_amount: number | null; date: Date; category_id: number | null; account_id: number | null; to_account_id: number | null; refunds_transaction_id: number | null };
 type AccountRow = { id: number; name: string; type: string; currency: string; initial_balance: number; initial_balance_date: Date };
 
+// Projections minimales : ces endpoints chargent l'historique complet de
+// l'utilisateur à chaque appel — on ne matérialise que les colonnes utilisées
+// par les agrégations (les descriptions représentent l'essentiel du poids).
+const TX_SELECT = {
+  id: true,
+  type: true,
+  amount: true,
+  to_amount: true,
+  date: true,
+  category_id: true,
+  account_id: true,
+  to_account_id: true,
+  refunds_transaction_id: true,
+} as const;
+const ACCOUNT_SELECT = {
+  id: true,
+  name: true,
+  type: true,
+  currency: true,
+  initial_balance: true,
+  initial_balance_date: true,
+} as const;
+const SNAPSHOT_SELECT = { account_id: true, date: true, balance: true } as const;
+
 // Effet d'une transaction sur le compte dont elle est la source (account_id).
 // Un transfert débite le compte source ; le crédit du compte destination est
 // ajouté séparément dans computeBalance.
@@ -34,10 +58,10 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
 
   const [transactions, accounts, categories, snapshots] = await Promise.all([
-    prisma.transaction.findMany({ where: { user_id } }),
-    prisma.account.findMany({ where: { user_id } }),
-    prisma.category.findMany({ where: { user_id } }),
-    prisma.accountSnapshot.findMany({ where: { user_id } }),
+    prisma.transaction.findMany({ where: { user_id }, select: TX_SELECT }),
+    prisma.account.findMany({ where: { user_id }, select: ACCOUNT_SELECT }),
+    prisma.category.findMany({ where: { user_id }, select: { id: true, name: true, color: true } }),
+    prisma.accountSnapshot.findMany({ where: { user_id }, select: SNAPSHOT_SELECT }),
   ]);
   const { rates: fx, degraded: fxDegraded } = await buildFx(accounts, reportCurrency);
   const accountById = new Map(accounts.map((account) => [account.id, account]));
@@ -109,9 +133,9 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
   const reportCurrency = currencyQuery.parse(req.query.currency ?? 'EUR');
 
   const [transactions, accounts, snapshots] = await Promise.all([
-    prisma.transaction.findMany({ where: { user_id } }),
-    prisma.account.findMany({ where: { user_id } }),
-    prisma.accountSnapshot.findMany({ where: { user_id } }),
+    prisma.transaction.findMany({ where: { user_id }, select: TX_SELECT }),
+    prisma.account.findMany({ where: { user_id }, select: ACCOUNT_SELECT }),
+    prisma.accountSnapshot.findMany({ where: { user_id }, select: SNAPSHOT_SELECT }),
   ]);
   const { rates: fx } = await buildFx(accounts, reportCurrency);
 

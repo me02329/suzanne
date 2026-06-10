@@ -667,8 +667,11 @@ async function dashboardSummary(userId: number, rawArgs: unknown) {
   const start = new Date(`${args.month}-01T00:00:00.000Z`);
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
   const [transactions, accounts] = await Promise.all([
-    prisma.transaction.findMany({ where: { user_id: userId, date: { gte: start, lt: end } } }),
-    prisma.account.findMany({ where: { user_id: userId } }),
+    prisma.transaction.findMany({
+      where: { user_id: userId, date: { gte: start, lt: end } },
+      select: { type: true, amount: true, account_id: true, category_id: true },
+    }),
+    prisma.account.findMany({ where: { user_id: userId }, select: { id: true } }),
   ]);
   const income = transactions.filter((t) => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const expenses = transactions.filter((t) => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);

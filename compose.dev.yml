@@ -3,6 +3,18 @@ services:
     image: postgres:16-alpine
     container_name: suzanne-lite-postgres-dev
     restart: unless-stopped
+    # Réglages basse consommation : l'app est mono-utilisateur avec un pool de
+    # 3 connexions — les défauts Postgres (shared_buffers=128MB,
+    # max_connections=100) sont calibrés pour bien plus gros. Mêmes valeurs
+    # recommandées pour le Postgres de prod (cf. compose.yml).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=10
+      - -c
+      - maintenance_work_mem=32MB
     environment:
       POSTGRES_USER: suzanne
       POSTGRES_PASSWORD: suzanne

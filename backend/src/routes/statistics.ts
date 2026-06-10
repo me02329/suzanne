@@ -32,10 +32,19 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     // dépense d'origine dans sa catégorie / chez son marchand.
     prisma.transaction.findMany({
       where: { user_id, OR: [{ type: 'expense' }, { type: 'income', refunds_transaction_id: { not: null } }] },
-      include: { refunds_transaction: { select: { category_id: true, description: true } } },
+      // Projection minimale : seules les colonnes utilisées par les agrégations.
+      select: {
+        type: true,
+        amount: true,
+        date: true,
+        account_id: true,
+        category_id: true,
+        description: true,
+        refunds_transaction: { select: { category_id: true, description: true } },
+      },
     }),
-    prisma.account.findMany({ where: { user_id } }),
-    prisma.category.findMany({ where: { user_id } }),
+    prisma.account.findMany({ where: { user_id }, select: { id: true, currency: true } }),
+    prisma.category.findMany({ where: { user_id }, select: { id: true, name: true, color: true } }),
   ]);
   const { rates: fx } = await buildFx(accounts, reportCurrency);
   const accountById = new Map(accounts.map((account) => [account.id, account]));

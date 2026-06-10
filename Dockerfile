@@ -20,6 +20,10 @@ RUN apk add --no-cache openssl tini wget
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
+# Plafonne le heap V8 : GC plus agressif, RAM résidente bornée. Largement
+# suffisant pour l'app (les pics viennent des gros imports JSON) ;
+# surchargeable via l'environnement du conteneur si besoin.
+ENV NODE_OPTIONS="--max-old-space-size=128"
 
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/shared/package.json ./shared/package.json
