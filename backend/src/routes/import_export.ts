@@ -4,6 +4,7 @@ import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { csvImportSchema, dateString, idParam } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
+import { assertAccountOwned } from '../lib/transactionHelpers.js';
 
 export const importExportRouter = Router();
 
@@ -128,12 +129,24 @@ interface ImportSummary {
   accounts: { created: number; reused: number };
   categories: { created: number; reused: number };
   rules: { created: number; reused: number };
-  transactions: { created: number };
+  transactions: { created: number; skipped: number };
   budgets: { created: number; updated: number };
-  recurring: { created: number };
+  recurring: { created: number; skipped: number };
   goals: { created: number; reused: number };
   snapshots: { created: number; updated: number };
   tags: { created: number; reused: number };
+}
+
+const TX_TYPES = new Set(['expense', 'income', 'transfer']);
+const RECURRING_TYPES = new Set(['expense', 'income']);
+const FREQUENCIES = new Set(['weekly', 'monthly', 'yearly']);
+
+// Date d'import : accepte string ISO ou Date sérialisée ; null si invalide
+// (une ligne malformée est ignorée au lieu de faire échouer tout l'import).
+function parseImportDate(raw: unknown): Date | null {
+  if (raw == null) return null;
+  const date = new Date(typeof raw === 'string' ? raw.slice(0, 10) : (raw as string | number | Date));
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 async function importPayload(user_id: number, payload: z.infer<typeof importSchema>['payload']): Promise<ImportSummary> {
@@ -142,9 +155,9 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
     accounts: { created: 0, reused: 0 },
     categories: { created: 0, reused: 0 },
     rules: { created: 0, reused: 0 },
-    transactions: { created: 0 },
+    transactions: { created: 0, skipped: 0 },
     budgets: { created: 0, updated: 0 },
-    recurring: { created: 0 },
+    recurring: { created: 0, skipped: 0 },
     goals: { created: 0, reused: 0 },
     snapshots: { created: 0, updated: 0 },
     tags: { created: 0, reused: 0 },
@@ -236,30 +249,56 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
     summary.rules.created += 1;
   }
 
+  const recurringIdMap = new Map<number, number>();
   for (const raw of payload.recurring ?? []) {
+    const type = String(raw.type ?? 'expense');
+    const frequency = String(raw.frequency ?? 'monthly');
+    if (!RECURRING_TYPES.has(type) || !FREQUENCIES.has(frequency)) {
+      summary.recurring.skipped += 1;
+      continue;
+    }
     const accountId = raw.account_id ? accountIdMap.get(Number(raw.account_id)) ?? null : null;
     const categoryId = raw.category_id ? categoryIdMap.get(Number(raw.category_id)) ?? null : null;
-    await prisma.recurringTransaction.create({
+    const created = await prisma.recurringTransaction.create({
       data: {
         user_id,
         account_id: accountId,
         category_id: categoryId,
         amount: round2(Number(raw.amount ?? 0)),
-        type: raw.type ?? 'expense',
+        type: type as 'expense' | 'income',
         description: String(raw.description ?? '').slice(0, 500),
-        frequency: raw.frequency ?? 'monthly',
+        frequency: frequency as 'weekly' | 'monthly' | 'yearly',
         interval: Number(raw.interval ?? 1),
         day_of_month: raw.day_of_month ?? null,
+        month_of_year: raw.month_of_year ?? null,
         active: raw.active ?? true,
       },
     });
+    if (raw.id != null) recurringIdMap.set(Number(raw.id), created.id);
     summary.recurring.created += 1;
   }
 
+  // Tags par nom préchargés une fois (au lieu d'un findFirst par transaction).
+  const tagsByName = new Map(
+    (await prisma.tag.findMany({ where: { user_id }, select: { id: true, name: true } })).map((t) => [t.name, t.id]),
+  );
+  // Les liens de remboursement référencent d'anciens ids de transactions ; on
+  // les résout en seconde passe une fois toutes les lignes créées.
+  const txIdMap = new Map<number, number>();
+  const pendingRefundLinks: Array<{ newId: number; oldTargetId: number }> = [];
   for (const raw of payload.transactions ?? []) {
+    const type = String(raw.type ?? 'expense');
+    const date = parseImportDate(raw.date);
+    if (!TX_TYPES.has(type) || !date) {
+      summary.transactions.skipped += 1;
+      continue;
+    }
     const accountId = raw.account_id ? accountIdMap.get(Number(raw.account_id)) ?? null : null;
     const toAccountId = raw.to_account_id ? accountIdMap.get(Number(raw.to_account_id)) ?? null : null;
     const categoryId = raw.category_id ? categoryIdMap.get(Number(raw.category_id)) ?? null : null;
+    const recurringId = raw.recurring_transaction_id
+      ? recurringIdMap.get(Number(raw.recurring_transaction_id)) ?? null
+      : null;
     // Resolve tags by remapped id first (round-trip), then by name (cross-account).
     const tagIds = new Set<number>();
     for (const rawTagId of (raw.tag_ids ?? [])) {
@@ -267,29 +306,37 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
       if (mapped) tagIds.add(mapped);
     }
     for (const rawName of (raw.tag_names ?? [])) {
-      const name = String(rawName ?? '').trim();
-      if (!name) continue;
-      const tag = await prisma.tag.findFirst({ where: { user_id, name } });
-      if (tag) tagIds.add(tag.id);
+      const tag = tagsByName.get(String(rawName ?? '').trim());
+      if (tag) tagIds.add(tag);
     }
-    await prisma.transaction.create({
+    const created = await prisma.transaction.create({
       data: {
         user_id,
         account_id: accountId,
         to_account_id: toAccountId,
         category_id: categoryId,
+        recurring_transaction_id: recurringId,
         amount: round2(Number(raw.amount ?? 0)),
         to_amount: raw.to_amount != null ? round2(Number(raw.to_amount)) : null,
         exchange_rate: raw.exchange_rate ?? null,
-        type: raw.type ?? 'expense',
-        date: new Date(typeof raw.date === 'string' ? raw.date.slice(0, 10) : raw.date),
+        type: type as 'expense' | 'income' | 'transfer',
+        date,
         description: raw.description ?? null,
         tags: tagIds.size > 0
           ? { create: Array.from(tagIds).map((tag_id) => ({ tag_id })) }
           : undefined,
       },
     });
+    if (raw.id != null) txIdMap.set(Number(raw.id), created.id);
+    if (type === 'income' && raw.refunds_transaction_id != null) {
+      pendingRefundLinks.push({ newId: created.id, oldTargetId: Number(raw.refunds_transaction_id) });
+    }
     summary.transactions.created += 1;
+  }
+  for (const link of pendingRefundLinks) {
+    const target = txIdMap.get(link.oldTargetId);
+    if (!target) continue;
+    await prisma.transaction.update({ where: { id: link.newId }, data: { refunds_transaction_id: target } });
   }
 
   for (const raw of payload.budgets ?? []) {
@@ -363,14 +410,23 @@ importExportRouter.get('/users/:user_id/transactions.csv', asyncHandler(async (r
 importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = csvImportSchema.parse(req.body);
+  if (body.account_id) await assertAccountOwned(user_id, body.account_id);
   const rules = await prisma.categoryRule.findMany({ where: { user_id } });
   const lines = body.csv.split(/\r?\n/).filter((l) => l.trim().length > 0);
   const delimiter = detectDelimiter(lines[0] ?? '');
   const headers = splitCsv(lines[0] ?? '', delimiter).map((h) => h.trim());
   const dataLines = lines.slice(1);
   const mapping = resolveMapping(headers, body.mapping ?? null);
-  let imported = 0;
   let skipped = 0;
+  const toCreate: Array<{
+    user_id: number;
+    account_id: number | null;
+    category_id: number | null;
+    date: Date;
+    type: 'expense' | 'income';
+    amount: number;
+    description: string;
+  }> = [];
   for (const line of dataLines) {
     const cells = splitCsv(line, delimiter);
     const dateRaw = cell(cells, mapping.date);
@@ -386,20 +442,20 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
     const description = descriptionRaw ?? '';
     const matchedRule = rules.find((r) => description.toUpperCase().includes(r.pattern));
     const type = typeRaw ? normalizeType(typeRaw) : signedAmount > 0 ? 'income' : 'expense';
-    await prisma.transaction.create({
-      data: {
-        user_id,
-        account_id: body.account_id ?? null,
-        category_id: matchedRule?.category_id ?? null,
-        date,
-        type,
-        amount: round2(Math.abs(signedAmount)),
-        description,
-      },
+    toCreate.push({
+      user_id,
+      account_id: body.account_id ?? null,
+      category_id: matchedRule?.category_id ?? null,
+      date,
+      type,
+      amount: round2(Math.abs(signedAmount)),
+      description,
     });
-    imported += 1;
   }
-  res.json({ imported, skipped });
+  // Une seule insertion batch (au lieu d'un INSERT par ligne) : import atomique
+  // et beaucoup plus rapide sur les gros relevés.
+  if (toCreate.length > 0) await prisma.transaction.createMany({ data: toCreate });
+  res.json({ imported: toCreate.length, skipped });
 }));
 
 function parseDate(value: string | undefined, format: 'auto' | 'yyyy-mm-dd' | 'dd/mm/yyyy' | 'mm/dd/yyyy' | 'dd-mm-yyyy' | 'yyyymmdd'): Date | null {

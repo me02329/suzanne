@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { createRecurringSchema, idParam, updateRecurringSchema } from '../lib/validation.js';
+import { dateKey, startOfUtcDay } from '../lib/dates.js';
 
 export const recurringRouter = Router();
 
@@ -91,7 +92,7 @@ async function generateDueRecurringTransactions(user_id: number, today: Date): P
   // (recurring_id, date) pair that already exists — defensive dedup in case
   // the previous run was retried partially.
   for (const row of rows) {
-    const dueDates = dueDatesFor(row.frequency, row.interval, row.day_of_month, row.last_executed, today);
+    const dueDates = dueDatesFor(row.frequency, row.interval, row.day_of_month, row.month_of_year, row.last_executed, today);
     if (dueDates.length === 0) continue;
 
     const existing = await prisma.transaction.findMany({
@@ -125,7 +126,15 @@ async function generateDueRecurringTransactions(user_id: number, today: Date): P
   return generated;
 }
 
-function dueDatesFor(frequency: string, interval: number, dayOfMonth: number | null, lastExecuted: Date | null, today: Date): Date[] {
+// Exporté pour les tests unitaires (pur, pas d'accès DB).
+export function dueDatesFor(
+  frequency: string,
+  interval: number,
+  dayOfMonth: number | null,
+  monthOfYear: number | null,
+  lastExecuted: Date | null,
+  today: Date,
+): Date[] {
   const dates: Date[] = [];
   const step = Math.max(1, interval);
   const lastKey = lastExecuted ? dateKey(lastExecuted) : null;
@@ -152,19 +161,26 @@ function dueDatesFor(frequency: string, interval: number, dayOfMonth: number | n
   }
 
   if (frequency === 'yearly') {
-    const cursor = lastExecuted
-      ? addMonths(lastExecuted, 12 * step)
-      : new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), Math.min(dayOfMonth ?? 1, daysInMonth(today))));
-    while (cursor <= today) {
-      if (!lastKey || dateKey(cursor) > lastKey) dates.push(new Date(cursor));
-      cursor.setUTCFullYear(cursor.getUTCFullYear() + step);
+    // Ancrage sur month_of_year quand il est défini (« chaque mars »), sinon
+    // sur le mois de la dernière exécution, à défaut le mois courant — aligné
+    // sur nextRecurringOccurrence du shared, qui pilote l'affichage.
+    const month = monthOfYear != null
+      ? monthOfYear - 1
+      : (lastExecuted ? lastExecuted.getUTCMonth() : today.getUTCMonth());
+    const day = dayOfMonth ?? (lastExecuted ? lastExecuted.getUTCDate() : 1);
+    let year = lastExecuted ? lastExecuted.getUTCFullYear() + step : today.getUTCFullYear();
+    for (;;) {
+      const due = new Date(Date.UTC(year, month, Math.min(day, daysInMonthYM(year, month))));
+      if (due > today) break;
+      if (!lastKey || dateKey(due) > lastKey) dates.push(due);
+      year += step;
     }
   }
   return dates;
 }
 
-function startOfUtcDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+function daysInMonthYM(year: number, monthIndex: number): number {
+  return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
 }
 
 function addDays(date: Date, days: number): Date {
@@ -183,6 +199,3 @@ function daysInMonth(date: Date): number {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
 }
 
-function dateKey(date: Date): string {
-  return date.toISOString().split('T')[0]!;
-}
