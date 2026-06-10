@@ -10,6 +10,11 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
+      # Assistant IA : valeurs lues depuis le .env du serveur (la clé peut
+      # aussi être saisie dans Paramètres, stockée en base).
+      AI_API_KEY: ${AI_API_KEY}
+      AI_MODEL: ${AI_MODEL:-gpt-4.1-mini}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
       # Pool Prisma (défaut 5, ouvert à la demande) : suffisant pour un foyer ;
       # à augmenter seulement si l'app rame avec beaucoup d'usagers simultanés.
       # DATABASE_POOL_MAX: "5"
