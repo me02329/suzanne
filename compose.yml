@@ -10,9 +10,9 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
-      # Pool Prisma (défaut 3) : à augmenter seulement si plusieurs personnes
-      # utilisent l'app en même temps.
-      # DATABASE_POOL_MAX: "3"
+      # Pool Prisma (défaut 5, ouvert à la demande) : suffisant pour un foyer ;
+      # à augmenter seulement si l'app rame avec beaucoup d'usagers simultanés.
+      # DATABASE_POOL_MAX: "5"
       # Heap V8 plafonné à 128 Mo par le Dockerfile ; surchargez ici si besoin.
       # NODE_OPTIONS: "--max-old-space-size=128"
     mem_limit: 384m
@@ -32,8 +32,8 @@ services:
 #   command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=10",
 #             "-c", "maintenance_work_mem=32MB"]
 #
-# Avec le pool de 3 connexions de l'app, Postgres tient confortablement
-# sous ~100 Mo.
+# Avec le pool applicatif plafonné à 5 connexions, Postgres tient
+# confortablement sous ~100 Mo.
 
 networks:
   proxy:
