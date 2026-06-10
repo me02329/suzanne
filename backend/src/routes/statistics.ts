@@ -5,6 +5,7 @@ import { asyncHandler } from '../middleware/errors.js';
 import { currencyQuery, dateString, idParam } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { buildFx } from '../lib/fxHelper.js';
+import { addMonthsUtc, startOfUtcDay } from '../lib/dates.js';
 
 export const statisticsRouter = Router();
 
@@ -144,21 +145,13 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   });
 }));
 
-function startOfUtcDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
-
-function addMonths(date: Date, months: number): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, date.getUTCDate()));
-}
-
 function rangeStart(range: z.infer<typeof rangeSchema>, today: Date, earliest: Date): Date {
   switch (range) {
-    case '3m': return addMonths(today, -3);
-    case '6m': return addMonths(today, -6);
-    case '1y': return addMonths(today, -12);
-    case '2y': return addMonths(today, -24);
+    case '3m': return addMonthsUtc(today, -3);
+    case '6m': return addMonthsUtc(today, -6);
+    case '1y': return addMonthsUtc(today, -12);
+    case '2y': return addMonthsUtc(today, -24);
     case 'all': return startOfUtcDay(earliest);
-    case 'custom': return addMonths(today, -12);
+    case 'custom': return addMonthsUtc(today, -12);
   }
 }

@@ -64,8 +64,10 @@ aiRouter.post('/users/:user_id/ai/chat/stream', aiChatLimiter, asyncHandler(asyn
     res.write(`data: ${JSON.stringify(event)}\n\n`);
   };
 
+  // `req.on('aborted')` est déprécié ; `close` sur la réponse couvre la
+  // déconnexion client (et la fin normale, où la boucle est déjà sortie).
   let aborted = false;
-  req.on('aborted', () => { aborted = true; });
+  res.on('close', () => { aborted = true; });
 
   try {
     for await (const event of streamAiChat(userId, body.message, { month: body.month, currency: body.currency }, body.history)) {

@@ -35,7 +35,7 @@ searchRouter.get('/users/:user_id/search', asyncHandler(async (req, res) => {
     }),
     prisma.category.findMany({ where: { user_id, name: contains }, take: 10 }),
     prisma.account.findMany({ where: { user_id, name: contains }, take: 10 }),
-    prisma.savingsGoal.findMany({ where: { user_id, name: contains }, take: 10 }),
+    prisma.savingsGoal.findMany({ where: { user_id, name: contains }, take: 10, include: { account: { select: { currency: true } } } }),
   ]);
   res.json([
     ...transactions.map((t) => {
@@ -51,12 +51,14 @@ searchRouter.get('/users/:user_id/search', asyncHandler(async (req, res) => {
     ...categories.map((c) => ({ type: 'category', id: c.id, title: c.name, subtitle: categoryTypeLabels[c.type] ?? c.type })),
     ...accounts.map((a) => ({ type: 'account', id: a.id, title: a.name, subtitle: `${accountTypeLabel(a.type as AccountType)} · ${a.currency}` })),
     ...goals.map((g) => {
-      // Savings goals don't carry an explicit currency yet; assume the reporting default.
+      // Devise du compte lié quand il y en a un ; EUR par défaut sinon
+      // (les objectifs ne portent pas de devise propre).
+      const currency = g.account?.currency ?? 'EUR';
       return {
         type: 'goal',
         id: g.id,
         title: g.name,
-        subtitle: `${formatMoney(g.current_amount, 'EUR')} / ${formatMoney(g.target_amount, 'EUR')}`,
+        subtitle: `${formatMoney(g.current_amount, currency)} / ${formatMoney(g.target_amount, currency)}`,
       };
     }),
   ]);

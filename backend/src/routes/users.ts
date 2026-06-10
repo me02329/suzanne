@@ -30,7 +30,8 @@ async function createDefaultsForUser(user_id: number) {
       type: 'checking',
       currency: 'EUR',
       initial_balance: 0,
-      initial_balance_date: new Date('2026-01-01T00:00:00.000Z'),
+      // Solde initial daté du jour de création (et non une date codée en dur).
+      initial_balance_date: new Date(new Date().toISOString().slice(0, 10)),
     },
   });
 

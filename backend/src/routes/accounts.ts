@@ -28,18 +28,28 @@ accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (
     return;
   }
 
-  const rows = await prisma.transaction.findMany({
-    where: { user_id, OR: [{ account_id: id }, { to_account_id: id }] },
-    orderBy: [{ date: 'desc' }, { id: 'desc' }],
-    include: transactionInclude,
-  });
+  // Les totaux lisent toutes les lignes du compte mais en projection minimale ;
+  // seules les `limit` lignes renvoyées embarquent tags et liens.
+  const where = { user_id, OR: [{ account_id: id }, { to_account_id: id }] };
+  const [totalsRows, recent] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      select: { type: true, amount: true, to_amount: true, account_id: true, to_account_id: true },
+    }),
+    prisma.transaction.findMany({
+      where,
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
+      take: limit,
+      include: transactionInclude,
+    }),
+  ]);
 
   // Signed effect on this account, mirroring frontend lib/account.ts
   // accountSignedAmount: a transfer debits its source and credits its
   // destination (to_amount when the currencies differ).
   let inflow = 0;
   let outflow = 0;
-  for (const t of rows) {
+  for (const t of totalsRows) {
     let signed = 0;
     if (t.type === 'transfer') {
       if (t.account_id === id) signed = -t.amount;
@@ -53,7 +63,7 @@ accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (
   res.json({
     inflow: round2(inflow),
     outflow: round2(outflow),
-    recent: rows.slice(0, limit).map(serializeTransaction),
+    recent: recent.map(serializeTransaction),
   });
 }));
 

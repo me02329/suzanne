@@ -92,15 +92,22 @@ async function fetchYahooFx(symbol: string, date?: string): Promise<{ rate: numb
   const result = data.chart?.result?.[0];
   const timestamps = result?.timestamp ?? [];
   const closes = result?.indicators?.quote?.[0]?.close ?? [];
+  // Pour un taux historique, ne pas dépasser la fin du jour demandé : la fenêtre
+  // interrogée déborde de quelques jours (fuseaux/week-ends) mais une clôture
+  // postérieure à la date fausserait la conversion. Sans date : dernière clôture.
+  const maxTs = date ? new Date(`${date}T23:59:59.999Z`).getTime() / 1000 : Infinity;
+  let fallback: { rate: number; asOf: string | null } | null = null;
   for (let i = closes.length - 1; i >= 0; i -= 1) {
     const close = closes[i];
-    if (typeof close === 'number' && Number.isFinite(close) && close > 0) {
-      const ts = timestamps[i];
-      return {
-        rate: close,
-        asOf: typeof ts === 'number' ? new Date(ts * 1000).toISOString().slice(0, 10) : null,
-      };
-    }
+    if (typeof close !== 'number' || !Number.isFinite(close) || close <= 0) continue;
+    const ts = timestamps[i];
+    const quote = {
+      rate: close,
+      asOf: typeof ts === 'number' ? new Date(ts * 1000).toISOString().slice(0, 10) : null,
+    };
+    if (typeof ts !== 'number' || ts <= maxTs) return quote;
+    fallback = quote; // si toutes les clôtures sont après la date, on gardera la plus proche (itération descendante)
   }
+  if (fallback) return fallback;
   throw new Error(`No FX data for ${symbol}`);
 }

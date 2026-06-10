@@ -1,9 +1,11 @@
 import { Router } from 'express';
+import { accountGroupLabel, accountTypeGroup, accountTypeLabel, type AccountType } from '@suzanne-lite/shared';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { currencyQuery, idParam, monthString } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { buildFx } from '../lib/fxHelper.js';
+import { addMonthsUtc, dateKey, startOfUtcDay } from '../lib/dates.js';
 
 export const dashboardRouter = Router();
 
@@ -39,7 +41,9 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   ]);
   const { rates: fx, degraded: fxDegraded } = await buildFx(accounts, reportCurrency);
   const accountById = new Map(accounts.map((account) => [account.id, account]));
-  const txValue = (t: Tx) => round2(t.amount * (fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1));
+  // Pas d'arrondi par transaction : les sommes sont arrondies une fois à la
+  // sortie (round2), comme dans buildCashflow — sinon l'arrondi cumulé diverge.
+  const txValue = (t: Tx) => t.amount * (fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1);
 
   const monthTransactions = transactions.filter((t) => t.date >= start && t.date < end);
   const income = monthTransactions.filter((t) => t.type === 'income' && !isRefund(t)).reduce((s, t) => s + txValue(t), 0);
@@ -217,9 +221,9 @@ export function computeAccountBalances(
       name: account.name,
       type: account.type,
       currency: account.currency,
-      type_label: accountTypeLabel(account.type),
-      group: accountTypeGroup(account.type),
-      group_label: accountGroupLabel(accountTypeGroup(account.type)),
+      type_label: accountTypeLabel(account.type as AccountType),
+      group: accountTypeGroup(account.type as AccountType),
+      group_label: accountGroupLabel(accountTypeGroup(account.type as AccountType)),
       balance,
       signed_balance: isLiability ? -balance : balance,
       is_liability: isLiability,
@@ -321,9 +325,9 @@ export function computeWealthSeries(
         name: account.name,
         type: account.type,
         currency: account.currency,
-        type_label: accountTypeLabel(account.type),
-        group: accountTypeGroup(account.type),
-        group_label: accountGroupLabel(accountTypeGroup(account.type)),
+        type_label: accountTypeLabel(account.type as AccountType),
+        group: accountTypeGroup(account.type as AccountType),
+        group_label: accountGroupLabel(accountTypeGroup(account.type as AccountType)),
         balance,
         signed_balance: isLiability ? -balance : balance,
         is_liability: isLiability,
@@ -412,51 +416,11 @@ function buildBalanceByGroup(
     .sort((a, b) => Math.abs(b.signed_amount) - Math.abs(a.signed_amount));
 }
 
+// La taxonomie (groupes, labels) vient du shared — source de vérité unique.
+// Seul le caractère « passif » reste local : c'est un choix d'agrégation du
+// dashboard, pas une propriété affichée.
 function isLiabilityAccount(type: string): boolean {
   return type === 'credit' || type === 'loan';
-}
-
-function accountTypeGroup(type: string): string {
-  if (['checking', 'cash'].includes(type)) return 'cash';
-  if (['savings', 'livret_a', 'ldds', 'lep', 'pel', 'cel'].includes(type)) return 'regulated_savings';
-  if (['pea', 'securities', 'life_insurance', 'retirement'].includes(type)) return 'investments';
-  if (type === 'crypto') return 'crypto';
-  if (['credit', 'loan'].includes(type)) return 'liabilities';
-  return 'other';
-}
-
-function accountGroupLabel(group: string): string {
-  const labels: Record<string, string> = {
-    cash: 'Liquidités',
-    regulated_savings: 'Livrets',
-    investments: 'Investissements',
-    crypto: 'Crypto',
-    liabilities: 'Passifs',
-    other: 'Autres',
-  };
-  return labels[group] ?? group;
-}
-
-function accountTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    checking: 'Compte courant',
-    savings: 'Épargne',
-    livret_a: 'Livret A',
-    ldds: 'LDDS',
-    lep: 'LEP',
-    pel: 'PEL',
-    cel: 'CEL',
-    pea: 'PEA',
-    securities: 'Compte-titres',
-    life_insurance: 'Assurance-vie',
-    crypto: 'Crypto',
-    retirement: 'Retraite',
-    cash: 'Espèces',
-    credit: 'Carte / crédit',
-    loan: 'Emprunt',
-    other: 'Autre',
-  };
-  return labels[type] ?? type;
 }
 
 function firstRelevantDate(
@@ -480,11 +444,11 @@ function parseDayParam(value: unknown): Date | null {
 }
 
 function rangeStart(range: string, today: Date, firstDate: Date): Date {
-  if (range === '1m') return addMonths(today, -1);
-  if (range === '6m') return addMonths(today, -6);
+  if (range === '1m') return addMonthsUtc(today, -1);
+  if (range === '6m') return addMonthsUtc(today, -6);
   if (range === 'ytd') return new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
   if (range === 'all') return firstDate;
-  return addMonths(today, -12);
+  return addMonthsUtc(today, -12);
 }
 
 function buildHistoryDates(from: Date, to: Date, granularity: string): Date[] {
@@ -522,20 +486,6 @@ function buildHistoryDates(from: Date, to: Date, granularity: string): Date[] {
   }
   if (dates.length === 0 || dateKey(dates[dates.length - 1]!) !== dateKey(end)) dates.push(end);
   return dates;
-}
-
-function startOfUtcDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
-
-function dateKey(date: Date): string {
-  return date.toISOString().split('T')[0]!;
-}
-
-function addMonths(date: Date, months: number): Date {
-  const out = startOfUtcDay(date);
-  out.setUTCMonth(out.getUTCMonth() + months);
-  return out;
 }
 
 function buildCashflow(transactions: Tx[], endMonth: Date, accountById: Map<number, AccountRow>, fx: Map<string, number>) {
