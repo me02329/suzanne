@@ -791,7 +791,7 @@ select:focus, input:focus, textarea:focus {
 
 .split-editor-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1.1fr) minmax(110px, 0.7fr) minmax(120px, 1fr) 38px;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(150px, 0.9fr) minmax(120px, 1fr) 38px;
   gap: 8px;
 }
 
@@ -799,6 +799,37 @@ select:focus, input:focus, textarea:focus {
   min-height: 38px;
   border-radius: 8px;
   color: var(--expense);
+}
+
+/* Montant + bouton « solde » (complète la ligne avec le restant). */
+.split-amount-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+}
+
+.split-fill {
+  min-height: 38px;
+  padding: 0 8px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.split-fill:disabled {
+  opacity: 0.4;
+}
+
+.split-balanced {
+  color: var(--income);
+  font-weight: 800;
+}
+
+.split-unbalanced {
+  color: var(--expense);
+  font-weight: 800;
 }
 
 .split-add-row {
@@ -1467,17 +1498,53 @@ tr.row-muted td { opacity: 0.55; }
 }
 
 .refund-candidate {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 112px;
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
   border-radius: 6px;
   font-size: 13px;
-  cursor: pointer;
 }
 
 .refund-candidate:hover {
   background: var(--accent-soft);
+}
+
+.refund-candidate span {
+  min-width: 0;
+}
+
+.refund-allocation-input {
+  width: 100%;
+}
+
+.refund-allocation-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.refund-allocation-total.error {
+  border-color: #fecaca;
+}
+
+.refund-selected-list {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.panel-note.error {
+  color: var(--expense);
 }
 
 .chart-empty {

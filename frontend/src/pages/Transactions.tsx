@@ -25,6 +25,7 @@ import type { Run } from '../lib/run';
 const PAGE_SIZE = 50;
 
 type SplitDraft = { key: string; category_id: string; amount: string; note: string };
+type RefundAllocationDraft = { expense_transaction_id: number; amount: number };
 
 function emptySplitDraft(): SplitDraft {
   return { key: `${Date.now()}-${Math.random()}`, category_id: '', amount: '', note: '' };
@@ -47,6 +48,15 @@ function splitPayloadFromDrafts(drafts: SplitDraft[]) {
       note: draft.note.trim() || null,
     }))
     .filter((split) => Number.isFinite(split.category_id) && split.category_id > 0 && Number.isFinite(split.amount) && split.amount > 0);
+}
+
+// Brouillon initial d'une ventilation : la 1re ligne reprend la catégorie et le
+// montant courants (à ajuster), la 2e est vide — le bouton « solde » la complète.
+function prefilledSplitDrafts(categoryId: number | string | null, amount: number | string): SplitDraft[] {
+  return [
+    { ...emptySplitDraft(), category_id: categoryId ? String(categoryId) : '', amount: amount ? String(amount) : '' },
+    emptySplitDraft(),
+  ];
 }
 
 export function Transactions({ userId, transactions, unassignedTransactions, issueFilter, onClearIssueFilter, recurring, accounts, categories, tags, categoryById, accountById, run }: {
@@ -75,6 +85,10 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const [addTagIds, setAddTagIds] = useState<number[]>([]);
   const [addSplitEnabled, setAddSplitEnabled] = useState(false);
   const [addSplits, setAddSplits] = useState<SplitDraft[]>(() => [emptySplitDraft(), emptySplitDraft()]);
+  // Montants suivis en miroir des champs (inputs non contrôlés) pour que
+  // l'éditeur de ventilation affiche cible / reste en direct.
+  const [addAmount, setAddAmount] = useState('');
+  const [editAmount, setEditAmount] = useState('');
   const [editType, setEditType] = useState<TransactionType>('expense');
   const [editTagIds, setEditTagIds] = useState<number[]>([]);
   const [editSplitEnabled, setEditSplitEnabled] = useState(false);
@@ -163,6 +177,19 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     setEditTagIds((t.tags ?? []).map((tag) => tag.id));
     setEditSplitEnabled((t.splits ?? []).length > 0);
     setEditSplits(splitDraftsFromTransaction(t));
+    setEditAmount(String(t.amount));
+    setEditing(t);
+  };
+
+  // Action « Ventiler » d'une ligne : ouvre l'édition avec l'éditeur de
+  // ventilation déjà actif, prérempli depuis la catégorie/le montant actuels.
+  const startSplit = (t: Transaction) => {
+    setEditType(t.type);
+    setEditTagIds((t.tags ?? []).map((tag) => tag.id));
+    const drafts = splitDraftsFromTransaction(t);
+    setEditSplits(drafts.length > 0 ? drafts : prefilledSplitDrafts(t.category_id, t.amount));
+    setEditSplitEnabled(true);
+    setEditAmount(String(t.amount));
     setEditing(t);
   };
 
@@ -171,6 +198,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     setEditTagIds((t.tags ?? []).map((tag) => tag.id));
     setEditSplitEnabled((t.splits ?? []).length > 0);
     setEditSplits(splitDraftsFromTransaction(t));
+    setEditAmount(String(t.amount));
     setEditing({ ...t, id: -t.id, date: todayIso(), created_at: todayIso() });
   };
 
@@ -233,6 +261,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       setAddTagIds([]);
       setAddSplitEnabled(false);
       setAddSplits([emptySplitDraft(), emptySplitDraft()]);
+      setAddAmount('');
     });
   };
 
@@ -305,7 +334,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     const data = new FormData(event.currentTarget);
     void run(() => api.createTransaction(userId, {
       type: 'income',
-      refunds_transaction_id: refundingExpense.id,
+      refund_allocations: [{ expense_transaction_id: refundingExpense.id, amount: Number(data.get('amount')) }],
       account_id: numberOrNull(data.get('account_id')),
       category_id: null,
       amount: Number(data.get('amount')),
@@ -370,7 +399,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
                 </select>
               </label>
               <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
-              <label>Montant<input name="amount" type="number" min="0.01" step="0.01" required /></label>
+              <label>Montant<input name="amount" type="number" min="0.01" step="0.01" required onChange={(e) => setAddAmount(e.target.value)} /></label>
               <label>{addType === 'transfer' ? 'Depuis le compte' : 'Compte'}
                 <select name="account_id" required={addType === 'transfer'}>
                   <option value="">Aucun</option>
@@ -388,7 +417,14 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
                         checked={addSplitEnabled}
                         onChange={(e) => {
                           setAddSplitEnabled(e.target.checked);
-                          if (e.target.checked && addSplits.length === 0) setAddSplits([emptySplitDraft(), emptySplitDraft()]);
+                          // Préremplit la 1re ligne avec la catégorie/le montant déjà
+                          // saisis dans le formulaire (lus via le form du checkbox).
+                          if (e.target.checked && addSplits.every((d) => !d.category_id && !d.amount)) {
+                            const form = e.target.form;
+                            const category = (form?.elements.namedItem('category_id') as HTMLSelectElement | null)?.value ?? '';
+                            const amount = (form?.elements.namedItem('amount') as HTMLInputElement | null)?.value ?? '';
+                            setAddSplits(prefilledSplitDrafts(category, amount));
+                          }
                         }}
                       />
                       Ventiler
@@ -401,6 +437,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
                 <SplitEditor
                   drafts={addSplits}
                   categories={filteredAddCategories}
+                  targetAmount={Number(addAmount) || 0}
                   onChange={setAddSplits}
                 />
               )}
@@ -477,6 +514,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           onEdit={startEdit}
           onCopy={copyTransaction}
           onLink={setLinking}
+          onSplit={startSplit}
           onRefund={(t) => (t.type === 'expense' ? setRefundingExpense(t) : setLinkingRefund(t))}
           onDelete={(t) => void run(() => api.deleteTransaction(userId, t.id), 'Transaction supprimée')}
         />
@@ -514,7 +552,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
               </select>
             </label>
             <label>Date<input name="date" type="date" defaultValue={editing.date.slice(0, 10)} required /></label>
-            <label>Montant<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editing.amount} required /></label>
+            <label>Montant<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editing.amount} required onChange={(e) => setEditAmount(e.target.value)} /></label>
             <label>{editType === 'transfer' ? 'Depuis le compte' : 'Compte'}
               <select name="account_id" defaultValue={editing.account_id ?? ''} required={editType === 'transfer'}>
                 <option value="">Aucun</option>
@@ -532,7 +570,12 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
                       checked={editSplitEnabled}
                       onChange={(e) => {
                         setEditSplitEnabled(e.target.checked);
-                        if (e.target.checked && editSplits.length === 0) setEditSplits([emptySplitDraft(), emptySplitDraft()]);
+                        if (e.target.checked && editSplits.every((d) => !d.category_id && !d.amount)) {
+                          const form = e.target.form;
+                          const category = (form?.elements.namedItem('category_id') as HTMLSelectElement | null)?.value ?? '';
+                          const amount = (form?.elements.namedItem('amount') as HTMLInputElement | null)?.value ?? '';
+                          setEditSplits(prefilledSplitDrafts(category, amount));
+                        }
                       }}
                     />
                     Ventiler cette transaction
@@ -542,7 +585,12 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
             <label className="full">Description<input name="description" defaultValue={editing.description ?? ''} placeholder="Ex: Carrefour, salaire, loyer..." /></label>
             <label className="full">Tags<TagPicker value={editTagIds} tags={tags} onChange={setEditTagIds} /></label>
             {editType !== 'transfer' && editSplitEnabled && (
-              <SplitEditor drafts={editSplits} categories={filteredEditCategories} onChange={setEditSplits} />
+              <SplitEditor
+                drafts={editSplits}
+                categories={filteredEditCategories}
+                targetAmount={Number(editAmount) || 0}
+                onChange={setEditSplits}
+              />
             )}
             <button className="primary">{editing.id > 0 ? 'Enregistrer' : 'Créer la copie'}</button>
             <button type="button" className="secondary" onClick={closeModal}>Annuler</button>
@@ -625,10 +673,12 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           accountById={accountById}
           categoryById={categoryById}
           onClose={() => setLinkingRefund(null)}
-          onSubmit={(expenseId) => {
+          onSubmit={(allocations) => {
             void run(
-              () => api.updateTransaction(userId, linkingRefund.id, { refunds_transaction_id: expenseId }),
-              expenseId ? 'Remboursement lié à la dépense' : 'Lien de remboursement retiré',
+              () => api.updateTransaction(userId, linkingRefund.id, { refund_allocations: allocations }),
+              allocations.length > 0
+                ? `Remboursement ventilé sur ${allocations.length} dépense${allocations.length > 1 ? 's' : ''}`
+                : 'Lien de remboursement retiré',
             );
             setLinkingRefund(null);
           }}
@@ -657,9 +707,14 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   );
 }
 
-function SplitEditor({ drafts, categories, onChange }: {
+// Éditeur de ventilation : la somme des lignes doit atteindre le montant de la
+// transaction (la « cible »). Le « reste » est affiché en direct et chaque
+// ligne propose un bouton « solde » qui la complète avec le restant — le flux
+// type « courses 80 € → nourriture 60, ménager [solde] » se fait en deux clics.
+function SplitEditor({ drafts, categories, targetAmount, onChange }: {
   drafts: SplitDraft[];
   categories: Category[];
+  targetAmount: number;
   onChange: (drafts: SplitDraft[]) => void;
 }) {
   const update = (key: string, patch: Partial<SplitDraft>) => {
@@ -669,12 +724,27 @@ function SplitEditor({ drafts, categories, onChange }: {
     const next = drafts.filter((draft) => draft.key !== key);
     onChange(next.length > 0 ? next : [emptySplitDraft()]);
   };
-  const total = drafts.reduce((sum, draft) => sum + (Number(draft.amount) || 0), 0);
+  const round = (value: number) => Math.round(value * 100) / 100;
+  const total = round(drafts.reduce((sum, draft) => sum + (Number(draft.amount) || 0), 0));
+  const remaining = round(targetAmount - total);
+  const balanced = Math.abs(remaining) <= 0.01 && targetAmount > 0;
+  // « Solde » d'une ligne = le restant en ignorant sa propre valeur actuelle.
+  const fillRemaining = (key: string) => {
+    const others = drafts.reduce((sum, draft) => draft.key === key ? sum : sum + (Number(draft.amount) || 0), 0);
+    const value = round(targetAmount - others);
+    if (value > 0) update(key, { amount: String(value) });
+  };
   return (
     <div className="split-editor full">
       <div className="split-editor-head">
         <strong>Ventilation</strong>
-        <span>Total lignes : {money(Math.round(total * 100) / 100)}</span>
+        <span className={balanced ? 'split-balanced' : targetAmount > 0 ? 'split-unbalanced' : undefined}>
+          {targetAmount > 0
+            ? (balanced
+              ? `✓ ${money(total)} ventilés`
+              : `${money(total)} / ${money(round(targetAmount))} · reste ${money(remaining)}`)
+            : `Total lignes : ${money(total)}`}
+        </span>
       </div>
       {drafts.map((draft) => (
         <div className="split-editor-row" key={draft.key}>
@@ -686,19 +756,30 @@ function SplitEditor({ drafts, categories, onChange }: {
             <option value="">Catégorie</option>
             {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
-          <input
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={draft.amount}
-            onChange={(e) => update(draft.key, { amount: e.target.value })}
-            placeholder="Montant"
-            aria-label="Montant ventilé"
-          />
+          <div className="split-amount-cell">
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={draft.amount}
+              onChange={(e) => update(draft.key, { amount: e.target.value })}
+              placeholder="Montant"
+              aria-label="Montant ventilé"
+            />
+            <button
+              type="button"
+              className="ghost-button split-fill"
+              onClick={() => fillRemaining(draft.key)}
+              disabled={targetAmount <= 0}
+              title="Compléter avec le restant"
+            >
+              solde
+            </button>
+          </div>
           <input
             value={draft.note}
             onChange={(e) => update(draft.key, { note: e.target.value })}
-            placeholder="Note"
+            placeholder="Note (ex: ménager)"
             aria-label="Note de ventilation"
           />
           <button type="button" className="ghost-button icon-only" onClick={() => remove(draft.key)} aria-label="Retirer la ligne">
@@ -721,12 +802,26 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
   accountById: Map<number, Account>;
   categoryById: Map<number, Category>;
   onClose: () => void;
-  onSubmit: (expenseId: number | null) => void;
+  onSubmit: (allocations: RefundAllocationDraft[]) => void;
 }) {
   const [query, setQuery] = useState('');
   const [candidates, setCandidates] = useState<Transaction[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(income.refunds_transaction_id);
+  const [selected, setSelected] = useState<Record<number, string>>(() => {
+    const allocations = income.refund_allocations ?? [];
+    if (allocations.length > 0) {
+      return Object.fromEntries(allocations.map((allocation) => [
+        allocation.expense_transaction_id,
+        String(allocation.amount),
+      ]));
+    }
+    return income.refunds_transaction_id != null ? { [income.refunds_transaction_id]: String(income.amount) } : {};
+  });
   const [searching, setSearching] = useState(false);
+  const selectedTotal = roundAmount(Object.values(selected).reduce((sum, value) => sum + (Number(value) || 0), 0));
+  const selectedCount = Object.keys(selected).length;
+  const overAllocated = selectedTotal - income.amount > 0.01;
+  const candidateById = new Map(candidates.map((candidate) => [candidate.id, candidate]));
+  const existingAllocationByExpenseId = new Map((income.refund_allocations ?? []).map((allocation) => [allocation.expense_transaction_id, allocation]));
 
   // Recherche débouncée côté serveur ; sans requête on liste les plus récentes.
   useEffect(() => {
@@ -743,12 +838,51 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (selectedId == null) return;
-    onSubmit(selectedId);
+    const allocations = Object.entries(selected)
+      .map(([expenseId, amountValue]) => ({
+        expense_transaction_id: Number(expenseId),
+        amount: roundAmount(Number(amountValue)),
+      }))
+      .filter((allocation) => Number.isFinite(allocation.expense_transaction_id) && allocation.expense_transaction_id > 0 && allocation.amount > 0);
+    if (allocations.length === 0 || overAllocated) return;
+    onSubmit(allocations);
+  };
+
+  const updateSelectedAmount = (expenseId: number, amount: string) => {
+    setSelected((current) => ({ ...current, [expenseId]: amount }));
+  };
+
+  const toggleExpense = (transaction: Transaction, checked: boolean) => {
+    setSelected((current) => {
+      const next = { ...current };
+      if (!checked) {
+        delete next[transaction.id];
+        return next;
+      }
+      const alreadySelected = Object.entries(next)
+        .filter(([expenseId]) => Number(expenseId) !== transaction.id)
+        .reduce((sum, [, amount]) => sum + (Number(amount) || 0), 0);
+      const remainingIncome = Math.max(0.01, income.amount - alreadySelected);
+      const remainingExpense = Math.max(0.01, transaction.amount - refundedAmount(transaction));
+      next[transaction.id] = String(roundAmount(Math.min(remainingIncome, remainingExpense)));
+      return next;
+    });
+  };
+
+  const expenseLabel = (expenseId: number) => {
+    const candidate = candidateById.get(expenseId);
+    if (candidate) {
+      return `${new Date(candidate.date).toLocaleDateString('fr-FR')} · ${txLabel(candidate, categoryById)}`;
+    }
+    const existing = existingAllocationByExpenseId.get(expenseId)?.expense_transaction;
+    if (existing) {
+      return `${new Date(existing.date).toLocaleDateString('fr-FR')} · ${existing.description ?? `Dépense #${existing.id}`}`;
+    }
+    return `Dépense #${expenseId}`;
   };
 
   return (
-    <Modal title="Lier à une dépense remboursée" onClose={onClose}>
+    <Modal title="Ventiler le remboursement" onClose={onClose}>
       <form className="form" onSubmit={submit}>
         <label className="full">Remboursement
           <input
@@ -756,6 +890,19 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
             readOnly
           />
         </label>
+        <div className={`full refund-allocation-total ${overAllocated ? 'error' : ''}`}>
+          <span>Alloué : {money(selectedTotal, accountById.get(income.account_id ?? -1)?.currency ?? 'EUR')}</span>
+          <span>Reste : {money(Math.max(0, roundAmount(income.amount - selectedTotal)), accountById.get(income.account_id ?? -1)?.currency ?? 'EUR')}</span>
+        </div>
+        {selectedCount > 0 && (
+          <div className="full refund-selected-list">
+            {Object.entries(selected).map(([expenseId, amount]) => (
+              <span key={expenseId}>
+                {expenseLabel(Number(expenseId))} · {money(Number(amount) || 0, accountById.get(income.account_id ?? -1)?.currency ?? 'EUR')}
+              </span>
+            ))}
+          </div>
+        )}
         <label className="full">Chercher la dépense
           <input
             value={query}
@@ -770,28 +917,44 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
           {candidates.map((t) => {
             const currency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
             const refunded = refundedAmount(t);
+            const checked = selected[t.id] !== undefined;
             return (
-              <label key={t.id} className="refund-candidate">
+              <div key={t.id} className="refund-candidate">
                 <input
-                  type="radio"
-                  name="refund_target"
-                  checked={selectedId === t.id}
-                  onChange={() => setSelectedId(t.id)}
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(event) => toggleExpense(t, event.target.checked)}
                 />
                 <span>
                   {new Date(t.date).toLocaleDateString('fr-FR')} · {txLabel(t, categoryById)} · {money(t.amount, currency)}
                   {refunded > 0 && ` (déjà remboursé ${money(refunded, currency)})`}
                 </span>
-              </label>
+                {checked && (
+                  <input
+                    className="refund-allocation-input"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={selected[t.id]}
+                    onChange={(event) => updateSelectedAmount(t.id, event.target.value)}
+                    aria-label={`Montant alloué à ${txLabel(t, categoryById)}`}
+                  />
+                )}
+              </div>
             );
           })}
         </div>
-        <button className="primary" disabled={selectedId == null}>Lier le remboursement</button>
-        {income.refunds_transaction_id != null && (
-          <button type="button" className="secondary" onClick={() => onSubmit(null)}>Retirer le lien</button>
+        {overAllocated && <p className="panel-note error">Le total alloué dépasse le montant du remboursement.</p>}
+        <button className="primary" disabled={selectedCount === 0 || overAllocated}>Enregistrer la ventilation</button>
+        {selectedCount > 0 && (
+          <button type="button" className="secondary" onClick={() => onSubmit([])}>Retirer les liens</button>
         )}
         <button type="button" className="secondary" onClick={onClose}>Annuler</button>
       </form>
     </Modal>
   );
+}
+
+function roundAmount(value: number): number {
+  return Math.round(value * 100) / 100;
 }

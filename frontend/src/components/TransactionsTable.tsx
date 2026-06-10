@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, ChevronsUpDown, Copy, HandCoins, Pencil, Repeat } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronsUpDown, Copy, HandCoins, Pencil, Repeat, Split } from 'lucide-react';
 import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne-lite/shared';
 import { money, txLabel, typeLabel } from '../lib/format';
 import { IconButton } from './IconButton';
@@ -27,6 +27,7 @@ export function TransactionsTable({
   onCopy,
   onLink,
   onRefund,
+  onSplit,
   onDelete,
 }: {
   transactions: Transaction[];
@@ -47,6 +48,8 @@ export function TransactionsTable({
   onLink: (transaction: Transaction) => void;
   // Dépense : enregistrer un remboursement. Revenu : lier à la dépense remboursée.
   onRefund: (transaction: Transaction) => void;
+  // Ouvre l'édition avec l'éditeur de ventilation déjà actif.
+  onSplit: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
 }) {
   if (transactions.length === 0) return <p className="empty">{emptyMessage}</p>;
@@ -105,7 +108,8 @@ export function TransactionsTable({
               : `${t.type === 'income' ? '+' : '-'}${money(t.amount, srcCurrency)}`;
             const linked = t.recurring_transaction_id != null;
             const refunded = t.type === 'expense' ? refundedAmount(t) : 0;
-            const isRefundIncome = t.type === 'income' && t.refunds_transaction_id != null;
+            const refundAllocationCount = t.refund_allocations?.length ?? 0;
+            const isRefundIncome = t.type === 'income' && (refundAllocationCount > 0 || t.refunds_transaction_id != null);
             const selected = selectedIds.has(t.id);
             const compatibleCategories = categories.filter((c) => c.type === t.type);
             const firstSplitCategory = splitRows.length > 0 ? categoryById.get(splitRows[0]!.category_id) : null;
@@ -141,11 +145,13 @@ export function TransactionsTable({
                     {isRefundIncome && (
                       <span
                         className="badge-recurring"
-                        title={t.refunds_transaction
+                        title={refundAllocationCount > 1
+                          ? `Rembourse ${refundAllocationCount} dépenses`
+                          : t.refunds_transaction
                           ? `Rembourse « ${t.refunds_transaction.description ?? `#${t.refunds_transaction.id}`} » du ${new Date(t.refunds_transaction.date).toLocaleDateString('fr-FR')}`
                           : 'Remboursement lié à une dépense'}
                       >
-                        ↩ remboursement
+                        {refundAllocationCount > 1 ? `↩ ${refundAllocationCount} dépenses` : '↩ remboursement'}
                       </span>
                     )}
                   </strong>
@@ -230,6 +236,14 @@ export function TransactionsTable({
                     icon={<Repeat size={16} />}
                     onClick={() => onLink(t)}
                   />
+                  {t.type !== 'transfer' && (
+                    <IconButton
+                      label={splitRows.length > 0 ? 'Ventilée — modifier la ventilation' : 'Ventiler en plusieurs catégories'}
+                      tone={splitRows.length > 0 ? 'accent' : 'neutral'}
+                      icon={<Split size={16} />}
+                      onClick={() => onSplit(t)}
+                    />
+                  )}
                   {t.type !== 'transfer' && (
                     <IconButton
                       label={t.type === 'expense'
