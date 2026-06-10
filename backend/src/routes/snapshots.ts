@@ -1,9 +1,19 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma.js';
-import { asyncHandler } from '../middleware/errors.js';
+import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { batchAccountSnapshotsSchema, createAccountSnapshotSchema, dateString, idParam } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
+
+// L'upsert des snapshots est keyé sur (account_id, date) : sans ce contrôle,
+// un user pourrait écraser le snapshot d'un compte d'un autre utilisateur.
+async function assertAccountsOwned(userId: number, accountIds: number[]): Promise<void> {
+  const unique = Array.from(new Set(accountIds));
+  const owned = await prisma.account.findMany({ where: { id: { in: unique }, user_id: userId }, select: { id: true } });
+  if (owned.length !== unique.length) {
+    throw new HttpError(400, 'Compte introuvable pour cet utilisateur');
+  }
+}
 
 export const snapshotsRouter = Router();
 
@@ -35,17 +45,30 @@ snapshotsRouter.get('/users/:user_id/account-snapshots/suggestions', asyncHandle
   const latest = new Map<number, { date: Date; balance: number }>();
   for (const s of snapshots) if (!latest.has(s.account_id)) latest.set(s.account_id, { date: s.date, balance: s.balance });
 
+  // Indexées une fois par compte (au lieu d'un filter O(transactions) par compte).
+  type SuggestionTx = (typeof transactions)[number];
+  const bySource = new Map<number, SuggestionTx[]>();
+  const byDest = new Map<number, SuggestionTx[]>();
+  for (const t of transactions) {
+    if (t.account_id != null) {
+      const list = bySource.get(t.account_id);
+      if (list) list.push(t); else bySource.set(t.account_id, [t]);
+    }
+    if (t.type === 'transfer' && t.to_account_id != null) {
+      const list = byDest.get(t.to_account_id);
+      if (list) list.push(t); else byDest.set(t.to_account_id, [t]);
+    }
+  }
+
   const suggestions = accounts.map((account) => {
     const snap = latest.get(account.id);
     const base = snap ? snap.balance : account.initial_balance;
     const since = snap ? snap.date : account.initial_balance_date;
     const matches = (d: Date) => (snap ? d > since : d >= since);
-    const outgoing = transactions
-      .filter((t) => t.account_id === account.id && matches(t.date))
-      .reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
-    const incoming = transactions
-      .filter((t) => t.type === 'transfer' && t.to_account_id === account.id && matches(t.date))
-      .reduce((s, t) => s + (t.to_amount ?? t.amount), 0);
+    const outgoing = (bySource.get(account.id) ?? [])
+      .reduce((s, t) => (matches(t.date) ? s + (t.type === 'income' ? t.amount : -t.amount) : s), 0);
+    const incoming = (byDest.get(account.id) ?? [])
+      .reduce((s, t) => (matches(t.date) ? s + (t.to_amount ?? t.amount) : s), 0);
     return {
       account_id: account.id,
       suggested_balance: round2(base + outgoing + incoming),
@@ -60,6 +83,7 @@ snapshotsRouter.get('/users/:user_id/account-snapshots/suggestions', asyncHandle
 snapshotsRouter.post('/users/:user_id/account-snapshots', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = createAccountSnapshotSchema.parse(req.body);
+  await assertAccountsOwned(user_id, [body.account_id]);
   const date = new Date(body.date);
   const row = await prisma.accountSnapshot.upsert({
     where: { account_id_date: { account_id: body.account_id, date } },
@@ -79,6 +103,7 @@ snapshotsRouter.post('/users/:user_id/account-snapshots/batch', asyncHandler(asy
   // Snapshot which account_ids already have a row for that exact date,
   // *before* the upsert, so we can report created vs updated counts.
   const accountIds = body.balances.map((b) => b.account_id);
+  await assertAccountsOwned(user_id, accountIds);
   const existing = await prisma.accountSnapshot.findMany({
     where: { user_id, date, account_id: { in: accountIds } },
     select: { account_id: true },

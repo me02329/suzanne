@@ -70,7 +70,7 @@ goalsRouter.post('/users/:user_id/savings-goals/:id/contribute', asyncHandler(as
     return;
   }
 
-  let transactionId: number | null = null;
+  let createTransfer = false;
   if (body.source_account_id && goal.account_id) {
     if (body.source_account_id === goal.account_id) {
       res.status(400).json({ error: 'Le compte source doit être différent du compte de l\'objectif' });
@@ -84,24 +84,32 @@ goalsRouter.post('/users/:user_id/savings-goals/:id/contribute', asyncHandler(as
       res.status(400).json({ error: 'Compte source ou destination introuvable' });
       return;
     }
-    const tx = await prisma.transaction.create({
-      data: {
-        user_id,
-        account_id: src.id,
-        to_account_id: dest.id,
-        type: 'transfer',
-        amount: round2(body.amount),
-        date: new Date(body.date),
-        description: body.description?.trim() || `Versement objectif: ${goal.name}`,
-      },
-    });
-    transactionId = tx.id;
+    createTransfer = true;
   }
 
-  const updated = await prisma.savingsGoal.update({
-    where: { id },
-    data: { current_amount: round2(goal.current_amount + body.amount) },
-  });
+  // Transfert + bump du compteur dans une même transaction DB : pas de
+  // versement enregistré sans la progression correspondante (et inversement).
+  const results = await prisma.$transaction([
+    ...(createTransfer
+      ? [prisma.transaction.create({
+          data: {
+            user_id,
+            account_id: body.source_account_id!,
+            to_account_id: goal.account_id!,
+            type: 'transfer',
+            amount: round2(body.amount),
+            date: new Date(body.date),
+            description: body.description?.trim() || `Versement objectif: ${goal.name}`,
+          },
+        })]
+      : []),
+    prisma.savingsGoal.update({
+      where: { id },
+      data: { current_amount: round2(goal.current_amount + body.amount) },
+    }),
+  ]);
+  const transactionId = createTransfer ? (results[0] as { id: number }).id : null;
+  const updated = results[results.length - 1];
   res.json({ goal: updated, transaction_id: transactionId });
 }));
 

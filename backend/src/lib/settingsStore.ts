@@ -48,11 +48,13 @@ export interface AiSettingsUpdate {
 }
 
 export async function updateAiSettings(update: AiSettingsUpdate): Promise<void> {
-  const entries: Array<[string, string | null]> = [
-    [AI_KEYS.apiKey, update.apiKey ?? null],
-    [AI_KEYS.model, update.model ?? null],
-    [AI_KEYS.baseUrl, update.baseUrl ?? null],
-    [AI_KEYS.provider, update.provider ?? null],
+  // `undefined` = champ non fourni → on n'y touche pas ; seul `null`/'' efface.
+  // (Le frontend omet volontairement api_key pour dire « garder la clé ».)
+  const entries: Array<[string, string | null | undefined]> = [
+    [AI_KEYS.apiKey, update.apiKey],
+    [AI_KEYS.model, update.model],
+    [AI_KEYS.baseUrl, update.baseUrl],
+    [AI_KEYS.provider, update.provider],
   ];
   for (const [key, value] of entries) {
     if (value === undefined) continue;

@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma.js';
-import { asyncHandler } from '../middleware/errors.js';
+import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { createTransactionSchema, idParam, linkRecurringSchema, monthString, updateTransactionSchema } from '../lib/validation.js';
-import { fetchExchangeRate } from '../lib/fx.js';
-import { round2 } from '../lib/money.js';
+import {
+  assertRefundTarget,
+  assertTransactionReferences,
+  resolveTagIds,
+  transferAmounts,
+} from '../lib/transactionHelpers.js';
 
 export const transactionsRouter = Router();
 
@@ -44,12 +48,9 @@ transactionsRouter.get('/users/:user_id/transactions', asyncHandler(async (req, 
 transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = createTransactionSchema.parse(req.body);
+  await assertTransactionReferences(user_id, body);
   if (body.refunds_transaction_id != null) {
-    const refundError = await checkRefundTarget(user_id, body.refunds_transaction_id);
-    if (refundError) {
-      res.status(400).json({ error: refundError });
-      return;
-    }
+    await assertRefundTarget(user_id, body.refunds_transaction_id);
   }
   const transfer = await transferAmounts(user_id, body);
   const tagIds = await resolveTagIds(user_id, body.tag_ids);
@@ -82,6 +83,7 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
     res.status(404).json({ error: 'Not found' });
     return;
   }
+  await assertTransactionReferences(user_id, body);
   const next = {
     type: body.type ?? existing.type,
     account_id: body.account_id !== undefined ? body.account_id ?? null : existing.account_id,
@@ -99,12 +101,10 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
   // self-transfer either.
   if (next.type === 'transfer') {
     if (!next.account_id || !next.to_account_id) {
-      res.status(400).json({ error: 'Un transfert exige un compte source et un compte destination' });
-      return;
+      throw new HttpError(400, 'Un transfert exige un compte source et un compte destination');
     }
     if (next.account_id === next.to_account_id) {
-      res.status(400).json({ error: 'Les comptes source et destination doivent être différents' });
-      return;
+      throw new HttpError(400, 'Les comptes source et destination doivent être différents');
     }
   }
   // Lien de remboursement : seul un revenu peut en porter un ; perdre le type
@@ -112,41 +112,42 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
   const refundsId = next.type === 'income' ? next.refunds_transaction_id : null;
   if (refundsId != null && body.refunds_transaction_id != null) {
     if (refundsId === id) {
-      res.status(400).json({ error: 'Une transaction ne peut pas se rembourser elle-même' });
-      return;
+      throw new HttpError(400, 'Une transaction ne peut pas se rembourser elle-même');
     }
-    const refundError = await checkRefundTarget(user_id, refundsId);
-    if (refundError) {
-      res.status(400).json({ error: refundError });
-      return;
-    }
+    await assertRefundTarget(user_id, refundsId);
   }
   const transfer = await transferAmounts(user_id, next);
-  if (body.tag_ids !== undefined) {
-    const tagIds = await resolveTagIds(user_id, body.tag_ids);
-    await prisma.transactionTag.deleteMany({ where: { transaction_id: id } });
-    if (tagIds.length > 0) {
-      await prisma.transactionTag.createMany({
-        data: tagIds.map((tag_id) => ({ transaction_id: id, tag_id })),
-      });
-    }
-  }
-  const row = await prisma.transaction.update({
-    where: { id },
-    data: {
-      ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
-      ...(body.to_account_id !== undefined ? { to_account_id: body.to_account_id ?? null } : {}),
-      ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
-      ...(body.amount != null ? { amount: body.amount } : {}),
-      to_amount: transfer.toAmount,
-      exchange_rate: transfer.exchangeRate,
-      refunds_transaction_id: refundsId,
-      ...(body.type != null ? { type: body.type } : {}),
-      ...(body.date != null ? { date: new Date(body.date) } : {}),
-      ...(body.description !== undefined ? { description: body.description ?? null } : {}),
-    },
-    include: transactionInclude,
-  });
+  // Remplacement des tags + update de la ligne dans une même transaction DB :
+  // un échec de l'update ne doit pas laisser la transaction sans ses tags.
+  const tagOps = body.tag_ids !== undefined
+    ? await resolveTagIds(user_id, body.tag_ids).then((tagIds) => [
+        prisma.transactionTag.deleteMany({ where: { transaction_id: id } }),
+        ...(tagIds.length > 0
+          ? [prisma.transactionTag.createMany({ data: tagIds.map((tag_id) => ({ transaction_id: id, tag_id })) })]
+          : []),
+      ])
+    : [];
+  const results = await prisma.$transaction([
+    ...tagOps,
+    prisma.transaction.update({
+      where: { id },
+      data: {
+        ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
+        // Un non-transfert ne garde jamais de compte destination (miroir du POST).
+        to_account_id: next.type === 'transfer' ? next.to_account_id : null,
+        ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
+        ...(body.amount != null ? { amount: body.amount } : {}),
+        to_amount: transfer.toAmount,
+        exchange_rate: transfer.exchangeRate,
+        refunds_transaction_id: refundsId,
+        ...(body.type != null ? { type: body.type } : {}),
+        ...(body.date != null ? { date: new Date(body.date) } : {}),
+        ...(body.description !== undefined ? { description: body.description ?? null } : {}),
+      },
+      include: transactionInclude,
+    }),
+  ]);
+  const row = results[results.length - 1] as Parameters<typeof serializeTransaction>[0];
   res.json(serializeTransaction(row));
 }));
 
@@ -199,17 +200,35 @@ transactionsRouter.delete('/users/:user_id/transactions/:id', asyncHandler(async
   res.json({ deleted: true });
 }));
 
+// Modification en masse (compte et/ou catégorie) : un seul aller-retour au lieu
+// d'un PATCH par ligne depuis l'édition groupée du tableau des transactions.
+const bulkUpdateSchema = z.object({
+  ids: z.array(z.coerce.number().int().positive()).min(1).max(500),
+  account_id: z.coerce.number().int().positive().nullish(),
+  category_id: z.coerce.number().int().positive().nullish(),
+});
+
+transactionsRouter.post('/users/:user_id/transactions/bulk-update', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const body = bulkUpdateSchema.parse(req.body);
+  if (body.account_id === undefined && body.category_id === undefined) {
+    throw new HttpError(400, 'Aucun champ à modifier');
+  }
+  await assertTransactionReferences(user_id, body);
+  const result = await prisma.transaction.updateMany({
+    where: { id: { in: body.ids }, user_id },
+    data: {
+      ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
+      ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
+    },
+  });
+  res.json({ updated: result.count });
+}));
+
 function nextMonth(month: string): string {
   const [yearRaw, monthRaw] = month.split('-');
   const date = new Date(Date.UTC(Number(yearRaw), Number(monthRaw), 1));
   return date.toISOString();
-}
-
-async function resolveTagIds(userId: number, tagIds: number[] | undefined): Promise<number[]> {
-  if (!tagIds || tagIds.length === 0) return [];
-  const unique = Array.from(new Set(tagIds));
-  const owned = await prisma.tag.findMany({ where: { id: { in: unique }, user_id: userId } });
-  return owned.map((tag) => tag.id);
 }
 
 export function serializeTransaction(row: {
@@ -239,29 +258,4 @@ export function serializeTransaction(row: {
       ? { ...row.refunds_transaction, date: row.refunds_transaction.date.toISOString().slice(0, 10) }
       : null,
   };
-}
-
-// Une cible de remboursement doit être une dépense appartenant à l'utilisateur.
-// Renvoie un message d'erreur (FR) ou null si valide.
-async function checkRefundTarget(userId: number, targetId: number): Promise<string | null> {
-  const target = await prisma.transaction.findFirst({ where: { id: targetId, user_id: userId } });
-  if (!target) return 'Dépense à rembourser introuvable';
-  if (target.type !== 'expense') return 'Un remboursement doit pointer vers une dépense';
-  return null;
-}
-
-async function transferAmounts(
-  userId: number,
-  body: { type?: string; account_id?: number | null; to_account_id?: number | null; amount: number; to_amount?: number | null; date: string },
-): Promise<{ toAmount: number | null; exchangeRate: number | null }> {
-  if (body.type !== 'transfer' || !body.account_id || !body.to_account_id) return { toAmount: null, exchangeRate: null };
-  if (body.to_amount != null) return { toAmount: body.to_amount, exchangeRate: round2(body.to_amount / body.amount) };
-
-  const [from, to] = await Promise.all([
-    prisma.account.findFirst({ where: { id: body.account_id, user_id: userId } }),
-    prisma.account.findFirst({ where: { id: body.to_account_id, user_id: userId } }),
-  ]);
-  if (!from || !to) return { toAmount: body.amount, exchangeRate: 1 };
-  const quote = await fetchExchangeRate(from.currency, to.currency, body.date);
-  return { toAmount: round2(body.amount * quote.rate), exchangeRate: quote.rate };
 }

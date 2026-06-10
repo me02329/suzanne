@@ -221,6 +221,48 @@ describe('export / import round trip', () => {
   });
 });
 
+describe('per-user scoping', () => {
+  it("refuse un snapshot sur le compte d'un autre utilisateur", async () => {
+    const alice = await createUser('Alice');
+    const bob = await createUser('Bob');
+    const aliceAccount = await createAccount(alice);
+    await api.post(`/api/users/${bob}/account-snapshots`)
+      .send({ account_id: aliceAccount, date: '2026-02-01', balance: 999 })
+      .expect(400);
+    await api.post(`/api/users/${bob}/account-snapshots/batch`)
+      .send({ date: '2026-02-01', balances: [{ account_id: aliceAccount, balance: 999 }] })
+      .expect(400);
+  });
+
+  it("refuse une transaction référençant le compte ou la catégorie d'un autre utilisateur", async () => {
+    const alice = await createUser('Alice');
+    const bob = await createUser('Bob');
+    const aliceAccount = await createAccount(alice);
+    const aliceCategory = await api.post(`/api/users/${alice}/categories`)
+      .send({ name: 'Privée', type: 'expense', color: '#000000' })
+      .expect(201);
+
+    await api.post(`/api/users/${bob}/transactions`)
+      .send({ account_id: aliceAccount, amount: 10, type: 'expense', date: '2026-03-01' })
+      .expect(400);
+    await api.post(`/api/users/${bob}/transactions`)
+      .send({ category_id: aliceCategory.body.id, amount: 10, type: 'expense', date: '2026-03-01' })
+      .expect(400);
+  });
+});
+
+describe('ai settings', () => {
+  it('ne supprime pas la clé stockée quand api_key est omis de la mise à jour', async () => {
+    await api.put('/api/settings/ai').send({ api_key: 'sk-test-123' }).expect(200);
+    const after = await api.put('/api/settings/ai').send({ model: 'modele-test' }).expect(200);
+    expect(after.body.source).toBe('database');
+    expect(after.body.model).toBe('modele-test');
+    // null efface explicitement la clé stockée en base.
+    const cleared = await api.put('/api/settings/ai').send({ api_key: null }).expect(200);
+    expect(cleared.body.source).not.toBe('database');
+  });
+});
+
 describe('error handling', () => {
   it('returns a friendly message instead of leaking the Prisma error', async () => {
     const userId = await createUser();

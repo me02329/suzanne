@@ -16,9 +16,16 @@ import {
   updateTagSchema,
   updateTransactionSchema,
 } from '../lib/validation.js';
-import { fetchExchangeRate } from '../lib/fx.js';
 import { round2 } from '../lib/money.js';
 import { applyRulesToUncategorized, bucketByRule } from '../lib/categoryRules.js';
+import {
+  assertAccountOwned,
+  assertCategoryOwned,
+  assertRefundTarget,
+  assertTransactionReferences,
+  resolveTagIds,
+  transferAmounts,
+} from '../lib/transactionHelpers.js';
 import { nextRecurringOccurrence, recurringMonthlyEquivalent } from '@suzanne-lite/shared';
 
 // The AI proposes a write action; the user confirms it from the chat UI.
@@ -299,6 +306,7 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
     case 'create_transaction': {
       const body = createTransactionSchema.parse(action.payload);
       await assertTransactionReferences(userId, body);
+      if (body.refunds_transaction_id != null) await assertRefundTarget(userId, body.refunds_transaction_id);
       const transfer = await transferAmounts(userId, body);
       return await prisma.transaction.create({
         data: {
@@ -306,6 +314,7 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
           account_id: body.account_id ?? null,
           to_account_id: body.type === 'transfer' ? body.to_account_id ?? null : null,
           category_id: body.category_id ?? null,
+          refunds_transaction_id: body.type === 'income' ? body.refunds_transaction_id ?? null : null,
           amount: body.amount,
           to_amount: transfer.toAmount,
           exchange_rate: transfer.exchangeRate,
@@ -333,6 +342,7 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
         .parse(action.payload);
       const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
       if (!existing) throw new Error('Transaction introuvable');
+      await assertTransactionReferences(userId, body);
       if (body.tag_ids !== undefined) {
         const tagIds = await resolveTagIds(userId, body.tag_ids);
         await prisma.transactionTag.deleteMany({ where: { transaction_id: body.transaction_id } });
@@ -402,6 +412,7 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
 
     case 'create_goal': {
       const body = createSavingsGoalSchema.parse(action.payload);
+      if (body.account_id) await assertAccountOwned(userId, body.account_id, 'Compte lié');
       return await prisma.savingsGoal.create({
         data: {
           user_id: userId,
@@ -418,6 +429,7 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
       const body = z.object({ goal_id: z.coerce.number().int().positive() }).and(updateSavingsGoalSchema).parse(action.payload);
       const existing = await prisma.savingsGoal.findFirst({ where: { id: body.goal_id, user_id: userId } });
       if (!existing) throw new Error('Objectif introuvable');
+      if (body.account_id) await assertAccountOwned(userId, body.account_id, 'Compte lié');
       return await prisma.savingsGoal.update({
         where: { id: body.goal_id },
         data: {
@@ -438,30 +450,38 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
       const body = z.object({ goal_id: z.coerce.number().int().positive() }).and(contributeSavingsGoalSchema).parse(action.payload);
       const goal = await prisma.savingsGoal.findFirst({ where: { id: body.goal_id, user_id: userId } });
       if (!goal) throw new Error('Objectif introuvable');
-      let transactionId: number | null = null;
-      if (body.source_account_id && goal.account_id) {
-        const tx = await prisma.transaction.create({
-          data: {
-            user_id: userId,
-            account_id: body.source_account_id,
-            to_account_id: goal.account_id,
-            type: 'transfer',
-            amount: round2(body.amount),
-            date: new Date(body.date),
-            description: body.description ?? `Versement objectif: ${goal.name}`,
-          },
-        });
-        transactionId = tx.id;
-      }
-      const updated = await prisma.savingsGoal.update({
-        where: { id: body.goal_id },
-        data: { current_amount: round2(goal.current_amount + body.amount) },
-      });
+      if (body.source_account_id) await assertAccountOwned(userId, body.source_account_id, 'Compte source');
+      // Transfert + bump du compteur dans une même transaction DB.
+      const createTransfer = body.source_account_id && goal.account_id;
+      const ops = [
+        ...(createTransfer
+          ? [prisma.transaction.create({
+              data: {
+                user_id: userId,
+                account_id: body.source_account_id!,
+                to_account_id: goal.account_id,
+                type: 'transfer' as const,
+                amount: round2(body.amount),
+                date: new Date(body.date),
+                description: body.description ?? `Versement objectif: ${goal.name}`,
+              },
+            })]
+          : []),
+        prisma.savingsGoal.update({
+          where: { id: body.goal_id },
+          data: { current_amount: round2(goal.current_amount + body.amount) },
+        }),
+      ] as const;
+      const results = await prisma.$transaction([...ops]);
+      const transactionId = createTransfer ? (results[0] as { id: number }).id : null;
+      const updated = results[results.length - 1];
       return { goal: updated, transaction_id: transactionId };
     }
 
     case 'create_recurring': {
       const body = createRecurringSchema.parse(action.payload);
+      if (body.account_id) await assertAccountOwned(userId, body.account_id);
+      if (body.category_id) await assertCategoryOwned(userId, body.category_id);
       return await prisma.recurringTransaction.create({
         data: {
           user_id: userId,
@@ -482,6 +502,8 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
       const body = z.object({ recurring_id: z.coerce.number().int().positive() }).and(updateRecurringSchema).parse(action.payload);
       const existing = await prisma.recurringTransaction.findFirst({ where: { id: body.recurring_id, user_id: userId } });
       if (!existing) throw new Error('Récurrent introuvable');
+      if (body.account_id) await assertAccountOwned(userId, body.account_id);
+      if (body.category_id) await assertCategoryOwned(userId, body.category_id);
       return await prisma.recurringTransaction.update({
         where: { id: body.recurring_id },
         data: {
@@ -505,6 +527,7 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
 
     case 'set_budget': {
       const body = createBudgetSchema.parse(action.payload);
+      await assertCategoryOwned(userId, body.category_id);
       const existing = await prisma.budget.findFirst({ where: { user_id: userId, category_id: body.category_id, month: body.month } });
       if (existing) return await prisma.budget.update({ where: { id: existing.id }, data: { amount_limit: body.amount_limit } });
       return await prisma.budget.create({ data: { user_id: userId, category_id: body.category_id, month: body.month, amount_limit: body.amount_limit } });
@@ -516,7 +539,15 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
 
     case 'create_rule': {
       const body = createCategoryRuleSchema.parse(action.payload);
-      return await prisma.categoryRule.create({ data: { user_id: userId, pattern: body.pattern, category_id: body.category_id } });
+      await assertCategoryOwned(userId, body.category_id);
+      // Le matching suppose des patterns UPPERCASE (cf. routes/rules.ts et
+      // categoryRules.ts) — une règle en minuscules ne matcherait jamais.
+      const pattern = body.pattern.toUpperCase();
+      return await prisma.categoryRule.upsert({
+        where: { user_id_pattern: { user_id: userId, pattern } },
+        create: { user_id: userId, pattern, category_id: body.category_id },
+        update: { category_id: body.category_id },
+      });
     }
     case 'apply_rules': {
       const body = createRulesSchema.parse(action.payload);
@@ -922,27 +953,6 @@ async function proposeDeleteRule(userId: number, rawArgs: unknown): Promise<Tool
   return propose('delete_rule', `Supprimer la règle "${existing.pattern}"`, body);
 }
 
-async function resolveTagIds(userId: number, tagIds: number[] | undefined): Promise<number[]> {
-  if (!tagIds || tagIds.length === 0) return [];
-  const unique = Array.from(new Set(tagIds));
-  const owned = await prisma.tag.findMany({ where: { id: { in: unique }, user_id: userId } });
-  return owned.map((tag) => tag.id);
-}
-
-async function assertTransactionReferences(
-  userId: number,
-  body: { account_id?: number | null; to_account_id?: number | null; category_id?: number | null },
-) {
-  const [account, toAccount, category] = await Promise.all([
-    body.account_id ? prisma.account.findFirst({ where: { id: body.account_id, user_id: userId } }) : Promise.resolve(null),
-    body.to_account_id ? prisma.account.findFirst({ where: { id: body.to_account_id, user_id: userId } }) : Promise.resolve(null),
-    body.category_id ? prisma.category.findFirst({ where: { id: body.category_id, user_id: userId } }) : Promise.resolve(null),
-  ]);
-  if (body.account_id && !account) throw new Error('Compte source introuvable');
-  if (body.to_account_id && !toAccount) throw new Error('Compte destination introuvable');
-  if (body.category_id && !category) throw new Error('Catégorie introuvable');
-}
-
 function parseMonth(month: string): string | null {
   if (!month) return null;
   const parsed = monthString.safeParse(month);
@@ -972,18 +982,3 @@ function monthRange(month: string) {
   return { gte: start, lt: end };
 }
 
-async function transferAmounts(
-  userId: number,
-  body: { type?: string; account_id?: number | null; to_account_id?: number | null; amount: number; to_amount?: number | null; date: string },
-): Promise<{ toAmount: number | null; exchangeRate: number | null }> {
-  if (body.type !== 'transfer' || !body.account_id || !body.to_account_id) return { toAmount: null, exchangeRate: null };
-  if (body.to_amount != null) return { toAmount: body.to_amount, exchangeRate: round2(body.to_amount / body.amount) };
-
-  const [from, to] = await Promise.all([
-    prisma.account.findFirst({ where: { id: body.account_id, user_id: userId } }),
-    prisma.account.findFirst({ where: { id: body.to_account_id, user_id: userId } }),
-  ]);
-  if (!from || !to) return { toAmount: body.amount, exchangeRate: 1 };
-  const quote = await fetchExchangeRate(from.currency, to.currency, body.date);
-  return { toAmount: round2(body.amount * quote.rate), exchangeRate: quote.rate };
-}

@@ -8,9 +8,22 @@ export function asyncHandler(fn: (req: Request, res: Response, next: NextFunctio
   };
 }
 
+// Erreur métier avec status HTTP explicite (message en français, sûr à montrer).
+export class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof ZodError) {
     res.status(400).json({ error: 'Invalid request', issues: err.issues });
+    return;
+  }
+  if (err instanceof HttpError) {
+    res.status(err.status).json({ error: err.message });
     return;
   }
   if (err instanceof AiProviderError) {
