@@ -8,10 +8,22 @@ import { round2 } from '../lib/money.js';
 
 export const transactionsRouter = Router();
 
+// Relations embarquées dans chaque transaction renvoyée : les remboursements
+// reçus (sur une dépense) et un aperçu de la dépense remboursée (sur un revenu).
+export const transactionInclude = {
+  tags: { include: { tag: true } },
+  refunded_by: { select: { id: true, amount: true, date: true }, orderBy: { date: 'asc' as const } },
+  refunds_transaction: { select: { id: true, amount: true, date: true, description: true } },
+};
+
 transactionsRouter.get('/users/:user_id/transactions', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const month = req.query.month ? monthString.parse(req.query.month) : null;
   const issue = req.query.issue ? z.enum(['unassigned_account']).parse(req.query.issue) : null;
+  // Filtres optionnels (recherche d'une dépense à lier à un remboursement).
+  const type = req.query.type ? z.enum(['expense', 'income', 'transfer']).parse(req.query.type) : null;
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  const limit = req.query.limit ? z.coerce.number().int().min(1).max(100).parse(req.query.limit) : null;
   const where = month
     ? { user_id, date: { gte: new Date(`${month}-01T00:00:00.000Z`), lt: new Date(nextMonth(month)) } }
     : { user_id };
@@ -19,9 +31,12 @@ transactionsRouter.get('/users/:user_id/transactions', asyncHandler(async (req, 
     where: {
       ...where,
       ...(issue === 'unassigned_account' ? { type: { not: 'transfer' as const }, account_id: null } : {}),
+      ...(type ? { type } : {}),
+      ...(q ? { description: { contains: q, mode: 'insensitive' as const } } : {}),
     },
     orderBy: [{ date: 'desc' }, { id: 'desc' }],
-    include: { tags: { include: { tag: true } } },
+    ...(limit ? { take: limit } : {}),
+    include: transactionInclude,
   });
   res.json(rows.map(serializeTransaction));
 }));
@@ -29,6 +44,13 @@ transactionsRouter.get('/users/:user_id/transactions', asyncHandler(async (req, 
 transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = createTransactionSchema.parse(req.body);
+  if (body.refunds_transaction_id != null) {
+    const refundError = await checkRefundTarget(user_id, body.refunds_transaction_id);
+    if (refundError) {
+      res.status(400).json({ error: refundError });
+      return;
+    }
+  }
   const transfer = await transferAmounts(user_id, body);
   const tagIds = await resolveTagIds(user_id, body.tag_ids);
   const row = await prisma.transaction.create({
@@ -37,6 +59,7 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
       account_id: body.account_id ?? null,
       to_account_id: body.type === 'transfer' ? body.to_account_id ?? null : null,
       category_id: body.category_id ?? null,
+      refunds_transaction_id: body.type === 'income' ? body.refunds_transaction_id ?? null : null,
       amount: body.amount,
       to_amount: transfer.toAmount,
       exchange_rate: transfer.exchangeRate,
@@ -45,7 +68,7 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
       description: body.description ?? null,
       tags: { create: tagIds.map((tag_id) => ({ tag_id })) },
     },
-    include: { tags: { include: { tag: true } } },
+    include: transactionInclude,
   });
   res.status(201).json(serializeTransaction(row));
 }));
@@ -66,6 +89,9 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
     amount: body.amount ?? existing.amount,
     to_amount: body.to_amount !== undefined ? body.to_amount ?? null : existing.to_amount,
     date: body.date ?? existing.date.toISOString().slice(0, 10),
+    refunds_transaction_id: body.refunds_transaction_id !== undefined
+      ? body.refunds_transaction_id ?? null
+      : existing.refunds_transaction_id,
   };
   // The create schema validates source != destination via superRefine, but
   // the partial update schema can't (fields may be absent). We re-check on
@@ -78,6 +104,20 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
     }
     if (next.account_id === next.to_account_id) {
       res.status(400).json({ error: 'Les comptes source et destination doivent être différents' });
+      return;
+    }
+  }
+  // Lien de remboursement : seul un revenu peut en porter un ; perdre le type
+  // revenu détache le lien plutôt que de laisser une donnée incohérente.
+  const refundsId = next.type === 'income' ? next.refunds_transaction_id : null;
+  if (refundsId != null && body.refunds_transaction_id != null) {
+    if (refundsId === id) {
+      res.status(400).json({ error: 'Une transaction ne peut pas se rembourser elle-même' });
+      return;
+    }
+    const refundError = await checkRefundTarget(user_id, refundsId);
+    if (refundError) {
+      res.status(400).json({ error: refundError });
       return;
     }
   }
@@ -100,11 +140,12 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
       ...(body.amount != null ? { amount: body.amount } : {}),
       to_amount: transfer.toAmount,
       exchange_rate: transfer.exchangeRate,
+      refunds_transaction_id: refundsId,
       ...(body.type != null ? { type: body.type } : {}),
       ...(body.date != null ? { date: new Date(body.date) } : {}),
       ...(body.description !== undefined ? { description: body.description ?? null } : {}),
     },
-    include: { tags: { include: { tag: true } } },
+    include: transactionInclude,
   });
   res.json(serializeTransaction(row));
 }));
@@ -178,6 +219,7 @@ export function serializeTransaction(row: {
   to_account_id: number | null;
   category_id: number | null;
   recurring_transaction_id: number | null;
+  refunds_transaction_id?: number | null;
   amount: number;
   to_amount: number | null;
   exchange_rate: number | null;
@@ -186,11 +228,26 @@ export function serializeTransaction(row: {
   description: string | null;
   created_at: Date;
   tags: Array<{ tag: { id: number; user_id: number; name: string; color: string; created_at: Date } }>;
+  refunded_by?: Array<{ id: number; amount: number; date: Date }>;
+  refunds_transaction?: { id: number; amount: number; date: Date; description: string | null } | null;
 }) {
   return {
     ...row,
     tags: row.tags.map((join) => join.tag),
+    refunded_by: (row.refunded_by ?? []).map((r) => ({ ...r, date: r.date.toISOString().slice(0, 10) })),
+    refunds_transaction: row.refunds_transaction
+      ? { ...row.refunds_transaction, date: row.refunds_transaction.date.toISOString().slice(0, 10) }
+      : null,
   };
+}
+
+// Une cible de remboursement doit être une dépense appartenant à l'utilisateur.
+// Renvoie un message d'erreur (FR) ou null si valide.
+async function checkRefundTarget(userId: number, targetId: number): Promise<string | null> {
+  const target = await prisma.transaction.findFirst({ where: { id: targetId, user_id: userId } });
+  if (!target) return 'Dépense à rembourser introuvable';
+  if (target.type !== 'expense') return 'Un remboursement doit pointer vers une dépense';
+  return null;
 }
 
 async function transferAmounts(

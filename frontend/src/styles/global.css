@@ -1326,6 +1326,32 @@ tr.row-muted td { opacity: 0.55; }
   vertical-align: middle;
 }
 
+/* Liste de dépenses candidates dans le modal "Lier à une dépense remboursée". */
+.refund-candidates {
+  display: grid;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--surface-muted);
+}
+
+.refund-candidate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.refund-candidate:hover {
+  background: var(--accent-soft);
+}
+
 .chart-empty {
   display: grid;
   place-items: center;

@@ -70,6 +70,111 @@ describe('dashboard', () => {
   });
 });
 
+describe('refunds (remboursements)', () => {
+  async function createExpense(userId: number, accountId: number, amount = 100, date = '2026-03-10') {
+    const res = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount, type: 'expense', date, description: 'Resto entre amis' })
+      .expect(201);
+    return res.body.id as number;
+  }
+
+  it('links a refund income to an expense and nets the dashboard', async () => {
+    const userId = await createUser();
+    const accountId = await createAccount(userId);
+    const expenseId = await createExpense(userId, accountId, 100);
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 2000, type: 'income', date: '2026-03-05' })
+      .expect(201);
+
+    // Remboursement partiel de 40 lié à la dépense.
+    const refund = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 40, type: 'income', date: '2026-03-12', refunds_transaction_id: expenseId })
+      .expect(201);
+    expect(refund.body.refunds_transaction_id).toBe(expenseId);
+    expect(refund.body.refunds_transaction).toMatchObject({ id: expenseId, amount: 100 });
+
+    // La dépense expose les remboursements reçus.
+    const list = await api.get(`/api/users/${userId}/transactions?month=2026-03`).expect(200);
+    const expense = list.body.find((t: { id: number }) => t.id === expenseId);
+    expect(expense.refunded_by).toHaveLength(1);
+    expect(expense.refunded_by[0]).toMatchObject({ amount: 40 });
+
+    // Dashboard : le remboursement réduit les dépenses, pas les revenus.
+    const dash = await api.get(`/api/users/${userId}/dashboard?month=2026-03&currency=EUR`).expect(200);
+    expect(dash.body.income).toBe(2000);
+    expect(dash.body.expenses).toBe(60);
+    expect(dash.body.net).toBe(1940);
+  });
+
+  it('rejects a refund pointing at a non-expense or at another user', async () => {
+    const alice = await createUser('Alice');
+    const bob = await createUser('Bob');
+    const aliceAccount = await createAccount(alice);
+    const bobAccount = await createAccount(bob, { name: 'Compte Bob' });
+    const aliceExpense = await createExpense(alice, aliceAccount);
+    const aliceIncome = await api.post(`/api/users/${alice}/transactions`)
+      .send({ account_id: aliceAccount, amount: 10, type: 'income', date: '2026-03-05' })
+      .expect(201);
+
+    // Une dépense ne peut pas porter un lien de remboursement.
+    await api.post(`/api/users/${alice}/transactions`)
+      .send({ account_id: aliceAccount, amount: 5, type: 'expense', date: '2026-03-13', refunds_transaction_id: aliceExpense })
+      .expect(400);
+    // La cible doit être une dépense.
+    await api.post(`/api/users/${alice}/transactions`)
+      .send({ account_id: aliceAccount, amount: 5, type: 'income', date: '2026-03-13', refunds_transaction_id: aliceIncome.body.id })
+      .expect(400);
+    // La cible doit appartenir au même utilisateur.
+    await api.post(`/api/users/${bob}/transactions`)
+      .send({ account_id: bobAccount, amount: 5, type: 'income', date: '2026-03-13', refunds_transaction_id: aliceExpense })
+      .expect(400);
+  });
+
+  it('detaches the link when the income stops being an income, and on PATCH null', async () => {
+    const userId = await createUser();
+    const accountId = await createAccount(userId);
+    const expenseId = await createExpense(userId, accountId);
+    const refund = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 40, type: 'income', date: '2026-03-12', refunds_transaction_id: expenseId })
+      .expect(201);
+
+    // Bascule en dépense → le lien saute.
+    const patched = await api.patch(`/api/users/${userId}/transactions/${refund.body.id}`)
+      .send({ type: 'expense' })
+      .expect(200);
+    expect(patched.body.refunds_transaction_id).toBeNull();
+
+    // Re-lie puis délie explicitement.
+    await api.patch(`/api/users/${userId}/transactions/${refund.body.id}`)
+      .send({ type: 'income', refunds_transaction_id: expenseId })
+      .expect(200);
+    const unlinked = await api.patch(`/api/users/${userId}/transactions/${refund.body.id}`)
+      .send({ refunds_transaction_id: null })
+      .expect(200);
+    expect(unlinked.body.refunds_transaction_id).toBeNull();
+  });
+
+  it('nets statistics by attributing the refund to the expense category', async () => {
+    const userId = await createUser();
+    const accountId = await createAccount(userId);
+    const catRes = await api.post(`/api/users/${userId}/categories`)
+      .send({ name: 'Restaurants', type: 'expense', color: '#ff0000' })
+      .expect(201);
+    const today = new Date().toISOString().slice(0, 10);
+    const expense = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, category_id: catRes.body.id, amount: 90, type: 'expense', date: today, description: 'Resto partagé' })
+      .expect(201);
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 30, type: 'income', date: today, refunds_transaction_id: expense.body.id })
+      .expect(201);
+
+    const stats = await api.get(`/api/users/${userId}/statistics?range=3m&currency=EUR`).expect(200);
+    expect(stats.body.total_expenses).toBe(60);
+    const resto = stats.body.by_category.find((c: { name: string }) => c.name === 'Restaurants');
+    expect(resto.amount).toBe(60);
+  });
+});
+
 describe('institutions', () => {
   it('renames an institution and reassigns an account to it', async () => {
     const userId = await createUser();

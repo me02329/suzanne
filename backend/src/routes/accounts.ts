@@ -4,7 +4,7 @@ import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { createAccountSchema, idParam, updateAccountSchema } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
-import { serializeTransaction } from './transactions.js';
+import { serializeTransaction, transactionInclude } from './transactions.js';
 
 export const accountsRouter = Router();
 
@@ -31,7 +31,7 @@ accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (
   const rows = await prisma.transaction.findMany({
     where: { user_id, OR: [{ account_id: id }, { to_account_id: id }] },
     orderBy: [{ date: 'desc' }, { id: 'desc' }],
-    include: { tags: { include: { tag: true } } },
+    include: transactionInclude,
   });
 
   // Signed effect on this account, mirroring frontend lib/account.ts

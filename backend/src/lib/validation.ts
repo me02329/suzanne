@@ -63,7 +63,11 @@ export const createTransactionSchema = z.object({
   date: dateString,
   description: z.string().trim().max(500).nullish(),
   tag_ids: tagIdsArray,
+  refunds_transaction_id: z.coerce.number().int().positive().nullish(),
 }).superRefine((data, ctx) => {
+  if (data.refunds_transaction_id != null && data.type !== 'income') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Seul un revenu peut rembourser une dépense' });
+  }
   if (data.type !== 'transfer') return;
   if (!data.account_id || !data.to_account_id) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Un transfert exige un compte source et un compte destination' });
@@ -81,6 +85,7 @@ export const updateTransactionSchema = z.object({
   date: dateString,
   description: z.string().trim().max(500).nullish(),
   tag_ids: tagIdsArray,
+  refunds_transaction_id: z.coerce.number().int().positive().nullish(),
 }).partial();
 
 export const createTagSchema = z.object({

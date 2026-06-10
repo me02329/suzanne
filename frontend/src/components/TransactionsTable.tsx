@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronUp, ChevronsUpDown, Copy, Pencil, Repeat } from 'lucide-react';
-import type { Account, Category, Transaction } from '@suzanne-lite/shared';
+import { ChevronDown, ChevronUp, ChevronsUpDown, Copy, HandCoins, Pencil, Repeat } from 'lucide-react';
+import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne-lite/shared';
 import { money, txLabel, typeLabel } from '../lib/format';
 import { IconButton } from './IconButton';
 
@@ -26,6 +26,7 @@ export function TransactionsTable({
   onEdit,
   onCopy,
   onLink,
+  onRefund,
   onDelete,
 }: {
   transactions: Transaction[];
@@ -44,6 +45,8 @@ export function TransactionsTable({
   onEdit: (transaction: Transaction) => void;
   onCopy: (transaction: Transaction) => void;
   onLink: (transaction: Transaction) => void;
+  // Dépense : enregistrer un remboursement. Revenu : lier à la dépense remboursée.
+  onRefund: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
 }) {
   if (transactions.length === 0) return <p className="empty">{emptyMessage}</p>;
@@ -100,6 +103,8 @@ export function TransactionsTable({
                 : money(t.amount, srcCurrency))
               : `${t.type === 'income' ? '+' : '-'}${money(t.amount, srcCurrency)}`;
             const linked = t.recurring_transaction_id != null;
+            const refunded = t.type === 'expense' ? refundedAmount(t) : 0;
+            const isRefundIncome = t.type === 'income' && t.refunds_transaction_id != null;
             const selected = selectedIds.has(t.id);
             const compatibleCategories = categories.filter((c) => c.type === t.type);
             const accent = category?.color
@@ -123,6 +128,24 @@ export function TransactionsTable({
                   <strong title={txLabel(t, categoryById)}>
                     {txLabel(t, categoryById)}
                     {linked && <span className="badge-recurring" title="Liée à une récurrence">↻</span>}
+                    {refunded > 0 && (
+                      <span
+                        className="badge-recurring"
+                        title={`Remboursé ${money(refunded, srcCurrency)} sur ${money(t.amount, srcCurrency)}`}
+                      >
+                        {refunded >= t.amount ? '✓ remboursée' : `↩ ${money(refunded, srcCurrency)}`}
+                      </span>
+                    )}
+                    {isRefundIncome && (
+                      <span
+                        className="badge-recurring"
+                        title={t.refunds_transaction
+                          ? `Rembourse « ${t.refunds_transaction.description ?? `#${t.refunds_transaction.id}`} » du ${new Date(t.refunds_transaction.date).toLocaleDateString('fr-FR')}`
+                          : 'Remboursement lié à une dépense'}
+                      >
+                        ↩ remboursement
+                      </span>
+                    )}
                   </strong>
                   {t.description && category?.name && <span>{category.name}</span>}
                   {t.tags && t.tags.length > 0 && (
@@ -184,6 +207,16 @@ export function TransactionsTable({
                     icon={<Repeat size={16} />}
                     onClick={() => onLink(t)}
                   />
+                  {t.type !== 'transfer' && (
+                    <IconButton
+                      label={t.type === 'expense'
+                        ? (refunded > 0 ? 'Remboursée en partie — ajouter un remboursement' : 'Enregistrer un remboursement')
+                        : (isRefundIncome ? 'Remboursement lié — modifier le lien' : 'Lier à une dépense remboursée')}
+                      tone={refunded > 0 || isRefundIncome ? 'accent' : 'neutral'}
+                      icon={<HandCoins size={16} />}
+                      onClick={() => onRefund(t)}
+                    />
+                  )}
                   <IconButton label="Supprimer" confirm="Supprimer cette transaction ?" onClick={() => onDelete(t)} />
                 </td>
               </tr>

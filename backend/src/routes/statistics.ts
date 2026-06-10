@@ -24,10 +24,15 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
 
   const [transactions, accounts, categories] = await Promise.all([
     // Statistics is intentionally expense-only: income flows aren't
-    // categorised the same way (salary, refunds, etc.) and transfers between
-    // own accounts aren't spending. Including them would skew every chart
-    // and the "Top marchands" especially.
-    prisma.transaction.findMany({ where: { user_id, type: 'expense' } }),
+    // categorised the same way (salary, etc.) and transfers between own
+    // accounts aren't spending. Including them would skew every chart and
+    // the "Top marchands" especially. Exception : les remboursements (revenus
+    // liés à une dépense) comptent comme dépense négative — ils annulent la
+    // dépense d'origine dans sa catégorie / chez son marchand.
+    prisma.transaction.findMany({
+      where: { user_id, OR: [{ type: 'expense' }, { type: 'income', refunds_transaction_id: { not: null } }] },
+      include: { refunds_transaction: { select: { category_id: true, description: true } } },
+    }),
     prisma.account.findMany({ where: { user_id } }),
     prisma.category.findMany({ where: { user_id } }),
   ]);
@@ -45,27 +50,35 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
 
   // Convert raw transaction amounts to the report currency via the source account's
   // currency. Transactions without an account default to EUR (which gets converted).
-  const txValue = (t: { amount: number; account_id: number | null }) => {
+  // Dans ce dataset, un `income` est forcément un remboursement (cf. la requête) :
+  // il compte négativement et s'impute sur la catégorie / le marchand de la
+  // dépense qu'il rembourse.
+  const txValue = (t: { type: string; amount: number; account_id: number | null }) => {
     const currency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
-    return t.amount * (fx.get(currency) ?? 1);
+    const value = t.amount * (fx.get(currency) ?? 1);
+    return t.type === 'income' ? -value : value;
   };
+  type StatTx = (typeof transactions)[number];
+  const effectiveCategoryId = (t: StatTx) => (t.type === 'income' ? t.refunds_transaction?.category_id ?? null : t.category_id);
+  const effectiveDescription = (t: StatTx) => (t.type === 'income' ? t.refunds_transaction?.description ?? t.description : t.description);
 
   const inRange = transactions.filter((t) => t.date >= from && t.date <= to);
   const considered = excludeUncategorized
-    ? inRange.filter((t) => t.category_id != null)
+    ? inRange.filter((t) => effectiveCategoryId(t) != null)
     : inRange;
 
   const totalExpenses = inRange.reduce((s, t) => s + txValue(t), 0);
-  const totalCategorized = inRange.filter((t) => t.category_id != null).reduce((s, t) => s + txValue(t), 0);
+  const totalCategorized = inRange.filter((t) => effectiveCategoryId(t) != null).reduce((s, t) => s + txValue(t), 0);
   const totalUncategorized = totalExpenses - totalCategorized;
 
   // By category
   const byCategoryMap = new Map<number | null, { amount: number; count: number }>();
   for (const t of considered) {
-    const entry = byCategoryMap.get(t.category_id) ?? { amount: 0, count: 0 };
+    const categoryId = effectiveCategoryId(t);
+    const entry = byCategoryMap.get(categoryId) ?? { amount: 0, count: 0 };
     entry.amount += txValue(t);
     entry.count += 1;
-    byCategoryMap.set(t.category_id, entry);
+    byCategoryMap.set(categoryId, entry);
   }
   const byCategory = Array.from(byCategoryMap.entries())
     .map(([category_id, { amount, count }]) => {
@@ -83,7 +96,7 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   // By merchant (deduped + normalized description)
   const byMerchantMap = new Map<string, { display: string; amount: number; count: number }>();
   for (const t of considered) {
-    const raw = (t.description ?? '').trim();
+    const raw = (effectiveDescription(t) ?? '').trim();
     if (raw.length === 0) continue;
     const key = raw.toUpperCase().replace(/\s+/g, ' ');
     const entry = byMerchantMap.get(key) ?? { display: raw, amount: 0, count: 0 };

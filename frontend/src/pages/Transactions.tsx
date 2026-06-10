@@ -3,6 +3,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, Rows2, Rows3, 
 import {
   ACCOUNT_GROUPS,
   accountTypeGroup,
+  refundedAmount,
   type Account,
   type Category,
   type RecurringTransaction,
@@ -41,6 +42,9 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   // Negative ids encode "copy" (no real backend row yet).
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [linking, setLinking] = useState<Transaction | null>(null);
+  // Remboursements : dépense → créer le revenu lié ; revenu → choisir la dépense liée.
+  const [refundingExpense, setRefundingExpense] = useState<Transaction | null>(null);
+  const [linkingRefund, setLinkingRefund] = useState<Transaction | null>(null);
   const [addType, setAddType] = useState<TransactionType>('expense');
   const [addTagIds, setAddTagIds] = useState<number[]>([]);
   const [editType, setEditType] = useState<TransactionType>('expense');
@@ -231,6 +235,22 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     clearSelection();
   };
 
+  const submitRefund = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!refundingExpense) return;
+    const data = new FormData(event.currentTarget);
+    void run(() => api.createTransaction(userId, {
+      type: 'income',
+      refunds_transaction_id: refundingExpense.id,
+      account_id: numberOrNull(data.get('account_id')),
+      category_id: null,
+      amount: Number(data.get('amount')),
+      date: String(data.get('date')),
+      description: String(data.get('description') || ''),
+    }), 'Remboursement enregistré');
+    setRefundingExpense(null);
+  };
+
   const submitRecurringLink = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!linking) return;
@@ -353,6 +373,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           onEdit={startEdit}
           onCopy={copyTransaction}
           onLink={setLinking}
+          onRefund={(t) => (t.type === 'expense' ? setRefundingExpense(t) : setLinkingRefund(t))}
           onDelete={(t) => void run(() => api.deleteTransaction(userId, t.id), 'Transaction supprimée')}
         />
         {totalPages > 1 && (
@@ -435,6 +456,63 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
         </Modal>
       )}
 
+      {refundingExpense && (
+        <Modal title="Enregistrer un remboursement" onClose={() => setRefundingExpense(null)}>
+          <form className="form" onSubmit={submitRefund}>
+            <label className="full">Dépense remboursée
+              <input
+                value={`${new Date(refundingExpense.date).toLocaleDateString('fr-FR')} - ${txLabel(refundingExpense, categoryById)} (${money(refundingExpense.amount, accountById.get(refundingExpense.account_id ?? -1)?.currency ?? 'EUR')})`}
+                readOnly
+              />
+            </label>
+            {refundedAmount(refundingExpense) > 0 && (
+              <p className="panel-note">
+                Déjà remboursé : {money(refundedAmount(refundingExpense), accountById.get(refundingExpense.account_id ?? -1)?.currency ?? 'EUR')}
+              </p>
+            )}
+            <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
+            <label>Montant
+              <input
+                name="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                defaultValue={Math.max(0.01, Math.round((refundingExpense.amount - refundedAmount(refundingExpense)) * 100) / 100)}
+                required
+              />
+            </label>
+            <label>Compte crédité
+              <select name="account_id" defaultValue={refundingExpense.account_id ?? ''}>
+                <option value="">Aucun</option>
+                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </label>
+            <label className="full">Description
+              <input name="description" defaultValue={`Remboursement : ${txLabel(refundingExpense, categoryById)}`} />
+            </label>
+            <button className="primary">Enregistrer le remboursement</button>
+            <button type="button" className="secondary" onClick={() => setRefundingExpense(null)}>Annuler</button>
+          </form>
+        </Modal>
+      )}
+
+      {linkingRefund && (
+        <RefundLinkModal
+          userId={userId}
+          income={linkingRefund}
+          accountById={accountById}
+          categoryById={categoryById}
+          onClose={() => setLinkingRefund(null)}
+          onSubmit={(expenseId) => {
+            void run(
+              () => api.updateTransaction(userId, linkingRefund.id, { refunds_transaction_id: expenseId }),
+              expenseId ? 'Remboursement lié à la dépense' : 'Lien de remboursement retiré',
+            );
+            setLinkingRefund(null);
+          }}
+        />
+      )}
+
       {linking && (
         <Modal title="Lier à une récurrence" onClose={() => setLinking(null)}>
           <form className="form" onSubmit={submitRecurringLink}>
@@ -454,5 +532,88 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
         </Modal>
       )}
     </section>
+  );
+}
+
+// Lier un revenu à la dépense qu'il rembourse : recherche les dépenses (toutes
+// périodes) côté serveur, présélectionne le lien existant le cas échéant.
+function RefundLinkModal({ userId, income, accountById, categoryById, onClose, onSubmit }: {
+  userId: number;
+  income: Transaction;
+  accountById: Map<number, Account>;
+  categoryById: Map<number, Category>;
+  onClose: () => void;
+  onSubmit: (expenseId: number | null) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [candidates, setCandidates] = useState<Transaction[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(income.refunds_transaction_id);
+  const [searching, setSearching] = useState(false);
+
+  // Recherche débouncée côté serveur ; sans requête on liste les plus récentes.
+  useEffect(() => {
+    let cancelled = false;
+    setSearching(true);
+    const timer = setTimeout(() => {
+      api.findTransactions(userId, { type: 'expense', q: query.trim() || undefined, limit: 20 })
+        .then((rows) => { if (!cancelled) setCandidates(rows); })
+        .catch(() => { if (!cancelled) setCandidates([]); })
+        .finally(() => { if (!cancelled) setSearching(false); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [userId, query]);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (selectedId == null) return;
+    onSubmit(selectedId);
+  };
+
+  return (
+    <Modal title="Lier à une dépense remboursée" onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <label className="full">Remboursement
+          <input
+            value={`${new Date(income.date).toLocaleDateString('fr-FR')} - ${txLabel(income, categoryById)} (+${money(income.amount, accountById.get(income.account_id ?? -1)?.currency ?? 'EUR')})`}
+            readOnly
+          />
+        </label>
+        <label className="full">Chercher la dépense
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Ex: Carrefour, restaurant..."
+            autoFocus
+          />
+        </label>
+        <div className="full refund-candidates">
+          {searching && candidates.length === 0 && <p className="empty">Recherche…</p>}
+          {!searching && candidates.length === 0 && <p className="empty">Aucune dépense trouvée.</p>}
+          {candidates.map((t) => {
+            const currency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
+            const refunded = refundedAmount(t);
+            return (
+              <label key={t.id} className="refund-candidate">
+                <input
+                  type="radio"
+                  name="refund_target"
+                  checked={selectedId === t.id}
+                  onChange={() => setSelectedId(t.id)}
+                />
+                <span>
+                  {new Date(t.date).toLocaleDateString('fr-FR')} · {txLabel(t, categoryById)} · {money(t.amount, currency)}
+                  {refunded > 0 && ` (déjà remboursé ${money(refunded, currency)})`}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        <button className="primary" disabled={selectedId == null}>Lier le remboursement</button>
+        {income.refunds_transaction_id != null && (
+          <button type="button" className="secondary" onClick={() => onSubmit(null)}>Retirer le lien</button>
+        )}
+        <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+      </form>
+    </Modal>
   );
 }

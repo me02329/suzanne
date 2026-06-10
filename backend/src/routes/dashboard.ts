@@ -7,7 +7,7 @@ import { buildFx } from '../lib/fxHelper.js';
 
 export const dashboardRouter = Router();
 
-type Tx = { type: string; amount: number; to_amount: number | null; date: Date; category_id: number | null; account_id: number | null; to_account_id: number | null };
+type Tx = { id: number; type: string; amount: number; to_amount: number | null; date: Date; category_id: number | null; account_id: number | null; to_account_id: number | null; refunds_transaction_id: number | null };
 type AccountRow = { id: number; name: string; type: string; currency: string; initial_balance: number; initial_balance_date: Date };
 
 // Effet d'une transaction sur le compte dont elle est la source (account_id).
@@ -15,6 +15,13 @@ type AccountRow = { id: number; name: string; type: string; currency: string; in
 // ajouté séparément dans computeBalance.
 function sourceDelta(t: { type: string; amount: number }): number {
   return t.type === 'income' ? t.amount : -t.amount;
+}
+
+// Un remboursement est un revenu lié à une dépense : dans les agrégats de
+// cashflow il compte comme dépense négative (il annule la dépense d'origine)
+// au lieu de gonfler les revenus. Les soldes de comptes ne changent pas.
+function isRefund(t: { type: string; refunds_transaction_id: number | null }): boolean {
+  return t.type === 'income' && t.refunds_transaction_id != null;
 }
 
 dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) => {
@@ -35,8 +42,9 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const txValue = (t: Tx) => round2(t.amount * (fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1));
 
   const monthTransactions = transactions.filter((t) => t.date >= start && t.date < end);
-  const income = monthTransactions.filter((t) => t.type === 'income').reduce((s, t) => s + txValue(t), 0);
-  const expenses = monthTransactions.filter((t) => t.type === 'expense').reduce((s, t) => s + txValue(t), 0);
+  const income = monthTransactions.filter((t) => t.type === 'income' && !isRefund(t)).reduce((s, t) => s + txValue(t), 0);
+  const refunds = monthTransactions.filter(isRefund).reduce((s, t) => s + txValue(t), 0);
+  const expenses = monthTransactions.filter((t) => t.type === 'expense').reduce((s, t) => s + txValue(t), 0) - refunds;
 
   const accountBalances = computeAccountBalances(accounts, transactions, snapshots, fx);
   const unassignedBalance = computeUnassignedBalance(transactions);
@@ -49,9 +57,19 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const netWorth = assets - liabilities;
   const balanceByGroup = buildBalanceByGroup(accountBalances, unassignedBalance);
 
+  // Dépenses par catégorie, nettes des remboursements : un remboursement vient
+  // en déduction de la catégorie de la dépense qu'il rembourse (la dépense liée
+  // peut être d'un autre mois — on la résout sur l'ensemble des transactions).
+  const txById = new Map(transactions.map((t) => [t.id, t]));
   const byCategory = new Map<number | null, number>();
-  for (const t of monthTransactions.filter((t) => t.type === 'expense')) {
-    byCategory.set(t.category_id, (byCategory.get(t.category_id) ?? 0) + txValue(t));
+  for (const t of monthTransactions) {
+    if (t.type === 'expense') {
+      byCategory.set(t.category_id, (byCategory.get(t.category_id) ?? 0) + txValue(t));
+    } else if (isRefund(t)) {
+      const target = t.refunds_transaction_id != null ? txById.get(t.refunds_transaction_id) : undefined;
+      const categoryId = target?.category_id ?? null;
+      byCategory.set(categoryId, (byCategory.get(categoryId) ?? 0) - txValue(t));
+    }
   }
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
@@ -531,7 +549,10 @@ function buildCashflow(transactions: Tx[], endMonth: Date, accountById: Map<numb
     const bucket = buckets.get(t.date.toISOString().slice(0, 7));
     if (!bucket) continue;
     const value = t.amount * (fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1);
-    if (t.type === 'income') bucket.income += value;
+    if (t.type === 'income') {
+      if (isRefund(t)) bucket.expenses -= value;
+      else bucket.income += value;
+    }
     if (t.type === 'expense') bucket.expenses += value;
     bucket.net = bucket.income - bucket.expenses;
   }
@@ -555,7 +576,10 @@ function buildYearlyCashflow(transactions: Tx[], accountById: Map<number, Accoun
     const year = transaction.date.toISOString().slice(0, 4);
     const row = byYear.get(year) ?? { year, income: 0, expenses: 0, net: 0 };
     const value = transaction.amount * (fx.get(accountById.get(transaction.account_id ?? -1)?.currency ?? 'EUR') ?? 1);
-    if (transaction.type === 'income') row.income += value;
+    if (transaction.type === 'income') {
+      if (isRefund(transaction)) row.expenses -= value;
+      else row.income += value;
+    }
     if (transaction.type === 'expense') row.expenses += value;
     row.net = row.income - row.expenses;
     byYear.set(year, row);

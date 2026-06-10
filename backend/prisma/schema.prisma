@@ -142,6 +142,9 @@ model Transaction {
   to_account_id Int?
   category_id   Int?
   recurring_transaction_id Int?
+  // Remboursement : un revenu peut pointer la dépense qu'il rembourse.
+  // Plusieurs revenus peuvent pointer la même dépense (remboursements partiels).
+  refunds_transaction_id Int?
   amount        Float
   to_amount     Float?
   exchange_rate Float?
@@ -155,6 +158,8 @@ model Transaction {
   to_account Account?  @relation("TxDestination", fields: [to_account_id], references: [id], onDelete: SetNull)
   category   Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
   recurring_transaction RecurringTransaction? @relation(fields: [recurring_transaction_id], references: [id], onDelete: SetNull)
+  refunds_transaction Transaction?  @relation("Refunds", fields: [refunds_transaction_id], references: [id], onDelete: SetNull)
+  refunded_by         Transaction[] @relation("Refunds")
   tags       TransactionTag[]
 
   @@index([user_id, date])
@@ -162,6 +167,7 @@ model Transaction {
   @@index([to_account_id])
   @@index([category_id])
   @@index([recurring_transaction_id])
+  @@index([refunds_transaction_id])
   @@map("transactions")
 }
 

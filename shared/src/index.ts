@@ -74,6 +74,8 @@ export interface Transaction {
   to_account_id: number | null;
   category_id: number | null;
   recurring_transaction_id: number | null;
+  // Remboursement : id de la dépense que ce revenu rembourse (null sinon).
+  refunds_transaction_id: number | null;
   amount: number;
   to_amount: number | null;
   exchange_rate: number | null;
@@ -82,6 +84,10 @@ export interface Transaction {
   description: string | null;
   created_at: string;
   tags: Tag[];
+  // Revenus liés qui remboursent cette dépense (remboursements partiels possibles).
+  refunded_by?: Array<{ id: number; amount: number; date: string }>;
+  // Aperçu de la dépense remboursée quand ce revenu est un remboursement.
+  refunds_transaction?: { id: number; amount: number; date: string; description: string | null } | null;
 }
 
 export interface Budget {
@@ -169,6 +175,13 @@ export interface CreateTransactionBody {
   date: string;
   description?: string | null;
   tag_ids?: number[];
+  // Réservé aux revenus : id de la dépense remboursée.
+  refunds_transaction_id?: number | null;
+}
+
+// Somme déjà remboursée sur une dépense (via les revenus liés).
+export function refundedAmount(t: Pick<Transaction, 'refunded_by'>): number {
+  return Math.round((t.refunded_by ?? []).reduce((s, r) => s + r.amount, 0) * 100) / 100;
 }
 
 export interface CreateBudgetBody {
