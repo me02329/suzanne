@@ -29,6 +29,7 @@ const baseTransaction = {
   to_account_id: null,
   category_id: 1,
   recurring_transaction_id: null,
+  refunds_transaction_id: null,
   amount: 12,
   to_amount: null,
   exchange_rate: null,
@@ -38,6 +39,7 @@ const baseTransaction = {
   created_at: '2026-05-28T00:00:00.000Z',
   tags: [],
   splits: [],
+  refund_allocations: [],
 } satisfies Transaction;
 
 describe('format helpers', () => {

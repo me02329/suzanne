@@ -92,7 +92,7 @@ async function buildExportPayload(user_id: number, entities: ExportEntity[], fro
     want.has('category_rules') ? prisma.categoryRule.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('transactions') ? prisma.transaction.findMany({
       where: { user_id, ...dateFilter },
-      include: { tags: { include: { tag: true } }, splits: true },
+      include: { tags: { include: { tag: true } }, splits: true, refund_allocations_sent: true },
     }) : Promise.resolve([]),
     want.has('budgets') ? prisma.budget.findMany({ where: { user_id, ...monthFilter } }) : Promise.resolve([]),
     want.has('recurring') ? prisma.recurringTransaction.findMany({ where: { user_id } }) : Promise.resolve([]),
@@ -104,13 +104,18 @@ async function buildExportPayload(user_id: number, entities: ExportEntity[], fro
   // Embed tag_ids in each transaction so a restore can reattach them without
   // a separate transaction_tags table in the payload.
   const transactionsOut = transactions.map((tx) => {
-    const { tags: joins, splits, ...rest } = tx as typeof tx & {
+    const { tags: joins, splits, refund_allocations_sent, ...rest } = tx as typeof tx & {
       tags?: Array<{ tag: { id: number; name: string } }>;
       splits?: Array<{ category_id: number; amount: number; note: string | null }>;
+      refund_allocations_sent?: Array<{ expense_transaction_id: number; amount: number }>;
     };
     return {
       ...rest,
       splits: splits ?? [],
+      refund_allocations: (refund_allocations_sent ?? []).map((allocation) => ({
+        expense_transaction_id: allocation.expense_transaction_id,
+        amount: allocation.amount,
+      })),
       tag_ids: (joins ?? []).map((j) => j.tag.id),
       tag_names: (joins ?? []).map((j) => j.tag.name),
     };
@@ -297,6 +302,7 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
   // les résout en seconde passe une fois toutes les lignes créées.
   const txIdMap = new Map<number, number>();
   const pendingRefundLinks: Array<{ newId: number; oldTargetId: number }> = [];
+  const pendingRefundAllocations: Array<{ newRefundId: number; oldExpenseId: number; amount: number }> = [];
   for (const raw of payload.transactions ?? []) {
     const type = String(raw.type ?? 'expense');
     const date = parseImportDate(raw.date);
@@ -317,8 +323,22 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
           note: split.note == null ? null : String(split.note).slice(0, 160),
         })).filter((split: { category_id: number; amount: number }) => Number.isFinite(split.category_id) && split.amount > 0)
       : [];
+    const amount = round2(Number(raw.amount ?? 0));
+    // Même tolérance d'arrondi qu'à la création (±0,01) : une ventilation
+    // légitimement créée avec 1 centime d'écart ne doit pas être perdue au
+    // round-trip export/import.
     const validSplits = splits.length > 0
-      && round2(splits.reduce((sum: number, split: { amount: number }) => sum + split.amount, 0)) === round2(Number(raw.amount ?? 0));
+      && Math.abs(round2(splits.reduce((sum: number, split: { amount: number }) => sum + split.amount, 0)) - amount) <= 0.01;
+    const refundAllocations = Array.isArray(raw.refund_allocations)
+      ? raw.refund_allocations.map((allocation: { expense_transaction_id?: unknown; amount?: unknown }) => ({
+          expense_transaction_id: Number(allocation.expense_transaction_id),
+          amount: round2(Number(allocation.amount ?? 0)),
+        })).filter((allocation: { expense_transaction_id: number; amount: number }) => (
+          Number.isFinite(allocation.expense_transaction_id)
+          && allocation.expense_transaction_id > 0
+          && allocation.amount > 0
+        ))
+      : [];
     // Resolve tags by remapped id first (round-trip), then by name (cross-account).
     const tagIds = new Set<number>();
     for (const rawTagId of (raw.tag_ids ?? [])) {
@@ -336,7 +356,7 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
         to_account_id: toAccountId,
         category_id: validSplits ? null : categoryId,
         recurring_transaction_id: recurringId,
-        amount: round2(Number(raw.amount ?? 0)),
+        amount,
         to_amount: raw.to_amount != null ? round2(Number(raw.to_amount)) : null,
         exchange_rate: raw.exchange_rate ?? null,
         type: type as 'expense' | 'income' | 'transfer',
@@ -356,8 +376,21 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
       },
     });
     if (raw.id != null) txIdMap.set(Number(raw.id), created.id);
-    if (type === 'income' && raw.refunds_transaction_id != null) {
+    if (type === 'income' && refundAllocations.length > 0) {
+      for (const allocation of refundAllocations) {
+        pendingRefundAllocations.push({
+          newRefundId: created.id,
+          oldExpenseId: allocation.expense_transaction_id,
+          amount: allocation.amount,
+        });
+      }
+    } else if (type === 'income' && raw.refunds_transaction_id != null) {
       pendingRefundLinks.push({ newId: created.id, oldTargetId: Number(raw.refunds_transaction_id) });
+      pendingRefundAllocations.push({
+        newRefundId: created.id,
+        oldExpenseId: Number(raw.refunds_transaction_id),
+        amount,
+      });
     }
     summary.transactions.created += 1;
   }
@@ -365,6 +398,19 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
     const target = txIdMap.get(link.oldTargetId);
     if (!target) continue;
     await prisma.transaction.update({ where: { id: link.newId }, data: { refunds_transaction_id: target } });
+  }
+  const refundAllocationRows = pendingRefundAllocations.flatMap((allocation) => {
+    const target = txIdMap.get(allocation.oldExpenseId);
+    if (!target) return [];
+    return [{
+      user_id,
+      refund_transaction_id: allocation.newRefundId,
+      expense_transaction_id: target,
+      amount: allocation.amount,
+    }];
+  });
+  if (refundAllocationRows.length > 0) {
+    await prisma.refundAllocation.createMany({ data: refundAllocationRows, skipDuplicates: true });
   }
 
   for (const raw of payload.budgets ?? []) {

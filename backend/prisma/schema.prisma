@@ -58,6 +58,7 @@ model User {
   account_snapshots       AccountSnapshot[]
   tags                    Tag[]
   transaction_splits      TransactionSplit[]
+  refund_allocations      RefundAllocation[]
 
   @@map("users")
 }
@@ -164,6 +165,8 @@ model Transaction {
   refunded_by         Transaction[] @relation("Refunds")
   tags       TransactionTag[]
   splits     TransactionSplit[]
+  refund_allocations_sent     RefundAllocation[] @relation("RefundAllocationRefund")
+  refund_allocations_received RefundAllocation[] @relation("RefundAllocationExpense")
 
   @@index([user_id, date])
   @@index([account_id])
@@ -172,6 +175,25 @@ model Transaction {
   @@index([recurring_transaction_id])
   @@index([refunds_transaction_id])
   @@map("transactions")
+}
+
+model RefundAllocation {
+  id                     Int      @id @default(autoincrement())
+  user_id                Int
+  refund_transaction_id  Int
+  expense_transaction_id Int
+  amount                 Float
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+
+  user                User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  refund_transaction  Transaction @relation("RefundAllocationRefund", fields: [refund_transaction_id], references: [id], onDelete: Cascade)
+  expense_transaction Transaction @relation("RefundAllocationExpense", fields: [expense_transaction_id], references: [id], onDelete: Cascade)
+
+  @@unique([refund_transaction_id, expense_transaction_id])
+  @@index([user_id])
+  @@index([refund_transaction_id])
+  @@index([expense_transaction_id])
+  @@map("refund_allocations")
 }
 
 model TransactionSplit {

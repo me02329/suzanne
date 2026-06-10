@@ -7,6 +7,7 @@ import {
   assertRefundTarget,
   assertTransactionReferences,
   assertTransactionSplits,
+  resolveRefundAllocations,
   resolveTagIds,
   transferAmounts,
 } from '../lib/transactionHelpers.js';
@@ -18,6 +19,18 @@ export const transactionsRouter = Router();
 export const transactionInclude = {
   tags: { include: { tag: true } },
   splits: { orderBy: { id: 'asc' as const } },
+  refund_allocations_sent: {
+    orderBy: { id: 'asc' as const },
+    include: {
+      expense_transaction: { select: { id: true, amount: true, date: true, description: true } },
+    },
+  },
+  refund_allocations_received: {
+    orderBy: { id: 'asc' as const },
+    include: {
+      refund_transaction: { select: { id: true, amount: true, date: true } },
+    },
+  },
   refunded_by: { select: { id: true, amount: true, date: true }, orderBy: { date: 'asc' as const } },
   refunds_transaction: { select: { id: true, amount: true, date: true, description: true } },
 };
@@ -55,6 +68,17 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
     await assertRefundTarget(user_id, body.refunds_transaction_id);
   }
   await assertTransactionSplits(user_id, body.type, body.splits, body.amount);
+  const refundAllocations = body.type === 'income'
+    ? await resolveRefundAllocations(
+        user_id,
+        null,
+        body.type,
+        body.amount,
+        body.refund_allocations ?? (body.refunds_transaction_id != null
+          ? [{ expense_transaction_id: body.refunds_transaction_id, amount: body.amount }]
+          : undefined),
+      )
+    : [];
   const transfer = await transferAmounts(user_id, body);
   const tagIds = await resolveTagIds(user_id, body.tag_ids);
   const splits = body.type === 'transfer' ? [] : body.splits ?? [];
@@ -72,6 +96,13 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
       date: new Date(body.date),
       description: body.description ?? null,
       tags: { create: tagIds.map((tag_id) => ({ tag_id })) },
+      refund_allocations_sent: refundAllocations.length > 0
+        ? { create: refundAllocations.map((allocation) => ({
+            user_id,
+            expense_transaction_id: allocation.expense_transaction_id,
+            amount: allocation.amount,
+          })) }
+        : undefined,
       splits: splits.length > 0
         ? { create: splits.map((split) => ({
             user_id,
@@ -90,7 +121,10 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const body = updateTransactionSchema.parse(req.body);
-  const existing = await prisma.transaction.findFirst({ where: { id, user_id }, include: { splits: true } });
+  const existing = await prisma.transaction.findFirst({
+    where: { id, user_id },
+    include: { splits: true, refund_allocations_sent: true },
+  });
   if (!existing) {
     res.status(404).json({ error: 'Not found' });
     return;
@@ -110,6 +144,12 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
   };
   const requestedSplits = body.splits !== undefined ? body.splits : undefined;
   const nextSplits = next.type === 'transfer' ? [] : requestedSplits;
+  const requestedRefundAllocations = body.refund_allocations !== undefined
+    ? body.refund_allocations
+    : body.refunds_transaction_id !== undefined
+      ? body.refunds_transaction_id == null ? [] : [{ expense_transaction_id: body.refunds_transaction_id, amount: next.amount }]
+      : undefined;
+  const nextRefundAllocations = next.type === 'income' ? requestedRefundAllocations : [];
   // The create schema validates source != destination via superRefine, but
   // the partial update schema can't (fields may be absent). We re-check on
   // the post-merge state so PATCH can't turn an existing transfer into a
@@ -131,12 +171,24 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
     }
     await assertRefundTarget(user_id, refundsId);
   }
+  if (nextRefundAllocations !== undefined) {
+    await resolveRefundAllocations(user_id, id, next.type, next.amount, nextRefundAllocations);
+  } else if (existing.refund_allocations_sent.length > 0) {
+    await resolveRefundAllocations(user_id, id, next.type, next.amount, existing.refund_allocations_sent);
+  }
   const transfer = await transferAmounts(user_id, next);
   if (nextSplits !== undefined) {
     await assertTransactionSplits(user_id, next.type, nextSplits, next.amount);
   } else if (existing.splits.length > 0) {
     await assertTransactionSplits(user_id, next.type, existing.splits, next.amount);
   }
+  const legacyRefundsId = next.type !== 'income'
+    ? null
+    : body.refunds_transaction_id !== undefined
+      ? refundsId
+      : body.refund_allocations !== undefined
+        ? null
+        : existing.refunds_transaction_id;
   // Remplacement des tags + update de la ligne dans une même transaction DB :
   // un échec de l'update ne doit pas laisser la transaction sans ses tags.
   const tagOps = body.tag_ids !== undefined
@@ -163,9 +215,25 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
           : []),
       ]
     : [];
+  const refundAllocationOps = nextRefundAllocations !== undefined
+    ? [
+        prisma.refundAllocation.deleteMany({ where: { refund_transaction_id: id } }),
+        ...(nextRefundAllocations.length > 0
+          ? [prisma.refundAllocation.createMany({
+              data: nextRefundAllocations.map((allocation) => ({
+                user_id,
+                refund_transaction_id: id,
+                expense_transaction_id: allocation.expense_transaction_id,
+                amount: allocation.amount,
+              })),
+            })]
+          : []),
+      ]
+    : [];
   const results = await prisma.$transaction([
     ...tagOps,
     ...splitOps,
+    ...refundAllocationOps,
     prisma.transaction.update({
       where: { id },
       data: {
@@ -178,7 +246,7 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
         ...(body.amount != null ? { amount: body.amount } : {}),
         to_amount: transfer.toAmount,
         exchange_rate: transfer.exchangeRate,
-        refunds_transaction_id: refundsId,
+        refunds_transaction_id: legacyRefundsId,
         ...(body.type != null ? { type: body.type } : {}),
         ...(body.date != null ? { date: new Date(body.date) } : {}),
         ...(body.description !== undefined ? { description: body.description ?? null } : {}),
@@ -262,8 +330,15 @@ transactionsRouter.post('/users/:user_id/transactions/bulk-update', asyncHandler
     throw new HttpError(400, 'Aucun champ à modifier');
   }
   await assertTransactionReferences(user_id, body);
+  // Une transaction ventilée ne porte pas de catégorie propre : un changement
+  // de catégorie en masse l'ignore (ses splits font foi). Le changement de
+  // compte seul, lui, reste applicable aux transactions ventilées.
   const result = await prisma.transaction.updateMany({
-    where: { id: { in: body.ids }, user_id },
+    where: {
+      id: { in: body.ids },
+      user_id,
+      ...(body.category_id !== undefined ? { splits: { none: {} } } : {}),
+    },
     data: {
       ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
       ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
@@ -295,16 +370,59 @@ export function serializeTransaction(row: {
   created_at: Date;
   tags: Array<{ tag: { id: number; user_id: number; name: string; color: string; created_at: Date } }>;
   splits: Array<{ id: number; user_id: number; transaction_id: number; category_id: number; amount: number; note: string | null; created_at: Date }>;
+  refund_allocations_sent: Array<{
+    id: number;
+    user_id: number;
+    refund_transaction_id: number;
+    expense_transaction_id: number;
+    amount: number;
+    created_at: Date;
+    expense_transaction: { id: number; amount: number; date: Date; description: string | null };
+  }>;
+  refund_allocations_received: Array<{
+    id: number;
+    amount: number;
+    refund_transaction: { id: number; amount: number; date: Date };
+  }>;
   refunded_by?: Array<{ id: number; amount: number; date: Date }>;
   refunds_transaction?: { id: number; amount: number; date: Date; description: string | null } | null;
 }) {
+  const allocationRefunds = row.refund_allocations_received.map((allocation) => ({
+    id: allocation.refund_transaction.id,
+    amount: allocation.amount,
+    date: allocation.refund_transaction.date.toISOString().slice(0, 10),
+  }));
+  const seenRefundIds = new Set(allocationRefunds.map((refund) => refund.id));
+  const legacyRefunds = (row.refunded_by ?? [])
+    .filter((refund) => !seenRefundIds.has(refund.id))
+    .map((refund) => ({ ...refund, date: refund.date.toISOString().slice(0, 10) }));
+  const refundAllocations = row.refund_allocations_sent.map((allocation) => ({
+    id: allocation.id,
+    user_id: allocation.user_id,
+    refund_transaction_id: allocation.refund_transaction_id,
+    expense_transaction_id: allocation.expense_transaction_id,
+    amount: allocation.amount,
+    created_at: allocation.created_at.toISOString(),
+    expense_transaction: {
+      ...allocation.expense_transaction,
+      date: allocation.expense_transaction.date.toISOString().slice(0, 10),
+    },
+  }));
   return {
     ...row,
     tags: row.tags.map((join) => join.tag),
     splits: row.splits.map((split) => ({ ...split, created_at: split.created_at.toISOString() })),
-    refunded_by: (row.refunded_by ?? []).map((r) => ({ ...r, date: r.date.toISOString().slice(0, 10) })),
-    refunds_transaction: row.refunds_transaction
-      ? { ...row.refunds_transaction, date: row.refunds_transaction.date.toISOString().slice(0, 10) }
-      : null,
+    refund_allocations: refundAllocations,
+    refund_allocations_sent: undefined,
+    refund_allocations_received: undefined,
+    refunded_by: [...allocationRefunds, ...legacyRefunds].sort((a, b) => a.date.localeCompare(b.date)),
+    refunds_transaction: refundAllocations.length === 1
+      ? {
+          ...refundAllocations[0]!.expense_transaction!,
+          date: refundAllocations[0]!.expense_transaction!.date,
+        }
+      : row.refunds_transaction
+        ? { ...row.refunds_transaction, date: row.refunds_transaction.date.toISOString().slice(0, 10) }
+        : null,
   };
 }

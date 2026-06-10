@@ -80,7 +80,24 @@ recurringRouter.post('/users/:user_id/recurring-transactions/generate', asyncHan
   res.json({ generated });
 }));
 
+// Verrou en mémoire par utilisateur : le run quotidien du scheduler et le
+// bouton « Générer ce mois » peuvent se chevaucher, et la déduplication
+// (recurring_id, date) est un read-then-write — on sérialise donc les
+// générations d'un même utilisateur (suffisant en instance unique).
+const generationLocks = new Map<number, Promise<number>>();
+
 export async function generateDueRecurringTransactions(user_id: number, today: Date): Promise<number> {
+  const previous = generationLocks.get(user_id) ?? Promise.resolve(0);
+  const next = previous.catch(() => 0).then(() => generateDueRecurringTransactionsUnlocked(user_id, today));
+  generationLocks.set(user_id, next);
+  try {
+    return await next;
+  } finally {
+    if (generationLocks.get(user_id) === next) generationLocks.delete(user_id);
+  }
+}
+
+async function generateDueRecurringTransactionsUnlocked(user_id: number, today: Date): Promise<number> {
   const rows = await prisma.recurringTransaction.findMany({ where: { user_id, active: true } });
   let generated = 0;
 

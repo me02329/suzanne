@@ -67,6 +67,61 @@ export async function assertRefundTarget(userId: number, targetId: number): Prom
   if (target.type !== 'expense') throw new HttpError(400, 'Un remboursement doit pointer vers une dépense');
 }
 
+export async function resolveRefundAllocations(
+  userId: number,
+  refundTransactionId: number | null,
+  type: string,
+  amount: number,
+  allocations: Array<{ expense_transaction_id: number; amount: number }> | undefined,
+): Promise<Array<{ expense_transaction_id: number; amount: number }>> {
+  if (!allocations || allocations.length === 0) return [];
+  if (type !== 'income') throw new HttpError(400, 'Seul un revenu peut porter des allocations de remboursement');
+  const seen = new Set<number>();
+  for (const allocation of allocations) {
+    if (refundTransactionId != null && allocation.expense_transaction_id === refundTransactionId) {
+      throw new HttpError(400, 'Une transaction ne peut pas se rembourser elle-même');
+    }
+    if (seen.has(allocation.expense_transaction_id)) {
+      throw new HttpError(400, 'Chaque dépense remboursée ne peut apparaître qu’une fois');
+    }
+    seen.add(allocation.expense_transaction_id);
+  }
+  const total = round2(allocations.reduce((sum, allocation) => sum + allocation.amount, 0));
+  if (total - amount > 0.01) throw new HttpError(400, 'Les remboursements alloués ne peuvent pas dépasser le revenu');
+
+  const [expenses, alreadyRefunded] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { id: { in: Array.from(seen) }, user_id: userId },
+      select: { id: true, type: true, amount: true },
+    }),
+    // Déjà remboursé sur chaque dépense par d'AUTRES revenus (en cas de PATCH,
+    // les allocations du revenu courant sont remplacées, donc exclues).
+    prisma.refundAllocation.groupBy({
+      by: ['expense_transaction_id'],
+      where: {
+        expense_transaction_id: { in: Array.from(seen) },
+        ...(refundTransactionId != null ? { refund_transaction_id: { not: refundTransactionId } } : {}),
+      },
+      _sum: { amount: true },
+    }),
+  ]);
+  const expenseById = new Map(expenses.map((expense) => [expense.id, expense]));
+  const refundedByExpense = new Map(alreadyRefunded.map((row) => [row.expense_transaction_id, row._sum.amount ?? 0]));
+  for (const allocation of allocations) {
+    const expense = expenseById.get(allocation.expense_transaction_id);
+    if (!expense) throw new HttpError(400, 'Dépense à rembourser introuvable');
+    if (expense.type !== 'expense') throw new HttpError(400, 'Un remboursement doit pointer vers une dépense');
+    // Borne le cumul des remboursements au montant de la dépense : sans ça,
+    // on peut allouer 1 000 € sur une dépense de 10 € et rendre les
+    // catégories négatives dans les statistiques.
+    const cumulated = round2((refundedByExpense.get(allocation.expense_transaction_id) ?? 0) + allocation.amount);
+    if (cumulated - expense.amount > 0.01) {
+      throw new HttpError(400, 'Le cumul des remboursements dépasse le montant de la dépense');
+    }
+  }
+  return allocations;
+}
+
 // Ne garde que les tags appartenant à l'utilisateur (les autres sont ignorés).
 export async function resolveTagIds(userId: number, tagIds: number[] | undefined): Promise<number[]> {
   if (!tagIds || tagIds.length === 0) return [];

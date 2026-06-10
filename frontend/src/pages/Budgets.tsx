@@ -1,5 +1,5 @@
 import { FormEvent } from 'react';
-import { ChevronDown, ChevronUp, Plus, Target } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Repeat, Target } from 'lucide-react';
 import type { Budget, Category, DashboardSummary } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { money } from '../lib/format';
@@ -23,14 +23,27 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
   const [addOpen, setAddOpen] = usePersistedState<boolean>('budgets_add_open', budgets.length === 0);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    // `recurring` n'est envoyé que si la case est cochée : re-saisir une
+    // limite sur une catégorie déjà reconduite ne doit pas couper la
+    // reconduction (le backend conserve le flag quand le champ est omis).
     void run(() => api.setBudget(userId, {
       category_id: Number(data.get('category_id')),
       month,
       amount_limit: Number(data.get('amount_limit')),
-      recurring: data.get('recurring') === 'on',
-    }), 'Budget enregistré');
-    event.currentTarget.reset();
+      ...(data.get('recurring') === 'on' ? { recurring: true } : {}),
+    }), 'Budget enregistré').then((ok) => {
+      if (ok) form.reset();
+    });
+  };
+  const toggleRecurring = (budget: Budget) => {
+    void run(() => api.setBudget(userId, {
+      category_id: budget.category_id,
+      month: budget.month,
+      amount_limit: budget.amount_limit,
+      recurring: !budget.recurring,
+    }), budget.recurring ? 'Reconduction arrêtée' : 'Budget reconduit chaque mois');
   };
   return (
     <section className="stack">
@@ -71,7 +84,19 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
                     <div className="bar"><span style={{ width: `${pct}%`, background: pct >= 100 ? '#dc2626' : '#4f46e5' }} /></div>
                     <span>{Math.round(pct)} %</span>
                   </td>
-                  <td className="actions-cell"><IconButton label="Supprimer" onClick={() => void run(() => api.deleteBudget(userId, b.id), 'Budget supprimé')} /></td>
+                  <td className="actions-cell">
+                    <IconButton
+                      label={b.recurring ? 'Arrêter la reconduction mensuelle' : 'Reconduire chaque mois'}
+                      tone={b.recurring ? 'accent' : 'neutral'}
+                      icon={<Repeat size={16} />}
+                      onClick={() => toggleRecurring(b)}
+                    />
+                    <IconButton
+                      label="Supprimer"
+                      confirm={b.recurring ? 'Supprimer ce budget ? La reconduction mensuelle sera arrêtée.' : 'Supprimer ce budget ?'}
+                      onClick={() => void run(() => api.deleteBudget(userId, b.id), 'Budget supprimé')}
+                    />
+                  </td>
                 </tr>
               );
             })}

@@ -18,11 +18,14 @@ import {
 } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { applyRulesToUncategorized, bucketByRule } from '../lib/categoryRules.js';
+import { HttpError } from '../middleware/errors.js';
 import {
   assertAccountOwned,
   assertCategoryOwned,
   assertRefundTarget,
   assertTransactionReferences,
+  assertTransactionSplits,
+  resolveRefundAllocations,
   resolveTagIds,
   transferAmounts,
 } from '../lib/transactionHelpers.js';
@@ -307,13 +310,28 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
       const body = createTransactionSchema.parse(action.payload);
       await assertTransactionReferences(userId, body);
       if (body.refunds_transaction_id != null) await assertRefundTarget(userId, body.refunds_transaction_id);
+      await assertTransactionSplits(userId, body.type, body.splits, body.amount);
+      const refundAllocations = body.type === 'income'
+        ? await resolveRefundAllocations(
+            userId,
+            null,
+            body.type,
+            body.amount,
+            body.refund_allocations ?? (body.refunds_transaction_id != null
+              ? [{ expense_transaction_id: body.refunds_transaction_id, amount: body.amount }]
+              : undefined),
+          )
+        : [];
       const transfer = await transferAmounts(userId, body);
+      const splits = body.type === 'transfer' ? [] : body.splits ?? [];
       return await prisma.transaction.create({
         data: {
           user_id: userId,
           account_id: body.account_id ?? null,
           to_account_id: body.type === 'transfer' ? body.to_account_id ?? null : null,
-          category_id: body.category_id ?? null,
+          // Une transaction ventilée ne porte pas de catégorie propre (miroir
+          // de la route REST) : les splits font foi pour les agrégations.
+          category_id: splits.length > 0 || body.type === 'transfer' ? null : body.category_id ?? null,
           refunds_transaction_id: body.type === 'income' ? body.refunds_transaction_id ?? null : null,
           amount: body.amount,
           to_amount: transfer.toAmount,
@@ -323,6 +341,21 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
           description: body.description ?? null,
           tags: body.tag_ids && body.tag_ids.length > 0
             ? { create: await resolveTagIds(userId, body.tag_ids).then((ids) => ids.map((tag_id) => ({ tag_id }))) }
+            : undefined,
+          splits: splits.length > 0
+            ? { create: splits.map((split) => ({
+                user_id: userId,
+                category_id: split.category_id,
+                amount: split.amount,
+                note: split.note ?? null,
+              })) }
+            : undefined,
+          refund_allocations_sent: refundAllocations.length > 0
+            ? { create: refundAllocations.map((allocation) => ({
+                user_id: userId,
+                expense_transaction_id: allocation.expense_transaction_id,
+                amount: allocation.amount,
+              })) }
             : undefined,
         },
       });
@@ -343,6 +376,12 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
       const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
       if (!existing) throw new Error('Transaction introuvable');
       await assertTransactionReferences(userId, body);
+      // La modification de ventilation / d'allocations de remboursement passe
+      // par l'UI : refus explicite plutôt que de les ignorer silencieusement
+      // (le modèle croirait l'action faite).
+      if (body.splits !== undefined || body.refund_allocations !== undefined) {
+        throw new HttpError(400, 'La ventilation et les allocations de remboursement ne sont pas modifiables via l\'assistant');
+      }
       if (body.tag_ids !== undefined) {
         const tagIds = await resolveTagIds(userId, body.tag_ids);
         await prisma.transactionTag.deleteMany({ where: { transaction_id: body.transaction_id } });

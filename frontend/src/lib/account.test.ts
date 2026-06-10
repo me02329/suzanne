@@ -5,8 +5,8 @@ import { accountSignedAmount, livretCeiling, touchesAccount } from './account';
 function tx(overrides: Partial<Transaction>): Transaction {
   return {
     id: 1, user_id: 1, account_id: 1, to_account_id: null, category_id: null,
-    recurring_transaction_id: null, amount: 100, to_amount: null, exchange_rate: null,
-    type: 'expense', date: '2026-01-10', description: null, created_at: '', tags: [], splits: [],
+    recurring_transaction_id: null, refunds_transaction_id: null, amount: 100, to_amount: null, exchange_rate: null,
+    type: 'expense', date: '2026-01-10', description: null, created_at: '', tags: [], splits: [], refund_allocations: [],
     ...overrides,
   };
 }

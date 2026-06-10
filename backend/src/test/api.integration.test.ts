@@ -106,6 +106,55 @@ describe('refunds (remboursements)', () => {
     expect(dash.body.net).toBe(1940);
   });
 
+  it('allocates one refund income across multiple expenses', async () => {
+    const userId = await createUser();
+    const accountId = await createAccount(userId);
+    // Noms distincts des catégories par défaut seedées par createUser (cf. en-tête).
+    const groceries = await api.post(`/api/users/${userId}/categories`)
+      .send({ name: 'Courses partagées', type: 'expense', color: '#22c55e' })
+      .expect(201);
+    const home = await api.post(`/api/users/${userId}/categories`)
+      .send({ name: 'Maison partagée', type: 'expense', color: '#f97316' })
+      .expect(201);
+    const expenseA = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, category_id: groceries.body.id, amount: 100, type: 'expense', date: '2026-03-10', description: 'Carrefour courses' })
+      .expect(201);
+    const expenseB = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, category_id: home.body.id, amount: 110, type: 'expense', date: '2026-03-11', description: 'Carrefour maison' })
+      .expect(201);
+
+    const refund = await api.post(`/api/users/${userId}/transactions`)
+      .send({
+        account_id: accountId,
+        amount: 90,
+        type: 'income',
+        date: '2026-03-12',
+        description: 'Remboursement Carrefour',
+        refund_allocations: [
+          { expense_transaction_id: expenseA.body.id, amount: 40 },
+          { expense_transaction_id: expenseB.body.id, amount: 50 },
+        ],
+      })
+      .expect(201);
+    expect(refund.body.refund_allocations).toHaveLength(2);
+    expect(refund.body.refunds_transaction_id).toBeNull();
+
+    const list = await api.get(`/api/users/${userId}/transactions?month=2026-03`).expect(200);
+    const refreshedA = list.body.find((t: { id: number }) => t.id === expenseA.body.id);
+    const refreshedB = list.body.find((t: { id: number }) => t.id === expenseB.body.id);
+    expect(refreshedA.refunded_by[0]).toMatchObject({ id: refund.body.id, amount: 40 });
+    expect(refreshedB.refunded_by[0]).toMatchObject({ id: refund.body.id, amount: 50 });
+
+    const dash = await api.get(`/api/users/${userId}/dashboard?month=2026-03&currency=EUR`).expect(200);
+    expect(dash.body.income).toBe(0);
+    expect(dash.body.expenses).toBe(120);
+
+    const stats = await api.get(`/api/users/${userId}/statistics?range=custom&from=2026-03-01&to=2026-03-31&currency=EUR`).expect(200);
+    expect(stats.body.total_expenses).toBe(120);
+    expect(stats.body.by_category.find((c: { name: string }) => c.name === 'Courses partagées').amount).toBe(60);
+    expect(stats.body.by_category.find((c: { name: string }) => c.name === 'Maison partagée').amount).toBe(60);
+  });
+
   it('rejects a refund pointing at a non-expense or at another user', async () => {
     const alice = await createUser('Alice');
     const bob = await createUser('Bob');
@@ -218,6 +267,135 @@ describe('export / import round trip', () => {
     await api.post(`/api/users/${target}/import.json`).send({ payload: exported.body }).expect(200);
     const accounts = await api.get(`/api/users/${target}/accounts`).expect(200);
     expect(accounts.body.map((a: { name: string }) => a.name)).toContain('À exporter');
+  });
+});
+
+describe('budgets reconduits', () => {
+  async function createExpenseCategory(userId: number, name: string) {
+    const res = await api.post(`/api/users/${userId}/categories`)
+      .send({ name, type: 'expense', color: '#123456' })
+      .expect(201);
+    return res.body.id as number;
+  }
+
+  it('reconduit sur le mois suivant et conserve le flag quand recurring est omis', async () => {
+    const userId = await createUser();
+    const categoryId = await createExpenseCategory(userId, 'Budget reconduit');
+    await api.post(`/api/users/${userId}/budgets`)
+      .send({ category_id: categoryId, month: '2026-06', amount_limit: 200, recurring: true })
+      .expect(200);
+
+    // Le mois suivant est matérialisé à l'affichage.
+    const july = await api.get(`/api/users/${userId}/budgets?month=2026-07`).expect(200);
+    expect(july.body.find((b: { category_id: number }) => b.category_id === categoryId))
+      .toMatchObject({ amount_limit: 200, recurring: true });
+
+    // Re-saisir la limite SANS le champ recurring ne coupe pas la reconduction.
+    await api.post(`/api/users/${userId}/budgets`)
+      .send({ category_id: categoryId, month: '2026-06', amount_limit: 250 })
+      .expect(200);
+    const june = await api.get(`/api/users/${userId}/budgets?month=2026-06`).expect(200);
+    expect(june.body.find((b: { category_id: number }) => b.category_id === categoryId))
+      .toMatchObject({ amount_limit: 250, recurring: true });
+  });
+
+  it("décocher la reconduction sur le dernier mois arrête la propagation", async () => {
+    const userId = await createUser();
+    const categoryId = await createExpenseCategory(userId, 'Budget stoppé');
+    await api.post(`/api/users/${userId}/budgets`)
+      .send({ category_id: categoryId, month: '2026-06', amount_limit: 100, recurring: true })
+      .expect(200);
+    await api.get(`/api/users/${userId}/budgets?month=2026-07`).expect(200);
+    // Juillet décoché : août ne doit plus être créé, même si juin reste true.
+    await api.post(`/api/users/${userId}/budgets`)
+      .send({ category_id: categoryId, month: '2026-07', amount_limit: 100, recurring: false })
+      .expect(200);
+    const august = await api.get(`/api/users/${userId}/budgets?month=2026-08`).expect(200);
+    expect(august.body.some((b: { category_id: number }) => b.category_id === categoryId)).toBe(false);
+  });
+
+  it('supprimer un budget reconduit ne le fait pas renaître au rechargement', async () => {
+    const userId = await createUser();
+    const categoryId = await createExpenseCategory(userId, 'Budget supprimé');
+    await api.post(`/api/users/${userId}/budgets`)
+      .send({ category_id: categoryId, month: '2026-06', amount_limit: 100, recurring: true })
+      .expect(200);
+    const july = await api.get(`/api/users/${userId}/budgets?month=2026-07`).expect(200);
+    const materialized = july.body.find((b: { category_id: number }) => b.category_id === categoryId);
+    await api.delete(`/api/users/${userId}/budgets/${materialized.id}`).expect(200);
+
+    const reloaded = await api.get(`/api/users/${userId}/budgets?month=2026-07`).expect(200);
+    expect(reloaded.body.some((b: { category_id: number }) => b.category_id === categoryId)).toBe(false);
+  });
+});
+
+describe('splits & garde-fous', () => {
+  it("bulk-update n'écrase pas la catégorie d'une transaction ventilée", async () => {
+    const userId = await createUser();
+    const accountId = await createAccount(userId);
+    const catA = await api.post(`/api/users/${userId}/categories`)
+      .send({ name: 'Ventilée A', type: 'expense', color: '#111111' }).expect(201);
+    const catB = await api.post(`/api/users/${userId}/categories`)
+      .send({ name: 'Ventilée B', type: 'expense', color: '#222222' }).expect(201);
+    const splitTx = await api.post(`/api/users/${userId}/transactions`)
+      .send({
+        account_id: accountId, amount: 100, type: 'expense', date: '2026-03-10',
+        splits: [
+          { category_id: catA.body.id, amount: 60 },
+          { category_id: catB.body.id, amount: 40 },
+        ],
+      })
+      .expect(201);
+    const plainTx = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 50, type: 'expense', date: '2026-03-11' })
+      .expect(201);
+
+    const bulk = await api.post(`/api/users/${userId}/transactions/bulk-update`)
+      .send({ ids: [splitTx.body.id, plainTx.body.id], category_id: catA.body.id })
+      .expect(200);
+    expect(bulk.body.updated).toBe(1); // seule la transaction non ventilée
+
+    const list = await api.get(`/api/users/${userId}/transactions?month=2026-03`).expect(200);
+    const refreshedSplit = list.body.find((t: { id: number }) => t.id === splitTx.body.id);
+    expect(refreshedSplit.category_id).toBeNull();
+    expect(refreshedSplit.splits).toHaveLength(2);
+  });
+
+  it('borne le cumul des remboursements au montant de la dépense', async () => {
+    const userId = await createUser();
+    const accountId = await createAccount(userId);
+    const expense = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 50, type: 'expense', date: '2026-03-10', description: 'Petite dépense' })
+      .expect(201);
+
+    // Allocation directe supérieure à la dépense → refus.
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({
+        account_id: accountId, amount: 80, type: 'income', date: '2026-03-12',
+        refund_allocations: [{ expense_transaction_id: expense.body.id, amount: 80 }],
+      })
+      .expect(400);
+
+    // 30 puis 25 : le second dépasse le cumul (50) → refus.
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({
+        account_id: accountId, amount: 30, type: 'income', date: '2026-03-12',
+        refund_allocations: [{ expense_transaction_id: expense.body.id, amount: 30 }],
+      })
+      .expect(201);
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({
+        account_id: accountId, amount: 25, type: 'income', date: '2026-03-13',
+        refund_allocations: [{ expense_transaction_id: expense.body.id, amount: 25 }],
+      })
+      .expect(400);
+    // 20, lui, complète exactement → accepté.
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({
+        account_id: accountId, amount: 20, type: 'income', date: '2026-03-13',
+        refund_allocations: [{ expense_transaction_id: expense.body.id, amount: 20 }],
+      })
+      .expect(201);
   });
 });
 

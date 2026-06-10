@@ -57,6 +57,10 @@ const transactionSplits = z.array(z.object({
   amount,
   note: z.string().trim().max(160).nullish(),
 })).max(20).optional();
+const refundAllocations = z.array(z.object({
+  expense_transaction_id: z.coerce.number().int().positive(),
+  amount,
+})).max(20).optional();
 
 export const createTransactionSchema = z.object({
   account_id: z.coerce.number().int().positive().nullish(),
@@ -69,10 +73,23 @@ export const createTransactionSchema = z.object({
   description: z.string().trim().max(500).nullish(),
   tag_ids: tagIdsArray,
   splits: transactionSplits,
+  refund_allocations: refundAllocations,
   refunds_transaction_id: z.coerce.number().int().positive().nullish(),
 }).superRefine((data, ctx) => {
+  if (data.refunds_transaction_id != null && data.refund_allocations && data.refund_allocations.length > 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Utilise soit un lien de remboursement simple, soit des allocations multiples' });
+  }
   if (data.refunds_transaction_id != null && data.type !== 'income') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Seul un revenu peut rembourser une dépense' });
+  }
+  if (data.refund_allocations && data.refund_allocations.length > 0) {
+    if (data.type !== 'income') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Seul un revenu peut porter des allocations de remboursement' });
+    }
+    const total = round2(data.refund_allocations.reduce((sum, allocation) => sum + allocation.amount, 0));
+    if (total - data.amount > 0.01) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Les remboursements alloués ne peuvent pas dépasser le revenu' });
+    }
   }
   if (data.splits && data.splits.length > 0) {
     if (data.type === 'transfer') {
@@ -101,8 +118,21 @@ export const updateTransactionSchema = z.object({
   description: z.string().trim().max(500).nullish(),
   tag_ids: tagIdsArray,
   splits: transactionSplits,
+  refund_allocations: refundAllocations,
   refunds_transaction_id: z.coerce.number().int().positive().nullish(),
 }).partial().superRefine((data, ctx) => {
+  if (data.refunds_transaction_id != null && data.refund_allocations && data.refund_allocations.length > 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Utilise soit un lien de remboursement simple, soit des allocations multiples' });
+  }
+  if (data.refund_allocations && data.refund_allocations.length > 0 && data.type && data.type !== 'income') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Seul un revenu peut porter des allocations de remboursement' });
+  }
+  if (data.refund_allocations && data.refund_allocations.length > 0 && data.amount != null) {
+    const total = round2(data.refund_allocations.reduce((sum, allocation) => sum + allocation.amount, 0));
+    if (total - data.amount > 0.01) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Les remboursements alloués ne peuvent pas dépasser le revenu' });
+    }
+  }
   if (data.splits && data.splits.length > 0 && data.type === 'transfer') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Un transfert ne peut pas être ventilé' });
   }
@@ -131,7 +161,8 @@ export const createBudgetSchema = z.object({
   category_id: z.coerce.number().int().positive(),
   month: monthString,
   amount_limit: amount,
-  recurring: z.coerce.boolean().default(false),
+  // Optionnel sans défaut : omis = conserver le flag existant lors d'un upsert.
+  recurring: z.coerce.boolean().optional(),
 });
 
 export const createRecurringSchema = z.object({

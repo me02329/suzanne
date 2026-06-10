@@ -85,10 +85,21 @@ export interface Transaction {
   created_at: string;
   tags: Tag[];
   splits: TransactionSplit[];
+  refund_allocations: RefundAllocation[];
   // Revenus liés qui remboursent cette dépense (remboursements partiels possibles).
   refunded_by?: Array<{ id: number; amount: number; date: string }>;
   // Aperçu de la dépense remboursée quand ce revenu est un remboursement.
   refunds_transaction?: { id: number; amount: number; date: string; description: string | null } | null;
+}
+
+export interface RefundAllocation {
+  id: number;
+  user_id: number;
+  refund_transaction_id: number;
+  expense_transaction_id: number;
+  amount: number;
+  created_at: string;
+  expense_transaction?: { id: number; amount: number; date: string; description: string | null } | null;
 }
 
 export interface TransactionSplit {
@@ -188,8 +199,14 @@ export interface CreateTransactionBody {
   description?: string | null;
   tag_ids?: number[];
   splits?: CreateTransactionSplitBody[];
+  refund_allocations?: CreateRefundAllocationBody[];
   // Réservé aux revenus : id de la dépense remboursée.
   refunds_transaction_id?: number | null;
+}
+
+export interface CreateRefundAllocationBody {
+  expense_transaction_id: number;
+  amount: number;
 }
 
 export interface CreateTransactionSplitBody {

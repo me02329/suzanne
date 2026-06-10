@@ -37,6 +37,7 @@ describe('computeAccountBalances', () => {
           to_account_id: 2,
           refunds_transaction_id: null,
           splits: [],
+          refund_allocations_sent: [],
         },
       ],
       [],
@@ -79,6 +80,7 @@ describe('computeAccountBalances', () => {
           to_account_id: 2,
           refunds_transaction_id: null,
           splits: [],
+          refund_allocations_sent: [],
         },
       ],
       [
@@ -107,10 +109,10 @@ describe('computeWealthSeries', () => {
     { id: 5, name: 'Dollars', type: 'checking', currency: 'USD', initial_balance: 1000, initial_balance_date: date('2026-01-01') },
   ];
   const transactions = [
-    { id: 1, type: 'expense', amount: 100, to_amount: null, date: date('2026-02-15'), category_id: null, account_id: 1, to_account_id: null, refunds_transaction_id: null, splits: [] },
-    { id: 2, type: 'income', amount: 50, to_amount: null, date: date('2026-03-10'), category_id: null, account_id: 1, to_account_id: null, refunds_transaction_id: null, splits: [] },
-    { id: 3, type: 'transfer', amount: 200, to_amount: null, date: date('2026-04-01'), category_id: null, account_id: 1, to_account_id: 2, refunds_transaction_id: null, splits: [] },
-    { id: 4, type: 'expense', amount: 75, to_amount: null, date: date('2026-03-05'), category_id: null, account_id: null, to_account_id: null, refunds_transaction_id: null, splits: [] },
+    { id: 1, type: 'expense', amount: 100, to_amount: null, date: date('2026-02-15'), category_id: null, account_id: 1, to_account_id: null, refunds_transaction_id: null, splits: [], refund_allocations_sent: [] },
+    { id: 2, type: 'income', amount: 50, to_amount: null, date: date('2026-03-10'), category_id: null, account_id: 1, to_account_id: null, refunds_transaction_id: null, splits: [], refund_allocations_sent: [] },
+    { id: 3, type: 'transfer', amount: 200, to_amount: null, date: date('2026-04-01'), category_id: null, account_id: 1, to_account_id: 2, refunds_transaction_id: null, splits: [], refund_allocations_sent: [] },
+    { id: 4, type: 'expense', amount: 75, to_amount: null, date: date('2026-03-05'), category_id: null, account_id: null, to_account_id: null, refunds_transaction_id: null, splits: [], refund_allocations_sent: [] },
   ];
   const snapshots = [
     { account_id: 2, date: date('2026-03-31'), balance: 1000 },

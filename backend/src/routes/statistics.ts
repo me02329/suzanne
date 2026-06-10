@@ -31,7 +31,19 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     // liés à une dépense) comptent comme dépense négative — ils annulent la
     // dépense d'origine dans sa catégorie / chez son marchand.
     prisma.transaction.findMany({
-      where: { user_id, OR: [{ type: 'expense' }, { type: 'income', refunds_transaction_id: { not: null } }] },
+      where: {
+        user_id,
+        OR: [
+          { type: 'expense' },
+          {
+            type: 'income',
+            OR: [
+              { refunds_transaction_id: { not: null } },
+              { refund_allocations_sent: { some: {} } },
+            ],
+          },
+        ],
+      },
       // Projection minimale : seules les colonnes utilisées par les agrégations.
       select: {
         type: true,
@@ -47,6 +59,19 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
             category_id: true,
             description: true,
             splits: { select: { category_id: true, amount: true } },
+          },
+        },
+        refund_allocations_sent: {
+          select: {
+            amount: true,
+            expense_transaction: {
+              select: {
+                amount: true,
+                category_id: true,
+                description: true,
+                splits: { select: { category_id: true, amount: true } },
+              },
+            },
           },
         },
       },
@@ -71,19 +96,16 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   // Dans ce dataset, un `income` est forcément un remboursement (cf. la requête) :
   // il compte négativement et s'impute sur la catégorie / le marchand de la
   // dépense qu'il rembourse.
-  const txValue = (t: { type: string; amount: number; account_id: number | null }) => {
+  const txValue = (t: { type: string; amount: number; account_id: number | null }, amount = t.amount) => {
     const currency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
-    const value = t.amount * (fx.get(currency) ?? 1);
+    const value = amount * (fx.get(currency) ?? 1);
     return t.type === 'income' ? -value : value;
   };
-  type StatTx = (typeof transactions)[number];
-  const effectiveDescription = (t: StatTx) => (t.type === 'income' ? t.refunds_transaction?.description ?? t.description : t.description);
-
   const inRange = transactions.filter((t) => t.date >= from && t.date <= to);
   const categoryEntries = inRange.flatMap((t) => categoryAllocationsForStats(t).map((allocation) => ({
     transaction: t,
     category_id: allocation.category_id,
-    amount: txValue(t) * (allocation.amount / t.amount),
+    amount: txValue(t, allocation.amount),
   })));
   const consideredEntries = excludeUncategorized
     ? categoryEntries.filter((entry) => entry.category_id != null)
@@ -92,7 +114,10 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     ? inRange.filter((t) => categoryAllocationsForStats(t).some((allocation) => allocation.category_id != null))
     : inRange;
 
-  const totalExpenses = inRange.reduce((s, t) => s + txValue(t), 0);
+  const totalExpenses = inRange.reduce((s, t) => {
+    if (t.type === 'expense') return s + txValue(t);
+    return s + txValue(t, refundAllocatedAmountForStats(t));
+  }, 0);
   const totalCategorized = categoryEntries
     .filter((entry) => entry.category_id != null)
     .reduce((s, entry) => s + entry.amount, 0);
@@ -121,15 +146,22 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     .sort((a, b) => b.amount - a.amount);
 
   // By merchant (deduped + normalized description)
+  const merchantEntries = inRange.flatMap((t) => merchantAllocationsForStats(t).map((entry) => ({
+    ...entry,
+    amount: txValue(t, entry.amount),
+  })));
+  const consideredMerchantEntries = excludeUncategorized
+    ? merchantEntries.filter((entry) => entry.categorized)
+    : merchantEntries;
   const byMerchantMap = new Map<string, { display: string; amount: number; count: number }>();
-  for (const t of consideredTransactions) {
-    const raw = (effectiveDescription(t) ?? '').trim();
+  for (const merchantEntry of consideredMerchantEntries) {
+    const raw = (merchantEntry.description ?? '').trim();
     if (raw.length === 0) continue;
     const key = raw.toUpperCase().replace(/\s+/g, ' ');
-    const entry = byMerchantMap.get(key) ?? { display: raw, amount: 0, count: 0 };
-    entry.amount += txValue(t);
-    entry.count += 1;
-    byMerchantMap.set(key, entry);
+    const bucket = byMerchantMap.get(key) ?? { display: raw, amount: 0, count: 0 };
+    bucket.amount += merchantEntry.amount;
+    bucket.count += 1;
+    byMerchantMap.set(key, bucket);
   }
   const byMerchant = Array.from(byMerchantMap.values())
     .map((row) => ({ description: row.display, amount: round2(row.amount), transactions_count: row.count }))
@@ -149,7 +181,10 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   }
   for (const t of inRange) {
     const month = t.date.toISOString().slice(0, 7);
-    monthlyMap.set(month, (monthlyMap.get(month) ?? 0) + txValue(t));
+    const value = t.type === 'expense'
+      ? txValue(t)
+      : txValue(t, refundAllocatedAmountForStats(t));
+    monthlyMap.set(month, (monthlyMap.get(month) ?? 0) + value);
   }
   const monthly = Array.from(monthlyMap.entries())
     .map(([month, amount]) => ({ month, amount: round2(amount) }))
@@ -191,14 +226,93 @@ function categoryAllocationsForStats(t: {
     category_id: number | null;
     splits: Array<{ category_id: number; amount: number }>;
   } | null;
+  refund_allocations_sent: Array<{
+    amount: number;
+    expense_transaction: {
+      amount: number;
+      category_id: number | null;
+      splits: Array<{ category_id: number; amount: number }>;
+    };
+  }>;
 }): Array<{ category_id: number | null; amount: number }> {
   if (t.type !== 'income') return baseCategoryAllocations(t);
+  if (t.refund_allocations_sent.length > 0) {
+    return t.refund_allocations_sent.flatMap((refundAllocation) => {
+      const target = refundAllocation.expense_transaction;
+      if (!target || target.amount <= 0) return [{ category_id: null, amount: refundAllocation.amount }];
+      return baseCategoryAllocations(target).map((allocation) => ({
+        category_id: allocation.category_id,
+        amount: refundAllocation.amount * (allocation.amount / target.amount),
+      }));
+    });
+  }
   const target = t.refunds_transaction;
   if (!target || target.amount <= 0) return [{ category_id: null, amount: t.amount }];
   return baseCategoryAllocations(target).map((allocation) => ({
     category_id: allocation.category_id,
     amount: t.amount * (allocation.amount / target.amount),
   }));
+}
+
+function refundAllocatedAmountForStats(t: {
+  amount: number;
+  refunds_transaction: unknown | null;
+  refund_allocations_sent: Array<{ amount: number }>;
+}): number {
+  if (t.refund_allocations_sent.length > 0) {
+    return Math.min(t.amount, t.refund_allocations_sent.reduce((sum, allocation) => sum + allocation.amount, 0));
+  }
+  return t.refunds_transaction != null ? t.amount : 0;
+}
+
+function hasCategorizedAllocation(t: {
+  amount: number;
+  category_id: number | null;
+  splits: Array<{ category_id: number; amount: number }>;
+}): boolean {
+  return baseCategoryAllocations(t).some((allocation) => allocation.category_id != null);
+}
+
+function merchantAllocationsForStats(t: {
+  type: string;
+  amount: number;
+  description: string | null;
+  category_id: number | null;
+  splits: Array<{ category_id: number; amount: number }>;
+  refunds_transaction: {
+    amount: number;
+    category_id: number | null;
+    description: string | null;
+    splits: Array<{ category_id: number; amount: number }>;
+  } | null;
+  refund_allocations_sent: Array<{
+    amount: number;
+    expense_transaction: {
+      amount: number;
+      category_id: number | null;
+      description: string | null;
+      splits: Array<{ category_id: number; amount: number }>;
+    };
+  }>;
+}): Array<{ description: string | null; amount: number; categorized: boolean }> {
+  if (t.type !== 'income') {
+    return [{ description: t.description, amount: t.amount, categorized: hasCategorizedAllocation(t) }];
+  }
+  if (t.refund_allocations_sent.length > 0) {
+    return t.refund_allocations_sent.map((refundAllocation) => ({
+      description: refundAllocation.expense_transaction?.description ?? t.description,
+      amount: refundAllocation.amount,
+      categorized: refundAllocation.expense_transaction
+        ? hasCategorizedAllocation(refundAllocation.expense_transaction)
+        : false,
+    }));
+  }
+  const target = t.refunds_transaction;
+  return [{
+    description: target?.description ?? t.description,
+    amount: t.amount,
+    categorized: target ? hasCategorizedAllocation(target) : false,
+  }];
 }
 
 function rangeStart(range: z.infer<typeof rangeSchema>, today: Date, earliest: Date): Date {
