@@ -254,30 +254,42 @@ export default function App() {
     typeof message === 'function' ? message(result) : (message ?? 'Enregistré');
 
   const run: Run = async (fn, message) => {
-    if (runInFlight.current) return;
+    if (runInFlight.current) {
+      // Ne pas avaler silencieusement l'action : l'utilisateur doit savoir
+      // que son clic a été ignoré (sinon une édition rapide se perd sans trace).
+      setError('Une action est déjà en cours, réessaie dans un instant.');
+      return false;
+    }
     runInFlight.current = true;
     try {
       setError(null);
       const result = await fn();
       await reload();
       setNotice(resolveMessage(message, result));
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       runInFlight.current = false;
     }
   };
 
   const runUsers: Run = async (fn, message) => {
-    if (runInFlight.current) return;
+    if (runInFlight.current) {
+      setError('Une action est déjà en cours, réessaie dans un instant.');
+      return false;
+    }
     runInFlight.current = true;
     try {
       setError(null);
       const result = await fn();
       await reloadUsers();
       setNotice(resolveMessage(message, result));
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       runInFlight.current = false;
     }

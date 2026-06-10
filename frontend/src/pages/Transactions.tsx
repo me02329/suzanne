@@ -186,10 +186,14 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       description: String(data.get('description') || ''),
       tag_ids: addTagIds,
     };
-    void run(() => api.createTransaction(userId, body), 'Transaction ajoutée');
-    form.reset();
-    setAddType('expense');
-    setAddTagIds([]);
+    // Le formulaire n'est vidé qu'après un succès : en cas d'erreur serveur,
+    // la saisie reste en place pour corriger et resoumettre.
+    void run(() => api.createTransaction(userId, body), 'Transaction ajoutée').then((ok) => {
+      if (!ok) return;
+      form.reset();
+      setAddType('expense');
+      setAddTagIds([]);
+    });
   };
 
   const submitEdit = (event: FormEvent<HTMLFormElement>) => {
@@ -228,8 +232,8 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     if (Object.keys(body).length === 0) return;
     const ids = selectedTransactions.map((t) => t.id);
     void run(
-      () => Promise.all(ids.map((id) => api.updateTransaction(userId, id, body))),
-      `${ids.length} transactions modifiées`,
+      () => api.bulkUpdateTransactions(userId, { ids, ...body }),
+      (result) => `${(result as { updated: number }).updated} transactions modifiées`,
     );
     setBulkEditing(false);
     clearSelection();

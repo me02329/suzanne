@@ -135,6 +135,9 @@ export const api = {
   linkTransactionRecurring: (userId: number, id: number, body: { recurring_transaction_id: number | null; sync_description?: boolean; sync_amount?: boolean; sync_category_account?: boolean }) =>
     http<Transaction>(`/users/${userId}/transactions/${id}/link-recurring`, { method: 'POST', body: JSON.stringify(body) }),
   deleteTransaction: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/transactions/${id}`, { method: 'DELETE' }),
+  // Édition groupée (compte / catégorie) en un seul appel.
+  bulkUpdateTransactions: (userId: number, body: { ids: number[]; account_id?: number | null; category_id?: number | null }) =>
+    http<{ updated: number }>(`/users/${userId}/transactions/bulk-update`, { method: 'POST', body: JSON.stringify(body) }),
   budgets: (userId: number, month?: string) => http<Budget[]>(`/users/${userId}/budgets${month ? `?month=${month}` : ''}`),
   setBudget: (userId: number, body: CreateBudgetBody) => http<Budget>(`/users/${userId}/budgets`, { method: 'POST', body: JSON.stringify(body) }),
   deleteBudget: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/budgets/${id}`, { method: 'DELETE' }),
@@ -183,7 +186,7 @@ export const api = {
     return await res.blob();
   },
   importJson: (userId: number, payload: unknown) =>
-    http<{ institutions: { created: number; reused: number }; accounts: { created: number; reused: number }; categories: { created: number; reused: number }; rules: { created: number; reused: number }; transactions: { created: number }; budgets: { created: number; updated: number }; recurring: { created: number }; goals: { created: number; reused: number }; snapshots: { created: number; updated: number } }>(
+    http<{ institutions: { created: number; reused: number }; accounts: { created: number; reused: number }; categories: { created: number; reused: number }; rules: { created: number; reused: number }; transactions: { created: number; skipped: number }; budgets: { created: number; updated: number }; recurring: { created: number; skipped: number }; goals: { created: number; reused: number }; snapshots: { created: number; updated: number } }>(
       `/users/${userId}/import.json`, { method: 'POST', body: JSON.stringify({ payload }) }),
   search: (userId: number, q: string) => http<SearchResult[]>(`/users/${userId}/search?q=${encodeURIComponent(q)}`),
   statistics: (userId: number, range: string, currency: string, excludeUncategorized: boolean, from?: string | null, to?: string | null) => {
