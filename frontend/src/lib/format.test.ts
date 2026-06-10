@@ -36,6 +36,8 @@ const baseTransaction = {
   date: '2026-05-28T00:00:00.000Z',
   description: null,
   created_at: '2026-05-28T00:00:00.000Z',
+  tags: [],
+  splits: [],
 } satisfies Transaction;
 
 describe('format helpers', () => {

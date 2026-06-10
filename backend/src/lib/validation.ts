@@ -52,6 +52,11 @@ export const createCategorySchema = z.object({
 export const updateCategorySchema = createCategorySchema.partial();
 
 const tagIdsArray = z.array(z.coerce.number().int().positive()).max(20).optional();
+const transactionSplits = z.array(z.object({
+  category_id: z.coerce.number().int().positive(),
+  amount,
+  note: z.string().trim().max(160).nullish(),
+})).max(20).optional();
 
 export const createTransactionSchema = z.object({
   account_id: z.coerce.number().int().positive().nullish(),
@@ -63,10 +68,20 @@ export const createTransactionSchema = z.object({
   date: dateString,
   description: z.string().trim().max(500).nullish(),
   tag_ids: tagIdsArray,
+  splits: transactionSplits,
   refunds_transaction_id: z.coerce.number().int().positive().nullish(),
 }).superRefine((data, ctx) => {
   if (data.refunds_transaction_id != null && data.type !== 'income') {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Seul un revenu peut rembourser une dépense' });
+  }
+  if (data.splits && data.splits.length > 0) {
+    if (data.type === 'transfer') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Un transfert ne peut pas être ventilé' });
+    }
+    const total = round2(data.splits.reduce((sum, split) => sum + split.amount, 0));
+    if (Math.abs(total - data.amount) > 0.01) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'La ventilation doit totaliser le montant de la transaction' });
+    }
   }
   if (data.type !== 'transfer') return;
   if (!data.account_id || !data.to_account_id) {
@@ -85,8 +100,19 @@ export const updateTransactionSchema = z.object({
   date: dateString,
   description: z.string().trim().max(500).nullish(),
   tag_ids: tagIdsArray,
+  splits: transactionSplits,
   refunds_transaction_id: z.coerce.number().int().positive().nullish(),
-}).partial();
+}).partial().superRefine((data, ctx) => {
+  if (data.splits && data.splits.length > 0 && data.type === 'transfer') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Un transfert ne peut pas être ventilé' });
+  }
+  if (data.splits && data.splits.length > 0 && data.amount != null) {
+    const total = round2(data.splits.reduce((sum, split) => sum + split.amount, 0));
+    if (Math.abs(total - data.amount) > 0.01) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'La ventilation doit totaliser le montant de la transaction' });
+    }
+  }
+});
 
 export const createTagSchema = z.object({
   name: z.string().trim().min(1).max(40),
@@ -105,6 +131,7 @@ export const createBudgetSchema = z.object({
   category_id: z.coerce.number().int().positive(),
   month: monthString,
   amount_limit: amount,
+  recurring: z.coerce.boolean().default(false),
 });
 
 export const createRecurringSchema = z.object({

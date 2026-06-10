@@ -27,7 +27,7 @@ export async function applyRulesToUncategorized(userId: number): Promise<{ categ
     prisma.categoryRule.findMany({ where: { user_id: userId }, orderBy: { pattern: 'asc' } }),
     prisma.category.findMany({ where: { user_id: userId }, select: { id: true } }),
     prisma.transaction.findMany({
-      where: { user_id: userId, category_id: null, type: { not: 'transfer' } },
+      where: { user_id: userId, category_id: null, type: { not: 'transfer' }, splits: { none: {} } },
       select: { id: true, description: true },
     }),
   ]);
@@ -38,7 +38,7 @@ export async function applyRulesToUncategorized(userId: number): Promise<{ categ
   let categorized = 0;
   for (const [category_id, ids] of idsByCategory) {
     const result = await prisma.transaction.updateMany({
-      where: { id: { in: ids }, user_id: userId, category_id: null },
+      where: { id: { in: ids }, user_id: userId, category_id: null, splits: { none: {} } },
       data: { category_id },
     });
     categorized += result.count;

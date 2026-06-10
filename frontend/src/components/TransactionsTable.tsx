@@ -91,6 +91,7 @@ export function TransactionsTable({
             const sourceAccount = accountById.get(t.account_id ?? -1);
             const destinationAccount = accountById.get(t.to_account_id ?? -1);
             const category = categoryById.get(t.category_id ?? -1);
+            const splitRows = t.splits ?? [];
             const srcCurrency = sourceAccount?.currency ?? 'EUR';
             const destCurrency = destinationAccount?.currency ?? srcCurrency;
             const isCurrencyConversion = t.type === 'transfer'
@@ -107,7 +108,8 @@ export function TransactionsTable({
             const isRefundIncome = t.type === 'income' && t.refunds_transaction_id != null;
             const selected = selectedIds.has(t.id);
             const compatibleCategories = categories.filter((c) => c.type === t.type);
-            const accent = category?.color
+            const firstSplitCategory = splitRows.length > 0 ? categoryById.get(splitRows[0]!.category_id) : null;
+            const accent = firstSplitCategory?.color ?? category?.color
               ?? (t.type === 'income' ? 'var(--income)' : t.type === 'transfer' ? 'var(--accent)' : 'var(--expense)');
             return (
               <tr
@@ -147,7 +149,16 @@ export function TransactionsTable({
                       </span>
                     )}
                   </strong>
-                  {t.description && category?.name && <span>{category.name}</span>}
+                  {splitRows.length > 0 ? (
+                    <span className="split-summary">
+                      {splitRows.map((split) => {
+                        const splitCategory = categoryById.get(split.category_id);
+                        return `${splitCategory?.name ?? 'Catégorie'} ${money(split.amount, srcCurrency)}`;
+                      }).join(' · ')}
+                    </span>
+                  ) : (
+                    t.description && category?.name && <span>{category.name}</span>
+                  )}
                   {t.tags && t.tags.length > 0 && (
                     <span className="tag-chip-row">
                       {t.tags.map((tag) => (
@@ -184,6 +195,18 @@ export function TransactionsTable({
                 <td data-label="Catégorie">
                   {t.type === 'transfer' ? (
                     'Transfert'
+                  ) : splitRows.length > 0 ? (
+                    <div className="split-list-mini">
+                      {splitRows.map((split) => {
+                        const splitCategory = categoryById.get(split.category_id);
+                        return (
+                          <span key={split.id}>
+                            <i style={{ background: splitCategory?.color ?? '#9ca3af' }} />
+                            {splitCategory?.name ?? 'Catégorie'} · {money(split.amount, srcCurrency)}
+                          </span>
+                        );
+                      })}
+                    </div>
                   ) : (
                     <select
                       className="inline-select"

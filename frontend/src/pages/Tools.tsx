@@ -44,6 +44,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
   const fileInputRef = useRef<HTMLInputElement>(null);
   const preview = useMemo(() => parseCsvPreview(csv), [csv]);
   const [mapping, setMapping] = useState({ date: '', amount: '', description: '', type: '' });
+  const [lastCsvImport, setLastCsvImport] = useState<Awaited<ReturnType<typeof api.importCsv>> | null>(null);
 
   const [exportOpen, setExportOpen] = useState(false);
   const [exportEntities, setExportEntities] = useState<Set<string>>(() => new Set(EXPORT_ENTITIES.map((e) => e.key)));
@@ -176,18 +177,26 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    void run(() => api.importCsv(userId, {
-      csv,
-      account_id: numberOrNull(data.get('account_id')),
-      date_format: String(data.get('date_format') || 'auto'),
-      mapping: {
-        date: mapping.date,
-        amount: mapping.amount,
-        description: mapping.description || null,
-        type: mapping.type || null,
-      },
-    }), 'CSV importé');
-    setImportOpen(false);
+    void run(async () => {
+      const result = await api.importCsv(userId, {
+        csv,
+        account_id: numberOrNull(data.get('account_id')),
+        date_format: String(data.get('date_format') || 'auto'),
+        mapping: {
+          date: mapping.date,
+          amount: mapping.amount,
+          description: mapping.description || null,
+          type: mapping.type || null,
+        },
+      });
+      setLastCsvImport(result);
+      return result;
+    }, (result) => {
+      const r = result as Awaited<ReturnType<typeof api.importCsv>>;
+      return `CSV : ${r.imported} importées, ${r.duplicates_count} doublons ignorés`;
+    }).then((ok) => {
+      if (ok) setImportOpen(false);
+    });
   };
 
   const columnSelect = (key: keyof typeof mapping, label: string, required = false) => (
@@ -259,6 +268,24 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
           </div>
         </Panel>
       </section>
+      {lastCsvImport && (
+        <Panel title="Dernier import CSV" icon={<FileUp />}>
+          <div className="import-summary">
+            <strong>{lastCsvImport.imported} transactions importées</strong>
+            <span>{lastCsvImport.skipped} lignes ignorées, dont {lastCsvImport.duplicates_count} doublons.</span>
+            {lastCsvImport.duplicates.length > 0 && (
+              <div className="duplicate-list">
+                {lastCsvImport.duplicates.slice(0, 12).map((duplicate) => (
+                  <div key={`${duplicate.line}-${duplicate.reason}`}>
+                    <strong>Ligne {duplicate.line}</strong>
+                    <span>{duplicate.date} · {duplicate.amount} · {duplicate.description || 'Sans libellé'} · {duplicate.reason === 'existing' ? 'déjà présente' : 'doublon du fichier'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Panel>
+      )}
       {importOpen && (
         <Modal title="Importer CSV" onClose={() => setImportOpen(false)} wide>
           <form className="form tools-modal-form" onSubmit={submit}>

@@ -40,7 +40,15 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
         account_id: true,
         category_id: true,
         description: true,
-        refunds_transaction: { select: { category_id: true, description: true } },
+        splits: { select: { category_id: true, amount: true } },
+        refunds_transaction: {
+          select: {
+            amount: true,
+            category_id: true,
+            description: true,
+            splits: { select: { category_id: true, amount: true } },
+          },
+        },
       },
     }),
     prisma.account.findMany({ where: { user_id }, select: { id: true, currency: true } }),
@@ -69,26 +77,35 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     return t.type === 'income' ? -value : value;
   };
   type StatTx = (typeof transactions)[number];
-  const effectiveCategoryId = (t: StatTx) => (t.type === 'income' ? t.refunds_transaction?.category_id ?? null : t.category_id);
   const effectiveDescription = (t: StatTx) => (t.type === 'income' ? t.refunds_transaction?.description ?? t.description : t.description);
 
   const inRange = transactions.filter((t) => t.date >= from && t.date <= to);
-  const considered = excludeUncategorized
-    ? inRange.filter((t) => effectiveCategoryId(t) != null)
+  const categoryEntries = inRange.flatMap((t) => categoryAllocationsForStats(t).map((allocation) => ({
+    transaction: t,
+    category_id: allocation.category_id,
+    amount: txValue(t) * (allocation.amount / t.amount),
+  })));
+  const consideredEntries = excludeUncategorized
+    ? categoryEntries.filter((entry) => entry.category_id != null)
+    : categoryEntries;
+  const consideredTransactions = excludeUncategorized
+    ? inRange.filter((t) => categoryAllocationsForStats(t).some((allocation) => allocation.category_id != null))
     : inRange;
 
   const totalExpenses = inRange.reduce((s, t) => s + txValue(t), 0);
-  const totalCategorized = inRange.filter((t) => effectiveCategoryId(t) != null).reduce((s, t) => s + txValue(t), 0);
+  const totalCategorized = categoryEntries
+    .filter((entry) => entry.category_id != null)
+    .reduce((s, entry) => s + entry.amount, 0);
   const totalUncategorized = totalExpenses - totalCategorized;
 
   // By category
   const byCategoryMap = new Map<number | null, { amount: number; count: number }>();
-  for (const t of considered) {
-    const categoryId = effectiveCategoryId(t);
-    const entry = byCategoryMap.get(categoryId) ?? { amount: 0, count: 0 };
-    entry.amount += txValue(t);
-    entry.count += 1;
-    byCategoryMap.set(categoryId, entry);
+  for (const categoryEntry of consideredEntries) {
+    const categoryId = categoryEntry.category_id;
+    const bucket = byCategoryMap.get(categoryId) ?? { amount: 0, count: 0 };
+    bucket.amount += categoryEntry.amount;
+    bucket.count += 1;
+    byCategoryMap.set(categoryId, bucket);
   }
   const byCategory = Array.from(byCategoryMap.entries())
     .map(([category_id, { amount, count }]) => {
@@ -105,7 +122,7 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
 
   // By merchant (deduped + normalized description)
   const byMerchantMap = new Map<string, { display: string; amount: number; count: number }>();
-  for (const t of considered) {
+  for (const t of consideredTransactions) {
     const raw = (effectiveDescription(t) ?? '').trim();
     if (raw.length === 0) continue;
     const key = raw.toUpperCase().replace(/\s+/g, ' ');
@@ -147,12 +164,42 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     total_expenses: round2(totalExpenses),
     total_categorized: round2(totalCategorized),
     total_uncategorized: round2(totalUncategorized),
-    transactions_count: considered.length,
+    transactions_count: consideredTransactions.length,
     by_category: byCategory,
     by_merchant: byMerchant,
     monthly,
   });
 }));
+
+function baseCategoryAllocations(t: {
+  amount: number;
+  category_id: number | null;
+  splits: Array<{ category_id: number; amount: number }>;
+}): Array<{ category_id: number | null; amount: number }> {
+  return t.splits.length > 0
+    ? t.splits.map((split) => ({ category_id: split.category_id, amount: split.amount }))
+    : [{ category_id: t.category_id, amount: t.amount }];
+}
+
+function categoryAllocationsForStats(t: {
+  type: string;
+  amount: number;
+  category_id: number | null;
+  splits: Array<{ category_id: number; amount: number }>;
+  refunds_transaction: {
+    amount: number;
+    category_id: number | null;
+    splits: Array<{ category_id: number; amount: number }>;
+  } | null;
+}): Array<{ category_id: number | null; amount: number }> {
+  if (t.type !== 'income') return baseCategoryAllocations(t);
+  const target = t.refunds_transaction;
+  if (!target || target.amount <= 0) return [{ category_id: null, amount: t.amount }];
+  return baseCategoryAllocations(target).map((allocation) => ({
+    category_id: allocation.category_id,
+    amount: t.amount * (allocation.amount / target.amount),
+  }));
+}
 
 function rangeStart(range: z.infer<typeof rangeSchema>, today: Date, earliest: Date): Date {
   switch (range) {

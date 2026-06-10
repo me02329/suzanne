@@ -4,6 +4,7 @@ import { prisma } from '../prisma';
 // Tables in an order that doesn't matter thanks to CASCADE; RESTART IDENTITY
 // keeps auto-increment ids predictable across tests.
 const TABLES = [
+  'transaction_splits',
   'transaction_tags',
   'transactions',
   'account_snapshots',

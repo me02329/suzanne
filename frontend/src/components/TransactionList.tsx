@@ -12,11 +12,14 @@ export function TransactionList({ transactions, categoryById, accountById }: {
       {transactions.map((t) => {
         const sourceCurrency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
         const destinationCurrency = accountById.get(t.to_account_id ?? -1)?.currency ?? sourceCurrency;
+        const categoryLabel = (t.splits ?? []).length > 0
+          ? t.splits.map((split) => categoryById.get(split.category_id)?.name ?? 'Catégorie').join(' + ')
+          : categoryById.get(t.category_id ?? -1)?.name ?? 'Sans catégorie';
         return (
           <div className="tx" key={t.id}>
             <div>
               <strong title={txLabel(t, categoryById)}>{txLabel(t, categoryById)}</strong>
-              <span title={`${accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · ${categoryById.get(t.category_id ?? -1)?.name ?? 'Sans catégorie'}`}>{new Date(t.date).toLocaleDateString('fr-FR')} · {accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · {categoryById.get(t.category_id ?? -1)?.name ?? 'Sans catégorie'}</span>
+              <span title={`${accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · ${categoryLabel}`}>{new Date(t.date).toLocaleDateString('fr-FR')} · {accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · {categoryLabel}</span>
             </div>
             {t.type === 'transfer'
               ? <strong className="transfer">{money(t.amount, sourceCurrency)} {'->'} {money(t.to_amount ?? t.amount, destinationCurrency)}</strong>

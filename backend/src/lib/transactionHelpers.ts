@@ -33,6 +33,33 @@ export async function assertTransactionReferences(
   if (body.category_id && !category) throw new HttpError(400, 'Catégorie introuvable');
 }
 
+export async function assertTransactionSplits(
+  userId: number,
+  type: string,
+  splits: Array<{ category_id: number; amount: number }> | undefined,
+  amount: number,
+): Promise<void> {
+  if (!splits || splits.length === 0) return;
+  if (type === 'transfer') throw new HttpError(400, 'Un transfert ne peut pas être ventilé');
+  const total = round2(splits.reduce((sum, split) => sum + split.amount, 0));
+  if (Math.abs(total - amount) > 0.01) {
+    throw new HttpError(400, 'La ventilation doit totaliser le montant de la transaction');
+  }
+  const categoryIds = Array.from(new Set(splits.map((split) => split.category_id)));
+  const categories = await prisma.category.findMany({
+    where: { id: { in: categoryIds }, user_id: userId },
+    select: { id: true, type: true },
+  });
+  const categoryById = new Map(categories.map((category) => [category.id, category.type]));
+  for (const categoryId of categoryIds) {
+    const categoryType = categoryById.get(categoryId);
+    if (!categoryType) throw new HttpError(400, 'Catégorie de ventilation introuvable');
+    if (categoryType !== type) {
+      throw new HttpError(400, 'Les catégories de ventilation doivent correspondre au type de transaction');
+    }
+  }
+}
+
 // Une cible de remboursement doit être une dépense appartenant à l'utilisateur.
 export async function assertRefundTarget(userId: number, targetId: number): Promise<void> {
   const target = await prisma.transaction.findFirst({ where: { id: targetId, user_id: userId }, select: { type: true } });

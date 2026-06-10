@@ -84,10 +84,21 @@ export interface Transaction {
   description: string | null;
   created_at: string;
   tags: Tag[];
+  splits: TransactionSplit[];
   // Revenus liés qui remboursent cette dépense (remboursements partiels possibles).
   refunded_by?: Array<{ id: number; amount: number; date: string }>;
   // Aperçu de la dépense remboursée quand ce revenu est un remboursement.
   refunds_transaction?: { id: number; amount: number; date: string; description: string | null } | null;
+}
+
+export interface TransactionSplit {
+  id: number;
+  user_id: number;
+  transaction_id: number;
+  category_id: number;
+  amount: number;
+  note: string | null;
+  created_at: string;
 }
 
 export interface Budget {
@@ -96,6 +107,7 @@ export interface Budget {
   category_id: number;
   month: string;
   amount_limit: number;
+  recurring: boolean;
   created_at: string;
 }
 
@@ -175,8 +187,15 @@ export interface CreateTransactionBody {
   date: string;
   description?: string | null;
   tag_ids?: number[];
+  splits?: CreateTransactionSplitBody[];
   // Réservé aux revenus : id de la dépense remboursée.
   refunds_transaction_id?: number | null;
+}
+
+export interface CreateTransactionSplitBody {
+  category_id: number;
+  amount: number;
+  note?: string | null;
 }
 
 // Somme déjà remboursée sur une dépense (via les revenus liés).
@@ -188,6 +207,7 @@ export interface CreateBudgetBody {
   category_id: number;
   month: string;
   amount_limit: number;
+  recurring?: boolean;
 }
 
 export interface CreateRecurringBody {

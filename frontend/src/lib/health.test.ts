@@ -78,7 +78,7 @@ describe('computeHealth', () => {
 
   it('measures budget adherence for the current month', () => {
     const budgets: Budget[] = [
-      { id: 1, user_id: 1, category_id: 1, month: '2026-01', amount_limit: 400, created_at: '' },
+      { id: 1, user_id: 1, category_id: 1, month: '2026-01', amount_limit: 400, recurring: false, created_at: '' },
     ];
     const h = computeHealth({
       monthlyCashflow: [month('2026-01', 2000, 1500)],

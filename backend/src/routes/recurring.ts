@@ -80,7 +80,7 @@ recurringRouter.post('/users/:user_id/recurring-transactions/generate', asyncHan
   res.json({ generated });
 }));
 
-async function generateDueRecurringTransactions(user_id: number, today: Date): Promise<number> {
+export async function generateDueRecurringTransactions(user_id: number, today: Date): Promise<number> {
   const rows = await prisma.recurringTransaction.findMany({ where: { user_id, active: true } });
   let generated = 0;
 
@@ -198,4 +198,3 @@ function addMonths(date: Date, months: number): Date {
 function daysInMonth(date: Date): number {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
 }
-

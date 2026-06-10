@@ -611,6 +611,12 @@ select:focus, input:focus, textarea:focus {
 .form.form-inline label.grow { flex: 1 1 240px; }
 
 .form.form-inline button.primary { align-self: end; }
+.inline-checkbox {
+  align-self: end;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+}
 .subheading { margin-top: 22px; font-size: 15px; color: var(--muted); }
 
 .modal-backdrop {
@@ -733,6 +739,128 @@ select:focus, input:focus, textarea:focus {
   background: var(--surface-muted);
   font-size: 13px;
   font-weight: 800;
+}
+
+.quick-entry {
+  display: none;
+}
+
+.quick-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.quick-type-toggle button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.quick-type-toggle button.active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.split-editor {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.split-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.split-editor-head strong { color: var(--text); }
+
+.split-editor-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(110px, 0.7fr) minmax(120px, 1fr) 38px;
+  gap: 8px;
+}
+
+.split-editor-row .icon-only {
+  min-height: 38px;
+  border-radius: 8px;
+  color: var(--expense);
+}
+
+.split-add-row {
+  justify-self: start;
+  min-height: 36px;
+}
+
+.split-summary {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.split-list-mini {
+  display: grid;
+  gap: 5px;
+}
+
+.split-list-mini span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.split-list-mini i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.import-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.import-summary > span {
+  color: var(--muted);
+}
+
+.duplicate-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.duplicate-list div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.duplicate-list span {
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .bulk-bar {
@@ -2269,6 +2397,29 @@ textarea {
   .assistant-health button { margin-left: 0; }
   .dashboard-metric { grid-template-columns: 1fr; }
   .table-tools .search-box.inline, .table-tools select { flex-basis: 100%; }
+  .quick-entry {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .quick-entry input,
+  .quick-entry select,
+  .quick-entry button,
+  .quick-entry .quick-type-toggle {
+    width: 100%;
+  }
+  .quick-entry input[name="description"],
+  .quick-entry button {
+    grid-column: 1 / -1;
+  }
+  .split-editor-row {
+    grid-template-columns: 1fr;
+  }
 
   /* Card view: the wide table becomes one card per transaction so it reads
      without horizontal scrolling. Each cell shows its header via data-label. */

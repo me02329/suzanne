@@ -82,6 +82,12 @@ export function formatRelativeDate(iso: string | null): { label: string; days: n
 }
 
 export function txLabel(t: Transaction, categoryById: Map<number, Category>) {
+  if (!t.description && t.splits?.length) {
+    const names = t.splits
+      .map((split) => categoryById.get(split.category_id)?.name)
+      .filter(Boolean);
+    if (names.length > 0) return names.join(' + ');
+  }
   return t.description || (t.type === 'transfer' ? 'Transfert' : categoryById.get(t.category_id ?? -1)?.name) || 'Transaction';
 }
 

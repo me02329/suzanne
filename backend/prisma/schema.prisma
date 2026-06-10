@@ -57,6 +57,7 @@ model User {
   savings_goals           SavingsGoal[]
   account_snapshots       AccountSnapshot[]
   tags                    Tag[]
+  transaction_splits      TransactionSplit[]
 
   @@map("users")
 }
@@ -111,6 +112,7 @@ model Category {
 
   user                   User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   transactions           Transaction[]
+  transaction_splits      TransactionSplit[]
   budgets                Budget[]
   recurring_transactions RecurringTransaction[]
   category_rules          CategoryRule[]
@@ -161,6 +163,7 @@ model Transaction {
   refunds_transaction Transaction?  @relation("Refunds", fields: [refunds_transaction_id], references: [id], onDelete: SetNull)
   refunded_by         Transaction[] @relation("Refunds")
   tags       TransactionTag[]
+  splits     TransactionSplit[]
 
   @@index([user_id, date])
   @@index([account_id])
@@ -169,6 +172,25 @@ model Transaction {
   @@index([recurring_transaction_id])
   @@index([refunds_transaction_id])
   @@map("transactions")
+}
+
+model TransactionSplit {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  transaction_id Int
+  category_id    Int
+  amount         Float
+  note           String?
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  user        User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transaction Transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+  category    Category    @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([transaction_id])
+  @@index([category_id])
+  @@map("transaction_splits")
 }
 
 model Tag {
@@ -204,6 +226,7 @@ model Budget {
   category_id  Int
   month        String
   amount_limit Float
+  recurring    Boolean  @default(false)
   created_at   DateTime @default(now()) @db.Timestamptz(6)
 
   user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)

@@ -9,7 +9,18 @@ import { addMonthsUtc, dateKey, startOfUtcDay } from '../lib/dates.js';
 
 export const dashboardRouter = Router();
 
-type Tx = { id: number; type: string; amount: number; to_amount: number | null; date: Date; category_id: number | null; account_id: number | null; to_account_id: number | null; refunds_transaction_id: number | null };
+type Tx = {
+  id: number;
+  type: string;
+  amount: number;
+  to_amount: number | null;
+  date: Date;
+  category_id: number | null;
+  account_id: number | null;
+  to_account_id: number | null;
+  refunds_transaction_id: number | null;
+  splits: Array<{ category_id: number; amount: number }>;
+};
 type AccountRow = { id: number; name: string; type: string; currency: string; initial_balance: number; initial_balance_date: Date };
 
 // Projections minimales : ces endpoints chargent l'historique complet de
@@ -25,6 +36,7 @@ const TX_SELECT = {
   account_id: true,
   to_account_id: true,
   refunds_transaction_id: true,
+  splits: { select: { category_id: true, amount: true } },
 } as const;
 const ACCOUNT_SELECT = {
   id: true,
@@ -67,7 +79,7 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   // Pas d'arrondi par transaction : les sommes sont arrondies une fois à la
   // sortie (round2), comme dans buildCashflow — sinon l'arrondi cumulé diverge.
-  const txValue = (t: Tx) => t.amount * (fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1);
+  const txValue = (t: Tx, amount = t.amount) => amount * (fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1);
 
   const monthTransactions = transactions.filter((t) => t.date >= start && t.date < end);
   const income = monthTransactions.filter((t) => t.type === 'income' && !isRefund(t)).reduce((s, t) => s + txValue(t), 0);
@@ -92,11 +104,14 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const byCategory = new Map<number | null, number>();
   for (const t of monthTransactions) {
     if (t.type === 'expense') {
-      byCategory.set(t.category_id, (byCategory.get(t.category_id) ?? 0) + txValue(t));
+      for (const allocation of categoryAllocations(t)) {
+        byCategory.set(allocation.category_id, (byCategory.get(allocation.category_id) ?? 0) + txValue(t, allocation.amount));
+      }
     } else if (isRefund(t)) {
       const target = t.refunds_transaction_id != null ? txById.get(t.refunds_transaction_id) : undefined;
-      const categoryId = target?.category_id ?? null;
-      byCategory.set(categoryId, (byCategory.get(categoryId) ?? 0) - txValue(t));
+      for (const allocation of refundCategoryAllocations(t, target)) {
+        byCategory.set(allocation.category_id, (byCategory.get(allocation.category_id) ?? 0) - txValue(t, allocation.amount));
+      }
     }
   }
   const categoryById = new Map(categories.map((c) => [c.id, c]));
@@ -410,6 +425,19 @@ function computeUnassignedBalance(transactions: Tx[]): number {
     .reduce((s, t) => s + sourceDelta(t), 0);
 }
 
+function categoryAllocations(t: Pick<Tx, 'amount' | 'category_id' | 'splits'>): Array<{ category_id: number | null; amount: number }> {
+  return t.splits.length > 0
+    ? t.splits.map((split) => ({ category_id: split.category_id, amount: split.amount }))
+    : [{ category_id: t.category_id, amount: t.amount }];
+}
+
+function refundCategoryAllocations(refund: Tx, target: Tx | undefined): Array<{ category_id: number | null; amount: number }> {
+  if (!target || target.amount <= 0) return [{ category_id: null, amount: refund.amount }];
+  return categoryAllocations(target).map((allocation) => ({
+    category_id: allocation.category_id,
+    amount: refund.amount * (allocation.amount / target.amount),
+  }));
+}
 
 function buildBalanceByGroup(
   accountBalances: Array<{ group: string; group_label: string; signed_balance: number; balance: number; is_liability: boolean }>,

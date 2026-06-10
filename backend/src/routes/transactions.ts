@@ -6,6 +6,7 @@ import { createTransactionSchema, idParam, linkRecurringSchema, monthString, upd
 import {
   assertRefundTarget,
   assertTransactionReferences,
+  assertTransactionSplits,
   resolveTagIds,
   transferAmounts,
 } from '../lib/transactionHelpers.js';
@@ -16,6 +17,7 @@ export const transactionsRouter = Router();
 // reçus (sur une dépense) et un aperçu de la dépense remboursée (sur un revenu).
 export const transactionInclude = {
   tags: { include: { tag: true } },
+  splits: { orderBy: { id: 'asc' as const } },
   refunded_by: { select: { id: true, amount: true, date: true }, orderBy: { date: 'asc' as const } },
   refunds_transaction: { select: { id: true, amount: true, date: true, description: true } },
 };
@@ -52,14 +54,16 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
   if (body.refunds_transaction_id != null) {
     await assertRefundTarget(user_id, body.refunds_transaction_id);
   }
+  await assertTransactionSplits(user_id, body.type, body.splits, body.amount);
   const transfer = await transferAmounts(user_id, body);
   const tagIds = await resolveTagIds(user_id, body.tag_ids);
+  const splits = body.type === 'transfer' ? [] : body.splits ?? [];
   const row = await prisma.transaction.create({
     data: {
       user_id,
       account_id: body.account_id ?? null,
       to_account_id: body.type === 'transfer' ? body.to_account_id ?? null : null,
-      category_id: body.category_id ?? null,
+      category_id: splits.length > 0 || body.type === 'transfer' ? null : body.category_id ?? null,
       refunds_transaction_id: body.type === 'income' ? body.refunds_transaction_id ?? null : null,
       amount: body.amount,
       to_amount: transfer.toAmount,
@@ -68,6 +72,14 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
       date: new Date(body.date),
       description: body.description ?? null,
       tags: { create: tagIds.map((tag_id) => ({ tag_id })) },
+      splits: splits.length > 0
+        ? { create: splits.map((split) => ({
+            user_id,
+            category_id: split.category_id,
+            amount: split.amount,
+            note: split.note ?? null,
+          })) }
+        : undefined,
     },
     include: transactionInclude,
   });
@@ -78,7 +90,7 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const body = updateTransactionSchema.parse(req.body);
-  const existing = await prisma.transaction.findFirst({ where: { id, user_id } });
+  const existing = await prisma.transaction.findFirst({ where: { id, user_id }, include: { splits: true } });
   if (!existing) {
     res.status(404).json({ error: 'Not found' });
     return;
@@ -88,6 +100,7 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
     type: body.type ?? existing.type,
     account_id: body.account_id !== undefined ? body.account_id ?? null : existing.account_id,
     to_account_id: body.to_account_id !== undefined ? body.to_account_id ?? null : existing.to_account_id,
+    category_id: body.category_id !== undefined ? body.category_id ?? null : existing.category_id,
     amount: body.amount ?? existing.amount,
     to_amount: body.to_amount !== undefined ? body.to_amount ?? null : existing.to_amount,
     date: body.date ?? existing.date.toISOString().slice(0, 10),
@@ -95,6 +108,8 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
       ? body.refunds_transaction_id ?? null
       : existing.refunds_transaction_id,
   };
+  const requestedSplits = body.splits !== undefined ? body.splits : undefined;
+  const nextSplits = next.type === 'transfer' ? [] : requestedSplits;
   // The create schema validates source != destination via superRefine, but
   // the partial update schema can't (fields may be absent). We re-check on
   // the post-merge state so PATCH can't turn an existing transfer into a
@@ -117,6 +132,11 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
     await assertRefundTarget(user_id, refundsId);
   }
   const transfer = await transferAmounts(user_id, next);
+  if (nextSplits !== undefined) {
+    await assertTransactionSplits(user_id, next.type, nextSplits, next.amount);
+  } else if (existing.splits.length > 0) {
+    await assertTransactionSplits(user_id, next.type, existing.splits, next.amount);
+  }
   // Remplacement des tags + update de la ligne dans une même transaction DB :
   // un échec de l'update ne doit pas laisser la transaction sans ses tags.
   const tagOps = body.tag_ids !== undefined
@@ -127,15 +147,34 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
           : []),
       ])
     : [];
+  const splitOps = nextSplits !== undefined
+    ? [
+        prisma.transactionSplit.deleteMany({ where: { transaction_id: id } }),
+        ...(nextSplits.length > 0
+          ? [prisma.transactionSplit.createMany({
+              data: nextSplits.map((split) => ({
+                user_id,
+                transaction_id: id,
+                category_id: split.category_id,
+                amount: split.amount,
+                note: split.note ?? null,
+              })),
+            })]
+          : []),
+      ]
+    : [];
   const results = await prisma.$transaction([
     ...tagOps,
+    ...splitOps,
     prisma.transaction.update({
       where: { id },
       data: {
         ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
         // Un non-transfert ne garde jamais de compte destination (miroir du POST).
         to_account_id: next.type === 'transfer' ? next.to_account_id : null,
-        ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
+        ...(body.category_id !== undefined || nextSplits !== undefined || next.type === 'transfer'
+          ? { category_id: (nextSplits && nextSplits.length > 0) || next.type === 'transfer' ? null : next.category_id }
+          : {}),
         ...(body.amount != null ? { amount: body.amount } : {}),
         to_amount: transfer.toAmount,
         exchange_rate: transfer.exchangeRate,
@@ -161,8 +200,12 @@ transactionsRouter.post('/users/:user_id/transactions/:id/link-recurring', async
     return;
   }
   if (body.recurring_transaction_id == null) {
-    const row = await prisma.transaction.update({ where: { id }, data: { recurring_transaction_id: null } });
-    res.json(row);
+    const row = await prisma.transaction.update({
+      where: { id },
+      data: { recurring_transaction_id: null },
+      include: transactionInclude,
+    });
+    res.json(serializeTransaction(row));
     return;
   }
   const recurring = await prisma.recurringTransaction.findFirst({
@@ -185,8 +228,12 @@ transactionsRouter.post('/users/:user_id/transactions/:id/link-recurring', async
       exchange_rate: null,
     } : {}),
   };
-  const row = await prisma.transaction.update({ where: { id }, data });
-  res.json(row);
+  const results = await prisma.$transaction([
+    ...(body.sync_category_account ? [prisma.transactionSplit.deleteMany({ where: { transaction_id: id } })] : []),
+    prisma.transaction.update({ where: { id }, data, include: transactionInclude }),
+  ]);
+  const row = results[results.length - 1] as Parameters<typeof serializeTransaction>[0];
+  res.json(serializeTransaction(row));
 }));
 
 transactionsRouter.delete('/users/:user_id/transactions/:id', asyncHandler(async (req, res) => {
@@ -247,12 +294,14 @@ export function serializeTransaction(row: {
   description: string | null;
   created_at: Date;
   tags: Array<{ tag: { id: number; user_id: number; name: string; color: string; created_at: Date } }>;
+  splits: Array<{ id: number; user_id: number; transaction_id: number; category_id: number; amount: number; note: string | null; created_at: Date }>;
   refunded_by?: Array<{ id: number; amount: number; date: Date }>;
   refunds_transaction?: { id: number; amount: number; date: Date; description: string | null } | null;
 }) {
   return {
     ...row,
     tags: row.tags.map((join) => join.tag),
+    splits: row.splits.map((split) => ({ ...split, created_at: split.created_at.toISOString() })),
     refunded_by: (row.refunded_by ?? []).map((r) => ({ ...r, date: r.date.toISOString().slice(0, 10) })),
     refunds_transaction: row.refunds_transaction
       ? { ...row.refunds_transaction, date: row.refunds_transaction.date.toISOString().slice(0, 10) }

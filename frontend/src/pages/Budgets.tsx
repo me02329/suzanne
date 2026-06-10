@@ -28,6 +28,7 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
       category_id: Number(data.get('category_id')),
       month,
       amount_limit: Number(data.get('amount_limit')),
+      recurring: data.get('recurring') === 'on',
     }), 'Budget enregistré');
     event.currentTarget.reset();
   };
@@ -44,6 +45,7 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
             <form className="form form-inline" onSubmit={submit}>
               <label className="grow">Catégorie<select name="category_id" required>{expenseCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
               <label>Limite<input name="amount_limit" type="number" min="0.01" step="0.01" required /></label>
+              <label className="checkbox-row inline-checkbox"><input name="recurring" type="checkbox" /> Reconduire chaque mois</label>
               <button className="primary"><Plus size={16} /> Enregistrer</button>
             </form>
           </div>
@@ -59,7 +61,10 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
               const pct = Math.min(100, (spent / b.amount_limit) * 100);
               return (
                 <tr key={b.id}>
-                  <td><strong title={category?.name ?? 'Catégorie'}>{category?.name ?? 'Catégorie'}</strong></td>
+                  <td>
+                    <strong title={category?.name ?? 'Catégorie'}>{category?.name ?? 'Catégorie'}</strong>
+                    {b.recurring && <span className="badge-recurring">Reconduit</span>}
+                  </td>
                   <td className="amount-cell expense">{money(spent)}</td>
                   <td className="amount-cell">{money(b.amount_limit)}</td>
                   <td>

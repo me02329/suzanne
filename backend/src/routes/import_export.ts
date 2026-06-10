@@ -90,7 +90,10 @@ async function buildExportPayload(user_id: number, entities: ExportEntity[], fro
     want.has('institutions') ? prisma.institution.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('categories') ? prisma.category.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('category_rules') ? prisma.categoryRule.findMany({ where: { user_id } }) : Promise.resolve([]),
-    want.has('transactions') ? prisma.transaction.findMany({ where: { user_id, ...dateFilter }, include: { tags: { include: { tag: true } } } }) : Promise.resolve([]),
+    want.has('transactions') ? prisma.transaction.findMany({
+      where: { user_id, ...dateFilter },
+      include: { tags: { include: { tag: true } }, splits: true },
+    }) : Promise.resolve([]),
     want.has('budgets') ? prisma.budget.findMany({ where: { user_id, ...monthFilter } }) : Promise.resolve([]),
     want.has('recurring') ? prisma.recurringTransaction.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('goals') ? prisma.savingsGoal.findMany({ where: { user_id } }) : Promise.resolve([]),
@@ -101,8 +104,16 @@ async function buildExportPayload(user_id: number, entities: ExportEntity[], fro
   // Embed tag_ids in each transaction so a restore can reattach them without
   // a separate transaction_tags table in the payload.
   const transactionsOut = transactions.map((tx) => {
-    const { tags: joins, ...rest } = tx as typeof tx & { tags?: Array<{ tag: { id: number; name: string } }> };
-    return { ...rest, tag_ids: (joins ?? []).map((j) => j.tag.id), tag_names: (joins ?? []).map((j) => j.tag.name) };
+    const { tags: joins, splits, ...rest } = tx as typeof tx & {
+      tags?: Array<{ tag: { id: number; name: string } }>;
+      splits?: Array<{ category_id: number; amount: number; note: string | null }>;
+    };
+    return {
+      ...rest,
+      splits: splits ?? [],
+      tag_ids: (joins ?? []).map((j) => j.tag.id),
+      tag_names: (joins ?? []).map((j) => j.tag.name),
+    };
   });
 
   return {
@@ -299,6 +310,15 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
     const recurringId = raw.recurring_transaction_id
       ? recurringIdMap.get(Number(raw.recurring_transaction_id)) ?? null
       : null;
+    const splits = Array.isArray(raw.splits)
+      ? raw.splits.map((split: { category_id?: unknown; amount?: unknown; note?: unknown }) => ({
+          category_id: categoryIdMap.get(Number(split.category_id)) ?? Number(split.category_id),
+          amount: round2(Number(split.amount ?? 0)),
+          note: split.note == null ? null : String(split.note).slice(0, 160),
+        })).filter((split: { category_id: number; amount: number }) => Number.isFinite(split.category_id) && split.amount > 0)
+      : [];
+    const validSplits = splits.length > 0
+      && round2(splits.reduce((sum: number, split: { amount: number }) => sum + split.amount, 0)) === round2(Number(raw.amount ?? 0));
     // Resolve tags by remapped id first (round-trip), then by name (cross-account).
     const tagIds = new Set<number>();
     for (const rawTagId of (raw.tag_ids ?? [])) {
@@ -314,7 +334,7 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
         user_id,
         account_id: accountId,
         to_account_id: toAccountId,
-        category_id: categoryId,
+        category_id: validSplits ? null : categoryId,
         recurring_transaction_id: recurringId,
         amount: round2(Number(raw.amount ?? 0)),
         to_amount: raw.to_amount != null ? round2(Number(raw.to_amount)) : null,
@@ -324,6 +344,14 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
         description: raw.description ?? null,
         tags: tagIds.size > 0
           ? { create: Array.from(tagIds).map((tag_id) => ({ tag_id })) }
+          : undefined,
+        splits: validSplits
+          ? { create: splits.map((split: { category_id: number; amount: number; note: string | null }) => ({
+              user_id,
+              category_id: split.category_id,
+              amount: split.amount,
+              note: split.note,
+            })) }
           : undefined,
       },
     });
@@ -345,10 +373,24 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
     const month = String(raw.month);
     const existing = await prisma.budget.findFirst({ where: { user_id, category_id: categoryId, month } });
     if (existing) {
-      await prisma.budget.update({ where: { id: existing.id }, data: { amount_limit: round2(Number(raw.amount_limit ?? 0)) } });
+      await prisma.budget.update({
+        where: { id: existing.id },
+        data: {
+          amount_limit: round2(Number(raw.amount_limit ?? 0)),
+          recurring: Boolean(raw.recurring ?? existing.recurring),
+        },
+      });
       summary.budgets.updated += 1;
     } else {
-      await prisma.budget.create({ data: { user_id, category_id: categoryId, month, amount_limit: round2(Number(raw.amount_limit ?? 0)) } });
+      await prisma.budget.create({
+        data: {
+          user_id,
+          category_id: categoryId,
+          month,
+          amount_limit: round2(Number(raw.amount_limit ?? 0)),
+          recurring: Boolean(raw.recurring ?? false),
+        },
+      });
       summary.budgets.created += 1;
     }
   }
@@ -418,7 +460,8 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
   const dataLines = lines.slice(1);
   const mapping = resolveMapping(headers, body.mapping ?? null);
   let skipped = 0;
-  const toCreate: Array<{
+  const parsedRows: Array<{
+    line: number;
     user_id: number;
     account_id: number | null;
     category_id: number | null;
@@ -427,7 +470,7 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
     amount: number;
     description: string;
   }> = [];
-  for (const line of dataLines) {
+  for (const [index, line] of dataLines.entries()) {
     const cells = splitCsv(line, delimiter);
     const dateRaw = cell(cells, mapping.date);
     const amountRaw = cell(cells, mapping.amount);
@@ -442,7 +485,8 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
     const description = descriptionRaw ?? '';
     const matchedRule = rules.find((r) => description.toUpperCase().includes(r.pattern));
     const type = typeRaw ? normalizeType(typeRaw) : signedAmount > 0 ? 'income' : 'expense';
-    toCreate.push({
+    parsedRows.push({
+      line: index + 2,
       user_id,
       account_id: body.account_id ?? null,
       category_id: matchedRule?.category_id ?? null,
@@ -452,11 +496,76 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
       description,
     });
   }
+  const duplicateKeys = await existingCsvDuplicateKeys(user_id, body.account_id ?? null, parsedRows);
+  const seenInFile = new Set<string>();
+  const duplicates: Array<{
+    line: number;
+    date: string;
+    amount: number;
+    description: string;
+    reason: 'existing' | 'file';
+  }> = [];
+  const toCreate = parsedRows.filter((row) => {
+    const key = csvDuplicateKey(row);
+    const reason = duplicateKeys.has(key) ? 'existing' : seenInFile.has(key) ? 'file' : null;
+    if (reason) {
+      duplicates.push({
+        line: row.line,
+        date: row.date.toISOString().slice(0, 10),
+        amount: row.type === 'income' ? row.amount : -row.amount,
+        description: row.description,
+        reason,
+      });
+      return false;
+    }
+    seenInFile.add(key);
+    return true;
+  }).map(({ line: _line, ...row }) => row);
+  skipped += duplicates.length;
   // Une seule insertion batch (au lieu d'un INSERT par ligne) : import atomique
   // et beaucoup plus rapide sur les gros relevés.
   if (toCreate.length > 0) await prisma.transaction.createMany({ data: toCreate });
-  res.json({ imported: toCreate.length, skipped });
+  res.json({ imported: toCreate.length, skipped, duplicates_count: duplicates.length, duplicates });
 }));
+
+async function existingCsvDuplicateKeys(
+  user_id: number,
+  account_id: number | null,
+  rows: Array<{ account_id: number | null; date: Date; type: 'expense' | 'income'; amount: number; description: string }>,
+): Promise<Set<string>> {
+  if (rows.length === 0) return new Set();
+  const dates = rows.map((row) => row.date).sort((a, b) => a.getTime() - b.getTime());
+  const existing = await prisma.transaction.findMany({
+    where: {
+      user_id,
+      account_id,
+      type: { in: ['expense', 'income'] },
+      date: { gte: dates[0], lte: dates[dates.length - 1] },
+    },
+    select: { account_id: true, date: true, type: true, amount: true, description: true },
+  });
+  return new Set(existing.map(csvDuplicateKey));
+}
+
+function csvDuplicateKey(row: {
+  account_id: number | null;
+  date: Date;
+  type: string;
+  amount: number;
+  description: string | null;
+}): string {
+  const signedAmount = row.type === 'income' ? row.amount : -row.amount;
+  return [
+    row.account_id ?? 'none',
+    row.date.toISOString().slice(0, 10),
+    round2(signedAmount).toFixed(2),
+    normalizeDuplicateDescription(row.description ?? ''),
+  ].join('|');
+}
+
+function normalizeDuplicateDescription(value: string): string {
+  return value.trim().toUpperCase().replace(/\s+/g, ' ');
+}
 
 function parseDate(value: string | undefined, format: 'auto' | 'yyyy-mm-dd' | 'dd/mm/yyyy' | 'mm/dd/yyyy' | 'dd-mm-yyyy' | 'yyyymmdd'): Date | null {
   if (!value) return null;

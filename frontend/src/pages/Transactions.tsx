@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, Rows2, Rows3, Search } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, Rows2, Rows3, Search, Trash2 } from 'lucide-react';
 import {
   ACCOUNT_GROUPS,
   accountTypeGroup,
@@ -24,6 +24,31 @@ import type { Run } from '../lib/run';
 
 const PAGE_SIZE = 50;
 
+type SplitDraft = { key: string; category_id: string; amount: string; note: string };
+
+function emptySplitDraft(): SplitDraft {
+  return { key: `${Date.now()}-${Math.random()}`, category_id: '', amount: '', note: '' };
+}
+
+function splitDraftsFromTransaction(transaction: Transaction): SplitDraft[] {
+  return (transaction.splits ?? []).map((split) => ({
+    key: String(split.id),
+    category_id: String(split.category_id),
+    amount: String(split.amount),
+    note: split.note ?? '',
+  }));
+}
+
+function splitPayloadFromDrafts(drafts: SplitDraft[]) {
+  return drafts
+    .map((draft) => ({
+      category_id: Number(draft.category_id),
+      amount: Number(draft.amount),
+      note: draft.note.trim() || null,
+    }))
+    .filter((split) => Number.isFinite(split.category_id) && split.category_id > 0 && Number.isFinite(split.amount) && split.amount > 0);
+}
+
 export function Transactions({ userId, transactions, unassignedTransactions, issueFilter, onClearIssueFilter, recurring, accounts, categories, tags, categoryById, accountById, run }: {
   userId: number;
   transactions: Transaction[];
@@ -46,9 +71,14 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const [refundingExpense, setRefundingExpense] = useState<Transaction | null>(null);
   const [linkingRefund, setLinkingRefund] = useState<Transaction | null>(null);
   const [addType, setAddType] = useState<TransactionType>('expense');
+  const [quickType, setQuickType] = useState<Exclude<TransactionType, 'transfer'>>('expense');
   const [addTagIds, setAddTagIds] = useState<number[]>([]);
+  const [addSplitEnabled, setAddSplitEnabled] = useState(false);
+  const [addSplits, setAddSplits] = useState<SplitDraft[]>(() => [emptySplitDraft(), emptySplitDraft()]);
   const [editType, setEditType] = useState<TransactionType>('expense');
   const [editTagIds, setEditTagIds] = useState<number[]>([]);
+  const [editSplitEnabled, setEditSplitEnabled] = useState(false);
+  const [editSplits, setEditSplits] = useState<SplitDraft[]>([]);
   const [filterTagId, setFilterTagId] = usePersistedState<string>('tx_filter_tag', 'all');
   const [bulkEditing, setBulkEditing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
@@ -77,6 +107,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
 
   const filteredAddCategories = categories.filter((c) => c.type === addType || addType === 'transfer');
   const filteredEditCategories = categories.filter((c) => c.type === editType || editType === 'transfer');
+  const filteredQuickCategories = categories.filter((c) => c.type === quickType);
   const sourceTransactions = issueFilter === 'unassigned_account' ? unassignedTransactions : transactions;
   const filteredTransactions = sourceTransactions.filter((t) => {
     const sourceAccount = accountById.get(t.account_id ?? -1);
@@ -90,6 +121,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       sourceAccount?.name,
       destinationAccount?.name,
       categoryById.get(t.category_id ?? -1)?.name,
+      ...(t.splits ?? []).map((split) => categoryById.get(split.category_id)?.name),
       money(t.amount, sourceAccount?.currency ?? 'EUR'),
       String(t.amount),
       new Date(t.date).toLocaleDateString('fr-FR'),
@@ -129,12 +161,16 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const startEdit = (t: Transaction) => {
     setEditType(t.type);
     setEditTagIds((t.tags ?? []).map((tag) => tag.id));
+    setEditSplitEnabled((t.splits ?? []).length > 0);
+    setEditSplits(splitDraftsFromTransaction(t));
     setEditing(t);
   };
 
   const copyTransaction = (t: Transaction) => {
     setEditType(t.type);
     setEditTagIds((t.tags ?? []).map((tag) => tag.id));
+    setEditSplitEnabled((t.splits ?? []).length > 0);
+    setEditSplits(splitDraftsFromTransaction(t));
     setEditing({ ...t, id: -t.id, date: todayIso(), created_at: todayIso() });
   };
 
@@ -176,15 +212,17 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
+    const splits = addType !== 'transfer' && addSplitEnabled ? splitPayloadFromDrafts(addSplits) : undefined;
     const body = {
       account_id: numberOrNull(data.get('account_id')),
       to_account_id: addType === 'transfer' ? numberOrNull(data.get('to_account_id')) : null,
-      category_id: addType === 'transfer' ? null : numberOrNull(data.get('category_id')),
+      category_id: addType === 'transfer' || (splits && splits.length > 0) ? null : numberOrNull(data.get('category_id')),
       amount: Number(data.get('amount')),
       type: addType,
       date: String(data.get('date')),
       description: String(data.get('description') || ''),
       tag_ids: addTagIds,
+      ...(splits ? { splits } : {}),
     };
     // Le formulaire n'est vidé qu'après un succès : en cas d'erreur serveur,
     // la saisie reste en place pour corriger et resoumettre.
@@ -193,6 +231,26 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       form.reset();
       setAddType('expense');
       setAddTagIds([]);
+      setAddSplitEnabled(false);
+      setAddSplits([emptySplitDraft(), emptySplitDraft()]);
+    });
+  };
+
+  const submitQuick = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    void run(() => api.createTransaction(userId, {
+      account_id: numberOrNull(data.get('account_id')),
+      category_id: numberOrNull(data.get('category_id')),
+      amount: Number(data.get('amount')),
+      type: quickType,
+      date: String(data.get('date')),
+      description: String(data.get('description') || ''),
+    }), 'Transaction ajoutée').then((ok) => {
+      if (!ok) return;
+      form.reset();
+      setQuickType('expense');
     });
   };
 
@@ -200,22 +258,24 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     event.preventDefault();
     if (!editing) return;
     const data = new FormData(event.currentTarget);
+    const splits = editType !== 'transfer' ? (editSplitEnabled ? splitPayloadFromDrafts(editSplits) : []) : [];
     const body = {
       account_id: numberOrNull(data.get('account_id')),
       to_account_id: editType === 'transfer' ? numberOrNull(data.get('to_account_id')) : null,
-      category_id: editType === 'transfer' ? null : numberOrNull(data.get('category_id')),
+      category_id: editType === 'transfer' || splits.length > 0 ? null : numberOrNull(data.get('category_id')),
       amount: Number(data.get('amount')),
       type: editType,
       date: String(data.get('date')),
       description: String(data.get('description') || ''),
       tag_ids: editTagIds,
+      splits,
     };
-    if (editing.id > 0) {
-      void run(() => api.updateTransaction(userId, editing.id, body), 'Transaction modifiée');
-    } else {
-      void run(() => api.createTransaction(userId, body), 'Transaction copiée');
-    }
-    closeModal();
+    const action = editing.id > 0
+      ? run(() => api.updateTransaction(userId, editing.id, body), 'Transaction modifiée')
+      : run(() => api.createTransaction(userId, body), 'Transaction copiée');
+    void action.then((ok) => {
+      if (ok) closeModal();
+    });
   };
 
   const submitBulkEdit = (event: FormEvent<HTMLFormElement>) => {
@@ -271,6 +331,24 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
 
   return (
     <section className="stack">
+      <form className="quick-entry" onSubmit={submitQuick}>
+        <div className="quick-type-toggle" role="group" aria-label="Type de transaction">
+          <button type="button" className={quickType === 'expense' ? 'active' : ''} onClick={() => setQuickType('expense')}>Dépense</button>
+          <button type="button" className={quickType === 'income' ? 'active' : ''} onClick={() => setQuickType('income')}>Revenu</button>
+        </div>
+        <input name="amount" type="number" min="0.01" step="0.01" placeholder="Montant" required />
+        <input name="description" placeholder="Libellé" />
+        <select name="category_id">
+          <option value="">Catégorie</option>
+          {filteredQuickCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+        </select>
+        <select name="account_id">
+          <option value="">Compte</option>
+          {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+        </select>
+        <input name="date" type="date" defaultValue={todayIso()} required />
+        <button className="primary"><Plus size={16} /> Ajouter</button>
+      </form>
       <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
         <button
           type="button"
@@ -301,9 +379,31 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
               </label>
               {addType === 'transfer'
                 ? <label>Vers le compte<select name="to_account_id" required><option value="">Choisir...</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-                : <label>Catégorie<select name="category_id"><option value="">Aucune</option>{filteredAddCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+                : (
+                  <>
+                    <label>Catégorie<select name="category_id" disabled={addSplitEnabled}><option value="">Aucune</option>{filteredAddCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+                    <label className="checkbox-row inline-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={addSplitEnabled}
+                        onChange={(e) => {
+                          setAddSplitEnabled(e.target.checked);
+                          if (e.target.checked && addSplits.length === 0) setAddSplits([emptySplitDraft(), emptySplitDraft()]);
+                        }}
+                      />
+                      Ventiler
+                    </label>
+                  </>
+                )}
               <label className="grow">Description<input name="description" placeholder="Ex: Carrefour, salaire, loyer..." /></label>
               <label className="grow">Tags<TagPicker value={addTagIds} tags={tags} onChange={setAddTagIds} /></label>
+              {addType !== 'transfer' && addSplitEnabled && (
+                <SplitEditor
+                  drafts={addSplits}
+                  categories={filteredAddCategories}
+                  onChange={setAddSplits}
+                />
+              )}
               <button className="primary"><Plus size={16} /> Ajouter</button>
             </form>
           </div>
@@ -423,9 +523,27 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
             </label>
             {editType === 'transfer'
               ? <label>Vers le compte<select name="to_account_id" defaultValue={editing.to_account_id ?? ''} required><option value="">Choisir...</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-              : <label>Catégorie<select name="category_id" defaultValue={editing.category_id ?? ''}><option value="">Aucune</option>{filteredEditCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+              : (
+                <>
+                  <label>Catégorie<select name="category_id" defaultValue={editing.category_id ?? ''} disabled={editSplitEnabled}><option value="">Aucune</option>{filteredEditCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+                  <label className="checkbox-row inline-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={editSplitEnabled}
+                      onChange={(e) => {
+                        setEditSplitEnabled(e.target.checked);
+                        if (e.target.checked && editSplits.length === 0) setEditSplits([emptySplitDraft(), emptySplitDraft()]);
+                      }}
+                    />
+                    Ventiler cette transaction
+                  </label>
+                </>
+              )}
             <label className="full">Description<input name="description" defaultValue={editing.description ?? ''} placeholder="Ex: Carrefour, salaire, loyer..." /></label>
             <label className="full">Tags<TagPicker value={editTagIds} tags={tags} onChange={setEditTagIds} /></label>
+            {editType !== 'transfer' && editSplitEnabled && (
+              <SplitEditor drafts={editSplits} categories={filteredEditCategories} onChange={setEditSplits} />
+            )}
             <button className="primary">{editing.id > 0 ? 'Enregistrer' : 'Créer la copie'}</button>
             <button type="button" className="secondary" onClick={closeModal}>Annuler</button>
           </form>
@@ -536,6 +654,62 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
         </Modal>
       )}
     </section>
+  );
+}
+
+function SplitEditor({ drafts, categories, onChange }: {
+  drafts: SplitDraft[];
+  categories: Category[];
+  onChange: (drafts: SplitDraft[]) => void;
+}) {
+  const update = (key: string, patch: Partial<SplitDraft>) => {
+    onChange(drafts.map((draft) => draft.key === key ? { ...draft, ...patch } : draft));
+  };
+  const remove = (key: string) => {
+    const next = drafts.filter((draft) => draft.key !== key);
+    onChange(next.length > 0 ? next : [emptySplitDraft()]);
+  };
+  const total = drafts.reduce((sum, draft) => sum + (Number(draft.amount) || 0), 0);
+  return (
+    <div className="split-editor full">
+      <div className="split-editor-head">
+        <strong>Ventilation</strong>
+        <span>Total lignes : {money(Math.round(total * 100) / 100)}</span>
+      </div>
+      {drafts.map((draft) => (
+        <div className="split-editor-row" key={draft.key}>
+          <select
+            value={draft.category_id}
+            onChange={(e) => update(draft.key, { category_id: e.target.value })}
+            aria-label="Catégorie de ventilation"
+          >
+            <option value="">Catégorie</option>
+            {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          </select>
+          <input
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={draft.amount}
+            onChange={(e) => update(draft.key, { amount: e.target.value })}
+            placeholder="Montant"
+            aria-label="Montant ventilé"
+          />
+          <input
+            value={draft.note}
+            onChange={(e) => update(draft.key, { note: e.target.value })}
+            placeholder="Note"
+            aria-label="Note de ventilation"
+          />
+          <button type="button" className="ghost-button icon-only" onClick={() => remove(draft.key)} aria-label="Retirer la ligne">
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ))}
+      <button type="button" className="secondary split-add-row" onClick={() => onChange([...drafts, emptySplitDraft()])}>
+        <Plus size={16} /> Ajouter une ligne
+      </button>
+    </div>
   );
 }
 

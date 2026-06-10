@@ -529,8 +529,16 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
       const body = createBudgetSchema.parse(action.payload);
       await assertCategoryOwned(userId, body.category_id);
       const existing = await prisma.budget.findFirst({ where: { user_id: userId, category_id: body.category_id, month: body.month } });
-      if (existing) return await prisma.budget.update({ where: { id: existing.id }, data: { amount_limit: body.amount_limit } });
-      return await prisma.budget.create({ data: { user_id: userId, category_id: body.category_id, month: body.month, amount_limit: body.amount_limit } });
+      if (existing) return await prisma.budget.update({ where: { id: existing.id }, data: { amount_limit: body.amount_limit, recurring: body.recurring } });
+      return await prisma.budget.create({
+        data: {
+          user_id: userId,
+          category_id: body.category_id,
+          month: body.month,
+          amount_limit: body.amount_limit,
+          recurring: body.recurring,
+        },
+      });
     }
     case 'delete_budget': {
       const id = idOnly('budget_id').parse(action.payload);
@@ -938,7 +946,7 @@ async function proposeCreateRules(userId: number, rawArgs: unknown): Promise<Too
   // Estimate how many of the current backlog these rules would catch, for the
   // confirmation label (the actual count is reported after confirmation).
   const uncategorized = await prisma.transaction.findMany({
-    where: { user_id: userId, category_id: null, type: { not: 'transfer' } },
+    where: { user_id: userId, category_id: null, type: { not: 'transfer' }, splits: { none: {} } },
     select: { id: true, description: true },
   });
   const matched = Array.from(bucketByRule(uncategorized, rules).values()).reduce((sum, ids) => sum + ids.length, 0);
@@ -984,4 +992,3 @@ function monthRange(month: string) {
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
   return { gte: start, lt: end };
 }
-
