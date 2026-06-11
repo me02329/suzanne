@@ -7,6 +7,7 @@ export interface ShortcutHandlers {
   nextMonth: () => void;
   focusSearch: () => void;
   showHelp: () => void;
+  newTransaction: () => void;
 }
 
 // Chords "g <lettre>" façon Gmail pour naviguer entre les pages.
@@ -57,6 +58,10 @@ export function useGlobalShortcuts(handlers: ShortcutHandlers) {
         case '/':
           event.preventDefault();
           h.focusSearch();
+          break;
+        case 'n':
+          event.preventDefault();
+          h.newTransaction();
           break;
         case '[':
           h.prevMonth();

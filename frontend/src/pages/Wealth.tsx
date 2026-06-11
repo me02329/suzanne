@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowDownCircle, ArrowUpCircle, Banknote, Wallet } from 'lucide-react';
 import {
   Area,
@@ -166,11 +167,12 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
   const accountBalances = summary?.account_balances ?? [];
   const cashBalance = (summary?.balance_by_group ?? []).find((row) => row.group === 'cash')?.amount ?? 0;
 
+  const navigate = useNavigate();
   // Sort accounts by signed balance descending so the largest positive
   // balances sit on top and liabilities settle at the bottom. Names are
   // truncated by the tickFormatter to avoid the chart overlapping.
   const accountRows = accountBalances
-    .map((account) => ({ name: account.name, value: account.signed_balance, group: account.group_label }))
+    .map((account) => ({ id: account.account_id, name: account.name, value: account.signed_balance, group: account.group_label }))
     .sort((a, b) => b.value - a.value);
 
   const fxDegraded = summary?.fx_degraded ?? [];
@@ -425,7 +427,17 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                     tickFormatter={(value) => truncate(String(value), 18)}
                   />
                   <Tooltip formatter={(value) => money(Number(value))} />
-                  <Bar dataKey="value" name="Solde" fill={netColor} radius={[0, 4, 4, 0]} />
+                  <Bar
+                    dataKey="value"
+                    name="Solde"
+                    fill={netColor}
+                    radius={[0, 4, 4, 0]}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(entry) => {
+                      const id = (entry as { payload?: { id?: number } })?.payload?.id;
+                      if (id != null) navigate(`/accounts/${id}`);
+                    }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

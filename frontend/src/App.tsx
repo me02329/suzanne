@@ -91,7 +91,9 @@ export default function App() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [snapshots, setSnapshots] = useState<AccountSnapshot[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  // Le toast de succès peut porter une action (ex. « Annuler » après une
+  // suppression) — voir run() et l'option `undo`.
+  const [notice, setNotice] = useState<{ message: string; action?: { label: string; onClick: () => void } } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [transactionIssueFilter, setTransactionIssueFilter] = useState<'unassigned_account' | null>(null);
@@ -216,6 +218,9 @@ export default function App() {
     nextMonth: () => shiftMonth(1),
     focusSearch: () => (document.querySelector('.search-box input') as HTMLInputElement | null)?.focus(),
     showHelp: () => setShortcutsOpen(true),
+    // `n` : saisie rapide — la page Transactions consomme ?focus=quick et
+    // place le curseur dans le champ montant.
+    newTransaction: () => navigate('/transactions?focus=quick'),
   });
 
   useEffect(() => {
@@ -259,7 +264,7 @@ export default function App() {
   const resolveMessage = (message: string | ((result: unknown) => string) | undefined, result: unknown) =>
     typeof message === 'function' ? message(result) : (message ?? 'Enregistré');
 
-  const run: Run = async (fn, message) => {
+  const run: Run = async (fn, message, options) => {
     if (runInFlight.current) {
       // Ne pas avaler silencieusement l'action : l'utilisateur doit savoir
       // que son clic a été ignoré (sinon une édition rapide se perd sans trace).
@@ -271,7 +276,11 @@ export default function App() {
       setError(null);
       const result = await fn();
       await reload();
-      setNotice(resolveMessage(message, result));
+      const undo = options?.undo;
+      setNotice({
+        message: resolveMessage(message, result),
+        action: undo ? { label: 'Annuler', onClick: () => { void run(undo, 'Action annulée'); } } : undefined,
+      });
       return true;
     } catch (e) {
       setError((e as Error).message);
@@ -291,7 +300,7 @@ export default function App() {
       setError(null);
       const result = await fn();
       await reloadUsers();
-      setNotice(resolveMessage(message, result));
+      setNotice({ message: resolveMessage(message, result) });
       return true;
     } catch (e) {
       setError((e as Error).message);
@@ -478,6 +487,7 @@ export default function App() {
             <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>b</kbd></span> Budgets</div>
             <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>c</kbd></span> Catégories</div>
             <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>g</kbd></span> Objectifs</div>
+            <div className="shortcuts-row"><span><kbd>n</kbd></span> Nouvelle transaction</div>
             <div className="shortcuts-row"><span><kbd>/</kbd></span> Rechercher</div>
             <div className="shortcuts-row"><span><kbd>[</kbd> <kbd>]</kbd></span> Mois précédent / suivant</div>
             <div className="shortcuts-row"><span><kbd>?</kbd></span> Cette aide</div>
@@ -499,7 +509,7 @@ export default function App() {
 
       <div className="toast-stack" aria-live="polite" aria-atomic="false">
         {error && <Toast kind="error" message={error} onDismiss={() => setError(null)} />}
-        {notice && <Toast kind="success" message={notice} onDismiss={() => setNotice(null)} />}
+        {notice && <Toast kind="success" message={notice.message} action={notice.action} onDismiss={() => setNotice(null)} />}
       </div>
     </div>
   );

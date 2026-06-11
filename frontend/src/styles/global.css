@@ -437,6 +437,16 @@ select:focus, input:focus, textarea:focus {
   padding: 17px;
 }
 
+/* KPI cliquable : la carte entière mène à la page de détail. */
+a.stat-link {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 120ms ease;
+}
+a.stat-link:hover {
+  border-color: var(--accent);
+}
+
 .stat-icon { color: var(--accent); }
 .stat svg { width: 23px; height: 23px; }
 .stat span { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; }
@@ -714,7 +724,22 @@ select:focus, input:focus, textarea:focus {
   justify-content: space-between;
   gap: 14px;
   padding: 12px 0;
-  border-bottom: 1px solid #edf1f6;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Ligne de transaction cliquable (drill-down depuis la Vue générale). */
+button.tx {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+}
+button.tx:hover strong:first-of-type {
+  color: var(--accent);
 }
 
 .table-tools {
@@ -1424,6 +1449,18 @@ tr.row-muted td { opacity: 0.55; }
   animation: toast-in 0.18s ease-out;
 }
 
+/* Action du toast (ex. « Annuler » après une suppression). */
+.toast-action {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .toast.toast-error {
   background: #fee2e2;
   color: #991b1b;
@@ -1718,6 +1755,29 @@ button.category-link {
   text-align: left;
   cursor: pointer;
   width: 100%;
+}
+
+/* Compteur de filtres actifs (Transactions) : rend visible un filtre oublié. */
+.filter-reset {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filter-reset:hover { text-decoration: underline; }
+
+/* Libellé d'une échéance du Prévisionnel : mène aux récurrents. */
+.forecast-event-link {
+  color: inherit;
+  text-decoration: none;
+}
+.forecast-event-link:hover strong {
+  color: var(--accent);
 }
 
 /* Ligne d'en-tête des groupes d'échéances du Prévisionnel : repliable. */

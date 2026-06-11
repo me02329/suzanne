@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, Rows2, Rows3, Search, Trash2 } from 'lucide-react';
 import {
@@ -113,28 +113,36 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   // Transaction à mettre en évidence après un drill-down (param `tx`) : la
   // ligne est surlignée et la pagination saute jusqu'à elle.
   const [highlightId, setHighlightId] = useState<number | null>(null);
+  // Champ montant de la saisie rapide : refocalisé après un ajout (saisies en
+  // chaîne) et ciblé par le raccourci global `n` (?focus=quick).
+  const quickAmountRef = useRef<HTMLInputElement>(null);
 
   // Deep-links de drill-down depuis les pages de visu (donut → catégorie,
-  // marchand → recherche, popover des stats → transaction précise). Tous les
-  // autres filtres sont remis à zéro pour que la cible soit réellement
-  // visible (un filtre « non pointées » ou un tag résiduel cacherait tout),
-  // puis les paramètres sont retirés de l'URL.
+  // marchand → recherche, KPI → type, popover des stats → transaction
+  // précise). Tous les autres filtres sont remis à zéro pour que la cible
+  // soit réellement visible (un filtre « non pointées » ou un tag résiduel
+  // cacherait tout), puis les paramètres sont retirés de l'URL.
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const category = searchParams.get('category');
     const q = searchParams.get('q');
     const monthParam = searchParams.get('month');
     const txParam = searchParams.get('tx');
-    if (category === null && q === null && monthParam === null && txParam === null) return;
-    setFilterType('all');
-    setFilterAccountGroup('all');
-    setFilterTagId('all');
-    setFilterCleared('all');
-    setFilterCategoryId(category ?? 'all');
-    setQuery(q ?? '');
-    if (monthParam !== null) onMonthChange(monthParam);
-    if (txParam !== null) setHighlightId(Number(txParam));
-    if (issueFilter) onClearIssueFilter();
+    const typeParam = searchParams.get('type');
+    const focusParam = searchParams.get('focus');
+    if (category === null && q === null && monthParam === null && txParam === null && typeParam === null && focusParam === null) return;
+    if (focusParam === 'quick') quickAmountRef.current?.focus();
+    if (category !== null || q !== null || monthParam !== null || txParam !== null || typeParam !== null) {
+      setFilterType(typeParam === 'income' || typeParam === 'expense' || typeParam === 'transfer' ? typeParam : 'all');
+      setFilterAccountGroup('all');
+      setFilterTagId('all');
+      setFilterCleared('all');
+      setFilterCategoryId(category ?? 'all');
+      setQuery(q ?? '');
+      if (monthParam !== null) onMonthChange(monthParam);
+      if (txParam !== null) setHighlightId(Number(txParam));
+      if (issueFilter) onClearIssueFilter();
+    }
     setSearchParams({}, { replace: true });
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -151,6 +159,26 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   useEffect(() => {
     setPage(1);
   }, [query, filterType, filterCategoryId, filterAccountGroup, filterTagId, filterCleared, sort.key, sort.dir, issueFilter]);
+
+  // Filtres persistés entre sessions : un filtre oublié de la veille peut
+  // vider la liste sans explication visible. Le compteur + reset rendent
+  // l'état explicite et réparable d'un clic.
+  const activeFilterCount = [
+    filterType !== 'all',
+    filterCategoryId !== 'all',
+    filterAccountGroup !== 'all',
+    filterTagId !== 'all',
+    filterCleared !== 'all',
+    query.trim() !== '',
+  ].filter(Boolean).length;
+  const resetFilters = () => {
+    setFilterType('all');
+    setFilterCategoryId('all');
+    setFilterAccountGroup('all');
+    setFilterTagId('all');
+    setFilterCleared('all');
+    setQuery('');
+  };
 
   // Clicking a header toggles direction if it's already the sort key, otherwise
   // switches to it with a sensible default (recent/biggest first for date/amount,
@@ -355,8 +383,27 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       if (!ok) return;
       form.reset();
       setQuickType('expense');
+      // Saisies en chaîne : le curseur revient sur le montant.
+      quickAmountRef.current?.focus();
     });
   };
+
+  // Recrée une transaction supprimée (action « Annuler » du toast). Les liens
+  // que d'autres transactions portaient vers elle (remboursements reçus) ne
+  // sont pas restaurés — la transaction recréée a un nouvel id.
+  const recreateBody = (t: Transaction) => ({
+    account_id: t.account_id,
+    to_account_id: t.to_account_id,
+    category_id: (t.splits ?? []).length > 0 ? null : t.category_id,
+    amount: t.amount,
+    to_amount: t.to_amount,
+    type: t.type,
+    date: t.date.slice(0, 10),
+    description: t.description,
+    cleared: t.cleared,
+    tag_ids: (t.tags ?? []).map((tag) => tag.id),
+    splits: (t.splits ?? []).map((split) => ({ category_id: split.category_id, amount: split.amount, note: split.note })),
+  });
 
   const submitEdit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -440,7 +487,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           <button type="button" className={quickType === 'expense' ? 'active' : ''} onClick={() => setQuickType('expense')}>Dépense</button>
           <button type="button" className={quickType === 'income' ? 'active' : ''} onClick={() => setQuickType('income')}>Revenu</button>
         </div>
-        <input name="amount" type="number" min="0.01" step="0.01" placeholder="Montant" required />
+        <input ref={quickAmountRef} name="amount" type="number" min="0.01" step="0.01" placeholder="Montant" required />
         <input name="description" placeholder="Libellé" />
         <select name="category_id">
           <option value="">Catégorie</option>
@@ -558,6 +605,11 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
             <option value="cleared">Pointées</option>
             <option value="uncleared">Non pointées</option>
           </select>
+          {activeFilterCount > 0 && (
+            <button type="button" className="filter-reset" onClick={resetFilters}>
+              {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''} actif{activeFilterCount > 1 ? 's' : ''} · Réinitialiser
+            </button>
+          )}
         </div>
         <div className="tx-summary">
           <span><strong>{filteredTransactions.length}</strong> lignes</span>
@@ -603,7 +655,11 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           onSplit={startSplit}
           onRefund={(t) => (t.type === 'expense' ? setRefundingExpense(t) : setLinkingRefund(t))}
           onToggleCleared={toggleCleared}
-          onDelete={(t) => void run(() => api.deleteTransaction(userId, t.id), 'Transaction supprimée')}
+          onDelete={(t) => void run(
+            () => api.deleteTransaction(userId, t.id),
+            'Transaction supprimée',
+            { undo: () => api.createTransaction(userId, recreateBody(t)) },
+          )}
           highlightId={highlightId}
         />
         {totalPages > 1 && (

@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { currentMonthIso } from '../lib/format';
 
 const MONTH_LABELS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -47,6 +48,17 @@ export function MonthPicker({ value, onChange }: { value: string; onChange: (nex
       <button type="button" className="month-picker-arrow" aria-label="Mois suivant" onClick={() => shift(1)}>
         <ChevronRight size={16} />
       </button>
+      {value !== currentMonthIso() && (
+        <button
+          type="button"
+          className="month-picker-arrow"
+          aria-label="Revenir au mois courant"
+          title="Revenir au mois courant"
+          onClick={() => onChange(currentMonthIso())}
+        >
+          <CalendarCheck size={16} />
+        </button>
+      )}
     </div>
   );
 }

@@ -115,7 +115,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
             forecast = `dépassement prévu le ${date.toISOString().slice(8, 10)}/${monthStr}`;
           }
         }
-        return { id: b.id, name: category?.name ?? 'Catégorie', color: category?.color ?? '#94a3b8', spent, limit: b.amount_limit, pct, forecast };
+        return { id: b.id, category_id: b.category_id, name: category?.name ?? 'Catégorie', color: category?.color ?? '#94a3b8', spent, limit: b.amount_limit, pct, forecast };
       })
       .filter((row) => row.pct >= 80)
       .sort((a, b) => b.pct - a.pct);
@@ -173,11 +173,11 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
   return (
     <DashboardSection title={monthLabel} subtitle="Change le mois via le sélecteur en haut à droite">
       <section className="stats">
-        <Stat icon={<ArrowUpCircle />} label="Revenus" value={money(summary?.income ?? 0)} positive delta={moneyDelta(summary?.income ?? 0, prevMonthRow?.income, 'up')} />
-        <Stat icon={<ArrowDownCircle />} label="Dépenses" value={money(summary?.expenses ?? 0)} negative delta={moneyDelta(summary?.expenses ?? 0, prevMonthRow?.expenses, 'down')} />
+        <Stat icon={<ArrowUpCircle />} label="Revenus" value={money(summary?.income ?? 0)} positive delta={moneyDelta(summary?.income ?? 0, prevMonthRow?.income, 'up')} to="/transactions?type=income" />
+        <Stat icon={<ArrowDownCircle />} label="Dépenses" value={money(summary?.expenses ?? 0)} negative delta={moneyDelta(summary?.expenses ?? 0, prevMonthRow?.expenses, 'down')} to="/transactions?type=expense" />
         <Stat icon={<Euro />} label="Net mensuel" value={money(netMonthly ?? 0)} signed={netMonthly} delta={moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up')} />
         <Stat icon={<BarChart3 />} label="Taux d'épargne" value={`${savingRate}%`} delta={savingRateDelta} />
-        <Stat icon={<CreditCard />} label="Transactions" value={String(transactionCount)} />
+        <Stat icon={<CreditCard />} label="Transactions" value={String(transactionCount)} to="/transactions" />
         <Stat icon={<Banknote />} label="Dépense moyenne" value={money(averageExpense)} />
       </section>
 
@@ -242,7 +242,13 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
           {visibleBudgetAlerts.length > 0 && (
             <div className="category-list compact">
               {visibleBudgetAlerts.map((row) => (
-                <div className="category-row budget-alert-row" key={row.id}>
+                <button
+                  type="button"
+                  className="category-row budget-alert-row category-link"
+                  key={row.id}
+                  title="Voir les transactions de cette catégorie"
+                  onClick={() => openCategory(row.category_id)}
+                >
                   <span className="dot inline" style={{ background: row.color }} />
                   <div className="budget-alert-info">
                     <span className="budget-alert-name" title={row.name}>{row.name}</span>
@@ -254,7 +260,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                     </span>
                   </div>
                   <strong className={row.pct >= 100 ? 'expense' : undefined}>{Math.round(row.pct)} %</strong>
-                </div>
+                </button>
               ))}
               {hiddenBudgetAlerts > 0 && (
                 <p className="panel-note">+{hiddenBudgetAlerts} autre{hiddenBudgetAlerts > 1 ? 's' : ''} budget{hiddenBudgetAlerts > 1 ? 's' : ''} en alerte</p>
@@ -266,7 +272,12 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
 
       <section className="charts-grid">
         <SummaryCard title="Plus grosses dépenses du mois" to="/transactions">
-          <TransactionList transactions={topExpenses} categoryById={categoryById} accountById={accountById} />
+          <TransactionList
+            transactions={topExpenses}
+            categoryById={categoryById}
+            accountById={accountById}
+            onPick={(t) => navigate(`/transactions?tx=${t.id}`)}
+          />
         </SummaryCard>
 
         <SummaryCard title="Factures du mois" to="/bills">
