@@ -348,7 +348,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                 <tr key={s.id}>
                   <td data-label="Date">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
                   <td className="amount-cell" data-label="Solde relevé">{nativeMoney(s.balance)}</td>
-                  <td className="actions-cell"><IconButton label="Supprimer" onClick={() => void run(() => api.deleteSnapshot(userId, s.id), 'Relevé supprimé')} /></td>
+                  <td className="actions-cell"><IconButton label="Supprimer" confirm="Supprimer ce relevé ?" onClick={() => void run(() => api.deleteSnapshot(userId, s.id), 'Relevé supprimé')} /></td>
                 </tr>
               ))}
             </tbody>

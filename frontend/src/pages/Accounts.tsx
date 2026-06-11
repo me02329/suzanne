@@ -419,7 +419,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                   <td>{new Date(s.date).toLocaleDateString('fr-FR')}</td>
                   <td>{account?.name ?? 'Compte'}</td>
                   <td className="amount-cell">{money(s.balance, account?.currency ?? 'EUR')}</td>
-                  <td className="actions-cell"><IconButton label="Supprimer" onClick={() => void run(() => api.deleteSnapshot(userId, s.id), 'Snapshot supprimé')} /></td>
+                  <td className="actions-cell"><IconButton label="Supprimer" confirm="Supprimer ce snapshot ?" onClick={() => void run(() => api.deleteSnapshot(userId, s.id), 'Snapshot supprimé')} /></td>
                 </tr>
               );
             })}

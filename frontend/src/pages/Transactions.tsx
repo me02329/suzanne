@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, Rows2, Rows3, Search, Trash2 } from 'lucide-react';
 import {
   ACCOUNT_GROUPS,
@@ -98,6 +99,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = usePersistedState<'all' | TransactionType>('tx_filter_type', 'all');
+  const [filterCategoryId, setFilterCategoryId] = usePersistedState<string>('tx_filter_category', 'all');
   const [filterAccountGroup, setFilterAccountGroup] = usePersistedState<string>('tx_filter_account_group', 'all');
   const [filterCleared, setFilterCleared] = usePersistedState<'all' | 'cleared' | 'uncleared'>('tx_filter_cleared', 'all');
   const [sort, setSort] = usePersistedState<TxSort>('tx_sort', { key: 'date', dir: 'desc' });
@@ -105,11 +107,24 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = usePersistedState<boolean>('tx_add_open', transactions.length === 0);
 
+  // Deep-links de drill-down depuis les pages de visu (donut → catégorie,
+  // marchand → recherche) : les paramètres sont consommés puis retirés de
+  // l'URL pour que le filtre reparte d'une adresse propre.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const category = searchParams.get('category');
+    const q = searchParams.get('q');
+    if (category === null && q === null) return;
+    if (category !== null) setFilterCategoryId(category);
+    if (q !== null) setQuery(q);
+    setSearchParams({}, { replace: true });
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Any change to what's shown (search, filters, sort, source list) sends the
   // user back to the first page so they aren't stranded on an out-of-range one.
   useEffect(() => {
     setPage(1);
-  }, [query, filterType, filterAccountGroup, filterTagId, filterCleared, sort.key, sort.dir, issueFilter]);
+  }, [query, filterType, filterCategoryId, filterAccountGroup, filterTagId, filterCleared, sort.key, sort.dir, issueFilter]);
 
   // Clicking a header toggles direction if it's already the sort key, otherwise
   // switches to it with a sensible default (recent/biggest first for date/amount,
@@ -143,7 +158,12 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     ].filter(Boolean).join(' ').toLowerCase();
     const tagMatch = filterTagId === 'all'
       || (t.tags ?? []).some((tag) => String(tag.id) === filterTagId);
+    // Une transaction ventilée appartient à toutes les catégories de ses splits.
+    const categoryMatch = filterCategoryId === 'all'
+      || String(t.category_id ?? '') === filterCategoryId
+      || (t.splits ?? []).some((split) => String(split.category_id) === filterCategoryId);
     return (filterType === 'all' || t.type === filterType)
+      && categoryMatch
       && (filterAccountGroup === 'all' || groups.includes(filterAccountGroup as ReturnType<typeof accountTypeGroup>))
       && (filterCleared === 'all' || (filterCleared === 'cleared') === t.cleared)
       && tagMatch
@@ -484,6 +504,10 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
             <option value="expense">Dépenses</option>
             <option value="income">Revenus</option>
             <option value="transfer">Transferts</option>
+          </select>
+          <select value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)} aria-label="Filtre de catégorie">
+            <option value="all">Toutes les catégories</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select value={filterAccountGroup} onChange={(e) => setFilterAccountGroup(e.target.value)}>
             <option value="all">Tous les comptes</option>

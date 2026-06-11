@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -14,7 +15,7 @@ import {
   YAxis,
 } from 'recharts';
 import { CalendarDays, Gauge, Tags, TrendingDown } from 'lucide-react';
-import type { DashboardSummary, StatisticsSummary } from '@suzanne-lite/shared';
+import type { StatisticsSummary } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { useChartTheme } from '../lib/chartTheme';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, truncate } from '../lib/format';
@@ -25,13 +26,12 @@ import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
 import { Stat } from '../components/Stat';
 
-// "Statistiques" — l'analyse long terme : dépenses sur une plage libre, puis
-// cashflow/épargne sur 12 mois (tendances déplacées depuis l'ancien dashboard).
-export function Statistics({ userId, reportCurrency, summary }: {
+// "Statistiques" — dépenses et cashflow sur une même plage libre.
+export function Statistics({ userId, reportCurrency }: {
   userId: number;
   reportCurrency: string;
-  summary: DashboardSummary | null;
 }) {
+  const navigate = useNavigate();
   const [range, setRange] = usePersistedState('stats_range', '1y');
   const [excludeUncategorized, setExcludeUncategorized] = usePersistedState('stats_exclude_uncategorized', true);
   const [customFrom, setCustomFrom] = usePersistedState('stats_custom_from', '');
@@ -68,6 +68,11 @@ export function Statistics({ userId, reportCurrency, summary }: {
   const byMerchant = data?.by_merchant ?? [];
   const monthly = (data?.monthly ?? []).map((row) => ({ ...row, label: formatMonth(row.month) }));
   const merchantRows = byMerchant.slice(0, 10).map((row) => ({ ...row, label: truncate(row.description, 28) }));
+  const cashflowSummary = data ? {
+    currency: data.currency,
+    monthly_cashflow: data.cashflow.monthly,
+    yearly_cashflow: data.cashflow.yearly,
+  } : null;
 
   const totalDisplayed = excludeUncategorized ? (data?.total_categorized ?? 0) : (data?.total_expenses ?? 0);
   const monthsCount = monthly.length;
@@ -123,7 +128,19 @@ export function Statistics({ userId, reportCurrency, summary }: {
               {byCategory.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={byCategory} dataKey="amount" nameKey="name" innerRadius="58%" outerRadius="86%" paddingAngle={2}>
+                    <Pie
+                      data={byCategory}
+                      dataKey="amount"
+                      nameKey="name"
+                      innerRadius="58%"
+                      outerRadius="86%"
+                      paddingAngle={2}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(entry) => {
+                        const id = (entry as { payload?: { category_id?: number | null } })?.payload?.category_id;
+                        if (id != null) navigate(`/transactions?category=${id}`);
+                      }}
+                    >
                       {byCategory.map((row) => <Cell key={row.category_id ?? row.name} fill={row.color} />)}
                     </Pie>
                     <Tooltip formatter={(value) => money(Number(value))} />
@@ -134,8 +151,14 @@ export function Statistics({ userId, reportCurrency, summary }: {
               )}
             </div>
             <div className="category-list compact">
-              {byCategory.slice(0, 12).map((row) => (
-                <div className="category-row" key={row.category_id ?? row.name}>
+              {byCategory.slice(0, 12).map((row) => row.category_id != null ? (
+                <Link className="category-row category-link" key={row.category_id} to={`/transactions?category=${row.category_id}`}>
+                  <span className="dot" style={{ background: row.color }} />
+                  <span title={row.name}>{row.name}</span>
+                  <strong>{money(row.amount)}</strong>
+                </Link>
+              ) : (
+                <div className="category-row" key={row.name}>
                   <span className="dot" style={{ background: row.color }} />
                   <span title={row.name}>{row.name}</span>
                   <strong>{money(row.amount)}</strong>
@@ -160,7 +183,17 @@ export function Statistics({ userId, reportCurrency, summary }: {
                     width={170}
                   />
                   <Tooltip formatter={(value) => money(Number(value))} />
-                  <Bar dataKey="amount" name="Cumul" fill={expenseColor} radius={[0, 4, 4, 0]} />
+                  <Bar
+                    dataKey="amount"
+                    name="Cumul"
+                    fill={expenseColor}
+                    radius={[0, 4, 4, 0]}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(entry) => {
+                      const description = (entry as { payload?: { description?: string } })?.payload?.description;
+                      if (description) navigate(`/transactions?q=${encodeURIComponent(description)}`);
+                    }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -191,8 +224,8 @@ export function Statistics({ userId, reportCurrency, summary }: {
       </section>
       </DashboardSection>
 
-      <DashboardSection title="Cashflow & épargne" subtitle="12 derniers mois et années — indépendant de la plage ci-dessus">
-        <CashflowTrends summary={summary} reportCurrency={reportCurrency} />
+      <DashboardSection title="Cashflow & épargne" subtitle="Revenus, dépenses et épargne sur la même plage">
+        <CashflowTrends summary={cashflowSummary} reportCurrency={reportCurrency} />
       </DashboardSection>
     </section>
   );

@@ -7,6 +7,11 @@
 >
 > Chaque section ci-dessous est rédigée pour devenir une issue. Format :
 > **Quoi · Modèle de référence · Valeur · Effort · Notes.**
+>
+> Mise à jour 2026-06-11 : la passe de finition de la refonte UI a traité les
+> drill-downs vers Transactions, les couleurs dépendantes du thème, les
+> confirmations de suppression et l'alignement du cashflow Statistiques sur la
+> plage sélectionnée.
 
 ---
 

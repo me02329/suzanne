@@ -11,10 +11,19 @@ export const statisticsRouter = Router();
 
 const rangeSchema = z.enum(['3m', '6m', '1y', '2y', 'all', 'custom']).default('1y');
 const optionalDate = dateString.optional();
+type CashflowTx = {
+  type: string;
+  amount: number;
+  date: Date;
+  account_id: number | null;
+  refunds_transaction: unknown | null;
+  refund_allocations_sent: Array<{ amount: number }>;
+};
+type CashflowAccount = { currency: string };
 
-// Long-range expense statistics: a unified endpoint that powers the new
-// "Statistiques" tab. Aggregates spending by category, by merchant
-// (deduped description) and by month over the requested range.
+// Long-range statistics: a unified endpoint that powers the "Statistiques"
+// tab. Expense charts stay expense-only, while cashflow uses all income and
+// expense transactions over the same requested range.
 statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const range = rangeSchema.parse(req.query.range ?? '1y');
@@ -24,25 +33,10 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   const toParam = optionalDate.parse(req.query.to ?? undefined);
 
   const [transactions, accounts, categories] = await Promise.all([
-    // Statistics is intentionally expense-only: income flows aren't
-    // categorised the same way (salary, etc.) and transfers between own
-    // accounts aren't spending. Including them would skew every chart and
-    // the "Top marchands" especially. Exception : les remboursements (revenus
-    // liés à une dépense) comptent comme dépense négative — ils annulent la
-    // dépense d'origine dans sa catégorie / chez son marchand.
     prisma.transaction.findMany({
       where: {
         user_id,
-        OR: [
-          { type: 'expense' },
-          {
-            type: 'income',
-            OR: [
-              { refunds_transaction_id: { not: null } },
-              { refund_allocations_sent: { some: {} } },
-            ],
-          },
-        ],
+        type: { in: ['expense', 'income'] },
       },
       // Projection minimale : seules les colonnes utilisées par les agrégations.
       select: {
@@ -82,26 +76,32 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   const { rates: fx } = await buildFx(accounts, reportCurrency);
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const categoryById = new Map(categories.map((category) => [category.id, category]));
+  // Expense charts intentionally ignore ordinary income: salary and similar
+  // flows are not spending. Refund incomes are kept and counted as negative
+  // expense so they cancel the original category/merchant.
+  const statsTransactions = transactions.filter((t) => t.type === 'expense' || isStatsRefund(t));
 
   const today = startOfUtcDay(new Date());
   const earliest = transactions.length > 0
     ? transactions.reduce((min, t) => (t.date < min ? t.date : min), transactions[0]!.date)
     : today;
   // Custom mode: any from/to wins. Otherwise the preset range computes from.
-  const from = fromParam ? new Date(`${fromParam}T00:00:00.000Z`) : rangeStart(range, today, earliest);
-  const to = toParam ? new Date(`${toParam}T00:00:00.000Z`) : today;
+  let from = fromParam ? new Date(`${fromParam}T00:00:00.000Z`) : rangeStart(range, today, earliest);
+  let to = toParam ? new Date(`${toParam}T00:00:00.000Z`) : today;
+  if (from > to) [from, to] = [to, from];
 
   // Convert raw transaction amounts to the report currency via the source account's
   // currency. Transactions without an account default to EUR (which gets converted).
-  // Dans ce dataset, un `income` est forcément un remboursement (cf. la requête) :
-  // il compte négativement et s'impute sur la catégorie / le marchand de la
-  // dépense qu'il rembourse.
+  // Dans les agrégats de dépenses ci-dessous, un `income` a déjà été filtré
+  // comme remboursement : il compte négativement et s'impute sur la catégorie /
+  // le marchand de la dépense qu'il rembourse.
   const txValue = (t: { type: string; amount: number; account_id: number | null }, amount = t.amount) => {
     const currency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
     const value = amount * (fx.get(currency) ?? 1);
     return t.type === 'income' ? -value : value;
   };
-  const inRange = transactions.filter((t) => t.date >= from && t.date <= to);
+  const inRange = statsTransactions.filter((t) => t.date >= from && t.date <= to);
+  const cashflowInRange = transactions.filter((t) => t.date >= from && t.date <= to);
   const categoryEntries = inRange.flatMap((t) => categoryAllocationsForStats(t).map((allocation) => ({
     transaction: t,
     category_id: allocation.category_id,
@@ -203,8 +203,20 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     by_category: byCategory,
     by_merchant: byMerchant,
     monthly,
+    cashflow: {
+      monthly: buildCashflow(cashflowInRange, from, to, accountById, fx),
+      yearly: buildYearlyCashflow(cashflowInRange, from, to, accountById, fx),
+    },
   });
 }));
+
+function isStatsRefund(t: {
+  type: string;
+  refunds_transaction: unknown | null;
+  refund_allocations_sent: Array<unknown>;
+}): boolean {
+  return t.type === 'income' && (t.refunds_transaction != null || t.refund_allocations_sent.length > 0);
+}
 
 function baseCategoryAllocations(t: {
   amount: number;
@@ -313,6 +325,84 @@ function merchantAllocationsForStats(t: {
     amount: t.amount,
     categorized: target ? hasCategorizedAllocation(target) : false,
   }];
+}
+
+function buildCashflow(
+  transactions: CashflowTx[],
+  from: Date,
+  to: Date,
+  accountById: Map<number, CashflowAccount>,
+  fx: Map<string, number>,
+) {
+  const buckets = new Map<string, { month: string; income: number; expenses: number; net: number }>();
+  const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
+  const lastMonth = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
+  while (cursor <= lastMonth) {
+    const key = cursor.toISOString().slice(0, 7);
+    buckets.set(key, { month: key, income: 0, expenses: 0, net: 0 });
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+
+  for (const transaction of transactions) {
+    const bucket = buckets.get(transaction.date.toISOString().slice(0, 7));
+    if (!bucket) continue;
+    const rate = fx.get(accountById.get(transaction.account_id ?? -1)?.currency ?? 'EUR') ?? 1;
+    if (transaction.type === 'income') {
+      const refundAmount = refundAllocatedAmountForStats(transaction);
+      if (refundAmount > 0) bucket.expenses -= refundAmount * rate;
+      if (transaction.amount > refundAmount) bucket.income += (transaction.amount - refundAmount) * rate;
+    }
+    if (transaction.type === 'expense') bucket.expenses += transaction.amount * rate;
+    bucket.net = bucket.income - bucket.expenses;
+  }
+
+  let cumulativeNet = 0;
+  return Array.from(buckets.values()).map((bucket) => {
+    cumulativeNet += bucket.net;
+    return {
+      month: bucket.month,
+      income: round2(bucket.income),
+      expenses: round2(bucket.expenses),
+      expenses_signed: round2(-bucket.expenses),
+      net: round2(bucket.net),
+      cumulative_net: round2(cumulativeNet),
+    };
+  });
+}
+
+function buildYearlyCashflow(
+  transactions: CashflowTx[],
+  from: Date,
+  to: Date,
+  accountById: Map<number, CashflowAccount>,
+  fx: Map<string, number>,
+) {
+  const buckets = new Map<string, { year: string; income: number; expenses: number; net: number }>();
+  for (let year = from.getUTCFullYear(); year <= to.getUTCFullYear(); year += 1) {
+    const key = String(year);
+    buckets.set(key, { year: key, income: 0, expenses: 0, net: 0 });
+  }
+
+  for (const transaction of transactions) {
+    const year = transaction.date.toISOString().slice(0, 4);
+    const bucket = buckets.get(year);
+    if (!bucket) continue;
+    const rate = fx.get(accountById.get(transaction.account_id ?? -1)?.currency ?? 'EUR') ?? 1;
+    if (transaction.type === 'income') {
+      const refundAmount = refundAllocatedAmountForStats(transaction);
+      if (refundAmount > 0) bucket.expenses -= refundAmount * rate;
+      if (transaction.amount > refundAmount) bucket.income += (transaction.amount - refundAmount) * rate;
+    }
+    if (transaction.type === 'expense') bucket.expenses += transaction.amount * rate;
+    bucket.net = bucket.income - bucket.expenses;
+  }
+
+  return Array.from(buckets.values()).map((bucket) => ({
+    year: bucket.year,
+    income: round2(bucket.income),
+    expenses: round2(bucket.expenses),
+    net: round2(bucket.net),
+  }));
 }
 
 function rangeStart(range: z.infer<typeof rangeSchema>, today: Date, earliest: Date): Date {

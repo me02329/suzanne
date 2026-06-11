@@ -1,3 +1,4 @@
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -49,6 +50,12 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
   const money = (value: number) => moneyFmt(value, displayCurrency);
   const chartTheme = useChartTheme();
   const expenseColor = chartTheme.expense;
+  const navigate = useNavigate();
+  // Drill-down : une part de donut ou une ligne de catégorie mène aux
+  // transactions du mois filtrées sur cette catégorie.
+  const openCategory = (categoryId: number | null | undefined) => {
+    if (categoryId != null) navigate(`/transactions?category=${categoryId}`);
+  };
 
   const monthRows = (summary?.monthly_cashflow ?? []).map((row) => ({ ...row, label: formatMonth(row.month) }));
   const categoryRows = summary?.expenses_by_category ?? [];
@@ -181,7 +188,16 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
               {categoryHasData ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={categoryRows} dataKey="amount" nameKey="name" innerRadius="58%" outerRadius="86%" paddingAngle={2}>
+                    <Pie
+                      data={categoryRows}
+                      dataKey="amount"
+                      nameKey="name"
+                      innerRadius="58%"
+                      outerRadius="86%"
+                      paddingAngle={2}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(entry) => openCategory((entry as { payload?: { category_id?: number | null } })?.payload?.category_id)}
+                    >
                       {categoryRows.map((row) => <Cell key={row.category_id ?? row.name} fill={row.color} />)}
                     </Pie>
                     <Tooltip formatter={(value) => money(Number(value))} />
@@ -192,8 +208,14 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
               )}
             </div>
             <div className="category-list compact">
-              {categoryRows.map((row) => (
-                <div className="category-row" key={row.category_id ?? 'none'}>
+              {categoryRows.map((row) => row.category_id != null ? (
+                <Link className="category-row category-link" key={row.category_id} to={`/transactions?category=${row.category_id}`}>
+                  <span className="dot" style={{ background: row.color }} />
+                  <span title={row.name}>{row.name}</span>
+                  <strong>{money(row.amount)}</strong>
+                </Link>
+              ) : (
+                <div className="category-row" key="none">
                   <span className="dot" style={{ background: row.color }} />
                   <span title={row.name}>{row.name}</span>
                   <strong>{money(row.amount)}</strong>
@@ -215,7 +237,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
               <strong>{budgetLimit > 0 ? money(budgetLimit) : 'Aucun budget'}</strong>
             </div>
           </div>
-          <div className="bar big"><span style={{ width: `${budgetPct}%`, background: budgetPct >= 100 ? '#dc2626' : '#2563eb' }} /></div>
+          <div className="bar big"><span style={{ width: `${budgetPct}%`, background: budgetPct >= 100 ? 'var(--expense)' : 'var(--accent)' }} /></div>
           <p className="panel-note">{budgetLimit > 0 ? `${Math.round(budgetPct)} % consommé` : 'Ajoute des budgets pour suivre la consommation du mois.'}</p>
           {visibleBudgetAlerts.length > 0 && (
             <div className="category-list compact">
@@ -267,7 +289,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                     const mid = (entry.bill.amount_min + entry.bill.amount_max) / 2;
                     return (
                       <div className="category-row" key={entry.bill.id}>
-                        <span className="dot" style={{ background: entry.status === 'late' ? '#dc2626' : '#94a3b8' }} />
+                        <span className="dot" style={{ background: entry.status === 'late' ? 'var(--expense)' : 'var(--muted)' }} />
                         <span title={entry.bill.name}>
                           {entry.bill.name}
                           {entry.expected_date ? ` · ${new Date(entry.expected_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}` : ''}

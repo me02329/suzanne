@@ -81,7 +81,7 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
                   <td className="amount-cell expense">{money(spent)}</td>
                   <td className="amount-cell">{money(b.amount_limit)}</td>
                   <td>
-                    <div className="bar"><span style={{ width: `${pct}%`, background: pct >= 100 ? '#dc2626' : '#4f46e5' }} /></div>
+                    <div className="bar"><span style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--expense)' : 'var(--accent)' }} /></div>
                     <span>{Math.round(pct)} %</span>
                   </td>
                   <td className="actions-cell">

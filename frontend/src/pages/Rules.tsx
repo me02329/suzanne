@@ -76,7 +76,7 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
                 <td><strong>{r.pattern}</strong></td>
                 <td>{categoryById.get(r.category_id)?.name ?? 'Catégorie'}</td>
                 <td>{new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
-                <td className="actions-cell"><IconButton label="Supprimer" onClick={() => void run(() => api.deleteRule(userId, r.id), 'Règle supprimée')} /></td>
+                <td className="actions-cell"><IconButton label="Supprimer" confirm={`Supprimer la règle « ${r.pattern} » ?`} onClick={() => void run(() => api.deleteRule(userId, r.id), 'Règle supprimée')} /></td>
               </tr>
             ))}
           </tbody>

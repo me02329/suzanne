@@ -400,8 +400,8 @@ export interface DashboardSummary {
     is_liability: boolean;
   }>;
   expenses_by_category: Array<{ category_id: number | null; name: string; color: string; amount: number }>;
-  monthly_cashflow: Array<{ month: string; income: number; expenses: number; expenses_signed: number; net: number; cumulative_net: number }>;
-  yearly_cashflow: Array<{ year: string; income: number; expenses: number; net: number }>;
+  monthly_cashflow: CashflowMonth[];
+  yearly_cashflow: CashflowYear[];
 }
 
 export interface WealthHistoryPoint {
@@ -414,7 +414,9 @@ export interface WealthHistoryPoint {
   by_account: Record<number, number>;
 }
 
-export type StatisticsRange = '3m' | '6m' | '1y' | '2y' | 'all';
+export type StatisticsRange = '3m' | '6m' | '1y' | '2y' | 'all' | 'custom';
+export type CashflowMonth = { month: string; income: number; expenses: number; expenses_signed: number; net: number; cumulative_net: number };
+export type CashflowYear = { year: string; income: number; expenses: number; net: number };
 
 export interface StatisticsSummary {
   range: StatisticsRange;
@@ -429,6 +431,10 @@ export interface StatisticsSummary {
   by_category: Array<{ category_id: number | null; name: string; color: string; amount: number; transactions_count: number }>;
   by_merchant: Array<{ description: string; amount: number; transactions_count: number }>;
   monthly: Array<{ month: string; amount: number }>;
+  cashflow: {
+    monthly: CashflowMonth[];
+    yearly: CashflowYear[];
+  };
 }
 
 // ---------------------------------------------------------------------------

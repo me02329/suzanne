@@ -161,7 +161,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
                     icon={r.active ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
                     onClick={() => void run(() => api.updateRecurring(userId, r.id, { active: !r.active }), r.active ? 'Récurrent désactivé' : 'Récurrent activé')}
                   />
-                  <IconButton label="Supprimer" onClick={() => void run(() => api.deleteRecurring(userId, r.id), 'Récurrent supprimé')} />
+                  <IconButton label="Supprimer" confirm={`Supprimer le récurrent « ${r.description} » ?`} onClick={() => void run(() => api.deleteRecurring(userId, r.id), 'Récurrent supprimé')} />
                 </td>
               </tr>
             );

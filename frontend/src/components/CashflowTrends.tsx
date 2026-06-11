@@ -10,17 +10,21 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { DashboardSummary } from '@suzanne-lite/shared';
+import type { CashflowMonth, CashflowYear } from '@suzanne-lite/shared';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
 
-// Tendances revenus/dépenses/épargne sur les 12 derniers mois et les années,
-// tirées de DashboardSummary (déjà chargé par App) — aucun fetch propre. La
-// plage est fixe : indépendante du sélecteur de plage des dépenses.
+type CashflowTrendsSummary = {
+  currency: string;
+  monthly_cashflow: CashflowMonth[];
+  yearly_cashflow: CashflowYear[];
+};
+
+// Tendances revenus/dépenses/épargne sur la plage déjà fournie par l'appelant.
 export function CashflowTrends({ summary, reportCurrency }: {
-  summary: DashboardSummary | null;
+  summary: CashflowTrendsSummary | null;
   reportCurrency: string;
 }) {
   const chartTheme = useChartTheme();
@@ -38,12 +42,13 @@ export function CashflowTrends({ summary, reportCurrency }: {
   }));
   const yearRows = summary?.yearly_cashflow ?? [];
   const cashflowHasData = monthRows.some((row) => row.income !== 0 || row.expenses !== 0);
+  const yearHasData = yearRows.some((row) => row.income !== 0 || row.expenses !== 0);
   const rateHasData = monthRows.some((row) => row.savingRate !== null);
 
   return (
     <>
       <section className="chart-full">
-        <Panel title="Cashflow par mois (12 derniers mois)">
+        <Panel title="Cashflow par mois">
           <div className="chart-area">
             {cashflowHasData ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -68,7 +73,7 @@ export function CashflowTrends({ summary, reportCurrency }: {
       <section className="charts-grid">
         <Panel title="Tendance annuelle">
           <div className="chart-area small">
-            {yearRows.length > 0 ? (
+            {yearHasData ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={yearRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={chartGrid} vertical={false} />
@@ -87,7 +92,7 @@ export function CashflowTrends({ summary, reportCurrency }: {
           </div>
         </Panel>
 
-        <Panel title="Taux d'épargne (12 derniers mois)">
+        <Panel title="Taux d'épargne">
           <div className="chart-area small">
             {rateHasData ? (
               <ResponsiveContainer width="100%" height="100%">

@@ -222,6 +222,40 @@ describe('refunds (remboursements)', () => {
     const resto = stats.body.by_category.find((c: { name: string }) => c.name === 'Restaurants');
     expect(resto.amount).toBe(60);
   });
+
+  it('returns cashflow scoped to the custom statistics range', async () => {
+    const userId = await createUser();
+    const accountId = await createAccount(userId);
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 1000, type: 'income', date: '2026-02-10' })
+      .expect(201);
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 2000, type: 'income', date: '2026-03-05' })
+      .expect(201);
+    const expense = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 500, type: 'expense', date: '2026-03-10', description: 'Achat remboursé' })
+      .expect(201);
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 50, type: 'income', date: '2026-03-12', refunds_transaction_id: expense.body.id })
+      .expect(201);
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 3000, type: 'income', date: '2026-04-01' })
+      .expect(201);
+
+    const stats = await api
+      .get(`/api/users/${userId}/statistics?range=custom&from=2026-03-01&to=2026-03-31&currency=EUR&exclude_uncategorized=false`)
+      .expect(200);
+
+    expect(stats.body.cashflow.monthly).toEqual([{
+      month: '2026-03',
+      income: 2000,
+      expenses: 450,
+      expenses_signed: -450,
+      net: 1550,
+      cumulative_net: 1550,
+    }]);
+    expect(stats.body.cashflow.yearly).toEqual([{ year: '2026', income: 2000, expenses: 450, net: 1550 }]);
+  });
 });
 
 describe('institutions', () => {
