@@ -19,7 +19,7 @@ import {
 } from '@suzanne-lite/shared';
 import { api } from './lib/api';
 import { currentMonthIso } from './lib/format';
-import { navItems, navSections, pathForTab, tabFromPath, type Tab } from './lib/nav';
+import { navItems, navSections, normalizeTab, pathForTab, tabFromPath, type Tab } from './lib/nav';
 import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
 import { useGlobalShortcuts } from './lib/useGlobalShortcuts';
@@ -38,6 +38,7 @@ import { initialAssistantMessages, type ChatMessage } from './lib/assistantState
 // to a default so React.lazy keeps each component's prop types.
 const Assistant = lazy(() => import('./pages/Assistant').then((m) => ({ default: m.Assistant })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
+const Wealth = lazy(() => import('./pages/Wealth').then((m) => ({ default: m.Wealth })));
 const Statistics = lazy(() => import('./pages/Statistics').then((m) => ({ default: m.Statistics })));
 const Transactions = lazy(() => import('./pages/Transactions').then((m) => ({ default: m.Transactions })));
 const Accounts = lazy(() => import('./pages/Accounts').then((m) => ({ default: m.Accounts })));
@@ -71,9 +72,9 @@ export default function App() {
   const [theme, setTheme] = useTheme();
   const [openSections, setOpenSections] = usePersistedState<Record<string, boolean>>('nav_sections', {
     pilotage: true,
+    donnees: true,
     structure: true,
     admin: true,
-    ai: true,
   });
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -303,11 +304,14 @@ export default function App() {
   const activeNav = navItems.find((item) => item.tab === tab);
   // Remember the current page so a fresh "/" reopens where the user left off.
   // Skip "/" itself (it only redirects) so it can't overwrite the saved tab.
+  // Also drop the transaction issue filter on any route change away from
+  // Transactions — navigation can happen through <Link>s and back/forward,
+  // not only setActiveTab.
   useEffect(() => {
     if (location.pathname !== '/') setLastTab(tab);
+    if (tab !== 'transactions') setTransactionIssueFilter(null);
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
   const setActiveTab = (nextTab: Tab) => {
-    if (nextTab !== 'transactions') setTransactionIssueFilter(null);
     navigate(pathForTab(nextTab));
     setSidebarOpen(false);
   };
@@ -362,7 +366,7 @@ export default function App() {
           </button>
           <div>
             <p className="eyebrow">{activeNav?.label ?? 'Vue générale'}</p>
-            <h1>{tab === 'dashboard' ? 'Pilotage financier' : activeNav?.label}</h1>
+            <h1>{activeNav?.label ?? 'Vue générale'}</h1>
           </div>
           {loading && <span className="spinner" aria-label="Chargement" />}
         </div>
@@ -384,20 +388,30 @@ export default function App() {
 
         <Suspense fallback={<div className="page-loading">Chargement…</div>}>
         <Routes>
-          <Route path="/" element={<Navigate to={pathForTab(lastTab)} replace />} />
+          <Route path="/" element={<Navigate to={pathForTab(normalizeTab(lastTab))} replace />} />
           <Route
             path="/dashboard"
             element={(
               <Dashboard
-                userId={userId}
                 summary={summary}
                 transactions={transactions}
                 budgets={budgets}
                 recurring={recurring}
-                accounts={accounts}
+                billsStatus={billsStatus}
                 reportCurrency={reportCurrency}
                 categoryById={categoryById}
                 accountById={accountById}
+              />
+            )}
+          />
+          <Route
+            path="/wealth"
+            element={(
+              <Wealth
+                userId={userId}
+                summary={summary}
+                accounts={accounts}
+                reportCurrency={reportCurrency}
                 dataVersion={dataVersion}
                 onOpenUnassignedTransactions={openUnassignedTransactions}
               />
@@ -429,7 +443,7 @@ export default function App() {
             ) : null}
           />
           <Route path="/tags" element={userId ? <Tags userId={userId} tags={tags} run={run} /> : null} />
-          <Route path="/statistics" element={userId ? <Statistics userId={userId} reportCurrency={reportCurrency} /> : null} />
+          <Route path="/statistics" element={userId ? <Statistics userId={userId} reportCurrency={reportCurrency} summary={summary} /> : null} />
           <Route path="/accounts" element={userId ? <Accounts userId={userId} accounts={accounts} institutions={institutions} snapshots={snapshots} institutionById={institutionById} summary={summary} run={run} /> : null} />
           <Route path="/accounts/:id" element={userId ? <AccountDetail userId={userId} accounts={accounts} summary={summary} snapshots={snapshots} categoryById={categoryById} reportCurrency={reportCurrency} run={run} /> : null} />
           <Route path="/categories" element={userId ? <Categories userId={userId} categories={categories} run={run} /> : null} />
@@ -443,7 +457,7 @@ export default function App() {
           <Route path="/tools" element={userId ? <Tools userId={userId} accounts={accounts} run={run} /> : null} />
           <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to={pathForTab(lastTab)} replace />} />
+          <Route path="*" element={<Navigate to={pathForTab(normalizeTab(lastTab))} replace />} />
         </Routes>
         </Suspense>
       </main>
@@ -452,6 +466,7 @@ export default function App() {
         <Modal title="Raccourcis clavier" onClose={() => setShortcutsOpen(false)}>
           <div className="shortcuts-help">
             <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>d</kbd></span> Vue générale</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>w</kbd></span> Patrimoine</div>
             <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>t</kbd></span> Transactions</div>
             <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>s</kbd></span> Statistiques</div>
             <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>a</kbd></span> Comptes</div>

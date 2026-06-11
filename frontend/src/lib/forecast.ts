@@ -45,6 +45,16 @@ export interface Forecast {
   goalDeadlines: ForecastGoalDeadline[];
 }
 
+export interface ForecastEventGroup {
+  key: string;             // '2026-06' (month) ou date du lundi (week)
+  label: string;           // 'Juin 2026' / 'Semaine du 16/06'
+  events: ForecastEvent[];
+  income: number;
+  expenses: number;
+  net: number;             // income - expenses
+  endBalance: number;      // runningBalance du dernier événement du groupe
+}
+
 export interface ForecastInput {
   horizonDays: number;
   startingBalance: number;
@@ -79,6 +89,45 @@ function expandOccurrences(recurring: RecurringTransaction, today: Date, horizon
     shape = { ...recurring, last_executed: `${next}T00:00:00.000Z` };
   }
   return out;
+}
+
+// Monday of the week containing the given ISO date — stable grouping key for
+// the 'week' mode, independent of the locale's first-day-of-week.
+function mondayOf(date: string): string {
+  const d = new Date(`${date}T00:00:00.000Z`);
+  const sinceMonday = (d.getUTCDay() + 6) % 7;
+  return isoDay(new Date(d.getTime() - sinceMonday * DAY_MS));
+}
+
+function groupLabel(key: string, mode: 'week' | 'month'): string {
+  if (mode === 'month') {
+    const formatted = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' })
+      .format(new Date(`${key}-01T00:00:00.000Z`));
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }
+  const [, m, d] = key.split('-');
+  return `Semaine du ${d}/${m}`;
+}
+
+// Folds the (already chronological) event list into contiguous week/month
+// buckets with per-bucket totals. The input order is preserved — events carry
+// a cumulative runningBalance, so re-sorting would corrupt endBalance.
+export function groupForecastEvents(events: ForecastEvent[], mode: 'week' | 'month'): ForecastEventGroup[] {
+  const groups: ForecastEventGroup[] = [];
+  for (const event of events) {
+    const key = mode === 'month' ? event.date.slice(0, 7) : mondayOf(event.date);
+    let group = groups[groups.length - 1];
+    if (!group || group.key !== key) {
+      group = { key, label: groupLabel(key, mode), events: [], income: 0, expenses: 0, net: 0, endBalance: 0 };
+      groups.push(group);
+    }
+    group.events.push(event);
+    if (event.type === 'income') group.income = round2(group.income + event.amount);
+    else group.expenses = round2(group.expenses + event.amount);
+    group.net = round2(group.income - group.expenses);
+    group.endBalance = event.runningBalance;
+  }
+  return groups;
 }
 
 export function buildForecast({

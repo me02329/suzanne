@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { Fragment, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Area,
   AreaChart,
@@ -9,13 +10,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, CalendarClock, Target, TrendingDown, Wallet } from 'lucide-react';
+import { AlertTriangle, ArrowDownCircle, ArrowRight, ArrowUpCircle, CalendarClock, ChevronDown, ChevronRight, Target, TrendingDown, Wallet } from 'lucide-react';
 import type { Account, Category, DashboardSummary, RecurringTransaction, SavingsGoal } from '@suzanne-lite/shared';
 import { money as moneyFmt, moneyCompact as moneyCompactFmt, formatRelativeDate } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { isLiquidRecurring, liquidBalance } from '../lib/balances';
-import { buildForecast } from '../lib/forecast';
+import { buildForecast, groupForecastEvents } from '../lib/forecast';
 import { EmptyChart } from '../components/EmptyChart';
 import { DataTable } from '../components/DataTable';
 import { Panel } from '../components/Panel';
@@ -81,6 +82,22 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
   const goesNegative = forecast.lowestBalance < 0;
   const chartData = forecast.series.map((point) => ({ ...point, label: shortDate(point.date) }));
 
+  // Échéances groupées par semaine (horizons courts) ou par mois : la table
+  // brute pouvait dépasser la centaine de lignes sur 12 mois. Dépliés par
+  // défaut : les 2 premiers groupes + celui qui contient le point bas.
+  const groupMode = Number(horizon) <= 90 ? 'week' : 'month';
+  const eventGroups = useMemo(() => groupForecastEvents(forecast.events, groupMode), [forecast, groupMode]);
+  // Transient (non persisté) : `null`/absent = état par défaut du groupe.
+  const [expandedOverride, setExpandedOverride] = useState<Record<string, boolean>>({});
+  const isExpanded = (key: string, index: number) =>
+    expandedOverride[key]
+    ?? (index < 2 || eventGroups[index]?.events.some((e) => e.date === forecast.lowestDate && goesNegative) === true);
+  const allExpanded = eventGroups.every((g, i) => isExpanded(g.key, i));
+  const toggleGroup = (key: string, index: number) =>
+    setExpandedOverride((prev) => ({ ...prev, [key]: !isExpanded(key, index) }));
+  const toggleAll = () =>
+    setExpandedOverride(Object.fromEntries(eventGroups.map((g) => [g.key, !allExpanded])));
+
   return (
     <section className="stack">
       <div className="stats-controls">
@@ -91,6 +108,7 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
           {new Date(`${forecast.from}T00:00:00`).toLocaleDateString('fr-FR')} → {new Date(`${forecast.to}T00:00:00`).toLocaleDateString('fr-FR')}
           {' · '}{forecast.events.length} échéance{forecast.events.length > 1 ? 's' : ''} à venir
         </span>
+        <Link className="panel-link" to="/recurring">Gérer les récurrents <ArrowRight size={14} /></Link>
       </div>
 
       <section className="stats">
@@ -144,7 +162,15 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
       </section>
 
       <section className="chart-full">
-        <Panel title="Échéances à venir" icon={<CalendarClock />}>
+        <Panel
+          title="Échéances à venir"
+          icon={<CalendarClock />}
+          action={eventGroups.length > 1 ? (
+            <button type="button" className="ghost-button" onClick={toggleAll}>
+              {allExpanded ? 'Tout replier' : 'Tout déplier'}
+            </button>
+          ) : undefined}
+        >
           <DataTable empty={forecast.events.length === 0 ? 'Aucune échéance récurrente sur cette période.' : null}>
             <thead>
               <tr>
@@ -157,22 +183,48 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
               </tr>
             </thead>
             <tbody>
-              {forecast.events.map((event, index) => {
-                const account = event.accountId != null ? accountById.get(event.accountId) : null;
-                const category = event.categoryId != null ? categoryById.get(event.categoryId) : null;
+              {eventGroups.map((group, groupIndex) => {
+                const open = isExpanded(group.key, groupIndex);
                 return (
-                  <tr key={`${event.recurringId}-${event.date}-${index}`}>
-                    <td data-label="Date">{formatRelativeDate(event.date).label}</td>
-                    <td data-label="Libellé"><strong title={event.description}>{event.description}</strong></td>
-                    <td data-label="Compte">{account?.name ?? <span className="muted">—</span>}</td>
-                    <td data-label="Catégorie">{category?.name ?? <span className="muted">—</span>}</td>
-                    <td className={`amount-cell ${event.type === 'income' ? 'income' : 'expense'}`} data-label="Montant">
-                      {event.type === 'income' ? '+' : '-'}{money(event.amount)}
-                    </td>
-                    <td className={`amount-cell ${event.runningBalance < 0 ? 'expense' : ''}`} data-label="Solde projeté">
-                      {money(event.runningBalance)}
-                    </td>
-                  </tr>
+                  <Fragment key={group.key}>
+                    <tr
+                      className="forecast-group-row"
+                      onClick={() => toggleGroup(group.key, groupIndex)}
+                      aria-expanded={open}
+                    >
+                      <td colSpan={4} data-label="Période">
+                        <span className="forecast-group-label">
+                          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          <strong>{group.label}</strong>
+                          <span className="muted">· {group.events.length} échéance{group.events.length > 1 ? 's' : ''}</span>
+                        </span>
+                      </td>
+                      <td className={`amount-cell ${group.net < 0 ? 'expense' : 'income'}`} data-label="Net">
+                        {group.net >= 0 ? '+' : ''}{money(group.net)}
+                      </td>
+                      <td className={`amount-cell ${group.endBalance < 0 ? 'expense' : ''}`} data-label="Solde fin de période">
+                        {money(group.endBalance)}
+                      </td>
+                    </tr>
+                    {open && group.events.map((event, index) => {
+                      const account = event.accountId != null ? accountById.get(event.accountId) : null;
+                      const category = event.categoryId != null ? categoryById.get(event.categoryId) : null;
+                      return (
+                        <tr key={`${event.recurringId}-${event.date}-${index}`}>
+                          <td data-label="Date">{formatRelativeDate(event.date).label}</td>
+                          <td data-label="Libellé"><strong title={event.description}>{event.description}</strong></td>
+                          <td data-label="Compte">{account?.name ?? <span className="muted">—</span>}</td>
+                          <td data-label="Catégorie">{category?.name ?? <span className="muted">—</span>}</td>
+                          <td className={`amount-cell ${event.type === 'income' ? 'income' : 'expense'}`} data-label="Montant">
+                            {event.type === 'income' ? '+' : '-'}{money(event.amount)}
+                          </td>
+                          <td className={`amount-cell ${event.runningBalance < 0 ? 'expense' : ''}`} data-label="Solde projeté">
+                            {money(event.runningBalance)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -182,7 +234,11 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
 
       {forecast.goalDeadlines.length > 0 && (
         <section className="chart-full">
-          <Panel title="Objectifs arrivant à échéance" icon={<Target />}>
+          <Panel
+            title="Objectifs arrivant à échéance"
+            icon={<Target />}
+            action={<Link className="panel-link" to="/goals">Voir <ArrowRight size={14} /></Link>}
+          >
             <DataTable empty={null}>
               <thead>
                 <tr>

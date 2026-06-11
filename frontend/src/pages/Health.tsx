@@ -1,20 +1,10 @@
 import { useMemo } from 'react';
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Link } from 'react-router-dom';
 import { PiggyBank, Repeat, ShieldCheck, Target } from 'lucide-react';
 import type { Account, Budget, Category, DashboardSummary, RecurringTransaction } from '@suzanne-lite/shared';
-import { formatMonth, money as moneyFmt } from '../lib/format';
-import { useChartTheme } from '../lib/chartTheme';
+import { money as moneyFmt } from '../lib/format';
 import { liquidBalance } from '../lib/balances';
 import { computeHealth, type HealthRating } from '../lib/health';
-import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
 
 const RATING_LABEL: Record<HealthRating, string> = {
@@ -34,7 +24,6 @@ export function Health({ summary, recurring, budgets, reportCurrency, categoryBy
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
 }) {
-  const chartTheme = useChartTheme();
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, displayCurrency);
 
@@ -69,13 +58,12 @@ export function Health({ summary, recurring, budgets, reportCurrency, categoryBy
 
   const monthlyExpenseTotal = fixedVsVariable.fixed + fixedVsVariable.variable;
   const fixedPct = monthlyExpenseTotal > 0 ? (fixedVsVariable.fixed / monthlyExpenseTotal) * 100 : 0;
-  const rateSeries = savingsRate.series.map((p) => ({ ...p, label: formatMonth(p.month) }));
 
   return (
     <section className="stack">
       <p className="panel-note">
-        Des indicateurs de <strong>santé financière</strong> — des ratios, complémentaires aux montants bruts du tableau de bord et des statistiques.
-        Calculés sur tes 12 derniers mois et l'état courant.
+        Des indicateurs de <strong>santé financière</strong> — des ratios, complémentaires aux montants bruts de la vue générale et des statistiques.
+        Calculés sur tes 12 derniers mois et l'état courant. Chaque carte mène à la page où consulter le détail et agir.
       </p>
 
       <section className="health-grid">
@@ -85,6 +73,7 @@ export function Health({ summary, recurring, budgets, reportCurrency, categoryBy
           value={pct(savingsRate.current)}
           sub={`Moyenne 12 mois : ${pct(savingsRate.average)}`}
           rating={savingsRate.rating}
+          to="/statistics"
         />
         <HealthCard
           icon={<ShieldCheck />}
@@ -92,6 +81,7 @@ export function Health({ summary, recurring, budgets, reportCurrency, categoryBy
           value={emergencyFund.monthsCovered === null ? '—' : `${emergencyFund.monthsCovered.toFixed(1)} mois`}
           sub={`Dépenses ≈ ${money(emergencyFund.avgMonthlyExpenses)}/mois`}
           rating={emergencyFund.rating}
+          to="/accounts"
         />
         <HealthCard
           icon={<Repeat />}
@@ -99,6 +89,7 @@ export function Health({ summary, recurring, budgets, reportCurrency, categoryBy
           value={pct(recurringLoad.share)}
           sub={`${money(recurringLoad.monthlyFixed)}/mois de charges fixes`}
           rating={recurringLoad.rating}
+          to="/recurring"
         />
         <HealthCard
           icon={<Target />}
@@ -106,28 +97,11 @@ export function Health({ summary, recurring, budgets, reportCurrency, categoryBy
           value={budgetAdherence === null ? '—' : `${budgetAdherence.withinCount}/${budgetAdherence.items.length}`}
           sub={budgetAdherence === null ? 'Aucun budget défini' : `${budgetAdherence.overCount} dépassé${budgetAdherence.overCount > 1 ? 's' : ''} ce mois`}
           rating={budgetRating}
+          to="/budgets"
         />
       </section>
 
       <section className="charts-grid">
-        <Panel title="Évolution du taux d'épargne" icon={<PiggyBank />}>
-          <div className="chart-area">
-            {rateSeries.length > 1 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={rateSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={20} />
-                  <YAxis tickFormatter={(v) => `${Math.round(Number(v) * 100)}%`} tickLine={false} axisLine={false} width={48} />
-                  <Tooltip formatter={(v) => pct(Number(v))} />
-                  <Line type="monotone" dataKey="rate" name="Taux d'épargne" stroke={chartTheme.net} strokeWidth={2} dot={{ r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyChart message="Pas encore assez d'historique de revenus." />
-            )}
-          </div>
-        </Panel>
-
         <Panel title="Charges fixes vs variables" icon={<Repeat />}>
           {monthlyExpenseTotal > 0 ? (
             <div className="health-split">
@@ -147,39 +121,21 @@ export function Health({ summary, recurring, budgets, reportCurrency, categoryBy
         </Panel>
       </section>
 
-      {budgetAdherence && budgetAdherence.items.length > 0 && (
-        <section className="chart-full">
-          <Panel title="Adhérence aux budgets du mois" icon={<Target />}>
-            <div className="health-budgets">
-              {budgetAdherence.items.map((item) => {
-                const width = Math.min(100, item.ratio * 100);
-                return (
-                  <div className="health-budget" key={item.categoryId}>
-                    <div className="health-budget-head">
-                      <span>{item.name}</span>
-                      <span className={item.over ? 'expense' : 'muted'}>{money(item.spent)} / {money(item.limit)}</span>
-                    </div>
-                    <div className="bar"><span style={{ width: `${width}%`, background: item.over ? 'var(--expense)' : 'var(--accent)' }} /></div>
-                  </div>
-                );
-              })}
-            </div>
-          </Panel>
-        </section>
-      )}
     </section>
   );
 }
 
-function HealthCard({ icon, label, value, sub, rating }: {
+function HealthCard({ icon, label, value, sub, rating, to }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   sub: string;
   rating: HealthRating;
+  // Page de référence où consulter le détail de l'indicateur et agir.
+  to: string;
 }) {
   return (
-    <div className="health-card">
+    <Link className="health-card" to={to}>
       <div className="health-card-head">
         <span className="health-icon">{icon}</span>
         <span className={`health-badge ${rating}`}>{RATING_LABEL[rating]}</span>
@@ -187,6 +143,6 @@ function HealthCard({ icon, label, value, sub, rating }: {
       <span className="health-label">{label}</span>
       <strong className="health-value">{value}</strong>
       <span className="health-sub">{sub}</span>
-    </div>
+    </Link>
   );
 }

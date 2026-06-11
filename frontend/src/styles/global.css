@@ -450,6 +450,7 @@ select:focus, input:focus, textarea:focus {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
 }
+/* Les health-cards sont des liens vers la page de référence de l'indicateur. */
 .health-card {
   display: grid;
   align-content: start;
@@ -459,6 +460,12 @@ select:focus, input:focus, textarea:focus {
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: var(--shadow);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 120ms ease;
+}
+.health-card:hover {
+  border-color: var(--accent);
 }
 .health-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .health-icon { display: inline-flex; color: var(--accent); }
@@ -1594,6 +1601,43 @@ tr.row-muted td { opacity: 0.55; }
 
 .panel-header h2 {
   margin: 0;
+}
+
+/* Lien « Voir → » des SummaryCards : renvoie vers la page de référence. */
+.panel-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.panel-link:hover {
+  text-decoration: underline;
+}
+
+/* Ligne d'en-tête des groupes d'échéances du Prévisionnel : repliable. */
+.forecast-group-row {
+  background: var(--surface-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.forecast-group-row td {
+  font-weight: 700;
+}
+
+.forecast-group-row:hover .forecast-group-label strong {
+  color: var(--accent);
+}
+
+.forecast-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 /* Optional accent icon before a panel title, giving each page an identity. */

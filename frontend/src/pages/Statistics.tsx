@@ -14,18 +14,24 @@ import {
   YAxis,
 } from 'recharts';
 import { CalendarDays, Gauge, Tags, TrendingDown } from 'lucide-react';
-import type { StatisticsSummary } from '@suzanne-lite/shared';
+import type { DashboardSummary, StatisticsSummary } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { useChartTheme } from '../lib/chartTheme';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, truncate } from '../lib/format';
 import { usePersistedState } from '../lib/storage';
+import { CashflowTrends } from '../components/CashflowTrends';
+import { DashboardSection } from '../components/DashboardSection';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
 import { Stat } from '../components/Stat';
 
-// "Statistiques" — long-range expense analytics that complement the
-// month-scoped dashboard.
-export function Statistics({ userId, reportCurrency }: { userId: number; reportCurrency: string }) {
+// "Statistiques" — l'analyse long terme : dépenses sur une plage libre, puis
+// cashflow/épargne sur 12 mois (tendances déplacées depuis l'ancien dashboard).
+export function Statistics({ userId, reportCurrency, summary }: {
+  userId: number;
+  reportCurrency: string;
+  summary: DashboardSummary | null;
+}) {
   const [range, setRange] = usePersistedState('stats_range', '1y');
   const [excludeUncategorized, setExcludeUncategorized] = usePersistedState('stats_exclude_uncategorized', true);
   const [customFrom, setCustomFrom] = usePersistedState('stats_custom_from', '');
@@ -69,6 +75,7 @@ export function Statistics({ userId, reportCurrency }: { userId: number; reportC
 
   return (
     <section className="stack">
+      <DashboardSection title="Dépenses" subtitle="Analyse des dépenses sur la plage choisie ci-dessous">
       <div className="stats-controls">
         <select value={range} onChange={(e) => setRange(e.target.value)}>
           <option value="3m">3 mois</option>
@@ -182,6 +189,11 @@ export function Statistics({ userId, reportCurrency }: { userId: number; reportC
           </div>
         </Panel>
       </section>
+      </DashboardSection>
+
+      <DashboardSection title="Cashflow & épargne" subtitle="12 derniers mois et années — indépendant de la plage ci-dessus">
+        <CashflowTrends summary={summary} reportCurrency={reportCurrency} />
+      </DashboardSection>
     </section>
   );
 }

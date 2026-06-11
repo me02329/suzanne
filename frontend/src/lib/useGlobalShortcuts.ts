@@ -12,6 +12,7 @@ export interface ShortcutHandlers {
 // Chords "g <lettre>" façon Gmail pour naviguer entre les pages.
 const GOTO_KEYS: Partial<Record<string, Tab>> = {
   d: 'dashboard',
+  w: 'wealth',
   t: 'transactions',
   s: 'statistics',
   a: 'accounts',

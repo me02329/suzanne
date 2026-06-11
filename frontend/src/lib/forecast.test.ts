@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RecurringTransaction, SavingsGoal } from '@suzanne-lite/shared';
-import { buildForecast } from './forecast';
+import { buildForecast, groupForecastEvents, type ForecastEvent } from './forecast';
 
 const NOW = new Date('2026-01-01T12:00:00.000Z');
 
@@ -106,5 +106,68 @@ describe('buildForecast', () => {
     });
     expect(f.goalDeadlines).toHaveLength(1);
     expect(f.goalDeadlines[0]).toMatchObject({ goalId: 1, deadline: '2026-02-15', remaining: 700 });
+  });
+});
+
+function event(overrides: Partial<ForecastEvent>): ForecastEvent {
+  return {
+    date: '2026-01-05',
+    recurringId: 1,
+    description: 'Test',
+    type: 'expense',
+    amount: 100,
+    signed: -100,
+    accountId: null,
+    categoryId: null,
+    runningBalance: 0,
+    ...overrides,
+  };
+}
+
+describe('groupForecastEvents', () => {
+  it('groups contiguous events by week with per-group totals and end balance', () => {
+    // 2026-01-05 is a Monday; 2026-01-11 a Sunday; 2026-01-12 the next Monday.
+    const groups = groupForecastEvents([
+      event({ date: '2026-01-05', type: 'income', amount: 300, signed: 300, runningBalance: 1300 }),
+      event({ date: '2026-01-11', type: 'expense', amount: 100, signed: -100, runningBalance: 1200 }),
+      event({ date: '2026-01-12', type: 'expense', amount: 50, signed: -50, runningBalance: 1150 }),
+    ], 'week');
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({
+      key: '2026-01-05',
+      label: 'Semaine du 05/01',
+      income: 300,
+      expenses: 100,
+      net: 200,
+      endBalance: 1200,
+    });
+    expect(groups[0]!.events).toHaveLength(2);
+    expect(groups[1]).toMatchObject({ key: '2026-01-12', net: -50, endBalance: 1150 });
+  });
+
+  it('groups by calendar month with a French label', () => {
+    const groups = groupForecastEvents([
+      event({ date: '2026-01-05', runningBalance: 900 }),
+      event({ date: '2026-01-28', runningBalance: 800 }),
+      event({ date: '2026-02-03', runningBalance: 700 }),
+    ], 'month');
+
+    expect(groups.map((g) => g.key)).toEqual(['2026-01', '2026-02']);
+    expect(groups[0]!.label).toBe('Janvier 2026');
+    expect(groups[0]!.endBalance).toBe(800);
+    expect(groups[1]!.endBalance).toBe(700);
+  });
+
+  it('preserves the input event order inside groups', () => {
+    const groups = groupForecastEvents([
+      event({ date: '2026-01-05', recurringId: 1 }),
+      event({ date: '2026-01-05', recurringId: 2 }),
+    ], 'month');
+    expect(groups[0]!.events.map((e) => e.recurringId)).toEqual([1, 2]);
+  });
+
+  it('returns no groups for no events', () => {
+    expect(groupForecastEvents([], 'week')).toEqual([]);
   });
 });
