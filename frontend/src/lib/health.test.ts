@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Budget, Category, DashboardSummary, RecurringTransaction } from '@suzanne-lite/shared';
+import type { Budget, Category, DashboardSummary, RecurringTransaction } from '@suzanne/shared';
 import { computeHealth } from './health';
 
 type Cashflow = DashboardSummary['monthly_cashflow'];

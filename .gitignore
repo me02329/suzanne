@@ -5,6 +5,8 @@ dist
 !.env.example
 .data
 .DS_Store
+docs/audit-*.md
+docs/improvement-ideas.md
 frontend/dist
 backend/dist
 

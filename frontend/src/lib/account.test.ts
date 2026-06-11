@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Account, Transaction } from '@suzanne-lite/shared';
+import type { Account, Transaction } from '@suzanne/shared';
 import { accountSignedAmount, livretCeiling, touchesAccount } from './account';
 
 function tx(overrides: Partial<Transaction>): Transaction {

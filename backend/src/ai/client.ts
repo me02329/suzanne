@@ -364,7 +364,7 @@ function initialMessages(context: { month: string; currency: string }, history: 
 function systemPrompt(context: { month: string; currency: string }) {
   const today = new Date().toISOString().slice(0, 10);
   return [
-    'Tu es l\'assistant financier intégré à Suzanne Lite.',
+    'Tu es l\'assistant financier intégré à Suzanne.',
     'Réponds en français, de façon concise et concrète.',
     'Utilise systématiquement les tools pour consulter les données ou préparer des actions, ne devine jamais des chiffres ou des identifiants.',
     '',

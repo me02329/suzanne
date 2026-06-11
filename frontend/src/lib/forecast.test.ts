@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RecurringTransaction, SavingsGoal } from '@suzanne-lite/shared';
+import type { RecurringTransaction, SavingsGoal } from '@suzanne/shared';
 import { buildForecast, groupForecastEvents, type ForecastEvent } from './forecast';
 
 const NOW = new Date('2026-01-01T12:00:00.000Z');

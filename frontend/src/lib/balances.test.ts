@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Account, RecurringTransaction } from '@suzanne-lite/shared';
+import type { Account, RecurringTransaction } from '@suzanne/shared';
 import { isLiquidRecurring } from './balances';
 
 function account(overrides: Partial<Account>): Account {

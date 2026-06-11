@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PiggyBank, Repeat, ShieldCheck, Target } from 'lucide-react';
-import type { Account, Budget, Category, DashboardSummary, RecurringTransaction } from '@suzanne-lite/shared';
+import type { Account, Budget, Category, DashboardSummary, RecurringTransaction } from '@suzanne/shared';
 import { money as moneyFmt } from '../lib/format';
 import { liquidBalance } from '../lib/balances';
 import { computeHealth, type HealthRating } from '../lib/health';

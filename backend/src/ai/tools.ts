@@ -29,7 +29,7 @@ import {
   resolveTagIds,
   transferAmounts,
 } from '../lib/transactionHelpers.js';
-import { nextRecurringOccurrence, recurringMonthlyEquivalent } from '@suzanne-lite/shared';
+import { nextRecurringOccurrence, recurringMonthlyEquivalent } from '@suzanne/shared';
 
 // The AI proposes a write action; the user confirms it from the chat UI.
 // `type` drives the dispatch in confirmAiAction. Keeping payload as `unknown`

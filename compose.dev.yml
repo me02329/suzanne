@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: suzanne-lite-postgres-dev
+    container_name: suzanne-postgres-dev
     restart: unless-stopped
     # Réglages basse consommation : l'app sert un foyer (pool applicatif
     # plafonné à 5 connexions) — les défauts Postgres (shared_buffers=128MB,

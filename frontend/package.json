@@ -1,5 +1,5 @@
 {
-  "name": "@suzanne-lite/frontend",
+  "name": "@suzanne/frontend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@suzanne-lite/shared": "0.1.0",
+    "@suzanne/shared": "0.1.0",
     "@vitejs/plugin-react": "^4.3.0",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",

@@ -11,7 +11,7 @@ import {
   type AccountSnapshot,
   type DashboardSummary,
   type Institution,
-} from '@suzanne-lite/shared';
+} from '@suzanne/shared';
 import { api } from '../lib/api';
 import { lastDayOfPreviousMonthIso, money, todayIso } from '../lib/format';
 import { usePersistedState } from '../lib/storage';

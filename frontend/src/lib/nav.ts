@@ -18,7 +18,7 @@ import {
   Upload,
   Users,
 } from 'lucide-react';
-import type { SearchResult } from '@suzanne-lite/shared';
+import type { SearchResult } from '@suzanne/shared';
 
 export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'bills' | 'goals' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health';
 

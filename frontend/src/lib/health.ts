@@ -4,7 +4,7 @@ import {
   type Category,
   type DashboardSummary,
   type RecurringTransaction,
-} from '@suzanne-lite/shared';
+} from '@suzanne/shared';
 
 // Derived "financial health" indicators. These are ratios (savings rate,
 // emergency-fund coverage, recurring load, budget adherence) rather than the

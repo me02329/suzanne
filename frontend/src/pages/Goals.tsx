@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { ArrowLeftRight, ChevronDown, ChevronUp, Coins, History, Link2, Loader2, Pencil, PiggyBank, Plus } from 'lucide-react';
-import type { Account, GoalContribution, SavingsGoal } from '@suzanne-lite/shared';
+import type { Account, GoalContribution, SavingsGoal } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { money, todayIso } from '../lib/format';
 import { numberOrNull } from '../lib/forms';

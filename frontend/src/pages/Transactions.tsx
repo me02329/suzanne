@@ -11,7 +11,7 @@ import {
   type Tag,
   type Transaction,
   type TransactionType,
-} from '@suzanne-lite/shared';
+} from '@suzanne/shared';
 import { api } from '../lib/api';
 import { numberOrNull } from '../lib/forms';
 import { money, todayIso, txLabel, typeLabel } from '../lib/format';

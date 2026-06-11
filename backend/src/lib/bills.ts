@@ -1,4 +1,4 @@
-import type { BillMonthStatus } from '@suzanne-lite/shared';
+import type { BillMonthStatus } from '@suzanne/shared';
 import { round2 } from './money.js';
 
 // Logique pure de rapprochement des factures attendues (modèle Firefly Bill) :

@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { ArrowUpCircle, CalendarClock, ChevronDown, ChevronRight, ChevronUp, PauseCircle, Pencil, PlayCircle, Plus, Repeat } from 'lucide-react';
-import { nextRecurringOccurrence, type Account, type Category, type DashboardSummary, type RecurringFrequency, type RecurringTransaction } from '@suzanne-lite/shared';
+import { nextRecurringOccurrence, type Account, type Category, type DashboardSummary, type RecurringFrequency, type RecurringTransaction } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { numberOrNull } from '../lib/forms';
 import { formatRelativeDate, money, recurringFrequencyLabel } from '../lib/format';

@@ -16,7 +16,7 @@ import {
   type Tag,
   type Transaction,
   type User,
-} from '@suzanne-lite/shared';
+} from '@suzanne/shared';
 import { api } from './lib/api';
 import { currentMonthIso } from './lib/format';
 import { navItems, navSections, normalizeTab, pathForTab, tabFromPath, type Tab } from './lib/nav';

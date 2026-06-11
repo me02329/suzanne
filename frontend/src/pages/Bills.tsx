@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { CheckCircle2, ChevronDown, ChevronUp, Pencil, Plus, Power, ReceiptText } from 'lucide-react';
-import type { Account, Bill, BillStatusEntry, BillsStatusSummary, Category } from '@suzanne-lite/shared';
+import type { Account, Bill, BillStatusEntry, BillsStatusSummary, Category } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { formatMonthLong, money } from '../lib/format';
 import { numberOrNull } from '../lib/forms';

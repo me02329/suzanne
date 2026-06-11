@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { ChevronDown, ChevronUp, Pencil, Plus, Tag as TagIcon } from 'lucide-react';
-import type { Tag } from '@suzanne-lite/shared';
+import type { Tag } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';

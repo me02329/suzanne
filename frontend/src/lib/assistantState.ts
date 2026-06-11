@@ -1,4 +1,4 @@
-import type { AiPendingAction } from '@suzanne-lite/shared';
+import type { AiPendingAction } from '@suzanne/shared';
 
 // Lightweight assistant state shared between App (which owns the conversation so
 // it survives tab switches) and the lazily-loaded Assistant page. Kept out of

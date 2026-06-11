@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
-import type { SearchResult } from '@suzanne-lite/shared';
+import type { SearchResult } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { tabForSearchResult, type Tab } from '../lib/nav';
 

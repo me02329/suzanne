@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import type { Tag } from '@suzanne-lite/shared';
+import type { Tag } from '@suzanne/shared';
 
 export function TagPicker({ value, tags, onChange }: {
   value: number[];

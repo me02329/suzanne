@@ -4,6 +4,6 @@ import { startRecurringScheduler } from './lib/recurringScheduler.js';
 
 const app = createApp();
 app.listen(config.port, () => {
-  console.log(`[suzanne-lite] listening on :${config.port} (env=${config.nodeEnv})`);
+  console.log(`[suzanne] listening on :${config.port} (env=${config.nodeEnv})`);
   startRecurringScheduler();
 });

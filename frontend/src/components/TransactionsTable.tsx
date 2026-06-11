@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Copy, HandCoins, Pencil, Repeat, Split } from 'lucide-react';
-import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne-lite/shared';
+import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne/shared';
 import { money, txLabel, typeLabel } from '../lib/format';
 import { IconButton } from './IconButton';
 

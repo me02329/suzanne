@@ -75,7 +75,7 @@ async function fetchYahooFx(symbol: string, date?: string): Promise<{ rate: numb
   url.searchParams.set('period2', String(period2));
 
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (suzanne-lite)' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (suzanne)' },
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Yahoo FX HTTP ${res.status}`);

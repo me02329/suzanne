@@ -1,4 +1,4 @@
-import type { Account, Category, Transaction } from '@suzanne-lite/shared';
+import type { Account, Category, Transaction } from '@suzanne/shared';
 import { money, txLabel } from '../lib/format';
 
 export function TransactionList({ transactions, categoryById, accountById, onPick }: {

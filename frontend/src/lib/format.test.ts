@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Category, Transaction } from '@suzanne-lite/shared';
+import type { Category, Transaction } from '@suzanne/shared';
 import {
   currentMonthIso,
   formatMonth,

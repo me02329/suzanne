@@ -24,7 +24,7 @@ import {
   type AccountType,
   type DashboardSummary,
   type WealthHistoryPoint,
-} from '@suzanne-lite/shared';
+} from '@suzanne/shared';
 import { api } from '../lib/api';
 import {
   formatMonth,

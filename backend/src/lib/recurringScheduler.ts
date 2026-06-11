@@ -16,10 +16,10 @@ export function startRecurringScheduler(): void {
         generated += await generateDueRecurringTransactions(user.id, today);
       }
       if (generated > 0) {
-        console.log(`[suzanne-lite] generated ${generated} recurring transaction(s)`);
+        console.log(`[suzanne] generated ${generated} recurring transaction(s)`);
       }
     } catch (error) {
-      console.error('[suzanne-lite] recurring scheduler failed', error);
+      console.error('[suzanne] recurring scheduler failed', error);
     } finally {
       running = false;
     }

@@ -1,6 +1,6 @@
 import { FormEvent } from 'react';
 import { ChevronDown, ChevronUp, Plus, Wand2 } from 'lucide-react';
-import type { Category, CategoryRule } from '@suzanne-lite/shared';
+import type { Category, CategoryRule } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';

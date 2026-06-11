@@ -31,7 +31,7 @@ import type {
   Transaction,
   User,
   WealthHistoryPoint,
-} from '@suzanne-lite/shared';
+} from '@suzanne/shared';
 
 import { authHeaders, notifyUnauthorized } from './authToken.js';
 

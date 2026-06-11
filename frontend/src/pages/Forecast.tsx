@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts';
 import { AlertTriangle, ArrowDownCircle, ArrowRight, ArrowUpCircle, CalendarClock, ChevronDown, ChevronRight, Target, TrendingDown, Wallet } from 'lucide-react';
-import type { Account, Category, DashboardSummary, RecurringTransaction, SavingsGoal } from '@suzanne-lite/shared';
+import type { Account, Category, DashboardSummary, RecurringTransaction, SavingsGoal } from '@suzanne/shared';
 import { money as moneyFmt, moneyCompact as moneyCompactFmt, formatRelativeDate } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';

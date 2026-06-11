@@ -1,4 +1,4 @@
-import type { Category, RecurringFrequency, Transaction, TransactionType } from '@suzanne-lite/shared';
+import type { Category, RecurringFrequency, Transaction, TransactionType } from '@suzanne/shared';
 
 export function money(value: number, currency = 'EUR') {
   try {

@@ -1,4 +1,4 @@
-import { recurringMonthlyEquivalent, type RecurringTransaction } from '@suzanne-lite/shared';
+import { recurringMonthlyEquivalent, type RecurringTransaction } from '@suzanne/shared';
 
 // Cashflow-honest cadence buckets. We deliberately do NOT smear a yearly payment
 // across the twelve months it never touches: the cash leaves the account once,

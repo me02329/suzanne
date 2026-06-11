@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RecurringTransaction } from '@suzanne-lite/shared';
+import type { RecurringTransaction } from '@suzanne/shared';
 import { cadenceAmount, cadenceOf, cadenceTotals, groupByCadence } from './subscriptions';
 
 function recurring(overrides: Partial<RecurringTransaction>): RecurringTransaction {

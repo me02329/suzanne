@@ -1,20 +1,29 @@
 {
-  "name": "suzanne-lite",
+  "name": "suzanne",
   "version": "0.1.0",
   "private": true,
   "description": "Suivi quotidien des dépenses et revenus — web app VPS",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/me02329/suzanne.git"
+  },
+  "bugs": {
+    "url": "https://github.com/me02329/suzanne/issues"
+  },
+  "homepage": "https://github.com/me02329/suzanne#readme",
   "workspaces": [
     "shared",
     "backend",
     "frontend"
   ],
   "scripts": {
-    "build": "npm run build -w @suzanne-lite/shared && npm run build -w @suzanne-lite/frontend && npm run build -w @suzanne-lite/backend",
-    "dev:backend": "npm run dev -w @suzanne-lite/backend",
-    "dev:frontend": "npm run dev -w @suzanne-lite/frontend",
-    "migrate:deploy": "npm run migrate:deploy -w @suzanne-lite/backend",
-    "migrate:dev": "npm run migrate:dev -w @suzanne-lite/backend",
-    "db:seed": "npm run db:seed -w @suzanne-lite/backend",
+    "build": "npm run build -w @suzanne/shared && npm run build -w @suzanne/frontend && npm run build -w @suzanne/backend",
+    "dev:backend": "npm run dev -w @suzanne/backend",
+    "dev:frontend": "npm run dev -w @suzanne/frontend",
+    "migrate:deploy": "npm run migrate:deploy -w @suzanne/backend",
+    "migrate:dev": "npm run migrate:dev -w @suzanne/backend",
+    "db:seed": "npm run db:seed -w @suzanne/backend",
     "start": "node backend/dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -1,4 +1,4 @@
-import { accountTypeGroup, type Account, type DashboardSummary, type RecurringTransaction } from '@suzanne-lite/shared';
+import { accountTypeGroup, type Account, type DashboardSummary, type RecurringTransaction } from '@suzanne/shared';
 
 // Liquid accounts whose balance the recurring income/expenses actually move,
 // and the base for the emergency-fund metric. Investments, crypto and

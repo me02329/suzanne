@@ -15,7 +15,7 @@ import {
   YAxis,
 } from 'recharts';
 import { CalendarDays, Gauge, Tags, TrendingDown } from 'lucide-react';
-import type { Account, StatisticsSummary, Transaction } from '@suzanne-lite/shared';
+import type { Account, StatisticsSummary, Transaction } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { useChartTheme } from '../lib/chartTheme';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, truncate } from '../lib/format';

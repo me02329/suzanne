@@ -22,7 +22,7 @@ import type {
   DashboardSummary,
   RecurringTransaction,
   Transaction,
-} from '@suzanne-lite/shared';
+} from '@suzanne/shared';
 import { formatMonth, formatMonthLong, money as moneyFmt } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { CADENCE_META, cadenceAmount, cadenceOf, cadenceTotals } from '../lib/subscriptions';

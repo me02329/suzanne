@@ -1,4 +1,4 @@
-import { nextRecurringOccurrence, type RecurringTransaction, type SavingsGoal } from '@suzanne-lite/shared';
+import { nextRecurringOccurrence, type RecurringTransaction, type SavingsGoal } from '@suzanne/shared';
 
 // Forward-looking cashflow projection. Everything else in the app is
 // backward-looking (statistics) or present-state (dashboard); this projects the

@@ -1,8 +1,8 @@
 services:
-  suzanne-lite:
+  suzanne:
     build: .
-    image: suzanne-lite:latest
-    container_name: suzanne-lite
+    image: suzanne:latest
+    container_name: suzanne
     restart: unless-stopped
     networks:
       - proxy

@@ -1,6 +1,6 @@
 import { FormEvent } from 'react';
 import { ChevronDown, ChevronUp, Plus, Repeat, Target } from 'lucide-react';
-import type { Budget, Category, DashboardSummary } from '@suzanne-lite/shared';
+import type { Budget, Category, DashboardSummary } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { money } from '../lib/format';
 import { usePersistedState } from '../lib/storage';

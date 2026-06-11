@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { CashflowMonth, CashflowYear } from '@suzanne-lite/shared';
+import type { CashflowMonth, CashflowYear } from '@suzanne/shared';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';
 import { EmptyChart } from '../components/EmptyChart';

@@ -1,6 +1,6 @@
-# Guide d'utilisation — suzanne-lite
+# Guide d'utilisation — suzanne
 
-Ce guide explique comment utiliser suzanne-lite au quotidien pour suivre comptes, dépenses, revenus et budgets. Il s'adresse à l'utilisateur final ; pour l'installation, le déploiement et l'API, voir le [README](../README.md).
+Ce guide explique comment utiliser suzanne au quotidien pour suivre comptes, dépenses, revenus et budgets. Il s'adresse à l'utilisateur final ; pour l'installation, le déploiement et l'API, voir le [README](../README.md).
 
 ## Sommaire
 
@@ -22,7 +22,7 @@ Ce guide explique comment utiliser suzanne-lite au quotidien pour suivre comptes
 
 ## 1. Accès à l'application
 
-suzanne-lite est accessible à l'URL de ton instance, par exemple :
+suzanne est accessible à l'URL de ton instance, par exemple :
 
 ```txt
 http://localhost:5174
@@ -273,4 +273,4 @@ Le rapprochement se fait sur la description des dépenses du mois : vérifie que
 Oui, mais lié à sa dépense (bouton remboursement). Il sera alors déduit de la catégorie d'origine dans les analyses au lieu d'apparaître comme un revenu, tout en créditant normalement le compte.
 
 **Puis-je exposer l'application publiquement ?**
-Non, pas telle quelle. suzanne-lite n'a pas d'authentification intégrée. Elle doit rester derrière un VPN, un reverse-proxy authentifié ou une interface privée.
+Non, pas telle quelle. suzanne n'a pas d'authentification intégrée. Elle doit rester derrière un VPN, un reverse-proxy authentifié ou une interface privée.

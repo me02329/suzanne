@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, CheckSquare, DatabaseBackup, Download, FileJson, FileUp, RotateCcw, Table2, Upload, WalletCards } from 'lucide-react';
-import type { Account } from '@suzanne-lite/shared';
+import type { Account } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { numberOrNull } from '../lib/forms';
 import { guessColumn, parseCsvPreview } from '../lib/csv';

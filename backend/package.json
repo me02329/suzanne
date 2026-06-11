@@ -1,5 +1,5 @@
 {
-  "name": "@suzanne-lite/backend",
+  "name": "@suzanne/backend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
-    "@suzanne-lite/shared": "0.1.0",
+    "@suzanne/shared": "0.1.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

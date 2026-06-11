@@ -2,7 +2,7 @@ import { Dispatch, KeyboardEvent, MutableRefObject, SetStateAction, useEffect, u
 import { AlertTriangle, Check, Loader2, RotateCcw, Send, Sparkles, Wand2, Wrench, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { AiPendingAction } from '@suzanne-lite/shared';
+import type { AiPendingAction } from '@suzanne/shared';
 import { api, type AiChatHistoryMessage, type AiHealthStatus } from '../lib/api';
 import type { Run } from '../lib/run';
 import { Modal } from '../components/Modal';

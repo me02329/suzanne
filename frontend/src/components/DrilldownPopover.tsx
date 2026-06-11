@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { Account, Transaction } from '@suzanne-lite/shared';
+import type { Account, Transaction } from '@suzanne/shared';
 import { money } from '../lib/format';
 
 // Bulle ancrée au point cliqué dans un graphique : liste les transactions

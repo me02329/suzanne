@@ -1,4 +1,4 @@
-import { LIVRET_CEILINGS, type Account, type Transaction } from '@suzanne-lite/shared';
+import { LIVRET_CEILINGS, type Account, type Transaction } from '@suzanne/shared';
 
 // Regulatory livret ceiling to display for an account, or null when none
 // applies. The ceiling is a French amount in EUR, and the bar compares it

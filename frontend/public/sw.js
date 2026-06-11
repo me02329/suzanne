@@ -2,7 +2,7 @@
 // anciens caches. Les assets hashés s'accumuleraient sinon à chaque
 // déploiement, donc le cache runtime est aussi borné (MAX_RUNTIME_ENTRIES, FIFO).
 const CACHE_VERSION = 'v2';
-const CACHE_NAME = `suzanne-lite-${CACHE_VERSION}`;
+const CACHE_NAME = `suzanne-${CACHE_VERSION}`;
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon.svg'];
 const MAX_RUNTIME_ENTRIES = 80;
 

@@ -1,6 +1,6 @@
 import { FormEvent } from 'react';
 import { ChevronDown, ChevronUp, Plus, Users as UsersIcon } from 'lucide-react';
-import type { User } from '@suzanne-lite/shared';
+import type { User } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { usePersistedState } from '../lib/storage';
 import { Panel } from '../components/Panel';

@@ -17,7 +17,7 @@ import {
   type Category,
   type DashboardSummary,
   type Transaction,
-} from '@suzanne-lite/shared';
+} from '@suzanne/shared';
 import { api } from '../lib/api';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, todayIso } from '../lib/format';
 import { useChartTheme } from '../lib/chartTheme';

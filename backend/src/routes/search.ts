@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { accountTypeLabel, type AccountType } from '@suzanne-lite/shared';
+import { accountTypeLabel, type AccountType } from '@suzanne/shared';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { idParam } from '../lib/validation.js';
