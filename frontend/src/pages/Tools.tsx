@@ -19,12 +19,14 @@ const EXPORT_ENTITIES = [
   { key: 'budgets', label: 'Budgets' },
   { key: 'recurring', label: 'Récurrents' },
   { key: 'goals', label: 'Objectifs' },
+  { key: 'goal_contributions', label: 'Versements d\'objectifs' },
+  { key: 'bills', label: 'Factures attendues' },
   { key: 'snapshots', label: 'Snapshots de solde' },
 ] as const;
 
 const PLACEHOLDER_CSV = `dateOp\tdateVal\tlabel\tamount\n2026-05-24\t2026-05-24\tCourses\t-12,50`;
 const ALL_EXPORT_KEYS = EXPORT_ENTITIES.map((e) => e.key);
-const FINANCE_EXPORT_KEYS = ['transactions', 'accounts', 'categories', 'budgets', 'recurring', 'goals', 'snapshots'];
+const FINANCE_EXPORT_KEYS = ['transactions', 'accounts', 'categories', 'budgets', 'recurring', 'goals', 'goal_contributions', 'bills', 'snapshots'];
 const STRUCTURE_EXPORT_KEYS = ['accounts', 'institutions', 'categories', 'category_rules', 'tags'];
 
 function todayIso() {

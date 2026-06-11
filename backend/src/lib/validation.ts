@@ -71,6 +71,7 @@ export const createTransactionSchema = z.object({
   type: z.enum(['expense', 'income', 'transfer']),
   date: dateString,
   description: z.string().trim().max(500).nullish(),
+  cleared: z.coerce.boolean().optional(),
   tag_ids: tagIdsArray,
   splits: transactionSplits,
   refund_allocations: refundAllocations,
@@ -116,6 +117,7 @@ export const updateTransactionSchema = z.object({
   type: z.enum(['expense', 'income', 'transfer']),
   date: dateString,
   description: z.string().trim().max(500).nullish(),
+  cleared: z.coerce.boolean().optional(),
   tag_ids: tagIdsArray,
   splits: transactionSplits,
   refund_allocations: refundAllocations,
@@ -204,6 +206,26 @@ export const contributeSavingsGoalSchema = z.object({
   source_account_id: z.coerce.number().int().positive().nullish(),
   description: z.string().trim().max(500).nullish(),
 });
+
+const billShape = z.object({
+  name: z.string().trim().min(1).max(160),
+  amount_min: amount,
+  amount_max: amount,
+  start_date: dateString,
+  frequency: z.enum(['monthly', 'yearly']),
+  interval: z.coerce.number().int().min(1).max(24).default(1),
+  pattern: z.string().trim().max(160).nullish(),
+  account_id: z.coerce.number().int().positive().nullish(),
+  category_id: z.coerce.number().int().positive().nullish(),
+  active: z.coerce.boolean().default(true),
+});
+const billRangeCheck = (data: { amount_min?: number; amount_max?: number }, ctx: z.RefinementCtx) => {
+  if (data.amount_min != null && data.amount_max != null && data.amount_min > data.amount_max) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'La fourchette est inversée : le minimum dépasse le maximum' });
+  }
+};
+export const createBillSchema = billShape.superRefine(billRangeCheck);
+export const updateBillSchema = billShape.partial().superRefine(billRangeCheck);
 
 export const createAccountSnapshotSchema = z.object({
   account_id: z.coerce.number().int().positive(),

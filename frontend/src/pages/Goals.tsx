@@ -1,6 +1,6 @@
-import { FormEvent, useState } from 'react';
-import { ChevronDown, ChevronUp, Coins, Link2, Pencil, PiggyBank, Plus } from 'lucide-react';
-import type { Account, SavingsGoal } from '@suzanne-lite/shared';
+import { FormEvent, useEffect, useState } from 'react';
+import { ArrowLeftRight, ChevronDown, ChevronUp, Coins, History, Link2, Loader2, Pencil, PiggyBank, Plus } from 'lucide-react';
+import type { Account, GoalContribution, SavingsGoal } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { money, todayIso } from '../lib/format';
 import { numberOrNull } from '../lib/forms';
@@ -21,6 +21,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
 }) {
   const [contributing, setContributing] = useState<SavingsGoal | null>(null);
   const [editing, setEditing] = useState<SavingsGoal | null>(null);
+  const [historyGoal, setHistoryGoal] = useState<SavingsGoal | null>(null);
   const [addOpen, setAddOpen] = usePersistedState<boolean>('goals_add_open', goals.length === 0);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -112,6 +113,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
                   <td>{g.deadline ? new Date(g.deadline).toLocaleDateString('fr-FR') : '-'}</td>
                   <td className="actions-cell">
                     <IconButton label="Verser" tone="accent" icon={<Coins size={16} />} onClick={() => setContributing(g)} />
+                    <IconButton label="Historique des versements" tone="neutral" icon={<History size={16} />} onClick={() => setHistoryGoal(g)} />
                     <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(g)} />
                     <IconButton label="Supprimer" confirm="Supprimer cet objectif ?" onClick={() => void run(() => api.deleteGoal(userId, g.id), 'Objectif supprimé')} />
                   </td>
@@ -142,6 +144,15 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
         </Modal>
       )}
 
+      {historyGoal && (
+        <GoalHistoryModal
+          userId={userId}
+          goal={goals.find((g) => g.id === historyGoal.id) ?? historyGoal}
+          run={run}
+          onClose={() => setHistoryGoal(null)}
+        />
+      )}
+
       {contributing && (
         <Modal title={`Verser sur "${contributing.name}"`} onClose={() => setContributing(null)}>
           <form className="form" onSubmit={submitContribution}>
@@ -169,5 +180,72 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
         </Modal>
       )}
     </section>
+  );
+}
+
+// Timeline des versements d'un objectif. La liste est rechargée localement
+// après une annulation (le reload global de `run` ne couvre pas cette donnée,
+// chargée à la demande).
+function GoalHistoryModal({ userId, goal, run, onClose }: {
+  userId: number;
+  goal: SavingsGoal;
+  run: Run;
+  onClose: () => void;
+}) {
+  const [contributions, setContributions] = useState<GoalContribution[] | null>(null);
+  const [version, setVersion] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.goalContributions(userId, goal.id)
+      .then((rows) => { if (!cancelled) setContributions(rows); })
+      .catch(() => { if (!cancelled) setContributions([]); });
+    return () => { cancelled = true; };
+  }, [userId, goal.id, version]);
+
+  const removeContribution = (contribution: GoalContribution) => {
+    void run(
+      () => api.deleteGoalContribution(userId, goal.id, contribution.id),
+      'Versement annulé',
+    ).then((ok) => { if (ok) setVersion((v) => v + 1); });
+  };
+
+  const total = (contributions ?? []).reduce((sum, c) => sum + c.amount, 0);
+
+  return (
+    <Modal title={`Versements sur "${goal.name}"`} onClose={onClose}>
+      {contributions == null ? (
+        <p className="empty"><Loader2 className="spin-icon" size={16} /> Chargement…</p>
+      ) : (
+        <>
+          <p className="panel-note">
+            {contributions.length > 0
+              ? `${contributions.length} versement${contributions.length > 1 ? 's' : ''} · ${money(Math.round(total * 100) / 100)} au total. Annuler un versement retire la ligne et décrémente la progression (le transfert lié, lui, reste dans les transactions).`
+              : 'Aucun versement enregistré — les versements faits via « Verser » apparaîtront ici.'}
+          </p>
+          <DataTable empty={contributions.length === 0 ? 'Aucun versement.' : null}>
+            <thead><tr><th>Date</th><th>Libellé</th><th className="amount-cell">Montant</th><th className="actions-cell">Actions</th></tr></thead>
+            <tbody>
+              {contributions.map((c) => (
+                <tr key={c.id}>
+                  <td data-label="Date">{new Date(c.date).toLocaleDateString('fr-FR')}</td>
+                  <td data-label="Libellé">
+                    {c.description ?? <span className="muted">—</span>}
+                    {c.transaction_id != null && (
+                      <span className="badge-recurring" title="Un transfert a été créé pour ce versement"><ArrowLeftRight size={11} /> transfert</span>
+                    )}
+                  </td>
+                  <td className="amount-cell income" data-label="Montant">+{money(c.amount)}</td>
+                  <td className="actions-cell">
+                    <IconButton label="Annuler ce versement" confirm="Annuler ce versement ? La progression de l'objectif sera décrémentée." onClick={() => removeContribution(c)} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        </>
+      )}
+      <button type="button" className="secondary" onClick={onClose}>Fermer</button>
+    </Modal>
   );
 }

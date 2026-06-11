@@ -17,6 +17,8 @@ const EXPORT_ENTITIES = [
   'budgets',
   'recurring',
   'goals',
+  'goal_contributions',
+  'bills',
   'snapshots',
   'tags',
 ] as const;
@@ -40,6 +42,8 @@ const importSchema = z.object({
     budgets: z.array(z.any()).optional(),
     recurring: z.array(z.any()).optional(),
     goals: z.array(z.any()).optional(),
+    goal_contributions: z.array(z.any()).optional(),
+    bills: z.array(z.any()).optional(),
     snapshots: z.array(z.any()).optional(),
     tags: z.array(z.any()).optional(),
   }),
@@ -84,7 +88,7 @@ async function buildExportPayload(user_id: number, entities: ExportEntity[], fro
     },
   } : {};
 
-  const [user, accounts, institutions, categories, rules, transactions, budgets, recurring, goals, snapshots, tags] = await Promise.all([
+  const [user, accounts, institutions, categories, rules, transactions, budgets, recurring, goals, goalContributions, bills, snapshots, tags] = await Promise.all([
     prisma.user.findUnique({ where: { id: user_id } }),
     want.has('accounts') ? prisma.account.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('institutions') ? prisma.institution.findMany({ where: { user_id } }) : Promise.resolve([]),
@@ -97,6 +101,8 @@ async function buildExportPayload(user_id: number, entities: ExportEntity[], fro
     want.has('budgets') ? prisma.budget.findMany({ where: { user_id, ...monthFilter } }) : Promise.resolve([]),
     want.has('recurring') ? prisma.recurringTransaction.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('goals') ? prisma.savingsGoal.findMany({ where: { user_id } }) : Promise.resolve([]),
+    want.has('goal_contributions') ? prisma.goalContribution.findMany({ where: { user_id, ...dateFilter } }) : Promise.resolve([]),
+    want.has('bills') ? prisma.bill.findMany({ where: { user_id } }) : Promise.resolve([]),
     want.has('snapshots') ? prisma.accountSnapshot.findMany({ where: { user_id, ...dateFilter } }) : Promise.resolve([]),
     want.has('tags') ? prisma.tag.findMany({ where: { user_id } }) : Promise.resolve([]),
   ]);
@@ -135,6 +141,8 @@ async function buildExportPayload(user_id: number, entities: ExportEntity[], fro
     budgets,
     recurring,
     goals,
+    goal_contributions: goalContributions,
+    bills,
     snapshots,
     tags,
   };
@@ -149,6 +157,8 @@ interface ImportSummary {
   budgets: { created: number; updated: number };
   recurring: { created: number; skipped: number };
   goals: { created: number; reused: number };
+  goal_contributions: { created: number; skipped: number };
+  bills: { created: number; reused: number };
   snapshots: { created: number; updated: number };
   tags: { created: number; reused: number };
 }
@@ -175,6 +185,8 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
     budgets: { created: 0, updated: 0 },
     recurring: { created: 0, skipped: 0 },
     goals: { created: 0, reused: 0 },
+    goal_contributions: { created: 0, skipped: 0 },
+    bills: { created: 0, reused: 0 },
     snapshots: { created: 0, updated: 0 },
     tags: { created: 0, reused: 0 },
   };
@@ -362,6 +374,7 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
         type: type as 'expense' | 'income' | 'transfer',
         date,
         description: raw.description ?? null,
+        cleared: Boolean(raw.cleared ?? false),
         tags: tagIds.size > 0
           ? { create: Array.from(tagIds).map((tag_id) => ({ tag_id })) }
           : undefined,
@@ -441,12 +454,17 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
     }
   }
 
+  const goalIdMap = new Map<number, number>();
   for (const raw of payload.goals ?? []) {
     const name = String(raw.name ?? '').trim();
     if (!name) continue;
     const existing = await prisma.savingsGoal.findFirst({ where: { user_id, name } });
-    if (existing) { summary.goals.reused += 1; continue; }
-    await prisma.savingsGoal.create({
+    if (existing) {
+      if (raw.id != null) goalIdMap.set(Number(raw.id), existing.id);
+      summary.goals.reused += 1;
+      continue;
+    }
+    const created = await prisma.savingsGoal.create({
       data: {
         user_id,
         name,
@@ -456,7 +474,66 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
         color: raw.color ?? '#4f46e5',
       },
     });
+    if (raw.id != null) goalIdMap.set(Number(raw.id), created.id);
     summary.goals.created += 1;
+  }
+
+  // L'historique des versements suit les objectifs : remappe objectif et
+  // transfert éventuel, ignore les doublons (même objectif, date, montant)
+  // pour qu'un ré-import ne double pas la timeline.
+  for (const raw of payload.goal_contributions ?? []) {
+    const goalId = goalIdMap.get(Number(raw.goal_id));
+    const date = parseImportDate(raw.date);
+    const contributionAmount = round2(Number(raw.amount ?? 0));
+    if (!goalId || !date || !(contributionAmount > 0)) {
+      summary.goal_contributions.skipped += 1;
+      continue;
+    }
+    const duplicate = await prisma.goalContribution.findFirst({
+      where: { user_id, goal_id: goalId, date, amount: contributionAmount },
+      select: { id: true },
+    });
+    if (duplicate) {
+      summary.goal_contributions.skipped += 1;
+      continue;
+    }
+    await prisma.goalContribution.create({
+      data: {
+        user_id,
+        goal_id: goalId,
+        transaction_id: raw.transaction_id != null ? txIdMap.get(Number(raw.transaction_id)) ?? null : null,
+        amount: contributionAmount,
+        date,
+        description: raw.description == null ? null : String(raw.description).slice(0, 500),
+      },
+    });
+    summary.goal_contributions.created += 1;
+  }
+
+  const BILL_FREQUENCIES = new Set(['monthly', 'yearly']);
+  for (const raw of payload.bills ?? []) {
+    const name = String(raw.name ?? '').trim();
+    const startDate = parseImportDate(raw.start_date);
+    const frequency = String(raw.frequency ?? 'monthly');
+    if (!name || !startDate || !BILL_FREQUENCIES.has(frequency)) continue;
+    const existing = await prisma.bill.findFirst({ where: { user_id, name } });
+    if (existing) { summary.bills.reused += 1; continue; }
+    await prisma.bill.create({
+      data: {
+        user_id,
+        name,
+        amount_min: round2(Number(raw.amount_min ?? 0)),
+        amount_max: round2(Number(raw.amount_max ?? 0)),
+        start_date: startDate,
+        frequency: frequency as 'monthly' | 'yearly',
+        interval: Math.max(1, Number(raw.interval ?? 1)),
+        pattern: raw.pattern == null ? null : String(raw.pattern).slice(0, 160) || null,
+        account_id: raw.account_id ? accountIdMap.get(Number(raw.account_id)) ?? null : null,
+        category_id: raw.category_id ? categoryIdMap.get(Number(raw.category_id)) ?? null : null,
+        active: raw.active ?? true,
+      },
+    });
+    summary.bills.created += 1;
   }
 
   for (const raw of payload.snapshots ?? []) {

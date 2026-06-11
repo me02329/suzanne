@@ -22,7 +22,7 @@ accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (
   const id = idParam.parse(req.params.id);
   const limit = z.coerce.number().int().min(1).max(200).default(40).parse(req.query.limit ?? 40);
 
-  const account = await prisma.account.findFirst({ where: { id, user_id }, select: { id: true } });
+  const account = await prisma.account.findFirst({ where: { id, user_id }, select: { id: true, initial_balance: true } });
   if (!account) {
     res.status(404).json({ error: 'Not found' });
     return;
@@ -34,7 +34,7 @@ accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (
   const [totalsRows, recent] = await Promise.all([
     prisma.transaction.findMany({
       where,
-      select: { type: true, amount: true, to_amount: true, account_id: true, to_account_id: true },
+      select: { type: true, amount: true, to_amount: true, account_id: true, to_account_id: true, cleared: true },
     }),
     prisma.transaction.findMany({
       where,
@@ -49,6 +49,10 @@ accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (
   // destination (to_amount when the currencies differ).
   let inflow = 0;
   let outflow = 0;
+  // Rapprochement : le « solde pointé » ne compte que les lignes pointées
+  // (cleared), en devise native du compte — c'est lui qu'on compare au relevé.
+  let clearedDelta = 0;
+  let unclearedCount = 0;
   for (const t of totalsRows) {
     let signed = 0;
     if (t.type === 'transfer') {
@@ -58,11 +62,15 @@ accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (
       signed = t.type === 'income' ? t.amount : -t.amount;
     }
     if (signed > 0) inflow += signed; else outflow += -signed;
+    if (t.cleared) clearedDelta += signed;
+    else if (signed !== 0) unclearedCount += 1;
   }
 
   res.json({
     inflow: round2(inflow),
     outflow: round2(outflow),
+    cleared_balance: round2(account.initial_balance + clearedDelta),
+    uncleared_count: unclearedCount,
     recent: recent.map(serializeTransaction),
   });
 }));

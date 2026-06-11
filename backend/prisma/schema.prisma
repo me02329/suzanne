@@ -42,6 +42,11 @@ enum RecurringFrequency {
   yearly
 }
 
+enum BillFrequency {
+  monthly
+  yearly
+}
+
 model User {
   id         Int      @id @default(autoincrement())
   name       String   @unique
@@ -59,6 +64,8 @@ model User {
   tags                    Tag[]
   transaction_splits      TransactionSplit[]
   refund_allocations      RefundAllocation[]
+  goal_contributions      GoalContribution[]
+  bills                   Bill[]
 
   @@map("users")
 }
@@ -95,6 +102,7 @@ model Account {
   recurring_transactions RecurringTransaction[]
   snapshots              AccountSnapshot[]
   savings_goals          SavingsGoal[]
+  bills                  Bill[]
 
   @@unique([user_id, name])
   @@index([user_id])
@@ -117,6 +125,7 @@ model Category {
   budgets                Budget[]
   recurring_transactions RecurringTransaction[]
   category_rules          CategoryRule[]
+  bills                   Bill[]
 
   @@unique([user_id, name, type])
   @@index([user_id, type])
@@ -154,6 +163,8 @@ model Transaction {
   type          TransactionType
   date          DateTime        @db.Date
   description   String?
+  // Pointage : la ligne a été rapprochée du relevé bancaire.
+  cleared       Boolean         @default(false)
   created_at    DateTime        @default(now()) @db.Timestamptz(6)
 
   user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -167,6 +178,7 @@ model Transaction {
   splits     TransactionSplit[]
   refund_allocations_sent     RefundAllocation[] @relation("RefundAllocationRefund")
   refund_allocations_received RefundAllocation[] @relation("RefundAllocationExpense")
+  goal_contributions          GoalContribution[]
 
   @@index([user_id, date])
   @@index([account_id])
@@ -295,12 +307,63 @@ model SavingsGoal {
   color          String   @default("#4f46e5")
   created_at     DateTime @default(now()) @db.Timestamptz(6)
 
-  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  account Account? @relation(fields: [account_id], references: [id], onDelete: SetNull)
+  user          User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account       Account?           @relation(fields: [account_id], references: [id], onDelete: SetNull)
+  contributions GoalContribution[]
 
   @@index([user_id])
   @@index([account_id])
   @@map("savings_goals")
+}
+
+// Historique des versements sur un objectif : chaque contribution garde sa
+// trace (et le transfert créé le cas échéant) au lieu de seulement bumper
+// current_amount.
+model GoalContribution {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  goal_id        Int
+  transaction_id Int?
+  amount         Float
+  date           DateTime @db.Date
+  description    String?
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  user        User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  goal        SavingsGoal  @relation(fields: [goal_id], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transaction_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([goal_id, date])
+  @@map("goal_contributions")
+}
+
+// Facture attendue (modèle Firefly `Bill`) : une dépense récurrente avec une
+// fourchette de montant, rapprochée des transactions réelles par motif sur la
+// description. `start_date` ancre la répétition (mois de départ + jour attendu).
+model Bill {
+  id          Int           @id @default(autoincrement())
+  user_id     Int
+  account_id  Int?
+  category_id Int?
+  name        String
+  amount_min  Float
+  amount_max  Float
+  start_date  DateTime      @db.Date
+  frequency   BillFrequency @default(monthly)
+  interval    Int           @default(1)
+  // Motif de rapprochement (contains, insensible à la casse). Vide = le nom.
+  pattern     String?
+  active      Boolean       @default(true)
+  created_at  DateTime      @default(now()) @db.Timestamptz(6)
+
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account  Account?  @relation(fields: [account_id], references: [id], onDelete: SetNull)
+  category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+
+  @@unique([user_id, name])
+  @@index([user_id, active])
+  @@map("bills")
 }
 
 model Setting {

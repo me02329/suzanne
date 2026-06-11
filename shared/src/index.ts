@@ -82,6 +82,8 @@ export interface Transaction {
   type: TransactionType;
   date: string;
   description: string | null;
+  // Pointage : la ligne a été rapprochée du relevé bancaire.
+  cleared: boolean;
   created_at: string;
   tags: Tag[];
   splits: TransactionSplit[];
@@ -159,6 +161,78 @@ export interface SavingsGoal {
   created_at: string;
 }
 
+// Versement enregistré sur un objectif d'épargne (timeline des contributions).
+// `transaction_id` pointe le transfert créé quand le versement vient d'un compte.
+export interface GoalContribution {
+  id: number;
+  user_id: number;
+  goal_id: number;
+  transaction_id: number | null;
+  amount: number;
+  date: string;
+  description: string | null;
+  created_at: string;
+}
+
+export type BillFrequency = 'monthly' | 'yearly';
+
+// Facture attendue : dépense récurrente à fourchette de montant, rapprochée
+// des transactions réelles par motif sur la description.
+export interface Bill {
+  id: number;
+  user_id: number;
+  account_id: number | null;
+  category_id: number | null;
+  name: string;
+  amount_min: number;
+  amount_max: number;
+  // Première échéance attendue : ancre la répétition (mois de départ + jour).
+  start_date: string;
+  frequency: BillFrequency;
+  interval: number;
+  // Motif de rapprochement (contains, insensible à la casse). Vide = le nom.
+  pattern: string | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface CreateBillBody {
+  name: string;
+  amount_min: number;
+  amount_max: number;
+  start_date: string;
+  frequency: BillFrequency;
+  interval?: number;
+  pattern?: string | null;
+  account_id?: number | null;
+  category_id?: number | null;
+  active?: boolean;
+}
+
+export type BillMonthStatus = 'paid' | 'paid_out_of_range' | 'pending' | 'late' | 'not_due';
+
+export interface BillStatusEntry {
+  bill: Bill;
+  // La facture est-elle attendue sur le mois demandé (cadence) ?
+  due: boolean;
+  expected_date: string | null;
+  status: BillMonthStatus;
+  paid_amount: number;
+  // null tant que rien n'est payé sur le mois.
+  in_range: boolean | null;
+  matched_transactions: Array<{ id: number; amount: number; date: string; description: string | null }>;
+}
+
+export interface BillsStatusSummary {
+  month: string;
+  due_count: number;
+  paid_count: number;
+  // Milieu de fourchette cumulé des factures dues du mois (payées ou non).
+  expected_total: number;
+  paid_total: number;
+  bills: BillStatusEntry[];
+}
+
 export interface AccountSnapshot {
   id: number;
   user_id: number;
@@ -197,6 +271,7 @@ export interface CreateTransactionBody {
   type: TransactionType;
   date: string;
   description?: string | null;
+  cleared?: boolean;
   tag_ids?: number[];
   splits?: CreateTransactionSplitBody[];
   refund_allocations?: CreateRefundAllocationBody[];

@@ -5,6 +5,7 @@ import {
   REPORT_CURRENCIES,
   type Account,
   type AccountSnapshot,
+  type BillsStatusSummary,
   type Budget,
   type Category,
   type CategoryRule,
@@ -42,6 +43,7 @@ const Transactions = lazy(() => import('./pages/Transactions').then((m) => ({ de
 const Accounts = lazy(() => import('./pages/Accounts').then((m) => ({ default: m.Accounts })));
 const AccountDetail = lazy(() => import('./pages/AccountDetail').then((m) => ({ default: m.AccountDetail })));
 const Categories = lazy(() => import('./pages/Categories').then((m) => ({ default: m.Categories })));
+const Bills = lazy(() => import('./pages/Bills').then((m) => ({ default: m.Bills })));
 const Budgets = lazy(() => import('./pages/Budgets').then((m) => ({ default: m.Budgets })));
 const Recurring = lazy(() => import('./pages/Recurring').then((m) => ({ default: m.Recurring })));
 const Forecast = lazy(() => import('./pages/Forecast').then((m) => ({ default: m.Forecast })));
@@ -81,6 +83,7 @@ export default function App() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [billsStatus, setBillsStatus] = useState<BillsStatusSummary | null>(null);
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([]);
   const [rules, setRules] = useState<CategoryRule[]>([]);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
@@ -172,15 +175,17 @@ export default function App() {
     const version = ++monthVersion.current;
     setLoading(true);
     try {
-      const [dash, txs, bds] = await Promise.all([
+      const [dash, txs, bds, bls] = await Promise.all([
         api.dashboard(userId, month, reportCurrency),
         api.transactions(userId, month),
         api.budgets(userId, month),
+        api.billsStatus(userId, month),
       ]);
       if (version !== monthVersion.current) return;
       setSummary(dash);
       setTransactions(txs);
       setBudgets(bds);
+      setBillsStatus(bls);
     } finally {
       if (version === monthVersion.current) setLoading(false);
     }
@@ -430,6 +435,7 @@ export default function App() {
           <Route path="/categories" element={userId ? <Categories userId={userId} categories={categories} run={run} /> : null} />
           <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} budgets={budgets} summary={summary} run={run} /> : null} />
           <Route path="/recurring" element={userId ? <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} summary={summary} reportCurrency={reportCurrency} run={run} /> : null} />
+          <Route path="/bills" element={userId ? <Bills userId={userId} month={month} billsStatus={billsStatus} accounts={accounts} categories={categories} accountById={accountById} run={run} /> : null} />
           <Route path="/forecast" element={userId ? <Forecast recurring={recurring} accounts={accounts} goals={goals} summary={summary} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
           <Route path="/health" element={userId ? <Health summary={summary} recurring={recurring} budgets={budgets} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
           <Route path="/goals" element={userId ? <Goals userId={userId} goals={goals} accounts={accounts} accountById={accountById} run={run} /> : null} />

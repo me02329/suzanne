@@ -99,6 +99,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = usePersistedState<'all' | TransactionType>('tx_filter_type', 'all');
   const [filterAccountGroup, setFilterAccountGroup] = usePersistedState<string>('tx_filter_account_group', 'all');
+  const [filterCleared, setFilterCleared] = usePersistedState<'all' | 'cleared' | 'uncleared'>('tx_filter_cleared', 'all');
   const [sort, setSort] = usePersistedState<TxSort>('tx_sort', { key: 'date', dir: 'desc' });
   const [compact, setCompact] = usePersistedState<boolean>('tx_compact', false);
   const [page, setPage] = useState(1);
@@ -108,7 +109,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   // user back to the first page so they aren't stranded on an out-of-range one.
   useEffect(() => {
     setPage(1);
-  }, [query, filterType, filterAccountGroup, filterTagId, sort.key, sort.dir, issueFilter]);
+  }, [query, filterType, filterAccountGroup, filterTagId, filterCleared, sort.key, sort.dir, issueFilter]);
 
   // Clicking a header toggles direction if it's already the sort key, otherwise
   // switches to it with a sensible default (recent/biggest first for date/amount,
@@ -144,6 +145,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       || (t.tags ?? []).some((tag) => String(tag.id) === filterTagId);
     return (filterType === 'all' || t.type === filterType)
       && (filterAccountGroup === 'all' || groups.includes(filterAccountGroup as ReturnType<typeof accountTypeGroup>))
+      && (filterCleared === 'all' || (filterCleared === 'cleared') === t.cleared)
       && tagMatch
       && haystack.includes(query.trim().toLowerCase());
   });
@@ -234,6 +236,23 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     patch: Partial<Pick<Transaction, 'account_id' | 'to_account_id' | 'category_id'>>,
   ) => {
     void run(() => api.updateTransaction(userId, transaction.id, patch), 'Transaction modifiée');
+  };
+
+  const toggleCleared = (transaction: Transaction) => {
+    void run(
+      () => api.updateTransaction(userId, transaction.id, { cleared: !transaction.cleared }),
+      transaction.cleared ? 'Transaction dépointée' : 'Transaction pointée',
+    );
+  };
+
+  // Pointage en masse de la sélection (rapprochement d'un relevé en un clic).
+  const setSelectionCleared = (cleared: boolean) => {
+    if (selectedTransactions.length === 0) return;
+    const ids = selectedTransactions.map((t) => t.id);
+    void run(
+      () => api.bulkUpdateTransactions(userId, { ids, cleared }),
+      (result) => `${(result as { updated: number }).updated} transactions ${cleared ? 'pointées' : 'dépointées'}`,
+    ).then((ok) => { if (ok) clearSelection(); });
   };
 
   const submitAdd = (event: FormEvent<HTMLFormElement>) => {
@@ -474,6 +493,11 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
             <option value="all">Tous les tags</option>
             {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
+          <select value={filterCleared} onChange={(e) => setFilterCleared(e.target.value as 'all' | 'cleared' | 'uncleared')} aria-label="Filtre de pointage">
+            <option value="all">Pointées ou non</option>
+            <option value="cleared">Pointées</option>
+            <option value="uncleared">Non pointées</option>
+          </select>
         </div>
         <div className="tx-summary">
           <span><strong>{filteredTransactions.length}</strong> lignes</span>
@@ -494,6 +518,8 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           <div className="bulk-bar">
             <strong>{selectedCount} sélectionnée{selectedCount > 1 ? 's' : ''}</strong>
             <button type="button" className="secondary" onClick={() => setBulkEditing(true)}>Modifier la sélection</button>
+            <button type="button" className="secondary" onClick={() => setSelectionCleared(true)}>Pointer</button>
+            <button type="button" className="ghost-button" onClick={() => setSelectionCleared(false)}>Dépointer</button>
             <button type="button" className="ghost-button" onClick={clearSelection}>Désélectionner</button>
           </div>
         )}
@@ -516,6 +542,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           onLink={setLinking}
           onSplit={startSplit}
           onRefund={(t) => (t.type === 'expense' ? setRefundingExpense(t) : setLinkingRefund(t))}
+          onToggleCleared={toggleCleared}
           onDelete={(t) => void run(() => api.deleteTransaction(userId, t.id), 'Transaction supprimée')}
         />
         {totalPages > 1 && (

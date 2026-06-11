@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, Landmark, Loader2, Plus, Wallet } from 'lucide-react';
+import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, CheckCircle2, Landmark, Loader2, Plus, Wallet } from 'lucide-react';
 import {
   accountTypeLabel,
   type Account,
@@ -60,8 +60,11 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const [rangeTo, setRangeTo] = usePersistedState('account_detail_to', '');
   const [scaleMode, setScaleMode] = usePersistedState<ChartScaleMode>('account_detail_scale_mode', 'linear');
   const [history, setHistory] = useState<{ date: string; balance: number }[]>([]);
-  const [activity, setActivity] = useState<{ inflow: number; outflow: number; recent: Transaction[] }>({ inflow: 0, outflow: 0, recent: [] });
+  const [activity, setActivity] = useState<{ inflow: number; outflow: number; cleared_balance: number; uncleared_count: number; recent: Transaction[] }>({ inflow: 0, outflow: 0, cleared_balance: 0, uncleared_count: 0, recent: [] });
   const [loading, setLoading] = useState(true);
+  // Rapprochement : solde du relevé bancaire saisi par l'utilisateur (local,
+  // non persisté — il change à chaque relevé).
+  const [statementBalance, setStatementBalance] = useState('');
   const chartTheme = useChartTheme();
 
   const displayCurrency = summary?.currency ?? reportCurrency;
@@ -92,7 +95,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
     setLoading(true);
     api.accountActivity(userId, account.id, 40)
       .then((a) => { if (!cancelled) setActivity(a); })
-      .catch(() => { if (!cancelled) setActivity({ inflow: 0, outflow: 0, recent: [] }); })
+      .catch(() => { if (!cancelled) setActivity({ inflow: 0, outflow: 0, cleared_balance: 0, uncleared_count: 0, recent: [] }); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [userId, account]);
@@ -194,8 +197,43 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
 
       <section className="stats">
         <Stat icon={<Wallet />} label="Solde actuel" value={money(currentBalance)} signed={currentBalance} />
+        <Stat icon={<CheckCircle2 />} label="Solde pointé" value={nativeMoney(activity.cleared_balance)} signed={activity.cleared_balance} />
         <Stat icon={<ArrowUpCircle />} label="Total entrées" value={nativeMoney(inflow)} positive />
         <Stat icon={<ArrowDownCircle />} label="Total sorties" value={nativeMoney(outflow)} negative />
+      </section>
+
+      <section className="chart-full">
+        <Panel title="Rapprochement bancaire" icon={<CheckCircle2 />}>
+          <p className="panel-note">
+            Le solde pointé cumule le solde initial et les seules transactions pointées (✓). Saisis le solde
+            de ton relevé : quand l'écart est nul, le compte est rapproché.
+            {activity.uncleared_count > 0 && ` Il reste ${activity.uncleared_count} transaction${activity.uncleared_count > 1 ? 's' : ''} non pointée${activity.uncleared_count > 1 ? 's' : ''} sur ce compte.`}
+          </p>
+          <form className="form form-inline" onSubmit={(e) => e.preventDefault()}>
+            <label className="grow">Solde du relevé ({account.currency})
+              <input
+                type="number"
+                step="0.01"
+                value={statementBalance}
+                onChange={(e) => setStatementBalance(e.target.value)}
+                placeholder="Ex: 1234,56"
+              />
+            </label>
+          </form>
+          {statementBalance.trim() !== '' && Number.isFinite(Number(statementBalance)) && (() => {
+            const gap = Math.round((Number(statementBalance) - activity.cleared_balance) * 100) / 100;
+            return gap === 0 ? (
+              <p className="panel-note" style={{ color: 'var(--income)' }}>
+                ✓ Compte rapproché : le solde pointé correspond au relevé.
+              </p>
+            ) : (
+              <p className="panel-note" style={{ color: 'var(--expense)' }}>
+                Écart de {nativeMoney(Math.abs(gap))} {gap > 0 ? 'manquant dans les transactions pointées' : 'en trop dans les transactions pointées'} —
+                pointe les mouvements ci-dessous (ou repère une transaction manquante/doublonnée).
+              </p>
+            );
+          })()}
+        </Panel>
       </section>
 
       <section className="chart-full">
@@ -261,6 +299,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                 <th>Libellé</th>
                 <th>Catégorie</th>
                 <th className="amount-cell">Montant</th>
+                <th className="actions-cell">Pointage</th>
               </tr>
             </thead>
             <tbody>
@@ -274,6 +313,17 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                     <td data-label="Catégorie">{category?.name ?? <span className="muted">—</span>}</td>
                     <td className={`amount-cell ${signed >= 0 ? 'income' : 'expense'}`} data-label="Montant">
                       {signed >= 0 ? '+' : '-'}{nativeMoney(Math.abs(signed))}
+                    </td>
+                    <td className="actions-cell" data-label="Pointage">
+                      <IconButton
+                        label={tx.cleared ? 'Pointée — cliquer pour dépointer' : 'Pointer (rapprochée du relevé)'}
+                        tone={tx.cleared ? 'accent' : 'neutral'}
+                        icon={<CheckCircle2 size={16} />}
+                        onClick={() => void run(
+                          () => api.updateTransaction(userId, tx.id, { cleared: !tx.cleared }),
+                          tx.cleared ? 'Transaction dépointée' : 'Transaction pointée',
+                        )}
+                      />
                     </td>
                   </tr>
                 );

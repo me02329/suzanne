@@ -95,6 +95,7 @@ transactionsRouter.post('/users/:user_id/transactions', asyncHandler(async (req,
       type: body.type,
       date: new Date(body.date),
       description: body.description ?? null,
+      cleared: body.cleared ?? false,
       tags: { create: tagIds.map((tag_id) => ({ tag_id })) },
       refund_allocations_sent: refundAllocations.length > 0
         ? { create: refundAllocations.map((allocation) => ({
@@ -250,6 +251,7 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
         ...(body.type != null ? { type: body.type } : {}),
         ...(body.date != null ? { date: new Date(body.date) } : {}),
         ...(body.description !== undefined ? { description: body.description ?? null } : {}),
+        ...(body.cleared != null ? { cleared: body.cleared } : {}),
       },
       include: transactionInclude,
     }),
@@ -321,12 +323,13 @@ const bulkUpdateSchema = z.object({
   ids: z.array(z.coerce.number().int().positive()).min(1).max(500),
   account_id: z.coerce.number().int().positive().nullish(),
   category_id: z.coerce.number().int().positive().nullish(),
+  cleared: z.coerce.boolean().optional(),
 });
 
 transactionsRouter.post('/users/:user_id/transactions/bulk-update', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = bulkUpdateSchema.parse(req.body);
-  if (body.account_id === undefined && body.category_id === undefined) {
+  if (body.account_id === undefined && body.category_id === undefined && body.cleared === undefined) {
     throw new HttpError(400, 'Aucun champ à modifier');
   }
   await assertTransactionReferences(user_id, body);
@@ -342,6 +345,7 @@ transactionsRouter.post('/users/:user_id/transactions/bulk-update', asyncHandler
     data: {
       ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
       ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
+      ...(body.cleared !== undefined ? { cleared: body.cleared } : {}),
     },
   });
   res.json({ updated: result.count });
@@ -367,6 +371,7 @@ export function serializeTransaction(row: {
   type: string;
   date: Date;
   description: string | null;
+  cleared: boolean;
   created_at: Date;
   tags: Array<{ tag: { id: number; user_id: number; name: string; color: string; created_at: Date } }>;
   splits: Array<{ id: number; user_id: number; transaction_id: number; category_id: number; amount: number; note: string | null; created_at: Date }>;

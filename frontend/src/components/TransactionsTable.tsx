@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, ChevronsUpDown, Copy, HandCoins, Pencil, Repeat, Split } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Copy, HandCoins, Pencil, Repeat, Split } from 'lucide-react';
 import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne-lite/shared';
 import { money, txLabel, typeLabel } from '../lib/format';
 import { IconButton } from './IconButton';
@@ -28,6 +28,7 @@ export function TransactionsTable({
   onLink,
   onRefund,
   onSplit,
+  onToggleCleared,
   onDelete,
 }: {
   transactions: Transaction[];
@@ -50,6 +51,8 @@ export function TransactionsTable({
   onRefund: (transaction: Transaction) => void;
   // Ouvre l'édition avec l'éditeur de ventilation déjà actif.
   onSplit: (transaction: Transaction) => void;
+  // Pointage : bascule le statut « rapprochée du relevé bancaire ».
+  onToggleCleared: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
 }) {
   if (transactions.length === 0) return <p className="empty">{emptyMessage}</p>;
@@ -228,6 +231,12 @@ export function TransactionsTable({
                   {amountLabel}
                 </td>
                 <td className="actions-cell" data-label="Actions">
+                  <IconButton
+                    label={t.cleared ? 'Pointée — cliquer pour dépointer' : 'Pointer (rapprochée du relevé)'}
+                    tone={t.cleared ? 'accent' : 'neutral'}
+                    icon={<CheckCircle2 size={16} />}
+                    onClick={() => onToggleCleared(t)}
+                  />
                   <IconButton label="Copier" tone="neutral" icon={<Copy size={16} />} onClick={() => onCopy(t)} />
                   <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => onEdit(t)} />
                   <IconButton

@@ -12,7 +12,7 @@ Ce guide explique comment utiliser suzanne-lite au quotidien pour suivre comptes
 6. [Lire le tableau de bord](#6-lire-le-tableau-de-bord)
 7. [Prévisionnel et santé financière](#7-prévisionnel-et-santé-financière)
 8. [Utiliser les statistiques](#8-utiliser-les-statistiques)
-9. [Budgets, récurrents et objectifs](#9-budgets-récurrents-et-objectifs)
+9. [Budgets, récurrents, factures attendues et objectifs](#9-budgets-récurrents-factures-attendues-et-objectifs)
 10. [Import, règles et exports](#10-import-règles-et-exports)
 11. [Multi-utilisateurs, recherche et assistant](#11-multi-utilisateurs-recherche-et-assistant)
 12. [Bonnes pratiques](#12-bonnes-pratiques)
@@ -43,6 +43,9 @@ Il n'y a **pas de page de connexion**. Si tu atteins l'application, tu peux cons
 | **Budget** | Limite mensuelle associée à une catégorie. | *Budgets* |
 | **Snapshot** | Solde réel d'un compte à une date donnée. | *Comptes* |
 | **Récurrent** | Transaction régulière à générer automatiquement. | *Récurrents* |
+| **Facture attendue** | Dépense récurrente attendue avec une **fourchette de montant** (ex : électricité 80–130 €), rapprochée automatiquement des transactions réelles. | *Factures* |
+| **Objectif** | Réserve ou projet d'épargne avec cible, progression et historique des versements. | *Objectifs* |
+| **Pointage** | Marque une transaction comme rapprochée du relevé bancaire (✓). | *Transactions* et détail d'un compte |
 | **Règle** | Mot-clé utilisé pour catégoriser automatiquement un import CSV. | *Règles* |
 
 Les dépenses diminuent le solde, les revenus l'augmentent, et les transferts déplacent de l'argent d'un compte vers un autre.
@@ -66,9 +69,10 @@ Un cycle simple fonctionne bien :
 1. En début de mois, vérifier les **récurrents** et générer les opérations prévues.
 2. Ajouter ou importer les **transactions** au fil de l'eau.
 3. Corriger rapidement les comptes et catégories dans la table.
-4. Consulter le **tableau de bord** pour voir revenus, dépenses et net du mois.
-5. Ajuster les **budgets** si une catégorie dépasse son rythme normal.
-6. En fin de mois, saisir les **snapshots** de comptes pour rapprocher l'application du réel.
+4. Jeter un œil aux **factures attendues** : tout est payé ? dans la fourchette ? en retard ?
+5. Consulter le **tableau de bord** pour voir revenus, dépenses et net du mois.
+6. Ajuster les **budgets** si une catégorie dépasse son rythme normal.
+7. En fin de mois, **pointer** les transactions contre le relevé bancaire et saisir les **snapshots** de comptes pour rapprocher l'application du réel.
 
 ## 5. Saisir et corriger les transactions
 
@@ -85,10 +89,22 @@ La table du mois permet ensuite de travailler vite :
 - clique directement sur la colonne **Catégorie** pour reclasser la transaction ;
 - utilise le bouton crayon pour modifier tous les champs ;
 - utilise le bouton copier pour dupliquer une opération proche ;
-- coche plusieurs transactions pour ouvrir **Modifier la sélection** et appliquer un compte ou une catégorie en lot ;
+- coche plusieurs transactions pour ouvrir **Modifier la sélection** (compte ou catégorie en lot) ou **Pointer / Dépointer** la sélection ;
 - lie une transaction à un récurrent pour garder une trace de son origine.
 
-La recherche filtre par date, description, compte, catégorie ou montant. Les filtres permettent de limiter par type de transaction, groupe de comptes et tag.
+La recherche filtre par date, description, compte, catégorie ou montant. Les filtres permettent de limiter par type de transaction, groupe de comptes, tag et statut de pointage (pointées / non pointées).
+
+### Ventiler une transaction
+
+Une dépense unique peut se répartir sur **plusieurs catégories** (ex : courses 80 € → nourriture 60 €, ménager 20 €). Le bouton **Ventiler** ouvre l'éditeur : la première ligne reprend la catégorie et le montant courants, le bouton **solde** complète une ligne avec le restant. La somme des lignes doit égaler le montant de la transaction.
+
+### Enregistrer un remboursement
+
+Sur une **dépense**, le bouton remboursement crée le revenu lié (ex : remboursement mutuelle, participation d'un ami). Sur un **revenu**, il permet de le rattacher à une ou plusieurs dépenses existantes (allocation partielle possible). Dans les statistiques et le tableau de bord, un remboursement lié compte comme **dépense négative** — il vient en déduction de la catégorie d'origine plutôt que de gonfler les revenus. Les soldes de comptes, eux, reflètent bien l'argent réellement entré.
+
+### Pointer les transactions (rapprochement bancaire)
+
+Le bouton ✓ marque une transaction comme **pointée**, c'est-à-dire vérifiée contre le relevé bancaire. Pointe au fil de l'eau ou en lot (sélection multiple → **Pointer**). Le rapprochement complet se fait depuis le détail du compte (voir section suivante).
 
 ## 6. Lire le tableau de bord
 
@@ -106,6 +122,10 @@ Tu y retrouves :
 La devise d'affichage se choisit dans la barre supérieure. Les montants sont convertis pour les vues de reporting quand les comptes utilisent plusieurs devises.
 
 Depuis la page **Comptes**, clique sur un compte pour ouvrir son détail : historique de solde, mouvements récents, snapshots et plafond restant pour les livrets réglementés en euros.
+
+### Rapprochement bancaire
+
+Le détail d'un compte affiche aussi le **solde pointé** : solde initial + transactions pointées uniquement, dans la devise du compte. Le panneau **Rapprochement bancaire** permet de saisir le solde de ton relevé : quand l'écart avec le solde pointé est nul, le compte est rapproché. Sinon, l'écart affiché t'indique ce qui manque — pointe les mouvements récents directement depuis la liste, ou repère une transaction manquante ou en double.
 
 ## 7. Prévisionnel et santé financière
 
@@ -146,7 +166,7 @@ Il affiche :
 
 L'option **Exclure non-catégorisé** s'applique aux analyses par catégorie et marchand. Le graphique d'évolution mensuelle reste volontairement basé sur toutes les dépenses pour refléter le niveau réel de sortie d'argent.
 
-## 9. Budgets, récurrents et objectifs
+## 9. Budgets, récurrents, factures attendues et objectifs
 
 ### Budgets
 
@@ -158,9 +178,23 @@ Crée les charges et revenus réguliers : loyer, abonnements, salaire, assurance
 
 La page regroupe aussi les abonnements par cadence : hebdomadaire, mensuelle, annuelle. Cela évite de lisser artificiellement une dépense annuelle dans un mois où elle ne passe pas réellement.
 
+### Factures attendues
+
+Les récurrents créent des transactions à montant fixe ; les **factures attendues** font l'inverse : elles surveillent que les vraies transactions arrivent bien. Une facture définit :
+
+- un nom et une **fourchette de montant** (ex : électricité 80–130 €) — idéale pour les charges variables ;
+- une **première échéance** qui ancre la cadence (mensuelle, trimestrielle via l'intervalle, annuelle) et le jour attendu dans le mois ;
+- un **motif de rapprochement** : la facture est considérée payée quand une dépense du mois contient ce motif dans sa description (ex : `EDF`). Motif vide = le nom de la facture. Compte et catégorie peuvent restreindre le match.
+
+Chaque mois dû, l'onglet **Factures** affiche le statut : **payée** (dans la fourchette), **payée hors fourchette** (montant anormal à vérifier), **à venir**, ou **en retard** (échéance dépassée sans paiement). L'en-tête résume le mois : factures payées sur attendues, total payé vs attendu.
+
+Si une facture payée n'est pas détectée, ajuste son motif pour qu'il corresponde au libellé bancaire réel de la transaction.
+
 ### Objectifs
 
 Utilise les objectifs pour suivre une réserve ou un projet : vacances, matelas de sécurité, achat prévu. Chaque objectif a un montant cible, un montant courant, une couleur et éventuellement une échéance.
+
+Le bouton **Verser** enregistre une contribution : si l'objectif est lié à un compte, un transfert peut être créé depuis un compte source ; sinon seul le compteur progresse. Chaque versement est conservé dans l'**historique** (bouton dédié) : date, montant, libellé et lien vers le transfert éventuel. Un versement peut être annulé depuis cet historique — la progression est décrémentée, mais le transfert comptable reste dans les transactions (à supprimer là-bas si besoin).
 
 ## 10. Import, règles et exports
 
@@ -178,7 +212,7 @@ Une règle associe un mot-clé à une catégorie. Exemple : `carrefour` → Cour
 
 Les raccourcis disponibles :
 
-- **Backup complet** — export JSON réimportable de toutes les données ;
+- **Backup complet** — export JSON réimportable de toutes les données (y compris factures attendues, versements d'objectifs et statut de pointage) ;
 - **Année en cours** — export JSON limité aux données financières récentes ;
 - **CSV transactions** — historique exploitable dans un tableur ;
 - **Export sur mesure** — choix des entités et de la plage de dates.
@@ -208,6 +242,8 @@ La configuration IA se fait via les variables d'environnement ou depuis **Param�
 - **Utilise des descriptions stables.** Des libellés cohérents améliorent les règles et le top marchands.
 - **Garde les transferts comme transferts.** Ne les saisis pas comme dépense + revenu, sinon les graphiques de flux seront faussés.
 - **Saisis les snapshots à date fixe.** Une fin de mois régulière rend le suivi de solde plus lisible.
+- **Pointe contre le relevé, pas de mémoire.** Le rapprochement ne vaut que si chaque ✓ correspond à une ligne réellement vue sur le relevé bancaire.
+- **Donne un motif fiable à chaque facture attendue.** Reprends le libellé bancaire réel (ex : `EDF`, `SAUR`) plutôt qu'un nom générique.
 - **Sauvegarde en JSON avant les grosses opérations.** C'est le moyen le plus simple de conserver une copie complète.
 - **Utilise les tags pour les axes secondaires.** Une transaction garde une seule catégorie, mais peut avoir plusieurs tags.
 - **Vérifie le prévisionnel après avoir modifié les récurrents.** C'est là que les charges fixes oubliées se voient le plus vite.
@@ -226,6 +262,15 @@ Coche les lignes concernées dans *Transactions*, clique sur **Modifier la séle
 
 **Les transferts doivent-ils avoir une catégorie ?**
 Non. Un transfert représente un mouvement entre tes propres comptes. Il est affiché à part et n'entre pas dans les dépenses catégorisées.
+
+**Quelle différence entre un récurrent et une facture attendue ?**
+Le récurrent **crée** des transactions à montant fixe (loyer, abonnement). La facture attendue **vérifie** que les vraies transactions arrivent, avec une fourchette pour les montants variables (électricité, eau). Les deux se complètent.
+
+**Pourquoi une facture reste-t-elle « en retard » alors que je l'ai payée ?**
+Le rapprochement se fait sur la description des dépenses du mois : vérifie que le motif de la facture (ou son nom si le motif est vide) apparaît bien dans le libellé de la transaction, et que les filtres compte/catégorie de la facture ne l'excluent pas.
+
+**Un remboursement doit-il être saisi comme revenu ?**
+Oui, mais lié à sa dépense (bouton remboursement). Il sera alors déduit de la catégorie d'origine dans les analyses au lieu d'apparaître comme un revenu, tout en créditant normalement le compte.
 
 **Puis-je exposer l'application publiquement ?**
 Non, pas telle quelle. suzanne-lite n'a pas d'authentification intégrée. Elle doit rester derrière un VPN, un reverse-proxy authentifié ou une interface privée.
