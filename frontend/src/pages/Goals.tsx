@@ -7,6 +7,7 @@ import { numberOrNull } from '../lib/forms';
 import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
+import { LimitPicker, useListLimit } from '../components/LimitPicker';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 
@@ -194,6 +195,7 @@ function GoalHistoryModal({ userId, goal, run, onClose }: {
 }) {
   const [contributions, setContributions] = useState<GoalContribution[] | null>(null);
   const [version, setVersion] = useState(0);
+  const historyLimit = useListLimit(10);
 
   useEffect(() => {
     let cancelled = false;
@@ -223,10 +225,11 @@ function GoalHistoryModal({ userId, goal, run, onClose }: {
               ? `${contributions.length} versement${contributions.length > 1 ? 's' : ''} · ${money(Math.round(total * 100) / 100)} au total. Annuler un versement retire la ligne et décrémente la progression (le transfert lié, lui, reste dans les transactions).`
               : 'Aucun versement enregistré — les versements faits via « Verser » apparaîtront ici.'}
           </p>
-          <DataTable empty={contributions.length === 0 ? 'Aucun versement.' : null}>
+          <LimitPicker limit={historyLimit.limit} onChange={historyLimit.setLimit} total={contributions.length} />
+          <DataTable scroll empty={contributions.length === 0 ? 'Aucun versement.' : null}>
             <thead><tr><th>Date</th><th>Libellé</th><th className="amount-cell">Montant</th><th className="actions-cell">Actions</th></tr></thead>
             <tbody>
-              {contributions.map((c) => (
+              {historyLimit.clamp(contributions).map((c) => (
                 <tr key={c.id}>
                   <td data-label="Date">{new Date(c.date).toLocaleDateString('fr-FR')}</td>
                   <td data-label="Libellé">

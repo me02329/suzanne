@@ -17,6 +17,7 @@ import { lastDayOfPreviousMonthIso, money, todayIso } from '../lib/format';
 import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
+import { LimitPicker, useListLimit } from '../components/LimitPicker';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 
@@ -41,6 +42,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
   const [snapshotsOpen, setSnapshotsOpen] = usePersistedState<boolean>('accounts_snapshots_open', false);
   const [accountOpen, setAccountOpen] = usePersistedState<boolean>('accounts_account_open', accounts.length === 0);
   const [institutionOpen, setInstitutionOpen] = usePersistedState<boolean>('accounts_institution_open', false);
+  const snapshotsLimit = useListLimit(10);
 
   const accountsByGroup = useMemo(() => {
     const buckets = new Map<string, Account[]>();
@@ -408,11 +410,14 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
         )}
       </Panel>
 
-      <Panel title="Snapshots récents">
-        <DataTable empty={snapshots.length === 0 ? 'Aucun snapshot.' : null}>
+      <Panel
+        title="Snapshots récents"
+        action={<LimitPicker limit={snapshotsLimit.limit} onChange={snapshotsLimit.setLimit} total={snapshots.length} />}
+      >
+        <DataTable scroll empty={snapshots.length === 0 ? 'Aucun snapshot.' : null}>
           <thead><tr><th>Date</th><th>Compte</th><th className="amount-cell">Solde</th><th className="actions-cell">Actions</th></tr></thead>
           <tbody>
-            {snapshots.slice(0, 20).map((s) => {
+            {snapshotsLimit.clamp(snapshots).map((s) => {
               const account = accounts.find((a) => a.id === s.account_id);
               return (
                 <tr key={s.id}>

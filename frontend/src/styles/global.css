@@ -1757,6 +1757,51 @@ button.category-link {
   width: 100%;
 }
 
+/* Tableaux longs : hauteur bornée, en-tête collant, défilement à la molette. */
+.table-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+
+/* Sélecteur du nombre de lignes affichées dans les tableaux longs. */
+.limit-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.limit-picker button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.limit-picker button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.limit-picker .limit-count {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
 /* Compteur de filtres actifs (Transactions) : rend visible un filtre oublié. */
 .filter-reset {
   border: 0;

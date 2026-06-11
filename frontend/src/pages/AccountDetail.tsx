@@ -27,6 +27,7 @@ import { fitDomain, symlogConstant, symlogInverse, toBase100, toSymlog, type Cha
 import { DataTable } from '../components/DataTable';
 import { EmptyChart } from '../components/EmptyChart';
 import { IconButton } from '../components/IconButton';
+import { LimitPicker, useListLimit } from '../components/LimitPicker';
 import { Panel } from '../components/Panel';
 import { Stat } from '../components/Stat';
 
@@ -65,6 +66,9 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   // Rapprochement : solde du relevé bancaire saisi par l'utilisateur (local,
   // non persisté — il change à chaque relevé).
   const [statementBalance, setStatementBalance] = useState('');
+  // Nombre de mouvements demandés au serveur (l'endpoint plafonne à 100).
+  const [activityLimit, setActivityLimit] = useState(25);
+  const snapshotsLimit = useListLimit(10);
   const chartTheme = useChartTheme();
 
   const displayCurrency = summary?.currency ?? reportCurrency;
@@ -93,12 +97,12 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
     if (!account) return;
     let cancelled = false;
     setLoading(true);
-    api.accountActivity(userId, account.id, 40)
+    api.accountActivity(userId, account.id, activityLimit)
       .then((a) => { if (!cancelled) setActivity(a); })
       .catch(() => { if (!cancelled) setActivity({ inflow: 0, outflow: 0, cleared_balance: 0, uncleared_count: 0, recent: [] }); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [userId, account]);
+  }, [userId, account, activityLimit]);
 
   const { inflow, outflow, recent } = useMemo(() => {
     if (!account) return { inflow: 0, outflow: 0, recent: [] as Array<{ tx: Transaction; signed: number }> };
@@ -291,8 +295,12 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
       </section>
 
       <section className="chart-full">
-        <Panel title="Mouvements récents" icon={<Landmark />}>
-          <DataTable empty={loading ? null : recent.length === 0 ? 'Aucun mouvement sur ce compte.' : null}>
+        <Panel
+          title="Mouvements récents"
+          icon={<Landmark />}
+          action={<LimitPicker limit={activityLimit} onChange={setActivityLimit} options={[10, 25, 50, 100]} allLabel={null} />}
+        >
+          <DataTable scroll empty={loading ? null : recent.length === 0 ? 'Aucun mouvement sur ce compte.' : null}>
             <thead>
               <tr>
                 <th>Date</th>
@@ -335,16 +343,20 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
       </section>
 
       <section className="chart-full">
-        <Panel title="Snapshots de solde" icon={<Wallet />}>
+        <Panel
+          title="Snapshots de solde"
+          icon={<Wallet />}
+          action={<LimitPicker limit={snapshotsLimit.limit} onChange={snapshotsLimit.setLimit} total={accountSnapshots.length} />}
+        >
           <form className="form form-inline" onSubmit={submitSnapshot}>
             <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
             <label className="grow">Solde relevé ({account.currency})<input name="balance" type="number" step="0.01" required /></label>
             <button className="primary"><Plus size={16} /> Enregistrer le relevé</button>
           </form>
-          <DataTable empty={accountSnapshots.length === 0 ? 'Aucun relevé pour ce compte. Saisis un solde ci-dessus pour démarrer l\'historique.' : null}>
+          <DataTable scroll empty={accountSnapshots.length === 0 ? 'Aucun relevé pour ce compte. Saisis un solde ci-dessus pour démarrer l\'historique.' : null}>
             <thead><tr><th>Date</th><th className="amount-cell">Solde relevé</th><th className="actions-cell">Actions</th></tr></thead>
             <tbody>
-              {accountSnapshots.slice(0, 24).map((s) => (
+              {snapshotsLimit.clamp(accountSnapshots).map((s) => (
                 <tr key={s.id}>
                   <td data-label="Date">{new Date(s.date).toLocaleDateString('fr-FR')}</td>
                   <td className="amount-cell" data-label="Solde relevé">{nativeMoney(s.balance)}</td>
