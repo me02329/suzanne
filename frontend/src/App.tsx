@@ -387,6 +387,9 @@ export default function App() {
         </div>
 
         <Suspense fallback={<div className="page-loading">Chargement…</div>}>
+        {/* Keyed by pathname so the wrapper remounts on every navigation and
+            replays the fade — whatever element the page uses as its root. */}
+        <div className="page-fade" key={location.pathname}>
         <Routes>
           <Route path="/" element={<Navigate to={pathForTab(normalizeTab(lastTab))} replace />} />
           <Route
@@ -459,6 +462,7 @@ export default function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to={pathForTab(normalizeTab(lastTab))} replace />} />
         </Routes>
+        </div>
         </Suspense>
       </main>
 

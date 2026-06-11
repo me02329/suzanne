@@ -200,8 +200,10 @@ button, select, input, textarea { font: inherit; }
   padding: 28px 32px 48px;
 }
 
-.content > section,
-.content > .full-panel {
+/* Fondu rapide à chaque changement de page : le wrapper est re-monté par
+   App (key = pathname), donc l'animation rejoue quelle que soit la racine de
+   la page. Désactivé par prefers-reduced-motion comme tout le reste. */
+.page-fade {
   animation: tab-in 160ms ease-out;
 }
 
