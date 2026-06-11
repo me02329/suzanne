@@ -363,6 +363,43 @@ describe('budgets reconduits', () => {
   });
 });
 
+describe('filtres de drill-down sur GET transactions', () => {
+  it('filtre par catégorie (splits inclus) et par plage de dates', async () => {
+    const userId = await createUser();
+    const accountId = await createAccount(userId);
+    const cat = await api.post(`/api/users/${userId}/categories`)
+      .send({ name: 'Drill courses', type: 'expense', color: '#111111' }).expect(201);
+    const other = await api.post(`/api/users/${userId}/categories`)
+      .send({ name: 'Drill loisirs', type: 'expense', color: '#222222' }).expect(201);
+    const direct = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 30, type: 'expense', date: '2026-03-10', category_id: cat.body.id })
+      .expect(201);
+    const viaSplit = await api.post(`/api/users/${userId}/transactions`)
+      .send({
+        account_id: accountId, amount: 100, type: 'expense', date: '2026-04-02',
+        splits: [
+          { category_id: cat.body.id, amount: 60 },
+          { category_id: other.body.id, amount: 40 },
+        ],
+      })
+      .expect(201);
+    await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 15, type: 'expense', date: '2026-03-15', category_id: other.body.id })
+      .expect(201);
+
+    const byCategory = await api
+      .get(`/api/users/${userId}/transactions?category_id=${cat.body.id}`)
+      .expect(200);
+    expect(byCategory.body.map((t: { id: number }) => t.id).sort()).toEqual([direct.body.id, viaSplit.body.id].sort());
+
+    const ranged = await api
+      .get(`/api/users/${userId}/transactions?category_id=${cat.body.id}&from=2026-03-01&to=2026-03-31`)
+      .expect(200);
+    expect(ranged.body).toHaveLength(1);
+    expect(ranged.body[0].id).toBe(direct.body.id);
+  });
+});
+
 describe('splits & garde-fous', () => {
   it("bulk-update n'écrase pas la catégorie d'une transaction ventilée", async () => {
     const userId = await createUser();

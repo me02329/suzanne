@@ -60,7 +60,7 @@ function prefilledSplitDrafts(categoryId: number | string | null, amount: number
   ];
 }
 
-export function Transactions({ userId, transactions, unassignedTransactions, issueFilter, onClearIssueFilter, recurring, accounts, categories, tags, categoryById, accountById, run }: {
+export function Transactions({ userId, transactions, unassignedTransactions, issueFilter, onClearIssueFilter, recurring, accounts, categories, tags, categoryById, accountById, onMonthChange, run }: {
   userId: number;
   transactions: Transaction[];
   unassignedTransactions: Transaction[];
@@ -72,6 +72,9 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   tags: Tag[];
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
+  // Le mois affiché appartient à App (il pilote le reload) ; les deep-links
+  // de drill-down s'en servent pour amener l'utilisateur sur le bon mois.
+  onMonthChange: (month: string) => void;
   run: Run;
 }) {
   // `editing` doubles as the modal trigger: open when non-null, closed otherwise.
@@ -107,18 +110,41 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = usePersistedState<boolean>('tx_add_open', transactions.length === 0);
 
+  // Transaction à mettre en évidence après un drill-down (param `tx`) : la
+  // ligne est surlignée et la pagination saute jusqu'à elle.
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+
   // Deep-links de drill-down depuis les pages de visu (donut → catégorie,
-  // marchand → recherche) : les paramètres sont consommés puis retirés de
-  // l'URL pour que le filtre reparte d'une adresse propre.
+  // marchand → recherche, popover des stats → transaction précise). Tous les
+  // autres filtres sont remis à zéro pour que la cible soit réellement
+  // visible (un filtre « non pointées » ou un tag résiduel cacherait tout),
+  // puis les paramètres sont retirés de l'URL.
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const category = searchParams.get('category');
     const q = searchParams.get('q');
-    if (category === null && q === null) return;
-    if (category !== null) setFilterCategoryId(category);
-    if (q !== null) setQuery(q);
+    const monthParam = searchParams.get('month');
+    const txParam = searchParams.get('tx');
+    if (category === null && q === null && monthParam === null && txParam === null) return;
+    setFilterType('all');
+    setFilterAccountGroup('all');
+    setFilterTagId('all');
+    setFilterCleared('all');
+    setFilterCategoryId(category ?? 'all');
+    setQuery(q ?? '');
+    if (monthParam !== null) onMonthChange(monthParam);
+    if (txParam !== null) setHighlightId(Number(txParam));
+    if (issueFilter) onClearIssueFilter();
     setSearchParams({}, { replace: true });
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // La surbrillance s'éteint d'elle-même ; assez long pour couvrir le
+  // rechargement du mois ciblé.
+  useEffect(() => {
+    if (highlightId === null) return;
+    const timer = window.setTimeout(() => setHighlightId(null), 8000);
+    return () => window.clearTimeout(timer);
+  }, [highlightId]);
 
   // Any change to what's shown (search, filters, sort, source list) sends the
   // user back to the first page so they aren't stranded on an out-of-range one.
@@ -185,6 +211,16 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pagedTransactions = sortedTransactions.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Drill-down : une fois la cible présente dans la liste (le mois peut
+  // arriver après un reload), saute à sa page. Déclaré après l'effet de
+  // remise à la page 1 pour gagner quand les deux écrivent au même commit.
+  const highlightIndex = highlightId !== null
+    ? sortedTransactions.findIndex((t) => t.id === highlightId)
+    : -1;
+  useEffect(() => {
+    if (highlightIndex >= 0) setPage(Math.floor(highlightIndex / PAGE_SIZE) + 1);
+  }, [highlightIndex]);
   const pageStart = sortedTransactions.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(currentPage * PAGE_SIZE, sortedTransactions.length);
   const txTotals = filteredTransactions.reduce((acc, t) => {
@@ -568,6 +604,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           onRefund={(t) => (t.type === 'expense' ? setRefundingExpense(t) : setLinkingRefund(t))}
           onToggleCleared={toggleCleared}
           onDelete={(t) => void run(() => api.deleteTransaction(userId, t.id), 'Transaction supprimée')}
+          highlightId={highlightId}
         />
         {totalPages > 1 && (
           <div className="pagination">

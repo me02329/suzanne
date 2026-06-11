@@ -363,8 +363,8 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
               <button type="button" className="secondary" onClick={() => setExportPreset(STRUCTURE_EXPORT_KEYS)}>Structure seule</button>
               <button type="button" className="secondary" onClick={() => setExportPreset([])}>Vider</button>
             </div>
-            <div className="form-section-title">Données à inclure</div>
-            <div className="checkbox-grid">
+            <div className="form-section-title">Données à inclure ({exportEntities.size}/{EXPORT_ENTITIES.length})</div>
+            <div className="checkbox-grid full">
               {EXPORT_ENTITIES.map((entity) => (
                 <label key={entity.key} className="checkbox-row">
                   <input
@@ -383,7 +383,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
               <button type="button" className="secondary" onClick={setCurrentYearExportRange}>Année en cours</button>
               <button type="button" className="secondary" onClick={() => { setExportFrom(''); setExportTo(''); }}>Sans filtre</button>
             </div>
-            <p className="panel-note">Laisser vide pour exporter sans filtre de date. Les budgets sont filtrés par mois équivalent.</p>
+            <p className="panel-note full">Laisser vide pour exporter sans filtre de date. Les budgets sont filtrés par mois équivalent.</p>
             <div className="modal-actions full">
               <button className="primary" type="button" onClick={() => void runExport()} disabled={exporting || exportEntities.size === 0}>
                 <Download size={16} /> {exporting ? 'Export en cours…' : 'Télécharger'}

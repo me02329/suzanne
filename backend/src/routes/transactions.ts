@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma.js';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
-import { createTransactionSchema, idParam, linkRecurringSchema, monthString, updateTransactionSchema } from '../lib/validation.js';
+import { createTransactionSchema, dateString, idParam, linkRecurringSchema, monthString, updateTransactionSchema } from '../lib/validation.js';
 import {
   assertRefundTarget,
   assertTransactionReferences,
@@ -39,19 +39,32 @@ transactionsRouter.get('/users/:user_id/transactions', asyncHandler(async (req, 
   const user_id = idParam.parse(req.params.user_id);
   const month = req.query.month ? monthString.parse(req.query.month) : null;
   const issue = req.query.issue ? z.enum(['unassigned_account']).parse(req.query.issue) : null;
-  // Filtres optionnels (recherche d'une dépense à lier à un remboursement).
+  // Filtres optionnels (liaison de remboursements, drill-down depuis les
+  // pages de visualisation : catégorie/marchand sur une plage de dates).
   const type = req.query.type ? z.enum(['expense', 'income', 'transfer']).parse(req.query.type) : null;
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  const categoryId = req.query.category_id ? z.coerce.number().int().positive().parse(req.query.category_id) : null;
+  const from = req.query.from ? dateString.parse(req.query.from) : null;
+  const to = req.query.to ? dateString.parse(req.query.to) : null;
   const limit = req.query.limit ? z.coerce.number().int().min(1).max(100).parse(req.query.limit) : null;
-  const where = month
-    ? { user_id, date: { gte: new Date(`${month}-01T00:00:00.000Z`), lt: new Date(nextMonth(month)) } }
-    : { user_id };
+  // Le mois (vue par défaut) a priorité ; sinon une plage from/to libre.
+  const dateFilter = month
+    ? { gte: new Date(`${month}-01T00:00:00.000Z`), lt: new Date(nextMonth(month)) }
+    : (from || to)
+      ? {
+          ...(from ? { gte: new Date(`${from}T00:00:00.000Z`) } : {}),
+          ...(to ? { lte: new Date(`${to}T00:00:00.000Z`) } : {}),
+        }
+      : null;
   const rows = await prisma.transaction.findMany({
     where: {
-      ...where,
+      user_id,
+      ...(dateFilter ? { date: dateFilter } : {}),
       ...(issue === 'unassigned_account' ? { type: { not: 'transfer' as const }, account_id: null } : {}),
       ...(type ? { type } : {}),
       ...(q ? { description: { contains: q, mode: 'insensitive' as const } } : {}),
+      // Une transaction ventilée appartient à chaque catégorie de ses splits.
+      ...(categoryId ? { OR: [{ category_id: categoryId }, { splits: { some: { category_id: categoryId } } }] } : {}),
     },
     orderBy: [{ date: 'desc' }, { id: 'desc' }],
     ...(limit ? { take: limit } : {}),

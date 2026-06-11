@@ -117,12 +117,15 @@ export const api = {
     const query = params.toString();
     return http<Transaction[]>(`/users/${userId}/transactions${query ? `?${query}` : ''}`);
   },
-  // Recherche ciblée (ex. trouver la dépense à lier à un remboursement),
-  // toutes périodes confondues.
-  findTransactions: (userId: number, opts: { type?: 'expense' | 'income' | 'transfer'; q?: string; limit?: number }) => {
+  // Recherche ciblée (liaison de remboursement, drill-down des stats) :
+  // toutes périodes par défaut, restreignable par catégorie et plage de dates.
+  findTransactions: (userId: number, opts: { type?: 'expense' | 'income' | 'transfer'; q?: string; category_id?: number; from?: string; to?: string; limit?: number }) => {
     const params = new URLSearchParams();
     if (opts.type) params.set('type', opts.type);
     if (opts.q) params.set('q', opts.q);
+    if (opts.category_id) params.set('category_id', String(opts.category_id));
+    if (opts.from) params.set('from', opts.from);
+    if (opts.to) params.set('to', opts.to);
     if (opts.limit) params.set('limit', String(opts.limit));
     return http<Transaction[]>(`/users/${userId}/transactions?${params.toString()}`);
   },

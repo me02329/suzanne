@@ -995,6 +995,16 @@ select:focus, input:focus, textarea:focus {
   background: var(--accent-soft);
 }
 
+/* Cible d'un drill-down : pulse doux pour repérer la ligne sans la figer. */
+.tx-table tbody tr.tx-highlight {
+  animation: tx-highlight-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tx-highlight-pulse {
+  0%, 100% { background: var(--accent-soft); }
+  50% { background: transparent; }
+}
+
 /* Direct children only: stacking the label + subtitle must not reach nested
    inline elements like tag chips or the recurring badge (which would otherwise
    break onto their own line and lose their colour). */
@@ -1628,6 +1638,86 @@ tr.row-muted td { opacity: 0.55; }
 
 .panel-link:hover {
   text-decoration: underline;
+}
+
+/* Popover de drill-down des graphiques (Statistiques) : ancré au clic. */
+.drilldown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 119;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.drilldown-popover {
+  position: fixed;
+  z-index: 120;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+}
+
+.drilldown-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.drilldown-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drilldown-hint {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.drilldown-list {
+  overflow: auto;
+  display: grid;
+}
+
+.drilldown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 6px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.drilldown-item:last-child { border-bottom: 0; }
+.drilldown-item:hover { background: var(--surface-muted); }
+.drilldown-date { color: var(--muted); white-space: nowrap; }
+.drilldown-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Lignes de catégorie rendues comme <button> quand elles ouvrent le popover. */
+button.category-link {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
 }
 
 /* Ligne d'en-tête des groupes d'échéances du Prévisionnel : repliable. */
@@ -2406,6 +2496,9 @@ textarea {
 }
 
 .form-section-title {
+  /* Toujours sur sa propre ligne dans les formulaires en grille 2 colonnes,
+     sinon le titre partage sa rangée avec le premier champ de la section. */
+  grid-column: 1 / -1;
   margin-top: 4px;
   font-size: 12px;
   font-weight: 700;

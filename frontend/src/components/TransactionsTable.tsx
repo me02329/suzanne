@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Copy, HandCoins, Pencil, Repeat, Split } from 'lucide-react';
 import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne-lite/shared';
 import { money, txLabel, typeLabel } from '../lib/format';
@@ -30,6 +31,7 @@ export function TransactionsTable({
   onSplit,
   onToggleCleared,
   onDelete,
+  highlightId = null,
 }: {
   transactions: Transaction[];
   emptyMessage?: string;
@@ -54,7 +56,13 @@ export function TransactionsTable({
   // Pointage : bascule le statut « rapprochée du relevé bancaire ».
   onToggleCleared: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
+  // Transaction ciblée par un drill-down : la ligne flashe et défile en vue.
+  highlightId?: number | null;
 }) {
+  const highlightRef = useRef<HTMLTableRowElement | null>(null);
+  useEffect(() => {
+    if (highlightId !== null) highlightRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlightId, transactions]);
   if (transactions.length === 0) return <p className="empty">{emptyMessage}</p>;
   const allSelected = transactions.length > 0 && transactions.every((t) => selectedIds.has(t.id));
   const sortableTh = (key: TxSortKey, label: string, thClass?: string) => {
@@ -121,7 +129,8 @@ export function TransactionsTable({
             return (
               <tr
                 key={t.id}
-                className={[linked ? 'tx-linked' : '', selected ? 'tx-selected' : ''].filter(Boolean).join(' ') || undefined}
+                ref={t.id === highlightId ? highlightRef : undefined}
+                className={[linked ? 'tx-linked' : '', selected ? 'tx-selected' : '', t.id === highlightId ? 'tx-highlight' : ''].filter(Boolean).join(' ') || undefined}
                 style={{ ['--tx-accent' as string]: accent }}
               >
                 <td className="select-cell">

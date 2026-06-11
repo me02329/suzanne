@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -15,21 +15,34 @@ import {
   YAxis,
 } from 'recharts';
 import { CalendarDays, Gauge, Tags, TrendingDown } from 'lucide-react';
-import type { StatisticsSummary } from '@suzanne-lite/shared';
+import type { Account, StatisticsSummary, Transaction } from '@suzanne-lite/shared';
 import { api } from '../lib/api';
 import { useChartTheme } from '../lib/chartTheme';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, truncate } from '../lib/format';
 import { usePersistedState } from '../lib/storage';
 import { CashflowTrends } from '../components/CashflowTrends';
 import { DashboardSection } from '../components/DashboardSection';
+import { DrilldownPopover } from '../components/DrilldownPopover';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
 import { Stat } from '../components/Stat';
 
+// État du popover de drill-down : où il est ancré, ce qu'on a cliqué, et les
+// transactions correspondantes une fois chargées.
+interface DrillState {
+  x: number;
+  y: number;
+  title: string;
+  filter: { category?: number; q?: string };
+  loading: boolean;
+  rows: Transaction[];
+}
+
 // "Statistiques" — dépenses et cashflow sur une même plage libre.
-export function Statistics({ userId, reportCurrency }: {
+export function Statistics({ userId, reportCurrency, accountById }: {
   userId: number;
   reportCurrency: string;
+  accountById: Map<number, Account>;
 }) {
   const navigate = useNavigate();
   const [range, setRange] = usePersistedState('stats_range', '1y');
@@ -77,6 +90,53 @@ export function Statistics({ userId, reportCurrency }: {
   const totalDisplayed = excludeUncategorized ? (data?.total_categorized ?? 0) : (data?.total_expenses ?? 0);
   const monthsCount = monthly.length;
   const averagePerMonth = monthsCount > 0 ? totalDisplayed / monthsCount : 0;
+
+  // Drill-down : un clic sur une catégorie ou un marchand ouvre un popover
+  // listant les transactions correspondantes sur la plage affichée — les
+  // agrégats couvrent plusieurs mois, on ne peut pas deviner lequel ouvrir.
+  const [drill, setDrill] = useState<DrillState | null>(null);
+  const drillSeq = useRef(0);
+  const openDrilldown = (
+    at: { clientX: number; clientY: number },
+    title: string,
+    filter: { category?: number; q?: string },
+  ) => {
+    if (!data) return;
+    const seq = ++drillSeq.current;
+    setDrill({ x: at.clientX, y: at.clientY, title, filter, loading: true, rows: [] });
+    api.findTransactions(userId, {
+      ...(filter.category ? { category_id: filter.category } : {}),
+      ...(filter.q ? { q: filter.q } : {}),
+      from: data.from,
+      to: data.to,
+      limit: 50,
+    })
+      .then((rows) => {
+        if (drillSeq.current === seq) setDrill((prev) => (prev ? { ...prev, loading: false, rows } : prev));
+      })
+      .catch(() => {
+        if (drillSeq.current === seq) setDrill((prev) => (prev ? { ...prev, loading: false, rows: [] } : prev));
+      });
+  };
+  // Choisir une transaction : Transactions s'ouvre sur son mois, avec le
+  // filtre du drill-down appliqué et la ligne mise en évidence.
+  const pickTransaction = (t: Transaction) => {
+    const params = new URLSearchParams();
+    params.set('month', t.date.slice(0, 7));
+    if (drill?.filter.category) params.set('category', String(drill.filter.category));
+    if (drill?.filter.q) params.set('q', drill.filter.q);
+    params.set('tx', String(t.id));
+    navigate(`/transactions?${params.toString()}`);
+  };
+  // Les handlers recharts reçoivent (data, index, event) — l'event porte les
+  // coordonnées du clic pour ancrer le popover.
+  const clickPoint = (event: unknown): { clientX: number; clientY: number } => {
+    const e = event as { clientX?: number; clientY?: number } | undefined;
+    return {
+      clientX: e?.clientX ?? window.innerWidth / 2,
+      clientY: e?.clientY ?? window.innerHeight / 3,
+    };
+  };
 
   return (
     <section className="stack">
@@ -136,9 +196,11 @@ export function Statistics({ userId, reportCurrency }: {
                       outerRadius="86%"
                       paddingAngle={2}
                       style={{ cursor: 'pointer' }}
-                      onClick={(entry) => {
-                        const id = (entry as { payload?: { category_id?: number | null } })?.payload?.category_id;
-                        if (id != null) navigate(`/transactions?category=${id}`);
+                      onClick={(entry, _index, event) => {
+                        const payload = (entry as { payload?: { category_id?: number | null; name?: string } })?.payload;
+                        if (payload?.category_id != null) {
+                          openDrilldown(clickPoint(event), payload.name ?? 'Catégorie', { category: payload.category_id });
+                        }
                       }}
                     >
                       {byCategory.map((row) => <Cell key={row.category_id ?? row.name} fill={row.color} />)}
@@ -152,11 +214,16 @@ export function Statistics({ userId, reportCurrency }: {
             </div>
             <div className="category-list compact">
               {byCategory.slice(0, 12).map((row) => row.category_id != null ? (
-                <Link className="category-row category-link" key={row.category_id} to={`/transactions?category=${row.category_id}`}>
+                <button
+                  type="button"
+                  className="category-row category-link"
+                  key={row.category_id}
+                  onClick={(e) => openDrilldown(e, row.name, { category: row.category_id! })}
+                >
                   <span className="dot" style={{ background: row.color }} />
                   <span title={row.name}>{row.name}</span>
                   <strong>{money(row.amount)}</strong>
-                </Link>
+                </button>
               ) : (
                 <div className="category-row" key={row.name}>
                   <span className="dot" style={{ background: row.color }} />
@@ -189,9 +256,9 @@ export function Statistics({ userId, reportCurrency }: {
                     fill={expenseColor}
                     radius={[0, 4, 4, 0]}
                     style={{ cursor: 'pointer' }}
-                    onClick={(entry) => {
+                    onClick={(entry, _index, event) => {
                       const description = (entry as { payload?: { description?: string } })?.payload?.description;
-                      if (description) navigate(`/transactions?q=${encodeURIComponent(description)}`);
+                      if (description) openDrilldown(clickPoint(event), description, { q: description });
                     }}
                   />
                 </BarChart>
@@ -227,6 +294,19 @@ export function Statistics({ userId, reportCurrency }: {
       <DashboardSection title="Cashflow & épargne" subtitle="Revenus, dépenses et épargne sur la même plage">
         <CashflowTrends summary={cashflowSummary} reportCurrency={reportCurrency} />
       </DashboardSection>
+
+      {drill && (
+        <DrilldownPopover
+          x={drill.x}
+          y={drill.y}
+          title={drill.title}
+          loading={drill.loading}
+          transactions={drill.rows}
+          accountById={accountById}
+          onPick={pickTransaction}
+          onClose={() => setDrill(null)}
+        />
+      )}
     </section>
   );
 }
