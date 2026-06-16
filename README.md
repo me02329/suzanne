@@ -8,8 +8,46 @@ suzanne est une application web auto-hébergée, pensée pour suivre simplement 
 
 ---
 
+## Captures d'écran
+
+> Thème sombre, interface entièrement en français. Captures réalisées sur un jeu de données de démonstration.
+
+![Vue générale](docs/screenshots/dashboard.png)
+<sub>**Vue générale** — valeur nette et trajectoire, KPI du mois, répartition des dépenses et suivi des budgets.</sub>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/transactions.png" alt="Transactions"><br><sub><b>Transactions</b> — tableau dense, montants colorés par direction, pills de type, édition inline.</sub></td>
+<td width="50%"><img src="docs/screenshots/statistics.png" alt="Statistiques"><br><sub><b>Statistiques</b> — répartition par catégorie, top marchands, évolution mensuelle.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/wealth.png" alt="Patrimoine"><br><sub><b>Patrimoine</b> — actifs / passifs / liquidités et évolution par compte.</sub></td>
+<td width="50%"><img src="docs/screenshots/health.png" alt="Santé financière"><br><sub><b>Santé financière</b> — taux d'épargne, fonds d'urgence, charges fixes / variables.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/budgets.png" alt="Budgets"><br><sub><b>Budgets</b> — limites mensuelles par catégorie et alerte de dépassement.</sub></td>
+<td width="50%"><img src="docs/screenshots/goals.png" alt="Objectifs"><br><sub><b>Objectifs</b> — progression vers les objectifs d'épargne et échéances.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/accounts.png" alt="Comptes"><br><sub><b>Comptes</b> — comptes regroupés par établissement, multi-devises.</sub></td>
+<td width="50%"><img src="docs/screenshots/recurring.png" alt="Récurrents"><br><sub><b>Récurrents</b> — charges et revenus réguliers, cadences et génération.</sub></td>
+</tr>
+</table>
+
+<details>
+<summary>Plus de captures (Factures, Catégories, Tags)</summary>
+
+![Factures](docs/screenshots/bills.png)
+![Catégories](docs/screenshots/categories.png)
+![Tags](docs/screenshots/tags.png)
+
+</details>
+
+---
+
 ## Sommaire
 
+- [Captures d'écran](#captures-décran)
 - [Fonctionnalités](#fonctionnalités)
 - [Périmètre](#périmètre)
 - [Stack technique](#stack-technique)

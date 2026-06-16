@@ -284,7 +284,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={20} />
                   <YAxis domain={balanceDomain} tickFormatter={(v) => yTick(Number(v))} tickLine={false} axisLine={false} width={64} />
                   <Tooltip formatter={tooltipValue} />
-                  <Area type="monotone" dataKey="balance" name="Solde" stroke={chartTheme.net} strokeWidth={2} fill="url(#accountFill)" dot={false} />
+                  <Area type="monotone" dataKey="balance" name="Solde" stroke={chartTheme.net} strokeWidth={2} fill="url(#accountFill)" dot={false} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (

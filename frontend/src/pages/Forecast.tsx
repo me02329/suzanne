@@ -147,7 +147,7 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
                   <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
                   <Tooltip formatter={(value) => money(Number(value))} labelFormatter={(label) => `Le ${label}`} />
                   <ReferenceLine y={0} stroke={chartTheme.expense} strokeDasharray="4 4" />
-                  <Area type="stepAfter" dataKey="balance" name="Solde projeté" stroke={chartTheme.net} strokeWidth={2} fill="url(#forecastFill)" dot={false} />
+                  <Area type="stepAfter" dataKey="balance" name="Solde projeté" stroke={chartTheme.net} strokeWidth={2} fill="url(#forecastFill)" dot={false} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (

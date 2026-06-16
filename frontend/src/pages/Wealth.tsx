@@ -365,10 +365,11 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                           fill={color}
                           fillOpacity={key === 'net_worth' ? 0.2 : 0.14}
                           dot={false}
+                          isAnimationActive={false}
                         />
                       );
                     }
-                    return <Line key={key} type="monotone" dataKey={key} name={label} stroke={color} strokeWidth={width} dot={false} />;
+                    return <Line key={key} type="monotone" dataKey={key} name={label} stroke={color} strokeWidth={width} dot={false} isAnimationActive={false} />;
                   })}
                 </ComposedChart>
               </ResponsiveContainer>
@@ -386,7 +387,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
               {wealthByGroup.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={wealthByGroup} dataKey="amount" nameKey="label" innerRadius="58%" outerRadius="86%" paddingAngle={2}>
+                    <Pie data={wealthByGroup} dataKey="amount" nameKey="label" innerRadius="58%" outerRadius="86%" paddingAngle={2} isAnimationActive={false}>
                       {wealthByGroup.map((row) => <Cell key={row.group} fill={accountGroupColor(row.group)} />)}
                     </Pie>
                     <Tooltip formatter={(value) => money(Number(value))} />
@@ -432,6 +433,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                     name="Solde"
                     fill={netColor}
                     radius={[0, 4, 4, 0]}
+                    isAnimationActive={false}
                     style={{ cursor: 'pointer' }}
                     onClick={(entry) => {
                       const id = (entry as { payload?: { id?: number } })?.payload?.id;

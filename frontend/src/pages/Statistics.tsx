@@ -195,6 +195,7 @@ export function Statistics({ userId, reportCurrency, accountById }: {
                       innerRadius="58%"
                       outerRadius="86%"
                       paddingAngle={2}
+                      isAnimationActive={false}
                       style={{ cursor: 'pointer' }}
                       onClick={(entry, _index, event) => {
                         const payload = (entry as { payload?: { category_id?: number | null; name?: string } })?.payload;
@@ -255,6 +256,7 @@ export function Statistics({ userId, reportCurrency, accountById }: {
                     name="Cumul"
                     fill={expenseColor}
                     radius={[0, 4, 4, 0]}
+                    isAnimationActive={false}
                     style={{ cursor: 'pointer' }}
                     onClick={(entry, _index, event) => {
                       const description = (entry as { payload?: { description?: string } })?.payload?.description;
@@ -280,7 +282,7 @@ export function Statistics({ userId, reportCurrency, accountById }: {
                   <XAxis dataKey="label" tickLine={false} axisLine={false} />
                   <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
                   <Tooltip formatter={(value) => money(Number(value))} />
-                  <Line type="monotone" dataKey="amount" name="Dépenses" stroke={expenseColor} strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="amount" name="Dépenses" stroke={expenseColor} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (

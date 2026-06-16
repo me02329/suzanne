@@ -58,9 +58,9 @@ export function CashflowTrends({ summary, reportCurrency }: {
                   <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
                   <Tooltip formatter={(value) => money(Number(value))} />
                   <Legend />
-                  <Bar dataKey="income" name="Revenus" fill={chartTheme.income} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expenses_signed" name="Dépenses" fill={chartTheme.expense} radius={[4, 4, 0, 0]} />
-                  <Line type="monotone" dataKey="cumulativeNet" name="Cumul net" stroke={chartTheme.net} strokeWidth={3} dot={{ r: 3 }} />
+                  <Bar dataKey="income" name="Revenus" fill={chartTheme.income} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                  <Bar dataKey="expenses_signed" name="Dépenses" fill={chartTheme.expense} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="cumulativeNet" name="Cumul net" stroke={chartTheme.net} strokeWidth={3} dot={{ r: 3 }} isAnimationActive={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
@@ -81,9 +81,9 @@ export function CashflowTrends({ summary, reportCurrency }: {
                   <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
                   <Tooltip formatter={(value) => money(Number(value))} />
                   <Legend />
-                  <Line type="monotone" dataKey="income" name="Revenus" stroke={chartTheme.income} strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="expenses" name="Dépenses" stroke={chartTheme.expense} strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="net" name="Net" stroke={chartTheme.net} strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="income" name="Revenus" stroke={chartTheme.income} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="expenses" name="Dépenses" stroke={chartTheme.expense} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="net" name="Net" stroke={chartTheme.net} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -101,7 +101,7 @@ export function CashflowTrends({ summary, reportCurrency }: {
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={20} />
                   <YAxis tickFormatter={(v) => `${Math.round(Number(v) * 100)}%`} tickLine={false} axisLine={false} width={48} />
                   <Tooltip formatter={(v) => `${Math.round(Number(v) * 100)} %`} />
-                  <Line type="monotone" dataKey="savingRate" name="Taux d'épargne" stroke={chartTheme.net} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                  <Line type="monotone" dataKey="savingRate" name="Taux d'épargne" stroke={chartTheme.net} strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (

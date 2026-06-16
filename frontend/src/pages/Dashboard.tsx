@@ -8,6 +8,8 @@ import {
   Euro,
 } from 'lucide-react';
 import {
+  Area,
+  AreaChart,
   Cell,
   Pie,
   PieChart,
@@ -139,6 +141,15 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
   const netMonthly = summary?.net ?? null;
   const monthLabel = summary?.month ? formatMonthLong(summary.month) : 'Mois sélectionné';
 
+  // En-tête « produit » façon Binance : valeur nette en gros chiffre + sparkline
+  // de la trajectoire cumulée (cumulative_net) déjà présente dans la série 12 mois.
+  const sparkData = monthRows.filter((row) => Number.isFinite(row.cumulative_net));
+  const sparkTrendUp = sparkData.length > 1
+    ? (sparkData[sparkData.length - 1]!.cumulative_net >= sparkData[0]!.cumulative_net)
+    : true;
+  const sparkColor = sparkTrendUp ? chartTheme.income : chartTheme.expense;
+  const heroValue = netWorth ?? (sparkData.length > 0 ? sparkData[sparkData.length - 1]!.cumulative_net : 0);
+
   // Comparaison N vs N-1 : 100% côté front à partir des 12 mois déjà présents
   // dans summary.monthly_cashflow. La ligne du mois précédent est celle juste
   // avant le mois sélectionné dans la série.
@@ -172,6 +183,45 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
 
   return (
     <DashboardSection title={monthLabel} subtitle="Change le mois via le sélecteur en haut à droite">
+      <section className="balance-hero">
+        <div className="balance-hero-main">
+          <span className="balance-hero-label">Valeur nette</span>
+          <strong className="balance-hero-value">{money(heroValue)}</strong>
+          {moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up') && (
+            <span className="balance-hero-delta">Net du mois&nbsp;: {moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up')}</span>
+          )}
+        </div>
+        {sparkData.length > 1 && (
+          <div className="balance-hero-spark">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={sparkData} margin={{ top: 6, right: 0, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={sparkColor} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={sparkColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Tooltip
+                  formatter={(value) => money(Number(value))}
+                  labelFormatter={(label) => String(label)}
+                  contentStyle={{ fontSize: 12 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="cumulative_net"
+                  name="Cumul"
+                  stroke={sparkColor}
+                  strokeWidth={2}
+                  fill="url(#sparkFill)"
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </section>
+
       <section className="stats">
         <Stat icon={<ArrowUpCircle />} label="Revenus" value={money(summary?.income ?? 0)} positive delta={moneyDelta(summary?.income ?? 0, prevMonthRow?.income, 'up')} to="/transactions?type=income" />
         <Stat icon={<ArrowDownCircle />} label="Dépenses" value={money(summary?.expenses ?? 0)} negative delta={moneyDelta(summary?.expenses ?? 0, prevMonthRow?.expenses, 'down')} to="/transactions?type=expense" />
@@ -195,6 +245,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                       innerRadius="58%"
                       outerRadius="86%"
                       paddingAngle={2}
+                      isAnimationActive={false}
                       style={{ cursor: 'pointer' }}
                       onClick={(entry) => openCategory((entry as { payload?: { category_id?: number | null } })?.payload?.category_id)}
                     >
