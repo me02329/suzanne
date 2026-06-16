@@ -23,6 +23,7 @@ import { navItems, navSections, normalizeTab, pathForTab, tabFromPath, type Tab 
 import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
 import { useGlobalShortcuts } from './lib/useGlobalShortcuts';
+import { useSwipeMenu } from './lib/useSwipeMenu';
 import { Modal } from './components/Modal';
 import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
@@ -96,6 +97,8 @@ export default function App() {
   const [notice, setNotice] = useState<{ message: string; action?: { label: string; onClick: () => void } } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Mobile : swipe depuis le bord gauche pour ouvrir le menu, vers la gauche pour le fermer.
+  useSwipeMenu(sidebarOpen, setSidebarOpen);
   const [transactionIssueFilter, setTransactionIssueFilter] = useState<'unassigned_account' | null>(null);
   const [tokenPromptOpen, setTokenPromptOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
