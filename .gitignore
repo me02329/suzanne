@@ -11,6 +11,7 @@ frontend/dist
 backend/dist
 
 *.tsbuildinfo
+DESIGN.md
 AGENTS.md
 CLAUDE.md
 .agents/
