@@ -24,6 +24,7 @@ import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
 import { useGlobalShortcuts } from './lib/useGlobalShortcuts';
 import { useSwipeMenu } from './lib/useSwipeMenu';
+import { useSmoothScroll } from './lib/smoothScroll';
 import { Modal } from './components/Modal';
 import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
@@ -71,6 +72,7 @@ export default function App() {
   const tab = tabFromPath(location.pathname);
   const [lastTab, setLastTab] = usePersistedState<Tab>('active_tab', 'dashboard');
   const [theme, setTheme] = useTheme();
+  useSmoothScroll();
   const [openSections, setOpenSections] = usePersistedState<Record<string, boolean>>('nav_sections', {
     pilotage: true,
     donnees: true,

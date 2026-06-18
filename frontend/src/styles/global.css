@@ -123,6 +123,12 @@ button, select, input, textarea { font: inherit; }
   min-height: 100vh;
 }
 
+/* Défilement inertiel (Lenis) : styles recommandés. La molette est animée par
+   la lib ; les zones marquées `data-lenis-prevent` gardent leur scroll natif. */
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
