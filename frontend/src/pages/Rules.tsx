@@ -6,6 +6,7 @@ import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Panel } from '../components/Panel';
+import { Collapsible } from '../components/Collapsible';
 
 import type { Run } from '../lib/run';
 
@@ -49,16 +50,14 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
           <span className="collapsible-title"><Plus size={16} /> Nouvelle règle</span>
           {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {addOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={addOpen} className="collapsible-body">
             <p className="panel-note">Si le libellé d'une transaction contient le mot-clé, elle reçoit automatiquement la catégorie choisie. Appliquées à l'<strong>import CSV</strong>, et rétroactivement aux transactions sans catégorie via le bouton <strong>« Appliquer »</strong> ci-dessous.</p>
             <form className="form form-inline" onSubmit={submit}>
               <label className="grow">Mot-clé<input name="pattern" placeholder="CARREFOUR" required /></label>
               <label>Catégorie<select name="category_id" required>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
               <button className="primary"><Plus size={16} /> Enregistrer</button>
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
       <Panel
         title="Règles"

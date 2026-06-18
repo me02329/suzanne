@@ -11,6 +11,7 @@ import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
+import { Collapsible } from '../components/Collapsible';
 
 import type { Run } from '../lib/run';
 
@@ -204,8 +205,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
           <span className="collapsible-title"><Plus size={16} /> Nouvelle transaction récurrente</span>
           {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {addOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={addOpen} className="collapsible-body">
             <form className="form form-inline" onSubmit={submit}>
               <label className="grow">Description<input name="description" required /></label>
               <label>Type<select name="type"><option value="expense">Dépense</option><option value="income">Revenu</option></select></label>
@@ -222,8 +222,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
               <button className="primary"><CalendarClock size={16} /> Ajouter</button>
               <button type="button" className="secondary" onClick={() => void run(() => api.generateRecurring(userId), 'Récurrents générés')}>Générer ce mois</button>
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
 
       <Panel title="Engagements récurrents" icon={<Repeat />}>

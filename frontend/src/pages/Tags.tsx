@@ -7,6 +7,7 @@ import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
+import { Collapsible } from '../components/Collapsible';
 
 import type { Run } from '../lib/run';
 
@@ -43,16 +44,14 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
           <span className="collapsible-title"><Plus size={16} /> Nouveau tag</span>
           {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {addOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={addOpen} className="collapsible-body">
             <p className="panel-note">Les tags sont des étiquettes libres et multi-valeurs sur les transactions, indépendantes des catégories.</p>
             <form className="form form-inline" onSubmit={submit}>
               <label className="grow">Nom<input name="name" required maxLength={40} placeholder="Voyage Italie, Mariage Jean..." /></label>
               <label>Couleur<input name="color" type="color" defaultValue="#6366f1" /></label>
               <button className="primary"><TagIcon size={16} /> Ajouter</button>
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
       <Panel title="Tags" icon={<TagIcon />}>
         <DataTable empty={tags.length === 0 ? 'Aucun tag pour l\'instant.' : null}>

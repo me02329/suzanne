@@ -20,6 +20,7 @@ import { IconButton } from '../components/IconButton';
 import { LimitPicker, useListLimit } from '../components/LimitPicker';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
+import { Collapsible } from '../components/Collapsible';
 
 import type { Run } from '../lib/run';
 
@@ -175,8 +176,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
           <span className="collapsible-title"><CalendarCheck size={16} /> Saisir snapshots de fin de mois</span>
           {snapshotsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {snapshotsOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={snapshotsOpen} className="collapsible-body">
             <p className="panel-note">
               Saisis le solde réel à une date précise. Laisse vide les comptes non vérifiés.
               Re-saisir la même date écrase la valeur précédente.
@@ -250,8 +250,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                 <CalendarCheck size={16} /> Enregistrer {filledCount > 0 ? `(${filledCount})` : ''}
               </button>
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
 
       <div className={`collapsible-panel ${accountOpen ? 'open' : ''}`}>
@@ -264,8 +263,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
           <span className="collapsible-title"><Plus size={16} /> Nouveau compte</span>
           {accountOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {accountOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={accountOpen} className="collapsible-body">
             <form className="form form-inline" onSubmit={submitAccount} key={editingAccount?.id ?? 'new-account'}>
               <label className="grow">Nom<input name="name" defaultValue={editingAccount?.name ?? ''} required /></label>
               <label>Type
@@ -289,8 +287,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
               <button className="primary"><Landmark size={16} /> {editingAccount ? 'Enregistrer' : 'Ajouter'}</button>
               {editingAccount && <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>Annuler</button>}
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
 
       <div className={`collapsible-panel ${institutionOpen ? 'open' : ''}`}>
@@ -303,14 +300,12 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
           <span className="collapsible-title"><Plus size={16} /> Nouvelle institution</span>
           {institutionOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {institutionOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={institutionOpen} className="collapsible-body">
             <form className="form form-inline" onSubmit={submitInstitution}>
               <label className="grow">Nom<input name="name" required placeholder="Banque, broker, caisse..." /></label>
               <button className="primary">Ajouter</button>
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
 
       <Panel title="Institutions et comptes">

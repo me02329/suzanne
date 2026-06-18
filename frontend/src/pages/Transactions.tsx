@@ -20,6 +20,7 @@ import { money, todayIso, txLabel, typeLabel } from '../lib/format';
 import { usePersistedState } from '../lib/storage';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
+import { Collapsible } from '../components/Collapsible';
 import { TagPicker } from '../components/TagPicker';
 import { TransactionsTable, type TxSort, type TxSortKey } from '../components/TransactionsTable';
 
@@ -556,8 +557,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           <span className="collapsible-title"><Plus size={16} /> Ajouter une transaction</span>
           {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {addOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={addOpen} className="collapsible-body">
             <form className="form form-inline" onSubmit={submitAdd}>
               <label>Type
                 <select value={addType} onChange={(e) => setAddType(e.target.value as TransactionType)}>
@@ -611,8 +611,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
               )}
               <button className="primary"><Plus size={16} /> Ajouter</button>
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
 
       <Panel title={issueFilter === 'unassigned_account' ? 'Transactions sans compte' : 'Historique du mois'}>

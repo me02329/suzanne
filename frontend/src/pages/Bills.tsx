@@ -10,6 +10,7 @@ import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
+import { Collapsible } from '../components/Collapsible';
 import { Stat } from '../components/Stat';
 
 import type { Run } from '../lib/run';
@@ -121,8 +122,7 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
           <span className="collapsible-title"><Plus size={16} /> Nouvelle facture attendue</span>
           {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {addOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={addOpen} className="collapsible-body">
             <p className="panel-note">
               Une dépense récurrente attendue avec une fourchette (ex: électricité 80–130 €). Chaque mois dû,
               elle est rapprochée des dépenses dont la description contient le motif : payée ? dans la fourchette ? en retard ?
@@ -131,8 +131,7 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
               {billFields()}
               <button className="primary"><Plus size={16} /> Ajouter</button>
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
 
       <Panel title={`Factures de ${formatMonthLong(month)}`} icon={<ReceiptText />}>

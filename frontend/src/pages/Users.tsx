@@ -4,6 +4,7 @@ import type { User } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { usePersistedState } from '../lib/storage';
 import { Panel } from '../components/Panel';
+import { Collapsible } from '../components/Collapsible';
 import { Row } from '../components/Row';
 
 import type { Run } from '../lib/run';
@@ -24,14 +25,12 @@ export function UsersPage({ users, currentUserId, run }: { users: User[]; curren
           <span className="collapsible-title"><Plus size={16} /> Nouvel utilisateur</span>
           {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {addOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={addOpen} className="collapsible-body">
             <form className="form form-inline" onSubmit={submit}>
               <label className="grow">Nom<input name="name" required placeholder="Ex: Démo, Famille..." /></label>
               <button className="primary"><UsersIcon size={16} /> Créer</button>
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
       <Panel title="Utilisateurs" icon={<UsersIcon />}>
         {users.map((u) => (

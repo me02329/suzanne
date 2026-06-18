@@ -11,6 +11,7 @@ import { IconButton } from '../components/IconButton';
 import { LimitPicker, useListLimit } from '../components/LimitPicker';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
+import { Collapsible } from '../components/Collapsible';
 
 import type { Run } from '../lib/run';
 
@@ -89,8 +90,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
           <span className="collapsible-title"><Plus size={16} /> Nouvel objectif</span>
           {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {addOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={addOpen} className="collapsible-body">
             <p className="panel-note">
               Lié à un compte : la progression peut être alimentée par un versement (transfert depuis un autre compte).
               Sans compte : reste un compteur manuel.
@@ -109,8 +109,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
               <label>Couleur<input name="color" type="color" defaultValue="#4f46e5" /></label>
               <button className="primary"><Plus size={16} /> Ajouter</button>
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
       <Panel title="Objectifs" icon={<PiggyBank />}>
         <DataTable empty={goals.length === 0 ? 'Aucun objectif.' : null}>

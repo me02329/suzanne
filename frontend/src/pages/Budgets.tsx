@@ -7,6 +7,7 @@ import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Panel } from '../components/Panel';
+import { Collapsible } from '../components/Collapsible';
 
 import type { Run } from '../lib/run';
 
@@ -65,8 +66,7 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
           <span className="collapsible-title"><Plus size={16} /> Nouveau budget · {month}</span>
           {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        {addOpen && (
-          <div className="collapsible-body">
+        <Collapsible open={addOpen} className="collapsible-body">
             <p className="panel-note">Limite mensuelle de dépense par catégorie. Ne bloque rien — sert juste de garde-fou visuel pour repérer les dépassements.</p>
             <form className="form form-inline" onSubmit={submit}>
               <label className="grow">Catégorie<select name="category_id" required>{expenseCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -74,8 +74,7 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
               <label className="checkbox-row inline-checkbox"><input name="recurring" type="checkbox" /> Reconduire chaque mois</label>
               <button className="primary"><Plus size={16} /> Enregistrer</button>
             </form>
-          </div>
-        )}
+          </Collapsible>
       </div>
       <Panel title="Suivi" icon={<Target />}>
         <DataTable empty={budgets.length === 0 ? 'Aucun budget pour ce mois.' : null}>
