@@ -113,8 +113,8 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
     }
     return [
       { key: 'net_worth', label: 'Total', color: chartTheme.total, width: 3 },
-      { key: 'assets', label: 'Actifs', color: '#16a34a', width: 2 },
-      { key: 'liabilities', label: 'Passifs', color: '#dc2626', width: 2 },
+      { key: 'assets', label: 'Actifs', color: chartTheme.income, width: 2 },
+      { key: 'liabilities', label: 'Passifs', color: chartTheme.expense, width: 2 },
       { key: 'cash', label: 'Liquidités', color: accountGroupColor('cash'), width: 2 },
       { key: 'regulated_savings', label: 'Livrets', color: accountGroupColor('regulated_savings'), width: 2 },
       { key: 'investments', label: 'Investissements', color: accountGroupColor('investments'), width: 2 },

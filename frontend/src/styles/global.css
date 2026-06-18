@@ -2756,11 +2756,22 @@ textarea {
 }
 .link-button { text-decoration: none; }
 
+/* Graphiques (Recharts) : forcer les éléments « par défaut » de la lib à suivre
+   le thème. Sans ça, l'infobulle garde son fond blanc inline, et les libellés
+   d'axes / la légende restent dans un gris fixe — illisibles selon le thème.
+   On ne touche pas aux couleurs de séries (lignes/barres/secteurs), pilotées
+   par `useChartTheme`, ni à la grille (passée en prop `stroke`). */
 .recharts-default-tooltip {
   border: 1px solid var(--border) !important;
   border-radius: 8px;
   box-shadow: var(--shadow);
+  background: var(--surface) !important;
 }
+.recharts-tooltip-label { color: var(--text) !important; }
+.recharts-cartesian-axis-tick-value { fill: var(--muted); }
+.recharts-legend-item-text { color: var(--text) !important; }
+.recharts-polar-angle-axis-tick-value,
+.recharts-polar-radius-axis-tick-value { fill: var(--muted); }
 
 @media (max-width: 1120px) {
   .sidebar {
