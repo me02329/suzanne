@@ -470,6 +470,176 @@ describe('splits & garde-fous', () => {
   });
 });
 
+describe('opérations de masse sur transactions', () => {
+  it('ajoute un tag à la sélection puis la supprime en masse', async () => {
+    const userId = await createUser();
+    const accountId = await createAccount(userId);
+    const tag = await api.post(`/api/users/${userId}/tags`).send({ name: 'Vacances', color: '#33aa33' }).expect(201);
+    const t1 = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 10, type: 'expense', date: '2026-04-01' }).expect(201);
+    const t2 = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 20, type: 'expense', date: '2026-04-02' }).expect(201);
+
+    const tagged = await api.post(`/api/users/${userId}/transactions/bulk-update`)
+      .send({ ids: [t1.body.id, t2.body.id], add_tag_id: tag.body.id })
+      .expect(200);
+    expect(tagged.body.updated).toBe(2);
+
+    let list = await api.get(`/api/users/${userId}/transactions?month=2026-04`).expect(200);
+    expect(list.body.every((t: { tags: Array<{ id: number }> }) => t.tags.some((tg) => tg.id === tag.body.id))).toBe(true);
+
+    // Re-taguer ne duplique pas le lien (skipDuplicates).
+    await api.post(`/api/users/${userId}/transactions/bulk-update`)
+      .send({ ids: [t1.body.id], add_tag_id: tag.body.id }).expect(200);
+    list = await api.get(`/api/users/${userId}/transactions?month=2026-04`).expect(200);
+    const refreshed = list.body.find((t: { id: number }) => t.id === t1.body.id);
+    expect(refreshed.tags).toHaveLength(1);
+
+    const removed = await api.post(`/api/users/${userId}/transactions/bulk-update`)
+      .send({ ids: [t1.body.id, t2.body.id], remove_tag_id: tag.body.id }).expect(200);
+    expect(removed.body.updated).toBe(2);
+
+    const deleted = await api.post(`/api/users/${userId}/transactions/bulk-delete`)
+      .send({ ids: [t1.body.id, t2.body.id] }).expect(200);
+    expect(deleted.body.deleted).toBe(2);
+    list = await api.get(`/api/users/${userId}/transactions?month=2026-04`).expect(200);
+    expect(list.body).toHaveLength(0);
+  });
+
+  it('bulk-delete ne touche pas les transactions d\'un autre utilisateur', async () => {
+    const userId = await createUser('Bulk owner');
+    const otherId = await createUser('Bulk other');
+    const otherAccount = await createAccount(otherId);
+    const foreign = await api.post(`/api/users/${otherId}/transactions`)
+      .send({ account_id: otherAccount, amount: 5, type: 'expense', date: '2026-04-03' }).expect(201);
+    const wiped = await api.post(`/api/users/${userId}/transactions/bulk-delete`)
+      .send({ ids: [foreign.body.id] }).expect(200);
+    expect(wiped.body.deleted).toBe(0);
+    await api.get(`/api/users/${otherId}/transactions?month=2026-04`).expect(200)
+      .then((res) => expect(res.body).toHaveLength(1));
+  });
+});
+
+describe('factures : rapprochement manuel', () => {
+  it('compte une dépense liée manuellement même quand le motif ne matche pas', async () => {
+    const userId = await createUser('Bill match');
+    const accountId = await createAccount(userId);
+    const bill = await api.post(`/api/users/${userId}/bills`)
+      .send({ name: 'Électricité', amount_min: 80, amount_max: 130, start_date: '2026-06-05', frequency: 'monthly', interval: 1, pattern: 'EDF' })
+      .expect(201);
+    // Dépense au libellé qui NE contient PAS « EDF » → pas de match auto.
+    const tx = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 95, type: 'expense', date: '2026-06-04', description: 'Prélèvement énergie' })
+      .expect(201);
+
+    let status = await api.get(`/api/users/${userId}/bills/status?month=2026-06`).expect(200);
+    let entry = status.body.bills.find((e: { bill: { id: number } }) => e.bill.id === bill.body.id);
+    expect(entry.paid_amount).toBe(0);
+
+    await api.post(`/api/users/${userId}/bills/${bill.body.id}/matches`).send({ transaction_id: tx.body.id }).expect(201);
+
+    status = await api.get(`/api/users/${userId}/bills/status?month=2026-06`).expect(200);
+    entry = status.body.bills.find((e: { bill: { id: number } }) => e.bill.id === bill.body.id);
+    expect(entry.paid_amount).toBe(95);
+    expect(entry.status).toBe('paid');
+    expect(entry.matched_transactions.find((t: { id: number }) => t.id === tx.body.id).manual).toBe(true);
+
+    await api.delete(`/api/users/${userId}/bills/${bill.body.id}/matches/${tx.body.id}`).expect(200);
+    status = await api.get(`/api/users/${userId}/bills/status?month=2026-06`).expect(200);
+    entry = status.body.bills.find((e: { bill: { id: number } }) => e.bill.id === bill.body.id);
+    expect(entry.paid_amount).toBe(0);
+  });
+});
+
+describe('récurrents : date de fin & saut', () => {
+  it('ne génère rien après la date de fin et se désactive', async () => {
+    const userId = await createUser('Recur end');
+    const accountId = await createAccount(userId);
+    // Mensuel le 1er, démarré sans last_executed, fin au 2026-02-28.
+    const rec = await api.post(`/api/users/${userId}/recurring-transactions`)
+      .send({ account_id: accountId, amount: 9.99, type: 'expense', description: 'Abo 12 mois',
+        frequency: 'monthly', interval: 1, day_of_month: 1, end_date: '2026-02-28', active: true })
+      .expect(201);
+    expect(rec.body.end_date).toBeTruthy();
+
+    // Génère à une date bien postérieure à la fin : occurrences jan + fév uniquement, puis désactivation.
+    await api.post(`/api/users/${userId}/recurring-transactions/generate`).expect(200);
+    const list = await api.get(`/api/users/${userId}/recurring-transactions`).expect(200);
+    const refreshed = list.body.find((r: { id: number }) => r.id === rec.body.id);
+    expect(refreshed.active).toBe(false);
+    const txs = await api.get(`/api/users/${userId}/transactions`).expect(200);
+    const generated = txs.body.filter((t: { recurring_transaction_id: number | null }) => t.recurring_transaction_id === rec.body.id);
+    expect(generated.every((t: { date: string }) => t.date <= '2026-02-28')).toBe(true);
+  });
+
+  it('saute la prochaine occurrence en avançant last_executed', async () => {
+    const userId = await createUser('Recur skip');
+    const rec = await api.post(`/api/users/${userId}/recurring-transactions`)
+      .send({ amount: 20, type: 'expense', description: 'Sans compte',
+        frequency: 'monthly', interval: 1, day_of_month: 15, active: true })
+      .expect(201);
+    const skipped = await api.post(`/api/users/${userId}/recurring-transactions/${rec.body.id}/skip`).expect(200);
+    expect(skipped.body.last_executed).toBeTruthy();
+  });
+});
+
+describe('retrait d\'objectif', () => {
+  it('décrémente la progression, crée le transfert retour et refuse au-delà du solde', async () => {
+    const userId = await createUser('Withdraw');
+    const account = await createAccount(userId);
+    const goalAccount = await createAccount(userId, { name: 'Livret objectif' });
+    const goal = await api.post(`/api/users/${userId}/savings-goals`)
+      .send({ name: 'Voyage', target_amount: 1000, current_amount: 0, color: '#123456', account_id: goalAccount }).expect(201);
+    await api.post(`/api/users/${userId}/savings-goals/${goal.body.id}/contribute`)
+      .send({ amount: 300, date: '2026-05-01', source_account_id: account }).expect(200);
+
+    // Retrait supérieur au solde épargné → refus.
+    await api.post(`/api/users/${userId}/savings-goals/${goal.body.id}/withdraw`)
+      .send({ amount: 500, date: '2026-05-10', destination_account_id: account }).expect(400);
+
+    const res = await api.post(`/api/users/${userId}/savings-goals/${goal.body.id}/withdraw`)
+      .send({ amount: 120, date: '2026-05-10', destination_account_id: account }).expect(200);
+    expect(res.body.goal.current_amount).toBe(180);
+    expect(res.body.transaction_id).not.toBeNull();
+
+    // Le retrait apparaît comme contribution négative dans la timeline.
+    const contribs = await api.get(`/api/users/${userId}/savings-goals/${goal.body.id}/contributions`).expect(200);
+    expect(contribs.body.some((c: { amount: number }) => c.amount === -120)).toBe(true);
+  });
+});
+
+describe('fusion de catégories', () => {
+  it('réaffecte transactions et budgets puis supprime la source', async () => {
+    const userId = await createUser('Merge');
+    const accountId = await createAccount(userId);
+    const source = await api.post(`/api/users/${userId}/categories`).send({ name: 'Courses bio', type: 'expense', color: '#111111' }).expect(201);
+    const target = await api.post(`/api/users/${userId}/categories`).send({ name: 'Alimentation maison', type: 'expense', color: '#222222' }).expect(201);
+    const income = await api.post(`/api/users/${userId}/categories`).send({ name: 'Prime annuelle', type: 'income', color: '#333333' }).expect(201);
+    const tx = await api.post(`/api/users/${userId}/transactions`)
+      .send({ account_id: accountId, amount: 30, type: 'expense', date: '2026-05-02', category_id: source.body.id }).expect(201);
+    // Budget sur le même mois côté source ET cible → la collision d'unicité doit être gérée.
+    await api.post(`/api/users/${userId}/budgets`).send({ category_id: source.body.id, month: '2026-05', amount_limit: 100 }).expect(200);
+    await api.post(`/api/users/${userId}/budgets`).send({ category_id: target.body.id, month: '2026-05', amount_limit: 200 }).expect(200);
+
+    // Type différent → refus.
+    await api.post(`/api/users/${userId}/categories/${source.body.id}/merge`)
+      .send({ target_category_id: income.body.id }).expect(400);
+
+    await api.post(`/api/users/${userId}/categories/${source.body.id}/merge`)
+      .send({ target_category_id: target.body.id }).expect(200);
+
+    // Source supprimée, transaction réaffectée, un seul budget (celui de la cible) sur le mois.
+    const cats = await api.get(`/api/users/${userId}/categories`).expect(200);
+    expect(cats.body.find((c: { id: number }) => c.id === source.body.id)).toBeUndefined();
+    const list = await api.get(`/api/users/${userId}/transactions?month=2026-05`).expect(200);
+    expect(list.body.find((t: { id: number }) => t.id === tx.body.id).category_id).toBe(target.body.id);
+    const budgets = await api.get(`/api/users/${userId}/budgets?month=2026-05`).expect(200);
+    const targetBudgets = budgets.body.filter((b: { category_id: number }) => b.category_id === target.body.id);
+    expect(targetBudgets).toHaveLength(1);
+    expect(targetBudgets[0].amount_limit).toBe(200);
+  });
+});
+
 describe('per-user scoping', () => {
   it("refuse un snapshot sur le compte d'un autre utilisateur", async () => {
     const alice = await createUser('Alice');

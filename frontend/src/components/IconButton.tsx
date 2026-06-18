@@ -9,17 +9,19 @@ export function IconButton({
   icon,
   confirm,
   tone = 'danger',
+  disabled = false,
 }: {
   label: string;
   onClick: () => void;
   icon?: ReactNode;
   confirm?: string;
   tone?: IconButtonTone;
+  disabled?: boolean;
 }) {
   const handle = () => { if (!confirm || window.confirm(confirm)) onClick(); };
   const toneClass = tone === 'neutral' ? 'icon-button neutral' : tone === 'accent' ? 'icon-button accent' : 'icon-button';
   return (
-    <button type="button" className={toneClass} aria-label={label} title={label} onClick={handle}>
+    <button type="button" className={toneClass} aria-label={label} title={label} onClick={handle} disabled={disabled}>
       {icon ?? <Trash2 size={16} />}
     </button>
   );

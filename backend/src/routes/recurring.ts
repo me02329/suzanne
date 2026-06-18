@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
+import { nextRecurringOccurrence } from '@suzanne/shared';
 import { createRecurringSchema, idParam, updateRecurringSchema } from '../lib/validation.js';
 import { dateKey, startOfUtcDay } from '../lib/dates.js';
 
@@ -30,6 +31,7 @@ recurringRouter.post('/users/:user_id/recurring-transactions', asyncHandler(asyn
       day_of_month: body.day_of_month ?? null,
       month_of_year: body.month_of_year ?? null,
       active: body.active,
+      end_date: body.end_date ? new Date(body.end_date) : null,
     },
   });
   res.status(201).json(row);
@@ -57,8 +59,44 @@ recurringRouter.patch('/users/:user_id/recurring-transactions/:id', asyncHandler
       ...(body.day_of_month !== undefined ? { day_of_month: body.day_of_month ?? null } : {}),
       ...(body.month_of_year !== undefined ? { month_of_year: body.month_of_year ?? null } : {}),
       ...(body.active != null ? { active: body.active } : {}),
+      ...(body.end_date !== undefined ? { end_date: body.end_date ? new Date(body.end_date) : null } : {}),
     },
   });
+  res.json(row);
+}));
+
+// Sauter la prochaine occurrence : avance `last_executed` jusqu'à l'occurrence
+// qui serait générée ensuite, sans créer de transaction. S'il existe des
+// occurrences en retard non générées, on n'en saute qu'une (la plus ancienne) ;
+// sinon on saute la prochaine occurrence future.
+recurringRouter.post('/users/:user_id/recurring-transactions/:id/skip', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const id = idParam.parse(req.params.id);
+  const existing = await prisma.recurringTransaction.findFirst({ where: { id, user_id } });
+  if (!existing) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  const today = new Date();
+  const overdue = dueDatesFor(existing.frequency, existing.interval, existing.day_of_month, existing.month_of_year, existing.last_executed, today);
+  let skipDate: Date | null = null;
+  if (overdue.length > 0) {
+    skipDate = overdue[0]!;
+  } else {
+    const nextIso = nextRecurringOccurrence({
+      frequency: existing.frequency as 'weekly' | 'monthly' | 'yearly',
+      interval: existing.interval,
+      day_of_month: existing.day_of_month,
+      month_of_year: existing.month_of_year,
+      last_executed: existing.last_executed ? existing.last_executed.toISOString() : null,
+    });
+    if (nextIso) skipDate = new Date(`${nextIso}T00:00:00.000Z`);
+  }
+  if (!skipDate || (existing.end_date && skipDate > existing.end_date)) {
+    res.status(400).json({ error: 'Aucune occurrence à venir à sauter' });
+    return;
+  }
+  const row = await prisma.recurringTransaction.update({ where: { id }, data: { last_executed: skipDate } });
   res.json(row);
 }));
 
@@ -109,8 +147,16 @@ async function generateDueRecurringTransactionsUnlocked(user_id: number, today: 
   // (recurring_id, date) pair that already exists — defensive dedup in case
   // the previous run was retried partially.
   for (const row of rows) {
-    const dueDates = dueDatesFor(row.frequency, row.interval, row.day_of_month, row.month_of_year, row.last_executed, today);
-    if (dueDates.length === 0) continue;
+    const allDue = dueDatesFor(row.frequency, row.interval, row.day_of_month, row.month_of_year, row.last_executed, today);
+    // Date de fin : on ne génère rien au-delà, et une fois la date passée la
+    // récurrence se désactive (plus aucune occurrence ne viendra jamais).
+    const dueDates = row.end_date ? allDue.filter((d) => d <= row.end_date!) : allDue;
+    if (dueDates.length === 0) {
+      if (row.end_date && startOfUtcDay(today) > row.end_date) {
+        await prisma.recurringTransaction.update({ where: { id: row.id }, data: { active: false } });
+      }
+      continue;
+    }
 
     const existing = await prisma.transaction.findMany({
       where: { user_id, recurring_transaction_id: row.id, date: { in: dueDates } },
@@ -134,7 +180,11 @@ async function generateDueRecurringTransactionsUnlocked(user_id: number, today: 
       })),
       prisma.recurringTransaction.update({
         where: { id: row.id },
-        data: { last_executed: dueDates[dueDates.length - 1] },
+        data: {
+          last_executed: dueDates[dueDates.length - 1],
+          // Dernière occurrence atteinte/dépassée : on désactive (plus rien à venir).
+          ...(row.end_date && startOfUtcDay(today) >= row.end_date ? { active: false } : {}),
+        },
       }),
     ]);
     generated += newDates.length;

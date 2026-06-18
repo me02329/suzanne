@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { ArrowLeftRight, ChevronDown, ChevronUp, Coins, History, Link2, Loader2, Pencil, PiggyBank, Plus } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, ChevronUp, Coins, HandCoins, History, Link2, Loader2, Pencil, PiggyBank, Plus } from 'lucide-react';
 import type { Account, GoalContribution, SavingsGoal } from '@suzanne/shared';
 import { api } from '../lib/api';
+import { pickableAccounts } from '../lib/account';
 import { money, todayIso } from '../lib/format';
 import { numberOrNull } from '../lib/forms';
 import { usePersistedState } from '../lib/storage';
@@ -21,6 +22,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
   run: Run;
 }) {
   const [contributing, setContributing] = useState<SavingsGoal | null>(null);
+  const [withdrawing, setWithdrawing] = useState<SavingsGoal | null>(null);
   const [editing, setEditing] = useState<SavingsGoal | null>(null);
   const [historyGoal, setHistoryGoal] = useState<SavingsGoal | null>(null);
   const [addOpen, setAddOpen] = usePersistedState<boolean>('goals_add_open', goals.length === 0);
@@ -67,6 +69,19 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
     setContributing(null);
   };
 
+  const submitWithdrawal = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!withdrawing) return;
+    const data = new FormData(event.currentTarget);
+    void run(() => api.withdrawGoal(userId, withdrawing.id, {
+      amount: Number(data.get('amount')),
+      date: String(data.get('date')),
+      destination_account_id: numberOrNull(data.get('destination_account_id')),
+      description: String(data.get('description') || '') || null,
+    }), 'Retrait enregistré');
+    setWithdrawing(null);
+  };
+
   return (
     <section className="stack">
       <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
@@ -87,7 +102,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
               <label>Compte de l'objectif
                 <select name="account_id">
                   <option value="">Aucun (compteur manuel)</option>
-                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </label>
               <label>Échéance<input name="deadline" type="date" /></label>
@@ -114,6 +129,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
                   <td>{g.deadline ? new Date(g.deadline).toLocaleDateString('fr-FR') : '-'}</td>
                   <td className="actions-cell">
                     <IconButton label="Verser" tone="accent" icon={<Coins size={16} />} onClick={() => setContributing(g)} />
+                    <IconButton label="Retirer" tone="neutral" icon={<HandCoins size={16} />} onClick={() => setWithdrawing(g)} disabled={g.current_amount <= 0} />
                     <IconButton label="Historique des versements" tone="neutral" icon={<History size={16} />} onClick={() => setHistoryGoal(g)} />
                     <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(g)} />
                     <IconButton label="Supprimer" confirm="Supprimer cet objectif ?" onClick={() => void run(() => api.deleteGoal(userId, g.id), 'Objectif supprimé')} />
@@ -134,7 +150,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
             <label>Compte de l'objectif
               <select name="account_id" defaultValue={editing.account_id ?? ''}>
                 <option value="">Aucun (compteur manuel)</option>
-                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                {pickableAccounts(accounts, editing.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </label>
             <label>Échéance<input name="deadline" type="date" defaultValue={editing.deadline ? editing.deadline.slice(0, 10) : ''} /></label>
@@ -168,7 +184,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
               <label>Depuis le compte
                 <select name="source_account_id">
                   <option value="">Aucun (juste compteur)</option>
-                  {accounts.filter((a) => a.id !== contributing.account_id).map((a) => (
+                  {pickableAccounts(accounts).filter((a) => a.id !== contributing.account_id).map((a) => (
                     <option key={a.id} value={a.id}>{a.name}</option>
                   ))}
                 </select>
@@ -177,6 +193,34 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
             <label className="full">Libellé (optionnel)<input name="description" placeholder="Ex: Versement mensuel" /></label>
             <button className="primary"><Coins size={16} /> Enregistrer le versement</button>
             <button type="button" className="secondary" onClick={() => setContributing(null)}>Annuler</button>
+          </form>
+        </Modal>
+      )}
+
+      {withdrawing && (
+        <Modal title={`Retirer de "${withdrawing.name}"`} onClose={() => setWithdrawing(null)}>
+          <form className="form" onSubmit={submitWithdrawal}>
+            <p className="panel-note">
+              {withdrawing.account_id
+                ? 'Choisis un compte destination : un transfert est créé du compte de l\'objectif vers ce compte. La progression est décrémentée.'
+                : 'Cet objectif n\'a pas de compte lié — le retrait décrémente uniquement le compteur.'}
+              {' '}Épargné : {money(withdrawing.current_amount)}.
+            </p>
+            <label>Montant<input name="amount" type="number" min="0.01" step="0.01" max={withdrawing.current_amount} required /></label>
+            <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
+            {withdrawing.account_id != null && (
+              <label>Vers le compte
+                <select name="destination_account_id">
+                  <option value="">Aucun (juste compteur)</option>
+                  {pickableAccounts(accounts).filter((a) => a.id !== withdrawing.account_id).map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="full">Libellé (optionnel)<input name="description" placeholder="Ex: Achat prévu" /></label>
+            <button className="primary"><HandCoins size={16} /> Enregistrer le retrait</button>
+            <button type="button" className="secondary" onClick={() => setWithdrawing(null)}>Annuler</button>
           </form>
         </Modal>
       )}
@@ -229,21 +273,26 @@ function GoalHistoryModal({ userId, goal, run, onClose }: {
           <DataTable scroll empty={contributions.length === 0 ? 'Aucun versement.' : null}>
             <thead><tr><th>Date</th><th>Libellé</th><th className="amount-cell">Montant</th><th className="actions-cell">Actions</th></tr></thead>
             <tbody>
-              {historyLimit.clamp(contributions).map((c) => (
+              {historyLimit.clamp(contributions).map((c) => {
+                const isWithdrawal = c.amount < 0;
+                return (
                 <tr key={c.id}>
                   <td data-label="Date">{new Date(c.date).toLocaleDateString('fr-FR')}</td>
                   <td data-label="Libellé">
-                    {c.description ?? <span className="muted">—</span>}
+                    {c.description ?? <span className="muted">{isWithdrawal ? 'Retrait' : '—'}</span>}
                     {c.transaction_id != null && (
-                      <span className="badge-recurring" title="Un transfert a été créé pour ce versement"><ArrowLeftRight size={11} /> transfert</span>
+                      <span className="badge-recurring" title="Un transfert a été créé pour ce mouvement"><ArrowLeftRight size={11} /> transfert</span>
                     )}
                   </td>
-                  <td className="amount-cell income" data-label="Montant">+{money(c.amount)}</td>
+                  <td className={`amount-cell ${isWithdrawal ? 'expense' : 'income'}`} data-label="Montant">
+                    {isWithdrawal ? '-' : '+'}{money(Math.abs(c.amount))}
+                  </td>
                   <td className="actions-cell">
-                    <IconButton label="Annuler ce versement" confirm="Annuler ce versement ? La progression de l'objectif sera décrémentée." onClick={() => removeContribution(c)} />
+                    <IconButton label={isWithdrawal ? 'Annuler ce retrait' : 'Annuler ce versement'} confirm={isWithdrawal ? 'Annuler ce retrait ? La progression sera recréditée.' : 'Annuler ce versement ? La progression de l\'objectif sera décrémentée.'} onClick={() => removeContribution(c)} />
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </DataTable>
         </>

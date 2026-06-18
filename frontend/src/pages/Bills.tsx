@@ -1,7 +1,8 @@
-import { FormEvent, useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronUp, Pencil, Plus, Power, ReceiptText } from 'lucide-react';
-import type { Account, Bill, BillStatusEntry, BillsStatusSummary, Category } from '@suzanne/shared';
+import { FormEvent, useEffect, useState } from 'react';
+import { CheckCircle2, ChevronDown, ChevronUp, Link2, Pencil, Plus, Power, ReceiptText, Search, X } from 'lucide-react';
+import type { Account, Bill, BillStatusEntry, BillsStatusSummary, Category, Transaction } from '@suzanne/shared';
 import { api } from '../lib/api';
+import { pickableAccounts } from '../lib/account';
 import { formatMonthLong, money } from '../lib/format';
 import { numberOrNull } from '../lib/forms';
 import { usePersistedState } from '../lib/storage';
@@ -46,6 +47,7 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
   run: Run;
 }) {
   const [editing, setEditing] = useState<Bill | null>(null);
+  const [linking, setLinking] = useState<BillStatusEntry | null>(null);
   const entries = billsStatus?.bills ?? [];
   const [addOpen, setAddOpen] = usePersistedState<boolean>('bills_add_open', entries.length === 0);
   const expenseCategories = categories.filter((c) => c.type === 'expense');
@@ -92,7 +94,7 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
       <label>Compte
         <select name="account_id" defaultValue={bill?.account_id ?? ''}>
           <option value="">Tous</option>
-          {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          {pickableAccounts(accounts, bill?.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </label>
       <label>Catégorie
@@ -171,6 +173,9 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
                     ) : <span className="muted">—</span>}
                   </td>
                   <td className="actions-cell">
+                    {entry.due && (
+                      <IconButton label="Lier une dépense (rapprochement manuel)" tone="neutral" icon={<Link2 size={16} />} onClick={() => setLinking(entry)} />
+                    )}
                     <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(bill)} />
                     <IconButton
                       label={bill.active ? 'Désactiver (plus jamais due)' : 'Réactiver'}
@@ -196,6 +201,92 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
           </form>
         </Modal>
       )}
+
+      {linking && (
+        <BillLinkModal
+          userId={userId}
+          entry={linking}
+          accountById={accountById}
+          run={run}
+          onClose={() => setLinking(null)}
+        />
+      )}
     </section>
+  );
+}
+
+// Rapprochement manuel : lie une dépense réelle à une facture quand le motif
+// automatique ne la trouve pas (espèces, libellé bancaire variable). La
+// dépense compte alors comme paiement sur le mois de sa date.
+function BillLinkModal({ userId, entry, accountById, run, onClose }: {
+  userId: number;
+  entry: BillStatusEntry;
+  accountById: Map<number, Account>;
+  run: Run;
+  onClose: () => void;
+}) {
+  const bill = entry.bill;
+  const currency = bill.account_id != null ? accountById.get(bill.account_id)?.currency ?? 'EUR' : 'EUR';
+  const [query, setQuery] = useState('');
+  const [candidates, setCandidates] = useState<Transaction[]>([]);
+  const [searching, setSearching] = useState(false);
+  const manualMatches = entry.matched_transactions.filter((t) => t.manual);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSearching(true);
+    const timer = setTimeout(() => {
+      api.findTransactions(userId, { type: 'expense', q: query.trim() || undefined, limit: 20 })
+        .then((rows) => { if (!cancelled) setCandidates(rows); })
+        .catch(() => { if (!cancelled) setCandidates([]); })
+        .finally(() => { if (!cancelled) setSearching(false); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [userId, query]);
+
+  const link = (transactionId: number) => {
+    void run(() => api.linkBillMatch(userId, bill.id, transactionId), 'Dépense liée à la facture').then((ok) => { if (ok) onClose(); });
+  };
+  const unlink = (transactionId: number) => {
+    void run(() => api.unlinkBillMatch(userId, bill.id, transactionId), 'Lien retiré').then((ok) => { if (ok) onClose(); });
+  };
+
+  return (
+    <Modal title={`Lier une dépense à « ${bill.name} »`} onClose={onClose}>
+      <p className="panel-note">
+        Quand le rapprochement automatique par motif ne trouve pas le paiement (espèces, libellé variable),
+        lie ici la dépense réelle : elle comptera comme paiement de la facture sur son mois.
+      </p>
+      {manualMatches.length > 0 && (
+        <div className="full refund-selected-list">
+          {manualMatches.map((t) => (
+            <span key={t.id}>
+              {new Date(t.date).toLocaleDateString('fr-FR')} · {t.description ?? `#${t.id}`} · {money(t.amount, currency)}
+              <button type="button" className="ghost-button" onClick={() => unlink(t.id)} aria-label="Retirer le lien"><X size={13} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <label className="full">
+        <div className="search-box inline"><Search size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Chercher la dépense (libellé)…" autoFocus /></div>
+      </label>
+      <div className="full refund-candidates">
+        {searching && candidates.length === 0 && <p className="empty">Recherche…</p>}
+        {!searching && candidates.length === 0 && <p className="empty">Aucune dépense trouvée.</p>}
+        {candidates.map((t) => {
+          const txCurrency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
+          const alreadyLinked = manualMatches.some((m) => m.id === t.id);
+          return (
+            <div key={t.id} className="refund-candidate">
+              <span>{new Date(t.date).toLocaleDateString('fr-FR')} · {t.description ?? `#${t.id}`} · {money(t.amount, txCurrency)}</span>
+              <button type="button" className="secondary" disabled={alreadyLinked} onClick={() => link(t.id)}>
+                {alreadyLinked ? 'Déjà lié' : 'Lier'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <button type="button" className="secondary" onClick={onClose}>Fermer</button>
+    </Modal>
   );
 }

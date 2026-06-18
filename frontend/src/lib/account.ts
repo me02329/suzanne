@@ -28,3 +28,11 @@ export function accountSignedAmount(tx: Transaction, accountId: number): number 
 export function touchesAccount(tx: Transaction, accountId: number): boolean {
   return tx.account_id === accountId || tx.to_account_id === accountId;
 }
+
+// Comptes proposables à la saisie : on masque les comptes archivés (clôturés)
+// pour ne pas encombrer les sélecteurs, tout en gardant le compte déjà
+// sélectionné (`keepId`) afin de ne pas vider un formulaire d'édition pointant
+// vers un compte archivé.
+export function pickableAccounts(accounts: Account[], keepId?: number | null): Account[] {
+  return accounts.filter((account) => !account.archived || account.id === keepId);
+}

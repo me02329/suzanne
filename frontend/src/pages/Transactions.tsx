@@ -13,6 +13,7 @@ import {
   type TransactionType,
 } from '@suzanne/shared';
 import { api } from '../lib/api';
+import { pickableAccounts } from '../lib/account';
 import { numberOrNull } from '../lib/forms';
 import { money, todayIso, txLabel, typeLabel } from '../lib/format';
 import { usePersistedState } from '../lib/storage';
@@ -83,6 +84,8 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   const [linking, setLinking] = useState<Transaction | null>(null);
   // Remboursements : dépense → créer le revenu lié ; revenu → choisir la dépense liée.
   const [refundingExpense, setRefundingExpense] = useState<Transaction | null>(null);
+  // Montant saisi du remboursement (contrôlé) pour signaler le surplus éventuel.
+  const [refundAmount, setRefundAmount] = useState('');
   const [linkingRefund, setLinkingRefund] = useState<Transaction | null>(null);
   const [addType, setAddType] = useState<TransactionType>('expense');
   const [quickType, setQuickType] = useState<Exclude<TransactionType, 'transfer'>>('expense');
@@ -249,6 +252,12 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   useEffect(() => {
     if (highlightIndex >= 0) setPage(Math.floor(highlightIndex / PAGE_SIZE) + 1);
   }, [highlightIndex]);
+  // À l'ouverture de la modale, pré-remplit le montant avec le reste remboursable.
+  useEffect(() => {
+    if (refundingExpense) {
+      setRefundAmount(String(Math.max(0.01, roundAmount(refundingExpense.amount - refundedAmount(refundingExpense)))));
+    }
+  }, [refundingExpense]);
   const pageStart = sortedTransactions.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(currentPage * PAGE_SIZE, sortedTransactions.length);
   const txTotals = filteredTransactions.reduce((acc, t) => {
@@ -336,6 +345,28 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     void run(
       () => api.bulkUpdateTransactions(userId, { ids, cleared }),
       (result) => `${(result as { updated: number }).updated} transactions ${cleared ? 'pointées' : 'dépointées'}`,
+    ).then((ok) => { if (ok) clearSelection(); });
+  };
+
+  // Suppression en masse de la sélection (ex: nettoyage d'un import raté).
+  const deleteSelection = () => {
+    if (selectedTransactions.length === 0) return;
+    if (!window.confirm(`Supprimer définitivement ${selectedCount} transaction${selectedCount > 1 ? 's' : ''} ? Cette action est irréversible.`)) return;
+    const ids = selectedTransactions.map((t) => t.id);
+    void run(
+      () => api.bulkDeleteTransactions(userId, ids),
+      (result) => `${(result as { deleted: number }).deleted} transactions supprimées`,
+    ).then((ok) => { if (ok) clearSelection(); });
+  };
+
+  // Ajout d'un tag à toute la sélection (taguer 20 lignes « vacances » d'un coup).
+  const addTagToSelection = (tagId: number) => {
+    if (selectedTransactions.length === 0 || !Number.isFinite(tagId) || tagId <= 0) return;
+    const ids = selectedTransactions.map((t) => t.id);
+    const tagName = tags.find((tag) => tag.id === tagId)?.name ?? 'tag';
+    void run(
+      () => api.bulkUpdateTransactions(userId, { ids, add_tag_id: tagId }),
+      (result) => `${(result as { updated: number }).updated} transactions taguées « ${tagName} »`,
     ).then((ok) => { if (ok) clearSelection(); });
   };
 
@@ -454,12 +485,20 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     event.preventDefault();
     if (!refundingExpense) return;
     const data = new FormData(event.currentTarget);
+    const amount = Number(refundAmount);
+    // Un remboursement peut dépasser la dépense (assurance, geste commercial…).
+    // On ne peut nette que ce qui a été dépensé : l'allocation est plafonnée au
+    // reste remboursable de la dépense, le surplus restant un simple revenu.
+    const remainingExpense = roundAmount(refundingExpense.amount - refundedAmount(refundingExpense));
+    const allocationAmount = roundAmount(Math.min(amount, Math.max(0, remainingExpense)));
     void run(() => api.createTransaction(userId, {
       type: 'income',
-      refund_allocations: [{ expense_transaction_id: refundingExpense.id, amount: Number(data.get('amount')) }],
+      refund_allocations: allocationAmount > 0
+        ? [{ expense_transaction_id: refundingExpense.id, amount: allocationAmount }]
+        : [],
       account_id: numberOrNull(data.get('account_id')),
       category_id: null,
-      amount: Number(data.get('amount')),
+      amount,
       date: String(data.get('date')),
       description: String(data.get('description') || ''),
     }), 'Remboursement enregistré');
@@ -495,7 +534,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
         </select>
         <select name="account_id">
           <option value="">Compte</option>
-          {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+          {pickableAccounts(accounts).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
         </select>
         <input name="date" type="date" defaultValue={todayIso()} required />
         <button className="primary"><Plus size={16} /> Ajouter</button>
@@ -525,11 +564,11 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
               <label>{addType === 'transfer' ? 'Depuis le compte' : 'Compte'}
                 <select name="account_id" required={addType === 'transfer'}>
                   <option value="">Aucun</option>
-                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </label>
               {addType === 'transfer'
-                ? <label>Vers le compte<select name="to_account_id" required><option value="">Choisir...</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+                ? <label>Vers le compte<select name="to_account_id" required><option value="">Choisir...</option>{pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
                 : (
                   <>
                     <label>Catégorie<select name="category_id" disabled={addSplitEnabled}><option value="">Aucune</option>{filteredAddCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -630,8 +669,20 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           <div className="bulk-bar">
             <strong>{selectedCount} sélectionnée{selectedCount > 1 ? 's' : ''}</strong>
             <button type="button" className="secondary" onClick={() => setBulkEditing(true)}>Modifier la sélection</button>
+            {tags.length > 0 && (
+              <select
+                className="bulk-tag-select"
+                aria-label="Ajouter un tag à la sélection"
+                value=""
+                onChange={(e) => { if (e.target.value) addTagToSelection(Number(e.target.value)); }}
+              >
+                <option value="">Ajouter un tag…</option>
+                {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            )}
             <button type="button" className="secondary" onClick={() => setSelectionCleared(true)}>Pointer</button>
             <button type="button" className="ghost-button" onClick={() => setSelectionCleared(false)}>Dépointer</button>
+            <button type="button" className="danger" onClick={deleteSelection}>Supprimer</button>
             <button type="button" className="ghost-button" onClick={clearSelection}>Désélectionner</button>
           </div>
         )}
@@ -700,11 +751,11 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
             <label>{editType === 'transfer' ? 'Depuis le compte' : 'Compte'}
               <select name="account_id" defaultValue={editing.account_id ?? ''} required={editType === 'transfer'}>
                 <option value="">Aucun</option>
-                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                {pickableAccounts(accounts, editing.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </label>
             {editType === 'transfer'
-              ? <label>Vers le compte<select name="to_account_id" defaultValue={editing.to_account_id ?? ''} required><option value="">Choisir...</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+              ? <label>Vers le compte<select name="to_account_id" defaultValue={editing.to_account_id ?? ''} required><option value="">Choisir...</option>{pickableAccounts(accounts, editing.to_account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
               : (
                 <>
                   <label>Catégorie<select name="category_id" defaultValue={editing.category_id ?? ''} disabled={editSplitEnabled}><option value="">Aucune</option>{filteredEditCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -749,7 +800,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
               <span><input type="checkbox" name="apply_account" /> Changer le compte</span>
               <select name="account_id">
                 <option value="">Sans compte</option>
-                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </label>
             <label className="bulk-field">
@@ -791,14 +842,26 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
                 type="number"
                 min="0.01"
                 step="0.01"
-                defaultValue={Math.max(0.01, Math.round((refundingExpense.amount - refundedAmount(refundingExpense)) * 100) / 100)}
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
                 required
               />
             </label>
+            {(() => {
+              const remaining = Math.max(0, roundAmount(refundingExpense.amount - refundedAmount(refundingExpense)));
+              const surplus = roundAmount(Number(refundAmount) - remaining);
+              if (!(surplus > 0)) return null;
+              const currency = accountById.get(refundingExpense.account_id ?? -1)?.currency ?? 'EUR';
+              return (
+                <p className="panel-note">
+                  {money(remaining, currency)} viendront annuler la dépense ; le surplus de {money(surplus, currency)} sera compté comme revenu.
+                </p>
+              );
+            })()}
             <label>Compte crédité
               <select name="account_id" defaultValue={refundingExpense.account_id ?? ''}>
                 <option value="">Aucun</option>
-                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                {pickableAccounts(accounts, refundingExpense.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </label>
             <label className="full">Description
@@ -966,6 +1029,17 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
   const overAllocated = selectedTotal - income.amount > 0.01;
   const candidateById = new Map(candidates.map((candidate) => [candidate.id, candidate]));
   const existingAllocationByExpenseId = new Map((income.refund_allocations ?? []).map((allocation) => [allocation.expense_transaction_id, allocation]));
+  // Reste remboursable d'une dépense : son montant moins ce que d'autres revenus
+  // ont déjà remboursé (l'allocation du revenu courant, remplacée, est exclue).
+  const remainingForExpense = (t: Transaction) =>
+    roundAmount(t.amount - (refundedAmount(t) - (existingAllocationByExpenseId.get(t.id)?.amount ?? 0)));
+  // On ne peut nette qu'une dépense réelle : un montant alloué supérieur à ce
+  // reste serait refusé côté serveur. On le signale plutôt que de tenter.
+  const overAllocatedExpenseIds = new Set(
+    candidates
+      .filter((t) => selected[t.id] !== undefined && (Number(selected[t.id]) || 0) - remainingForExpense(t) > 0.01)
+      .map((t) => t.id),
+  );
 
   // Recherche débouncée côté serveur ; sans requête on liste les plus récentes.
   useEffect(() => {
@@ -988,7 +1062,7 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
         amount: roundAmount(Number(amountValue)),
       }))
       .filter((allocation) => Number.isFinite(allocation.expense_transaction_id) && allocation.expense_transaction_id > 0 && allocation.amount > 0);
-    if (allocations.length === 0 || overAllocated) return;
+    if (allocations.length === 0 || overAllocated || overAllocatedExpenseIds.size > 0) return;
     onSubmit(allocations);
   };
 
@@ -1062,6 +1136,7 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
             const currency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
             const refunded = refundedAmount(t);
             const checked = selected[t.id] !== undefined;
+            const expenseOver = overAllocatedExpenseIds.has(t.id);
             return (
               <div key={t.id} className="refund-candidate">
                 <input
@@ -1075,7 +1150,7 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
                 </span>
                 {checked && (
                   <input
-                    className="refund-allocation-input"
+                    className={`refund-allocation-input ${expenseOver ? 'error' : ''}`}
                     type="number"
                     min="0.01"
                     step="0.01"
@@ -1089,7 +1164,10 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
           })}
         </div>
         {overAllocated && <p className="panel-note error">Le total alloué dépasse le montant du remboursement.</p>}
-        <button className="primary" disabled={selectedCount === 0 || overAllocated}>Enregistrer la ventilation</button>
+        {overAllocatedExpenseIds.size > 0 && (
+          <p className="panel-note error">Une allocation dépasse le reste remboursable de sa dépense.</p>
+        )}
+        <button className="primary" disabled={selectedCount === 0 || overAllocated || overAllocatedExpenseIds.size > 0}>Enregistrer la ventilation</button>
         {selectedCount > 0 && (
           <button type="button" className="secondary" onClick={() => onSubmit([])}>Retirer les liens</button>
         )}

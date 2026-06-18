@@ -34,7 +34,7 @@ export interface BillMonthResult {
   status: BillMonthStatus;
   paid_amount: number;
   in_range: boolean | null;
-  matched_transactions: Array<{ id: number; amount: number; date: string; description: string | null }>;
+  matched_transactions: Array<{ id: number; amount: number; date: string; description: string | null; manual: boolean }>;
 }
 
 function monthIndex(year: number, month0: number): number {
@@ -82,14 +82,17 @@ export function billStatusForMonth(
   monthTransactions: BillCandidateTx[],
   month: string,
   today: Date,
+  // Ids de dépenses liées manuellement à cette facture : comptées comme
+  // paiement même si le motif ne matche pas (espèces, libellé variable).
+  manualMatchIds: Set<number> = new Set(),
 ): BillMonthResult {
   if (!billDueInMonth(bill, month)) {
     return { due: false, expected_date: null, status: 'not_due', paid_amount: 0, in_range: null, matched_transactions: [] };
   }
   const expectedDate = billExpectedDate(bill, month);
   const matched = monthTransactions
-    .filter((tx) => billMatchesTransaction(bill, tx))
-    .map((tx) => ({ id: tx.id, amount: tx.amount, date: tx.date.toISOString().slice(0, 10), description: tx.description }));
+    .filter((tx) => billMatchesTransaction(bill, tx) || manualMatchIds.has(tx.id))
+    .map((tx) => ({ id: tx.id, amount: tx.amount, date: tx.date.toISOString().slice(0, 10), description: tx.description, manual: manualMatchIds.has(tx.id) && !billMatchesTransaction(bill, tx) }));
   const paidAmount = round2(matched.reduce((sum, tx) => sum + tx.amount, 0));
   if (matched.length > 0) {
     const inRange = paidAmount >= bill.amount_min - 0.005 && paidAmount <= bill.amount_max + 0.005;

@@ -1,7 +1,8 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { ArrowUpCircle, CalendarClock, ChevronDown, ChevronRight, ChevronUp, PauseCircle, Pencil, PlayCircle, Plus, Repeat } from 'lucide-react';
+import { ArrowUpCircle, CalendarClock, ChevronDown, ChevronRight, ChevronUp, PauseCircle, Pencil, PlayCircle, Plus, Repeat, SkipForward } from 'lucide-react';
 import { nextRecurringOccurrence, type Account, type Category, type DashboardSummary, type RecurringFrequency, type RecurringTransaction } from '@suzanne/shared';
 import { api } from '../lib/api';
+import { pickableAccounts } from '../lib/account';
 import { numberOrNull } from '../lib/forms';
 import { formatRelativeDate, money, recurringFrequencyLabel } from '../lib/format';
 import { cadenceTotals, groupByCadence, type CadenceGroup } from '../lib/subscriptions';
@@ -83,6 +84,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
       interval: Number(data.get('interval') || 1),
       day_of_month: Number(data.get('day_of_month') || 1),
       month_of_year: numberOrNull(data.get('month_of_year')),
+      end_date: String(data.get('end_date') || '') || null,
       active: true,
     }), 'Récurrent ajouté');
     form.reset();
@@ -106,6 +108,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
       interval: Number(data.get('interval') || 1),
       day_of_month: Number(data.get('day_of_month') || 1),
       month_of_year: numberOrNull(data.get('month_of_year')),
+      end_date: String(data.get('end_date') || '') || null,
     }), 'Récurrent modifié');
     setEditing(null);
   };
@@ -156,6 +159,14 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
                 <td className="actions-cell">
                   <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => { setEditing(r); setEditFreq(r.frequency); }} />
                   <IconButton
+                    label="Sauter la prochaine occurrence"
+                    tone="neutral"
+                    icon={<SkipForward size={16} />}
+                    disabled={!r.active}
+                    confirm={`Sauter la prochaine occurrence de « ${r.description} » ? Aucune transaction ne sera créée pour cette échéance.`}
+                    onClick={() => void run(() => api.skipRecurring(userId, r.id), 'Prochaine occurrence sautée')}
+                  />
+                  <IconButton
                     label={r.active ? 'Désactiver' : 'Activer'}
                     tone="neutral"
                     icon={r.active ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
@@ -205,7 +216,8 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
                 <label>Mois<select name="month_of_year" defaultValue={currentMonth}>{MONTHS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}</select></label>
               )}
               <label>Jour<input name="day_of_month" type="number" min="1" max="31" defaultValue="1" /></label>
-              <label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+              <label>Fin (optionnel)<input name="end_date" type="date" title="Aucune occurrence ne sera générée après cette date" /></label>
+              <label>Compte<select name="account_id"><option value="">Aucun</option>{pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
               <label>Catégorie<select name="category_id"><option value="">Aucune</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
               <button className="primary"><CalendarClock size={16} /> Ajouter</button>
               <button type="button" className="secondary" onClick={() => void run(() => api.generateRecurring(userId), 'Récurrents générés')}>Générer ce mois</button>
@@ -258,10 +270,11 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
               </label>
             )}
             <label>Jour<input name="day_of_month" type="number" min="1" max="31" defaultValue={editing.day_of_month ?? 1} /></label>
+            <label>Fin (optionnel)<input name="end_date" type="date" defaultValue={editing.end_date ? editing.end_date.slice(0, 10) : ''} title="Aucune occurrence ne sera générée après cette date" /></label>
             <label>Compte
               <select name="account_id" defaultValue={editing.account_id ?? ''}>
                 <option value="">Aucun</option>
-                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                {pickableAccounts(accounts, editing.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </label>
             <label>Catégorie

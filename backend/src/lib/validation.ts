@@ -41,7 +41,9 @@ export const createAccountSchema = z.object({
   initial_balance: z.coerce.number().default(0).transform(round2),
   initial_balance_date: dateString,
 });
-export const updateAccountSchema = createAccountSchema.partial();
+export const updateAccountSchema = createAccountSchema.partial().extend({
+  archived: z.coerce.boolean().optional(),
+});
 
 export const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -178,6 +180,7 @@ export const createRecurringSchema = z.object({
   day_of_month: z.coerce.number().int().min(1).max(31).nullish(),
   month_of_year: z.coerce.number().int().min(1).max(12).nullish(),
   active: z.coerce.boolean().default(true),
+  end_date: dateString.nullish(),
 });
 export const updateRecurringSchema = createRecurringSchema.partial();
 
@@ -189,6 +192,7 @@ export const createCategoryRuleSchema = z.object({
   pattern: z.string().trim().min(1).max(120),
   category_id: z.coerce.number().int().positive(),
 });
+export const updateCategoryRuleSchema = createCategoryRuleSchema.partial();
 
 export const createSavingsGoalSchema = z.object({
   name: z.string().trim().min(1).max(160),
@@ -204,6 +208,13 @@ export const contributeSavingsGoalSchema = z.object({
   amount,
   date: dateString,
   source_account_id: z.coerce.number().int().positive().nullish(),
+  description: z.string().trim().max(500).nullish(),
+});
+
+export const withdrawSavingsGoalSchema = z.object({
+  amount,
+  date: dateString,
+  destination_account_id: z.coerce.number().int().positive().nullish(),
   description: z.string().trim().max(500).nullish(),
 });
 

@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, CheckSquare, DatabaseBackup, Download, FileJson, FileUp, RotateCcw, Table2, Upload, WalletCards } from 'lucide-react';
 import type { Account } from '@suzanne/shared';
 import { api } from '../lib/api';
+import { pickableAccounts } from '../lib/account';
 import { numberOrNull } from '../lib/forms';
 import { guessColumn, parseCsvPreview } from '../lib/csv';
 import { Modal } from '../components/Modal';
@@ -295,7 +296,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
               <FileUp size={18} />
               <span>Importe un relevé bancaire. Les colonnes date et montant sont obligatoires ; les autres peuvent rester ignorées.</span>
             </div>
-            <label>Compte<select name="account_id"><option value="">Aucun</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}</select></label>
+            <label>Compte<select name="account_id"><option value="">Aucun</option>{pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}</select></label>
             <label>Format de date<select name="date_format" defaultValue="auto">
               <option value="auto">Détection auto</option>
               <option value="yyyy-mm-dd">YYYY-MM-DD</option>

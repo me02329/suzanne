@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { contributeSavingsGoalSchema, createSavingsGoalSchema, idParam, updateSavingsGoalSchema } from '../lib/validation.js';
+import { contributeSavingsGoalSchema, createSavingsGoalSchema, idParam, updateSavingsGoalSchema, withdrawSavingsGoalSchema } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 
 export const goalsRouter = Router();
@@ -117,6 +117,74 @@ goalsRouter.post('/users/:user_id/savings-goals/:id/contribute', asyncHandler(as
     const updatedGoal = await tx.savingsGoal.update({
       where: { id },
       data: { current_amount: round2(goal.current_amount + body.amount) },
+    });
+    return { updated: updatedGoal, transactionId: transfer?.id ?? null };
+  });
+  res.json({ goal: updated, transaction_id: transactionId });
+}));
+
+// "Retirer" d'un objectif : symétrique du versement. Crée optionnellement un
+// transfert compte de l'objectif → compte destination et décrémente
+// `current_amount`. Le retrait est tracé comme une contribution NÉGATIVE (la
+// timeline reste cohérente, et l'annuler recrédite l'objectif).
+goalsRouter.post('/users/:user_id/savings-goals/:id/withdraw', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const id = idParam.parse(req.params.id);
+  const body = withdrawSavingsGoalSchema.parse(req.body);
+  const goal = await prisma.savingsGoal.findFirst({ where: { id, user_id } });
+  if (!goal) {
+    res.status(404).json({ error: 'Objectif introuvable' });
+    return;
+  }
+  if (body.amount > goal.current_amount) {
+    res.status(400).json({ error: 'Le retrait dépasse le montant épargné sur cet objectif' });
+    return;
+  }
+
+  let createTransfer = false;
+  if (body.destination_account_id && goal.account_id) {
+    if (body.destination_account_id === goal.account_id) {
+      res.status(400).json({ error: 'Le compte destination doit être différent du compte de l\'objectif' });
+      return;
+    }
+    const [src, dest] = await Promise.all([
+      prisma.account.findFirst({ where: { id: goal.account_id, user_id } }),
+      prisma.account.findFirst({ where: { id: body.destination_account_id, user_id } }),
+    ]);
+    if (!src || !dest) {
+      res.status(400).json({ error: 'Compte de l\'objectif ou destination introuvable' });
+      return;
+    }
+    createTransfer = true;
+  }
+
+  const { updated, transactionId } = await prisma.$transaction(async (tx) => {
+    const transfer = createTransfer
+      ? await tx.transaction.create({
+          data: {
+            user_id,
+            account_id: goal.account_id!,
+            to_account_id: body.destination_account_id!,
+            type: 'transfer',
+            amount: round2(body.amount),
+            date: new Date(body.date),
+            description: body.description?.trim() || `Retrait objectif: ${goal.name}`,
+          },
+        })
+      : null;
+    await tx.goalContribution.create({
+      data: {
+        user_id,
+        goal_id: id,
+        transaction_id: transfer?.id ?? null,
+        amount: round2(-body.amount),
+        date: new Date(body.date),
+        description: body.description?.trim() || null,
+      },
+    });
+    const updatedGoal = await tx.savingsGoal.update({
+      where: { id },
+      data: { current_amount: round2(Math.max(0, goal.current_amount - body.amount)) },
     });
     return { updated: updatedGoal, transactionId: transfer?.id ?? null };
   });

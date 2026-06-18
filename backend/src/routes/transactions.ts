@@ -337,31 +337,66 @@ const bulkUpdateSchema = z.object({
   account_id: z.coerce.number().int().positive().nullish(),
   category_id: z.coerce.number().int().positive().nullish(),
   cleared: z.coerce.boolean().optional(),
+  // Ajout/retrait d'un tag sur toute la sélection (table de jointure).
+  add_tag_id: z.coerce.number().int().positive().optional(),
+  remove_tag_id: z.coerce.number().int().positive().optional(),
 });
 
 transactionsRouter.post('/users/:user_id/transactions/bulk-update', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = bulkUpdateSchema.parse(req.body);
-  if (body.account_id === undefined && body.category_id === undefined && body.cleared === undefined) {
+  if (body.account_id === undefined && body.category_id === undefined && body.cleared === undefined
+    && body.add_tag_id === undefined && body.remove_tag_id === undefined) {
     throw new HttpError(400, 'Aucun champ à modifier');
   }
   await assertTransactionReferences(user_id, body);
+  // Les tags fournis doivent appartenir à l'utilisateur (même garde que la
+  // saisie unitaire) ; un id étranger est ignoré silencieusement.
+  const tagIds = await resolveTagIds(user_id, [body.add_tag_id, body.remove_tag_id].filter((id): id is number => id != null));
+  const ownedAddTag = body.add_tag_id != null && tagIds.includes(body.add_tag_id);
+  const ownedRemoveTag = body.remove_tag_id != null && tagIds.includes(body.remove_tag_id);
   // Une transaction ventilée ne porte pas de catégorie propre : un changement
   // de catégorie en masse l'ignore (ses splits font foi). Le changement de
   // compte seul, lui, reste applicable aux transactions ventilées.
-  const result = await prisma.transaction.updateMany({
-    where: {
-      id: { in: body.ids },
-      user_id,
-      ...(body.category_id !== undefined ? { splits: { none: {} } } : {}),
-    },
-    data: {
-      ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
-      ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
-      ...(body.cleared !== undefined ? { cleared: body.cleared } : {}),
-    },
-  });
-  res.json({ updated: result.count });
+  const scalarUpdate = body.account_id !== undefined || body.category_id !== undefined || body.cleared !== undefined;
+  // Les liens de tag visent la même fenêtre de sélection, restreinte aux
+  // transactions de l'utilisateur (isolation : on ne taggue jamais hors scope).
+  const ownedIds = (ownedAddTag || ownedRemoveTag)
+    ? (await prisma.transaction.findMany({ where: { id: { in: body.ids }, user_id }, select: { id: true } })).map((row) => row.id)
+    : [];
+  const [updateResult] = await prisma.$transaction([
+    prisma.transaction.updateMany({
+      where: {
+        id: { in: body.ids },
+        user_id,
+        ...(body.category_id !== undefined ? { splits: { none: {} } } : {}),
+      },
+      data: {
+        ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
+        ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
+        ...(body.cleared !== undefined ? { cleared: body.cleared } : {}),
+      },
+    }),
+    ...(ownedAddTag
+      ? [prisma.transactionTag.createMany({
+          data: ownedIds.map((transaction_id) => ({ transaction_id, tag_id: body.add_tag_id! })),
+          skipDuplicates: true,
+        })]
+      : []),
+    ...(ownedRemoveTag
+      ? [prisma.transactionTag.deleteMany({ where: { transaction_id: { in: ownedIds }, tag_id: body.remove_tag_id! } })]
+      : []),
+  ]);
+  // « updated » reflète la portée touchée : lignes mises à jour pour un champ
+  // scalaire, sinon le nombre de lignes ciblées par l'opération de tag.
+  res.json({ updated: scalarUpdate ? updateResult.count : ownedIds.length });
+}));
+
+transactionsRouter.post('/users/:user_id/transactions/bulk-delete', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const body = z.object({ ids: z.array(z.coerce.number().int().positive()).min(1).max(500) }).parse(req.body);
+  const result = await prisma.transaction.deleteMany({ where: { id: { in: body.ids }, user_id } });
+  res.json({ deleted: result.count });
 }));
 
 function nextMonth(month: string): string {

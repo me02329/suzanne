@@ -34,6 +34,7 @@ export interface Account {
   currency: string;
   initial_balance: number;
   initial_balance_date: string;
+  archived: boolean;
   created_at: string;
 }
 
@@ -137,6 +138,7 @@ export interface RecurringTransaction {
   day_of_month: number | null;
   month_of_year: number | null; // 1-12, only meaningful for yearly recurrences
   active: boolean;
+  end_date: string | null; // YYYY-MM-DD : plus aucune occurrence au-delà
   last_executed: string | null;
   created_at: string;
 }
@@ -220,7 +222,7 @@ export interface BillStatusEntry {
   paid_amount: number;
   // null tant que rien n'est payé sur le mois.
   in_range: boolean | null;
-  matched_transactions: Array<{ id: number; amount: number; date: string; description: string | null }>;
+  matched_transactions: Array<{ id: number; amount: number; date: string; description: string | null; manual: boolean }>;
 }
 
 export interface BillsStatusSummary {
@@ -313,6 +315,7 @@ export interface CreateRecurringBody {
   day_of_month?: number | null;
   month_of_year?: number | null;
   active?: boolean;
+  end_date?: string | null;
 }
 
 export interface CreateCategoryRuleBody {

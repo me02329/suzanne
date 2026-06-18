@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { asyncHandler } from '../middleware/errors.js';
-import { createCategoryRuleSchema, idParam } from '../lib/validation.js';
+import { asyncHandler, HttpError } from '../middleware/errors.js';
+import { createCategoryRuleSchema, idParam, updateCategoryRuleSchema } from '../lib/validation.js';
 import { applyRulesToUncategorized } from '../lib/categoryRules.js';
 
 export const rulesRouter = Router();
@@ -31,6 +31,32 @@ rulesRouter.post('/users/:user_id/category-rules', asyncHandler(async (req, res)
 rulesRouter.post('/users/:user_id/category-rules/apply', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   res.json(await applyRulesToUncategorized(user_id));
+}));
+
+rulesRouter.patch('/users/:user_id/category-rules/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const id = idParam.parse(req.params.id);
+  const body = updateCategoryRuleSchema.parse(req.body);
+  const existing = await prisma.categoryRule.findFirst({ where: { id, user_id } });
+  if (!existing) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  const pattern = body.pattern != null ? body.pattern.toUpperCase() : undefined;
+  // Le motif est unique par utilisateur : renommer vers un motif déjà pris
+  // (autre règle) doit échouer proprement plutôt que via l'erreur Prisma brute.
+  if (pattern != null && pattern !== existing.pattern) {
+    const clash = await prisma.categoryRule.findFirst({ where: { user_id, pattern }, select: { id: true } });
+    if (clash) throw new HttpError(409, 'Une règle avec ce mot-clé existe déjà');
+  }
+  const row = await prisma.categoryRule.update({
+    where: { id },
+    data: {
+      ...(pattern != null ? { pattern } : {}),
+      ...(body.category_id != null ? { category_id: body.category_id } : {}),
+    },
+  });
+  res.json(row);
 }));
 
 rulesRouter.delete('/users/:user_id/category-rules/:id', asyncHandler(async (req, res) => {

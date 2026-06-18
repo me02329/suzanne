@@ -66,6 +66,7 @@ model User {
   refund_allocations      RefundAllocation[]
   goal_contributions      GoalContribution[]
   bills                   Bill[]
+  bill_matches            BillMatch[]
 
   @@map("users")
 }
@@ -93,6 +94,10 @@ model Account {
   currency             String   @default("EUR")
   initial_balance      Float    @default(0)
   initial_balance_date DateTime @db.Date
+  // Compte clôturé : conservé pour l'historique/les soldes mais masqué des
+  // sélecteurs de saisie. On archive au lieu de supprimer (qui détacherait
+  // les transactions via onDelete: SetNull et rendrait l'historique incohérent).
+  archived             Boolean  @default(false)
   created_at           DateTime @default(now()) @db.Timestamptz(6)
 
   user                   User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -179,6 +184,7 @@ model Transaction {
   refund_allocations_sent     RefundAllocation[] @relation("RefundAllocationRefund")
   refund_allocations_received RefundAllocation[] @relation("RefundAllocationExpense")
   goal_contributions          GoalContribution[]
+  bill_matches                BillMatch[]
 
   @@index([user_id, date])
   @@index([account_id])
@@ -284,6 +290,9 @@ model RecurringTransaction {
   day_of_month  Int?
   month_of_year Int?
   active        Boolean   @default(true)
+  // Date de fin optionnelle : aucune occurrence générée au-delà ; la récurrence
+  // se désactive d'elle-même une fois la date passée.
+  end_date      DateTime? @db.Date
   last_executed DateTime? @db.Date
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
 
@@ -360,10 +369,31 @@ model Bill {
   user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   account  Account?  @relation(fields: [account_id], references: [id], onDelete: SetNull)
   category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  matches  BillMatch[]
 
   @@unique([user_id, name])
   @@index([user_id, active])
   @@map("bills")
+}
+
+// Rapprochement manuel : lie une dépense réelle à une facture quand le motif
+// ne matche pas (paiement en espèces, libellé bancaire variable). La dépense
+// compte alors comme paiement de la facture sur le mois de sa date.
+model BillMatch {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  bill_id        Int
+  transaction_id Int
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  user        User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  bill        Bill        @relation(fields: [bill_id], references: [id], onDelete: Cascade)
+  transaction Transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+
+  @@unique([bill_id, transaction_id])
+  @@index([user_id])
+  @@index([transaction_id])
+  @@map("bill_matches")
 }
 
 model Setting {

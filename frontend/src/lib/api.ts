@@ -100,7 +100,7 @@ export const api = {
   accountActivity: (userId: number, id: number, limit = 40) =>
     http<{ inflow: number; outflow: number; cleared_balance: number; uncleared_count: number; recent: Transaction[] }>(`/users/${userId}/accounts/${id}/activity?limit=${limit}`),
   createAccount: (userId: number, body: CreateAccountBody) => http<Account>(`/users/${userId}/accounts`, { method: 'POST', body: JSON.stringify(body) }),
-  updateAccount: (userId: number, id: number, body: Partial<CreateAccountBody>) => http<Account>(`/users/${userId}/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  updateAccount: (userId: number, id: number, body: Partial<CreateAccountBody> & { archived?: boolean }) => http<Account>(`/users/${userId}/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteAccount: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/accounts/${id}`, { method: 'DELETE' }),
   institutions: (userId: number) => http<Institution[]>(`/users/${userId}/institutions`),
   createInstitution: (userId: number, body: CreateInstitutionBody) => http<Institution>(`/users/${userId}/institutions`, { method: 'POST', body: JSON.stringify(body) }),
@@ -110,6 +110,8 @@ export const api = {
   createCategory: (userId: number, body: CreateCategoryBody) => http<Category>(`/users/${userId}/categories`, { method: 'POST', body: JSON.stringify(body) }),
   updateCategory: (userId: number, id: number, body: Partial<CreateCategoryBody>) => http<Category>(`/users/${userId}/categories/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteCategory: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/categories/${id}`, { method: 'DELETE' }),
+  mergeCategory: (userId: number, sourceId: number, targetCategoryId: number) =>
+    http<{ merged: boolean; target_category_id: number }>(`/users/${userId}/categories/${sourceId}/merge`, { method: 'POST', body: JSON.stringify({ target_category_id: targetCategoryId }) }),
   transactions: (userId: number, month?: string, issue?: 'unassigned_account') => {
     const params = new URLSearchParams();
     if (month) params.set('month', month);
@@ -142,9 +144,11 @@ export const api = {
   linkTransactionRecurring: (userId: number, id: number, body: { recurring_transaction_id: number | null; sync_description?: boolean; sync_amount?: boolean; sync_category_account?: boolean }) =>
     http<Transaction>(`/users/${userId}/transactions/${id}/link-recurring`, { method: 'POST', body: JSON.stringify(body) }),
   deleteTransaction: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/transactions/${id}`, { method: 'DELETE' }),
-  // Édition groupée (compte / catégorie / pointage) en un seul appel.
-  bulkUpdateTransactions: (userId: number, body: { ids: number[]; account_id?: number | null; category_id?: number | null; cleared?: boolean }) =>
+  // Édition groupée (compte / catégorie / pointage / tag) en un seul appel.
+  bulkUpdateTransactions: (userId: number, body: { ids: number[]; account_id?: number | null; category_id?: number | null; cleared?: boolean; add_tag_id?: number; remove_tag_id?: number }) =>
     http<{ updated: number }>(`/users/${userId}/transactions/bulk-update`, { method: 'POST', body: JSON.stringify(body) }),
+  bulkDeleteTransactions: (userId: number, ids: number[]) =>
+    http<{ deleted: number }>(`/users/${userId}/transactions/bulk-delete`, { method: 'POST', body: JSON.stringify({ ids }) }),
   budgets: (userId: number, month?: string) => http<Budget[]>(`/users/${userId}/budgets${month ? `?month=${month}` : ''}`),
   setBudget: (userId: number, body: CreateBudgetBody) => http<Budget>(`/users/${userId}/budgets`, { method: 'POST', body: JSON.stringify(body) }),
   deleteBudget: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/budgets/${id}`, { method: 'DELETE' }),
@@ -153,9 +157,11 @@ export const api = {
   updateRecurring: (userId: number, id: number, body: Partial<CreateRecurringBody>) =>
     http<RecurringTransaction>(`/users/${userId}/recurring-transactions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteRecurring: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/recurring-transactions/${id}`, { method: 'DELETE' }),
+  skipRecurring: (userId: number, id: number) => http<RecurringTransaction>(`/users/${userId}/recurring-transactions/${id}/skip`, { method: 'POST' }),
   generateRecurring: (userId: number) => http<{ generated: number }>(`/users/${userId}/recurring-transactions/generate`, { method: 'POST' }),
   rules: (userId: number) => http<CategoryRule[]>(`/users/${userId}/category-rules`),
   setRule: (userId: number, body: CreateCategoryRuleBody) => http<CategoryRule>(`/users/${userId}/category-rules`, { method: 'POST', body: JSON.stringify(body) }),
+  updateRule: (userId: number, id: number, body: Partial<CreateCategoryRuleBody>) => http<CategoryRule>(`/users/${userId}/category-rules/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteRule: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/category-rules/${id}`, { method: 'DELETE' }),
   applyRules: (userId: number) => http<{ categorized: number; scanned: number }>(`/users/${userId}/category-rules/apply`, { method: 'POST' }),
   tags: (userId: number) => http<Tag[]>(`/users/${userId}/tags`),
@@ -167,6 +173,8 @@ export const api = {
   updateGoal: (userId: number, id: number, body: Partial<CreateSavingsGoalBody>) => http<SavingsGoal>(`/users/${userId}/savings-goals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   contributeGoal: (userId: number, id: number, body: { amount: number; date: string; source_account_id?: number | null; description?: string | null }) =>
     http<{ goal: SavingsGoal; transaction_id: number | null }>(`/users/${userId}/savings-goals/${id}/contribute`, { method: 'POST', body: JSON.stringify(body) }),
+  withdrawGoal: (userId: number, id: number, body: { amount: number; date: string; destination_account_id?: number | null; description?: string | null }) =>
+    http<{ goal: SavingsGoal; transaction_id: number | null }>(`/users/${userId}/savings-goals/${id}/withdraw`, { method: 'POST', body: JSON.stringify(body) }),
   deleteGoal: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/savings-goals/${id}`, { method: 'DELETE' }),
   goalContributions: (userId: number, goalId: number) =>
     http<GoalContribution[]>(`/users/${userId}/savings-goals/${goalId}/contributions`),
@@ -177,6 +185,10 @@ export const api = {
   createBill: (userId: number, body: CreateBillBody) => http<Bill>(`/users/${userId}/bills`, { method: 'POST', body: JSON.stringify(body) }),
   updateBill: (userId: number, id: number, body: Partial<CreateBillBody>) => http<Bill>(`/users/${userId}/bills/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteBill: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/bills/${id}`, { method: 'DELETE' }),
+  linkBillMatch: (userId: number, billId: number, transactionId: number) =>
+    http<{ id: number }>(`/users/${userId}/bills/${billId}/matches`, { method: 'POST', body: JSON.stringify({ transaction_id: transactionId }) }),
+  unlinkBillMatch: (userId: number, billId: number, transactionId: number) =>
+    http<{ deleted: boolean }>(`/users/${userId}/bills/${billId}/matches/${transactionId}`, { method: 'DELETE' }),
   snapshots: (userId: number) => http<AccountSnapshot[]>(`/users/${userId}/account-snapshots`),
   snapshotSuggestions: (userId: number, date: string) =>
     http<SnapshotSuggestion[]>(`/users/${userId}/account-snapshots/suggestions?date=${encodeURIComponent(date)}`),

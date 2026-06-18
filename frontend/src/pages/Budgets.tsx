@@ -1,5 +1,5 @@
-import { FormEvent } from 'react';
-import { ChevronDown, ChevronUp, Plus, Repeat, Target } from 'lucide-react';
+import { FormEvent, useState } from 'react';
+import { Check, ChevronDown, ChevronUp, Pencil, Plus, Repeat, Target, X } from 'lucide-react';
 import type { Budget, Category, DashboardSummary } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { money } from '../lib/format';
@@ -21,6 +21,19 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
   const expenseCategories = categories.filter((c) => c.type === 'expense');
   const spentByCategory = new Map((summary?.expenses_by_category ?? []).map((c) => [c.category_id, c.amount]));
   const [addOpen, setAddOpen] = usePersistedState<boolean>('budgets_add_open', budgets.length === 0);
+  // Édition inline de la limite : l'upsert du backend conserve le flag
+  // `recurring` quand on l'omet, donc on ne renvoie que le montant.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const saveLimit = (budget: Budget) => {
+    const amount = Number(editValue);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    void run(() => api.setBudget(userId, {
+      category_id: budget.category_id,
+      month: budget.month,
+      amount_limit: amount,
+    }), 'Limite mise à jour').then((ok) => { if (ok) setEditingId(null); });
+  };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -79,23 +92,51 @@ export function Budgets({ userId, month, categories, budgets, summary, run }: {
                     {b.recurring && <span className="badge-recurring">Reconduit</span>}
                   </td>
                   <td className="amount-cell expense">{money(spent)}</td>
-                  <td className="amount-cell">{money(b.amount_limit)}</td>
+                  <td className="amount-cell">
+                    {editingId === b.id ? (
+                      <input
+                        className="inline-amount-input"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={editValue}
+                        autoFocus
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveLimit(b); if (e.key === 'Escape') setEditingId(null); }}
+                      />
+                    ) : money(b.amount_limit)}
+                  </td>
                   <td>
                     <div className="bar"><span style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--expense)' : 'var(--accent)' }} /></div>
                     <span>{Math.round(pct)} %</span>
                   </td>
                   <td className="actions-cell">
-                    <IconButton
-                      label={b.recurring ? 'Arrêter la reconduction mensuelle' : 'Reconduire chaque mois'}
-                      tone={b.recurring ? 'accent' : 'neutral'}
-                      icon={<Repeat size={16} />}
-                      onClick={() => toggleRecurring(b)}
-                    />
-                    <IconButton
-                      label="Supprimer"
-                      confirm={b.recurring ? 'Supprimer ce budget ? La reconduction mensuelle sera arrêtée.' : 'Supprimer ce budget ?'}
-                      onClick={() => void run(() => api.deleteBudget(userId, b.id), 'Budget supprimé')}
-                    />
+                    {editingId === b.id ? (
+                      <>
+                        <IconButton label="Valider la limite" tone="accent" icon={<Check size={16} />} onClick={() => saveLimit(b)} />
+                        <IconButton label="Annuler" tone="neutral" icon={<X size={16} />} onClick={() => setEditingId(null)} />
+                      </>
+                    ) : (
+                      <>
+                        <IconButton
+                          label="Modifier la limite"
+                          tone="neutral"
+                          icon={<Pencil size={16} />}
+                          onClick={() => { setEditingId(b.id); setEditValue(String(b.amount_limit)); }}
+                        />
+                        <IconButton
+                          label={b.recurring ? 'Arrêter la reconduction mensuelle' : 'Reconduire chaque mois'}
+                          tone={b.recurring ? 'accent' : 'neutral'}
+                          icon={<Repeat size={16} />}
+                          onClick={() => toggleRecurring(b)}
+                        />
+                        <IconButton
+                          label="Supprimer"
+                          confirm={b.recurring ? 'Supprimer ce budget ? La reconduction mensuelle sera arrêtée.' : 'Supprimer ce budget ?'}
+                          onClick={() => void run(() => api.deleteBudget(userId, b.id), 'Budget supprimé')}
+                        />
+                      </>
+                    )}
                   </td>
                 </tr>
               );

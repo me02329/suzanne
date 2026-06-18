@@ -100,6 +100,7 @@ accountsRouter.patch('/users/:user_id/accounts/:id', asyncHandler(async (req, re
       ...(body.currency != null ? { currency: body.currency } : {}),
       ...(body.initial_balance != null ? { initial_balance: body.initial_balance } : {}),
       ...(body.initial_balance_date != null ? { initial_balance_date: new Date(body.initial_balance_date) } : {}),
+      ...(body.archived !== undefined ? { archived: body.archived } : {}),
     },
   });
   res.json(row);

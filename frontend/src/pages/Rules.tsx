@@ -1,5 +1,5 @@
-import { FormEvent } from 'react';
-import { ChevronDown, ChevronUp, Plus, Wand2 } from 'lucide-react';
+import { FormEvent, useState } from 'react';
+import { Check, ChevronDown, ChevronUp, Pencil, Plus, Wand2, X } from 'lucide-react';
 import type { Category, CategoryRule } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { usePersistedState } from '../lib/storage';
@@ -17,6 +17,22 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
   run: Run;
 }) {
   const [addOpen, setAddOpen] = usePersistedState<boolean>('rules_add_open', rules.length === 0);
+  // Édition inline d'une règle (mot-clé + catégorie).
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editPattern, setEditPattern] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const startEdit = (rule: CategoryRule) => {
+    setEditingId(rule.id);
+    setEditPattern(rule.pattern);
+    setEditCategoryId(String(rule.category_id));
+  };
+  const saveEdit = (rule: CategoryRule) => {
+    const pattern = editPattern.trim();
+    const category_id = Number(editCategoryId);
+    if (!pattern || !Number.isFinite(category_id) || category_id <= 0) return;
+    void run(() => api.updateRule(userId, rule.id, { pattern, category_id }), 'Règle mise à jour')
+      .then((ok) => { if (ok) setEditingId(null); });
+  };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -73,10 +89,39 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
           <tbody>
             {rules.map((r) => (
               <tr key={r.id}>
-                <td><strong>{r.pattern}</strong></td>
-                <td>{categoryById.get(r.category_id)?.name ?? 'Catégorie'}</td>
-                <td>{new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
-                <td className="actions-cell"><IconButton label="Supprimer" confirm={`Supprimer la règle « ${r.pattern} » ?`} onClick={() => void run(() => api.deleteRule(userId, r.id), 'Règle supprimée')} /></td>
+                {editingId === r.id ? (
+                  <>
+                    <td>
+                      <input
+                        className="inline-amount-input"
+                        value={editPattern}
+                        autoFocus
+                        onChange={(e) => setEditPattern(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(r); if (e.key === 'Escape') setEditingId(null); }}
+                      />
+                    </td>
+                    <td>
+                      <select className="inline-select" value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)}>
+                        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </td>
+                    <td>{new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
+                    <td className="actions-cell">
+                      <IconButton label="Valider" tone="accent" icon={<Check size={16} />} onClick={() => saveEdit(r)} />
+                      <IconButton label="Annuler" tone="neutral" icon={<X size={16} />} onClick={() => setEditingId(null)} />
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td><strong>{r.pattern}</strong></td>
+                    <td>{categoryById.get(r.category_id)?.name ?? 'Catégorie'}</td>
+                    <td>{new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
+                    <td className="actions-cell">
+                      <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => startEdit(r)} />
+                      <IconButton label="Supprimer" confirm={`Supprimer la règle « ${r.pattern} » ?`} onClick={() => void run(() => api.deleteRule(userId, r.id), 'Règle supprimée')} />
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
           </tbody>

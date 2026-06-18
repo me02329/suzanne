@@ -1,6 +1,7 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { prisma } from '../prisma.js';
-import { asyncHandler } from '../middleware/errors.js';
+import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { createBillSchema, idParam, monthString, updateBillSchema } from '../lib/validation.js';
 import { assertTransactionReferences } from '../lib/transactionHelpers.js';
 import { billStatusForMonth } from '../lib/bills.js';
@@ -20,7 +21,7 @@ billsRouter.get('/users/:user_id/bills', asyncHandler(async (req, res) => {
 billsRouter.get('/users/:user_id/bills/status', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const month = monthString.parse(req.query.month);
-  const [bills, transactions] = await Promise.all([
+  const [bills, transactions, manualMatches] = await Promise.all([
     prisma.bill.findMany({ where: { user_id }, orderBy: [{ active: 'desc' }, { name: 'asc' }] }),
     prisma.transaction.findMany({
       where: {
@@ -30,11 +31,20 @@ billsRouter.get('/users/:user_id/bills/status', asyncHandler(async (req, res) =>
       },
       select: { id: true, type: true, amount: true, date: true, description: true, account_id: true, category_id: true },
     }),
+    prisma.billMatch.findMany({ where: { user_id }, select: { bill_id: true, transaction_id: true } }),
   ]);
+  // Liens manuels groupés par facture (ne comptent que pour le mois où tombe
+  // la dépense liée, ce qui est géré par le filtrage de `transactions`).
+  const manualByBill = new Map<number, Set<number>>();
+  for (const match of manualMatches) {
+    const set = manualByBill.get(match.bill_id) ?? new Set<number>();
+    set.add(match.transaction_id);
+    manualByBill.set(match.bill_id, set);
+  }
   const today = new Date();
   const entries = bills.map((bill) => ({
     bill: { ...bill, start_date: bill.start_date.toISOString().slice(0, 10) },
-    ...billStatusForMonth(bill, transactions, month, today),
+    ...billStatusForMonth(bill, transactions, month, today, manualByBill.get(bill.id) ?? new Set()),
   }));
   const due = entries.filter((entry) => entry.due);
   res.json({
@@ -103,6 +113,38 @@ billsRouter.patch('/users/:user_id/bills/:id', asyncHandler(async (req, res) => 
     },
   });
   res.json(row);
+}));
+
+// Lier manuellement une dépense à une facture (rapprochement hors motif).
+billsRouter.post('/users/:user_id/bills/:id/matches', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const bill_id = idParam.parse(req.params.id);
+  const { transaction_id } = z.object({ transaction_id: z.coerce.number().int().positive() }).parse(req.body);
+  const [bill, tx] = await Promise.all([
+    prisma.bill.findFirst({ where: { id: bill_id, user_id }, select: { id: true } }),
+    prisma.transaction.findFirst({ where: { id: transaction_id, user_id }, select: { id: true, type: true } }),
+  ]);
+  if (!bill) throw new HttpError(404, 'Facture introuvable');
+  if (!tx) throw new HttpError(400, 'Transaction introuvable');
+  if (tx.type !== 'expense') throw new HttpError(400, 'Seule une dépense peut être liée à une facture');
+  const row = await prisma.billMatch.upsert({
+    where: { bill_id_transaction_id: { bill_id, transaction_id } },
+    create: { user_id, bill_id, transaction_id },
+    update: {},
+  });
+  res.status(201).json(row);
+}));
+
+billsRouter.delete('/users/:user_id/bills/:id/matches/:transaction_id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const bill_id = idParam.parse(req.params.id);
+  const transaction_id = idParam.parse(req.params.transaction_id);
+  const result = await prisma.billMatch.deleteMany({ where: { user_id, bill_id, transaction_id } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Lien introuvable' });
+    return;
+  }
+  res.json({ deleted: true });
 }));
 
 billsRouter.delete('/users/:user_id/bills/:id', asyncHandler(async (req, res) => {

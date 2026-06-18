@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarCheck, ChevronDown, ChevronUp, Landmark, LineChart, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
+import { Archive, ArchiveRestore, CalendarCheck, ChevronDown, ChevronUp, Landmark, LineChart, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
 import {
   ACCOUNT_TYPES,
   REPORT_CURRENCIES,
@@ -375,9 +375,12 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                       {accountsHere.map((account) => {
                         const estimated = estimatedByAccount.get(account.id);
                         return (
-                          <li key={account.id}>
+                          <li key={account.id} className={account.archived ? 'account-archived' : undefined}>
                             <div className="account-line-main">
-                              <Link className="account-line-name" to={`/accounts/${account.id}`} title={account.name}>{account.name}</Link>
+                              <Link className="account-line-name" to={`/accounts/${account.id}`} title={account.name}>
+                                {account.name}
+                                {account.archived && <span className="badge-archived">Clôturé</span>}
+                              </Link>
                               <span>{accountTypeLabel(account.type)} · {account.currency}</span>
                             </div>
                             <div className="account-line-amount">
@@ -396,7 +399,23 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                                 {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
                               </select>
                               <IconButton label="Modifier" tone="neutral" icon={<Pencil size={14} />} onClick={() => { setEditingAccount(account); setAccountOpen(true); }} />
-                              <IconButton label="Supprimer" icon={<Trash2 size={14} />} confirm={`Supprimer le compte « ${account.name} » et toutes ses transactions ?`} onClick={() => void run(() => api.deleteAccount(userId, account.id), 'Compte supprimé')} />
+                              {account.archived ? (
+                                <IconButton
+                                  label="Rouvrir le compte"
+                                  tone="accent"
+                                  icon={<ArchiveRestore size={14} />}
+                                  onClick={() => void run(() => api.updateAccount(userId, account.id, { archived: false }), 'Compte rouvert')}
+                                />
+                              ) : (
+                                <IconButton
+                                  label="Clôturer (archiver) le compte"
+                                  tone="neutral"
+                                  icon={<Archive size={14} />}
+                                  confirm={`Clôturer le compte « ${account.name} » ? Il est masqué des saisies mais son historique et son solde sont conservés. Réversible à tout moment.`}
+                                  onClick={() => void run(() => api.updateAccount(userId, account.id, { archived: true }), 'Compte clôturé')}
+                                />
+                              )}
+                              <IconButton label="Supprimer définitivement" icon={<Trash2 size={14} />} confirm={`Supprimer définitivement le compte « ${account.name} » ? Ses transactions ne sont pas supprimées mais détachées (elles passent « sans compte »). Pour conserver un historique cohérent, préfère la clôture.`} onClick={() => void run(() => api.deleteAccount(userId, account.id), 'Compte supprimé')} />
                             </div>
                           </li>
                         );

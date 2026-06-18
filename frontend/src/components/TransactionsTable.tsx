@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Copy, HandCoins, Pencil, Repeat, Split } from 'lucide-react';
 import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne/shared';
 import { money, txLabel, typeLabel } from '../lib/format';
+import { pickableAccounts } from '../lib/account';
 import { IconButton } from './IconButton';
 
 export type TxSortKey = 'date' | 'label' | 'type' | 'amount';
@@ -195,7 +196,7 @@ export function TransactionsTable({
                       onChange={(e) => onInlineUpdate(t, { account_id: e.target.value ? Number(e.target.value) : null })}
                     >
                       <option value="">Sans compte</option>
-                      {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      {pickableAccounts(accounts, t.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
                     {t.type === 'transfer' && (
                       <select
@@ -205,7 +206,7 @@ export function TransactionsTable({
                         onChange={(e) => onInlineUpdate(t, { to_account_id: e.target.value ? Number(e.target.value) : null })}
                       >
                         <option value="">Sans compte</option>
-                        {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        {pickableAccounts(accounts, t.to_account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                       </select>
                     )}
                   </div>
