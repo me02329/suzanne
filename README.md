@@ -67,22 +67,24 @@ suzanne est une application web auto-hébergée, pensée pour suivre simplement 
 ## Fonctionnalités
 
 - **Tableau de bord mensuel** — revenus, dépenses, net, solde estimé, comptes, ventilation par catégorie et évolution des flux.
-- **Transactions** — dépenses, revenus et transferts, tags, filtre par mois, recherche, édition inline du compte/de la catégorie, sélection multiple et modification en lot.
-- **Comptes** — comptes bancaires, livrets, investissements, crypto, espèces, crédits et emprunts, avec devises et regroupement par type.
-- **Détail par compte** — historique de solde, mouvements récents, snapshots et alertes de plafond pour les livrets réglementés.
+- **Transactions** — dépenses, revenus et transferts, tags, ventilation multi-catégories (splits), pointage/rapprochement, filtre par mois, recherche, duplication, édition inline du compte/de la catégorie, et actions en lot (catégorie, compte, pointage, **ajout de tag**, **suppression**).
+- **Remboursements** — un revenu peut annuler tout ou partie d'une dépense (répartition possible sur plusieurs dépenses) ; la part remboursée vient en déduction des dépenses, le surplus éventuel reste un revenu.
+- **Comptes** — comptes bancaires, livrets, investissements, crypto, espèces, crédits et emprunts, avec devises et regroupement par type ; **archivage** (clôture) pour masquer un compte des saisies tout en gardant son historique.
+- **Détail par compte** — historique de solde, mouvements récents, snapshots, rapprochement au relevé (solde pointé) et alertes de plafond pour les livrets réglementés.
 - **Snapshots de solde** — suivi de soldes datés par compte, avec saisie batch et pré-remplissage depuis le dernier solde connu.
-- **Catégories** — catégories dépenses/revenus personnalisables, couleurs et icônes.
+- **Catégories** — catégories dépenses/revenus personnalisables, couleurs et icônes, avec **fusion** (réaffecte tout le contenu d'une catégorie vers une autre).
 - **Tags** — étiquettes libres multi-valeurs sur les transactions, indépendantes des catégories.
-- **Budgets** — limites mensuelles par catégorie, avec suivi du dépensé.
-- **Transactions récurrentes / abonnements** — charges ou revenus réguliers, cadence hebdomadaire/mensuelle/annuelle, génération automatique et liaison à une transaction existante.
+- **Budgets** — limites mensuelles par catégorie, suivi du dépensé, édition inline et reconduction automatique d'un mois sur l'autre.
+- **Factures attendues** — dépenses récurrentes à fourchette de montant (ex. électricité 80–130 €), rapprochées chaque mois des dépenses réelles par motif ; statut payée / hors fourchette / en retard, et **rapprochement manuel** d'une dépense quand le motif ne suffit pas.
+- **Transactions récurrentes / abonnements** — charges ou revenus réguliers, cadence hebdomadaire/mensuelle/annuelle, génération automatique, **date de fin** optionnelle, **saut d'une occurrence**, et liaison à une transaction existante.
 - **Prévisionnel** — projection du solde liquide à partir des récurrents actifs et des échéances d'objectifs.
 - **Santé financière** — taux d'épargne, fonds d'urgence, poids des récurrents, charges fixes/variables et adhérence aux budgets.
-- **Règles d'auto-catégorisation** — mots-clés appliqués à l'import CSV.
+- **Règles d'auto-catégorisation** — mots-clés éditables, appliqués à l'import CSV et rétroactivement aux transactions sans catégorie.
 - **Statistiques** — répartition par catégorie, top marchands, évolution mensuelle des dépenses et prise en charge des non-catégorisées.
-- **Objectifs d'épargne** — suivi d'objectifs avec montant cible, progression et échéance.
+- **Objectifs d'épargne** — montant cible, progression et échéance, versements et **retraits** (avec transfert depuis/vers un compte) et historique des mouvements.
 - **Import / Export** — import CSV configurable, exports rapides, export sélectif JSON réimportable et restauration JSON.
-- **Assistant IA optionnel** — analyse et actions proposées avec confirmation utilisateur, compatible OpenAI ou endpoint Chat Completions équivalent.
-- **Confort** — multi-utilisateurs, recherche globale, devise de reporting, raccourcis clavier, thème clair/sombre et interface responsive.
+- **Assistant IA optionnel** — analyse et actions proposées avec confirmation utilisateur, en streaming, compatible OpenAI ou endpoint Chat Completions équivalent.
+- **Confort** — multi-utilisateurs, recherche globale, devise de reporting, raccourcis clavier, thèmes clair / sombre / crème, transitions soignées et défilement fluide, interface responsive.
 
 Interface entièrement en français.
 
@@ -102,7 +104,7 @@ Hors périmètre :
 | Couche | Technologies |
 |---|---|
 | Backend | Node 20, Express, Prisma (PostgreSQL), Zod, TypeScript |
-| Frontend | React 18, Vite, TypeScript, Recharts, lucide-react |
+| Frontend | React 18, Vite, TypeScript, Recharts, lucide-react, Lenis (défilement) |
 | Monorepo | npm workspaces — `shared/` (DTO et taxonomies), `backend/`, `frontend/` |
 | Déploiement | Docker multi-stage, Docker Compose, migrations Prisma au démarrage |
 
@@ -241,33 +243,50 @@ Toutes les routes métier sont préfixées par `/api`.
 | GET / POST | `/api/users` | Lister / créer un utilisateur |
 | DELETE | `/api/users/:id` | Supprimer un utilisateur |
 | GET / POST | `/api/users/:user_id/accounts` | Lister / créer les comptes |
-| PATCH / DELETE | `/api/users/:user_id/accounts/:id` | Modifier / supprimer un compte |
+| PATCH / DELETE | `/api/users/:user_id/accounts/:id` | Modifier (dont archivage) / supprimer un compte |
+| GET | `/api/users/:user_id/accounts/:id/activity` | Activité d'un compte (totaux + mouvements récents) |
 | GET / POST | `/api/users/:user_id/institutions` | Lister / créer les institutions |
 | DELETE | `/api/users/:user_id/institutions/:id` | Supprimer une institution |
 | GET / POST | `/api/users/:user_id/categories` | Lister / créer les catégories |
 | PATCH / DELETE | `/api/users/:user_id/categories/:id` | Modifier / supprimer une catégorie |
+| POST | `/api/users/:user_id/categories/:id/merge` | Fusionner une catégorie dans une autre |
 | GET / POST | `/api/users/:user_id/tags` | Lister / créer les tags |
 | PATCH / DELETE | `/api/users/:user_id/tags/:id` | Modifier / supprimer un tag |
 | GET / POST | `/api/users/:user_id/transactions` | Lister / créer les transactions |
 | PATCH / DELETE | `/api/users/:user_id/transactions/:id` | Modifier / supprimer une transaction |
+| POST | `/api/users/:user_id/transactions/bulk-update` | Modifier en lot (compte, catégorie, pointage, tag) |
+| POST | `/api/users/:user_id/transactions/bulk-delete` | Supprimer en lot |
 | POST | `/api/users/:user_id/transactions/:id/link-recurring` | Lier / délier une transaction récurrente |
 | GET / POST | `/api/users/:user_id/budgets` | Lister / définir les budgets |
 | DELETE | `/api/users/:user_id/budgets/:id` | Supprimer un budget |
 | GET / POST | `/api/users/:user_id/recurring-transactions` | Lister / créer les récurrents |
 | PATCH / DELETE | `/api/users/:user_id/recurring-transactions/:id` | Modifier / supprimer un récurrent |
+| POST | `/api/users/:user_id/recurring-transactions/:id/skip` | Sauter la prochaine occurrence |
 | POST | `/api/users/:user_id/recurring-transactions/generate` | Générer les récurrents actifs |
+| GET / POST | `/api/users/:user_id/bills` | Lister / créer les factures attendues |
+| GET | `/api/users/:user_id/bills/status?month=` | Statut des factures sur un mois |
+| PATCH / DELETE | `/api/users/:user_id/bills/:id` | Modifier / supprimer une facture |
+| POST | `/api/users/:user_id/bills/:id/matches` | Lier manuellement une dépense à une facture |
+| DELETE | `/api/users/:user_id/bills/:id/matches/:transaction_id` | Retirer un lien manuel |
 | GET / POST | `/api/users/:user_id/category-rules` | Lister / créer les règles |
-| DELETE | `/api/users/:user_id/category-rules/:id` | Supprimer une règle |
+| PATCH / DELETE | `/api/users/:user_id/category-rules/:id` | Modifier / supprimer une règle |
+| POST | `/api/users/:user_id/category-rules/apply` | Appliquer les règles aux transactions sans catégorie |
 | GET / POST | `/api/users/:user_id/savings-goals` | Lister / créer les objectifs |
 | PATCH / DELETE | `/api/users/:user_id/savings-goals/:id` | Modifier / supprimer un objectif |
+| POST | `/api/users/:user_id/savings-goals/:id/contribute` | Verser sur un objectif |
+| POST | `/api/users/:user_id/savings-goals/:id/withdraw` | Retirer d'un objectif |
+| GET | `/api/users/:user_id/savings-goals/:id/contributions` | Historique des mouvements d'un objectif |
+| DELETE | `/api/users/:user_id/savings-goals/:id/contributions/:contribution_id` | Annuler un mouvement |
 | GET / POST | `/api/users/:user_id/account-snapshots` | Lister / créer les snapshots |
 | POST | `/api/users/:user_id/account-snapshots/batch` | Saisir plusieurs snapshots |
+| GET | `/api/users/:user_id/account-snapshots/suggestions` | Comptes à snapshoter (suggestions) |
 | DELETE | `/api/users/:user_id/account-snapshots/:id` | Supprimer un snapshot |
 | GET | `/api/users/:user_id/dashboard` | Résumé mensuel |
 | GET | `/api/users/:user_id/wealth-history` | Historique de patrimoine |
 | GET | `/api/users/:user_id/statistics` | Statistiques long terme |
 | GET | `/api/users/:user_id/search` | Recherche globale |
 | POST | `/api/users/:user_id/ai/chat` | Assistant IA avec tools lecture/action confirmée |
+| POST | `/api/users/:user_id/ai/chat/stream` | Variante en streaming (SSE) |
 | POST | `/api/users/:user_id/ai/confirm` | Confirmer une action proposée par l'IA |
 | POST | `/api/users/:user_id/import.csv` | Import CSV de transactions |
 | GET | `/api/users/:user_id/transactions.csv` | Export CSV des transactions |
