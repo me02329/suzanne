@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, Rows2, Rows3, 
 import {
   ACCOUNT_GROUPS,
   accountTypeGroup,
+  refundAllocatedAmount,
   refundedAmount,
   type Account,
   type Category,
@@ -260,8 +261,14 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   }, [refundingExpense]);
   const pageStart = sortedTransactions.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(currentPage * PAGE_SIZE, sortedTransactions.length);
+  // Récap aligné sur le dashboard : la part remboursement d'un revenu annule une
+  // dépense (n'est pas comptée en revenu), seul l'éventuel surplus est un revenu.
   const txTotals = filteredTransactions.reduce((acc, t) => {
-    if (t.type === 'income') acc.income += t.amount;
+    if (t.type === 'income') {
+      const refundPart = refundAllocatedAmount(t);
+      acc.income += t.amount - refundPart;
+      acc.expenses -= refundPart;
+    }
     if (t.type === 'expense') acc.expenses += t.amount;
     if (t.type === 'transfer') acc.transfers += t.amount;
     return acc;

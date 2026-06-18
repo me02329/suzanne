@@ -297,6 +297,21 @@ export function refundedAmount(t: Pick<Transaction, 'refunded_by'>): number {
   return Math.round((t.refunded_by ?? []).reduce((s, r) => s + r.amount, 0) * 100) / 100;
 }
 
+// Part d'un revenu qui constitue un remboursement (et annule donc une dépense
+// au lieu de compter comme revenu). Bornée au montant du revenu : un surplus
+// au-delà des dépenses remboursées reste, lui, un vrai revenu. Aligne le calcul
+// du frontend sur celui du dashboard/statistiques côté backend.
+export function refundAllocatedAmount(
+  t: Pick<Transaction, 'type' | 'amount' | 'refund_allocations' | 'refunds_transaction_id'>,
+): number {
+  if (t.type !== 'income') return 0;
+  if ((t.refund_allocations ?? []).length > 0) {
+    const total = t.refund_allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
+    return Math.min(t.amount, Math.round(total * 100) / 100);
+  }
+  return t.refunds_transaction_id != null ? t.amount : 0;
+}
+
 export interface CreateBudgetBody {
   category_id: number;
   month: string;

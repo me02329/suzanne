@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Account, Transaction } from '@suzanne/shared';
+import { refundAllocatedAmount, type Account, type Transaction } from '@suzanne/shared';
 import { accountSignedAmount, livretCeiling, touchesAccount } from './account';
 
 function tx(overrides: Partial<Transaction>): Transaction {
@@ -63,5 +63,30 @@ describe('livretCeiling', () => {
   it('returns null for account types without a ceiling', () => {
     expect(livretCeiling(account({ type: 'checking' }), 'EUR')).toBeNull();
     expect(livretCeiling(account({ type: 'pea' }), 'EUR')).toBeNull();
+  });
+});
+
+describe('refundAllocatedAmount', () => {
+  const alloc = (id: number, amount: number) => ({
+    id, user_id: 1, refund_transaction_id: 9, expense_transaction_id: id, amount, created_at: '',
+  });
+
+  it('ignore les non-revenus', () => {
+    expect(refundAllocatedAmount(tx({ type: 'expense', amount: 100 }))).toBe(0);
+  });
+
+  it('vaut 0 pour un revenu sans lien de remboursement', () => {
+    expect(refundAllocatedAmount(tx({ type: 'income', amount: 100 }))).toBe(0);
+  });
+
+  it('somme les allocations, bornées au montant du revenu (le surplus reste revenu)', () => {
+    // Revenu 120, allocation 100 → 100 annulent une dépense, 20 restent revenu.
+    expect(refundAllocatedAmount(tx({ type: 'income', amount: 120, refund_allocations: [alloc(1, 100)] }))).toBe(100);
+    // Allocations cumulées au-delà du revenu sont bornées au revenu.
+    expect(refundAllocatedAmount(tx({ type: 'income', amount: 100, refund_allocations: [alloc(1, 60), alloc(2, 60)] }))).toBe(100);
+  });
+
+  it('gère le lien legacy refunds_transaction_id (tout le revenu)', () => {
+    expect(refundAllocatedAmount(tx({ type: 'income', amount: 80, refunds_transaction_id: 5 }))).toBe(80);
   });
 });
