@@ -121,7 +121,9 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
       { key: 'crypto', label: 'Crypto', color: accountGroupColor('crypto'), width: 2 },
       { key: 'other', label: 'Autres', color: accountGroupColor('other'), width: 2 },
     ];
-  }, [wealthViewMode, accounts]);
+    // `chartTheme` est en dépendance : sans lui, le mémo gardait les couleurs
+    // de séries (Total/Actifs/Passifs) du thème précédent jusqu'au rechargement.
+  }, [wealthViewMode, accounts, chartTheme]);
 
   const defaultWealthSeries = useMemo<Record<string, boolean>>(() => {
     if (wealthViewMode === 'account') {
