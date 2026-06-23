@@ -102,6 +102,7 @@ model User {
   holdings                Holding[]
   holding_orders          HoldingOrder[]
   alerts                  Alert[]
+  attachments             Attachment[]
 
   @@map("users")
 }
@@ -222,6 +223,7 @@ model Transaction {
   refund_allocations_received RefundAllocation[] @relation("RefundAllocationExpense")
   goal_contributions          GoalContribution[]
   bill_matches                BillMatch[]
+  attachments                 Attachment[]
 
   @@index([user_id, date])
   @@index([account_id])
@@ -540,6 +542,27 @@ model MarketData {
 
   @@unique([symbol, date])
   @@map("market_data")
+}
+
+// Pièce jointe (reçu, justificatif) rattachée à une transaction. Le contenu est
+// stocké en base (bytea) plutôt que sur disque : pas de volume à monter, et la
+// sauvegarde reste l'export de la base. Adapté à des fichiers de quelques Mo.
+model Attachment {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  transaction_id Int
+  filename       String
+  mime_type      String
+  size           Int
+  data           Bytes
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  user        User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transaction Transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([transaction_id])
+  @@map("attachments")
 }
 
 // Alerte configurable, évaluée à la volée (pas de canal d'envoi pour l'instant :

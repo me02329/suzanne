@@ -319,6 +319,22 @@ export interface AnomalyReport {
   duplicates: DuplicatePair[];
 }
 
+// Métadonnées d'une pièce jointe (le binaire se télécharge à part).
+export interface Attachment {
+  id: number;
+  transaction_id: number;
+  filename: string;
+  mime_type: string;
+  size: number;
+  created_at: string;
+}
+
+export interface CreateAttachmentBody {
+  filename: string;
+  mime_type: string;
+  data_base64: string;
+}
+
 export type BillFrequency = 'monthly' | 'yearly';
 
 // Facture attendue : dépense récurrente à fourchette de montant, rapprochée

@@ -300,6 +300,22 @@ const alertRequiredCheck = (data: z.infer<typeof alertShape>, ctx: z.RefinementC
 export const createAlertSchema = alertShape.superRefine(alertRequiredCheck);
 export const updateAlertSchema = alertShape.partial();
 
+// Pièce jointe : reçus/justificatifs. On limite aux images et PDF, 8 Mo max
+// (le contenu transite en base64 dans le corps JSON, limité à 25 Mo côté app).
+const ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
+export const createAttachmentSchema = z.object({
+  filename: z.string().trim().min(1).max(255),
+  mime_type: z.string().trim().refine(
+    (m) => m.startsWith('image/') || m === 'application/pdf',
+    'Seules les images et les PDF sont acceptés',
+  ),
+  data_base64: z.string().min(1).refine((b64) => {
+    // Taille approximative du binaire décodé sans tout matérialiser.
+    const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
+    return (b64.length * 3) / 4 - padding <= ATTACHMENT_MAX_BYTES;
+  }, 'Fichier trop volumineux (8 Mo max)'),
+});
+
 export const csvImportSchema = z.object({
   csv: z.string().min(1),
   account_id: z.coerce.number().int().positive().nullish(),

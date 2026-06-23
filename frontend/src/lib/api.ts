@@ -23,7 +23,9 @@ import type {
   CreateTransactionBody,
   Alert,
   AnomalyReport,
+  Attachment,
   CreateAlertBody,
+  CreateAttachmentBody,
   CreateHoldingBody,
   CreateHoldingOrderBody,
   DashboardSummary,
@@ -207,6 +209,17 @@ export const api = {
   deleteHoldingOrder: (userId: number, id: number, orderId: number) =>
     http<Holding>(`/users/${userId}/holdings/${id}/orders/${orderId}`, { method: 'DELETE' }),
   anomalies: (userId: number) => http<AnomalyReport>(`/users/${userId}/anomalies`),
+  attachments: (userId: number, txId: number) => http<Attachment[]>(`/users/${userId}/transactions/${txId}/attachments`),
+  uploadAttachment: (userId: number, txId: number, body: CreateAttachmentBody) =>
+    http<Attachment>(`/users/${userId}/transactions/${txId}/attachments`, { method: 'POST', body: JSON.stringify(body) }),
+  deleteAttachment: (userId: number, id: number) =>
+    http<{ deleted: boolean }>(`/users/${userId}/attachments/${id}`, { method: 'DELETE' }),
+  // Binaire d'une pièce jointe : fetch authentifié -> object URL (à révoquer après usage).
+  attachmentBlobUrl: async (userId: number, id: number): Promise<string> => {
+    const res = await fetch(`${API_BASE}/users/${userId}/attachments/${id}`, { headers: { ...authHeaders() } });
+    if (!res.ok) throw new Error(`Téléchargement impossible (${res.status})`);
+    return URL.createObjectURL(await res.blob());
+  },
   alerts: (userId: number) => http<Alert[]>(`/users/${userId}/alerts`),
   triggeredAlerts: (userId: number, currency: string, month: string) =>
     http<TriggeredAlert[]>(`/users/${userId}/alerts/triggered?currency=${currency}&month=${month}`),

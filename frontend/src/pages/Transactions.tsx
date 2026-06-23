@@ -22,6 +22,7 @@ import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 import { Collapsible } from '../components/Collapsible';
 import { TagPicker } from '../components/TagPicker';
+import { AttachmentsModal } from '../components/AttachmentsModal';
 import { TransactionsTable, type TxSort, type TxSortKey } from '../components/TransactionsTable';
 
 import type { Run } from '../lib/run';
@@ -83,6 +84,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   // `editing` doubles as the modal trigger: open when non-null, closed otherwise.
   // Negative ids encode "copy" (no real backend row yet).
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [attachmentsFor, setAttachmentsFor] = useState<Transaction | null>(null);
   const [linking, setLinking] = useState<Transaction | null>(null);
   // Remboursements : dépense → créer le revenu lié ; revenu → choisir la dépense liée.
   const [refundingExpense, setRefundingExpense] = useState<Transaction | null>(null);
@@ -712,6 +714,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           onSplit={startSplit}
           onRefund={(t) => (t.type === 'expense' ? setRefundingExpense(t) : setLinkingRefund(t))}
           onToggleCleared={toggleCleared}
+          onAttachments={setAttachmentsFor}
           onDelete={(t) => void run(
             () => api.deleteTransaction(userId, t.id),
             'Transaction supprimée',
@@ -915,6 +918,16 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
             <button type="button" className="secondary" onClick={() => setLinking(null)}>Annuler</button>
           </form>
         </Modal>
+      )}
+
+      {attachmentsFor && attachmentsFor.id > 0 && (
+        <AttachmentsModal
+          userId={userId}
+          transactionId={attachmentsFor.id}
+          label={txLabel(attachmentsFor, categoryById)}
+          run={run}
+          onClose={() => setAttachmentsFor(null)}
+        />
       )}
     </section>
   );

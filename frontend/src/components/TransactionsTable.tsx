@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Copy, HandCoins, Pencil, Repeat, Split } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Copy, HandCoins, Paperclip, Pencil, Repeat, Split } from 'lucide-react';
 import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne/shared';
 import { money, txLabel, typeLabel } from '../lib/format';
 import { pickableAccounts } from '../lib/account';
@@ -31,6 +31,7 @@ export function TransactionsTable({
   onRefund,
   onSplit,
   onToggleCleared,
+  onAttachments,
   onDelete,
   highlightId = null,
 }: {
@@ -56,6 +57,8 @@ export function TransactionsTable({
   onSplit: (transaction: Transaction) => void;
   // Pointage : bascule le statut « rapprochée du relevé bancaire ».
   onToggleCleared: (transaction: Transaction) => void;
+  // Ouvre la gestion des pièces jointes de la transaction.
+  onAttachments: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
   // Transaction ciblée par un drill-down : la ligne flashe et défile en vue.
   highlightId?: number | null;
@@ -273,6 +276,7 @@ export function TransactionsTable({
                       onClick={() => onRefund(t)}
                     />
                   )}
+                  <IconButton label="Pièces jointes" tone="neutral" icon={<Paperclip size={16} />} onClick={() => onAttachments(t)} />
                   <IconButton label="Supprimer" confirm="Supprimer cette transaction ?" onClick={() => onDelete(t)} />
                 </td>
               </tr>
