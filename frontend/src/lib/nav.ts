@@ -3,6 +3,7 @@ import {
   Activity,
   BarChart3,
   CalendarClock,
+  CandlestickChart,
   CreditCard,
   Landmark,
   LayoutDashboard,
@@ -20,7 +21,7 @@ import {
 } from 'lucide-react';
 import type { SearchResult } from '@suzanne/shared';
 
-export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'bills' | 'goals' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health';
+export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'bills' | 'goals' | 'investments' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health';
 
 export interface NavItem {
   tab: Tab;
@@ -46,6 +47,7 @@ export const navItems: NavItem[] = [
   { tab: 'bills', label: 'Factures', icon: React.createElement(ReceiptText, { size: 18 }) },
   { tab: 'recurring', label: 'Récurrents', icon: React.createElement(Repeat, { size: 18 }) },
   { tab: 'goals', label: 'Objectifs', icon: React.createElement(Target, { size: 18 }) },
+  { tab: 'investments', label: 'Investissements', icon: React.createElement(CandlestickChart, { size: 18 }) },
   { tab: 'categories', label: 'Catégories', icon: React.createElement(Tags, { size: 18 }) },
   { tab: 'tags', label: 'Tags', icon: React.createElement(TagIcon, { size: 18 }) },
   { tab: 'rules', label: 'Règles', icon: React.createElement(Settings2, { size: 18 }) },
@@ -59,7 +61,7 @@ export const navItems: NavItem[] = [
 // Structure = référentiel ; Administration = outillage + IA.
 export const navSections: NavSection[] = [
   { id: 'pilotage', label: 'Pilotage', items: navItems.filter((item) => ['dashboard', 'wealth', 'statistics', 'forecast', 'health'].includes(item.tab)) },
-  { id: 'donnees', label: 'Données', items: navItems.filter((item) => ['transactions', 'accounts', 'budgets', 'bills', 'recurring', 'goals'].includes(item.tab)) },
+  { id: 'donnees', label: 'Données', items: navItems.filter((item) => ['transactions', 'accounts', 'budgets', 'bills', 'recurring', 'goals', 'investments'].includes(item.tab)) },
   { id: 'structure', label: 'Structure', items: navItems.filter((item) => ['categories', 'tags', 'rules'].includes(item.tab)) },
   { id: 'admin', label: 'Administration', items: navItems.filter((item) => ['tools', 'users', 'settings', 'assistant'].includes(item.tab)) },
 ];

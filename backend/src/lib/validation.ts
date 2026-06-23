@@ -252,6 +252,26 @@ export const batchAccountSnapshotsSchema = z.object({
   })).min(1).max(100),
 });
 
+const assetClass = z.enum(['equity', 'etf', 'fund', 'bond', 'crypto', 'commodity', 'cash', 'other']);
+
+export const createHoldingSchema = z.object({
+  account_id: z.coerce.number().int().positive(),
+  symbol: z.string().trim().min(1).max(40),
+  name: z.string().trim().min(1).max(160),
+  asset_class: assetClass.default('equity'),
+  currency: currencyCode.default('EUR'),
+});
+export const updateHoldingSchema = createHoldingSchema.partial().omit({ account_id: true });
+
+export const createHoldingOrderSchema = z.object({
+  side: z.enum(['buy', 'sell']),
+  date: dateString,
+  quantity: z.coerce.number().positive().transform(round2),
+  unit_price: z.coerce.number().min(0).transform(round2),
+  fee: z.coerce.number().min(0).default(0).transform(round2),
+});
+export const updateHoldingOrderSchema = createHoldingOrderSchema.partial();
+
 export const csvImportSchema = z.object({
   csv: z.string().min(1),
   account_id: z.coerce.number().int().positive().nullish(),

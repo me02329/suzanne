@@ -47,6 +47,23 @@ enum BillFrequency {
   yearly
 }
 
+// Classe d'actif d'une position (sert au regroupement de l'allocation).
+enum AssetClass {
+  equity
+  etf
+  fund
+  bond
+  crypto
+  commodity
+  cash
+  other
+}
+
+enum OrderSide {
+  buy
+  sell
+}
+
 model User {
   id         Int      @id @default(autoincrement())
   name       String   @unique
@@ -67,6 +84,8 @@ model User {
   goal_contributions      GoalContribution[]
   bills                   Bill[]
   bill_matches            BillMatch[]
+  holdings                Holding[]
+  holding_orders          HoldingOrder[]
 
   @@map("users")
 }
@@ -108,6 +127,7 @@ model Account {
   snapshots              AccountSnapshot[]
   savings_goals          SavingsGoal[]
   bills                  Bill[]
+  holdings               Holding[]
 
   @@unique([user_id, name])
   @@index([user_id])
@@ -418,4 +438,85 @@ model AccountSnapshot {
   @@unique([account_id, date])
   @@index([user_id, date])
   @@map("account_snapshots")
+}
+
+// Cache persistant des taux de change quotidiens. Les taux historiques sont
+// immuables une fois le marché clôturé : on les stocke pour que la conversion
+// du patrimoine historique (wealth-history) soit durable et rapide, au lieu de
+// ré-interroger Yahoo à chaque chargement (le cache mémoire de fx.ts est perdu
+// au redémarrage). Données universelles, non scopées par utilisateur.
+model ExchangeRate {
+  id         Int       @id @default(autoincrement())
+  base       String    @db.VarChar(3)
+  quote      String    @db.VarChar(3)
+  date       DateTime  @db.Date
+  rate       Float
+  as_of      DateTime? @db.Date
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([base, quote, date])
+  @@map("exchange_rates")
+}
+
+// Une position détenue sur un compte d'investissement (PEA, compte-titres,
+// crypto…). La quantité n'est pas stockée : elle se déduit du carnet d'ordres
+// (Σ achats − Σ ventes). `symbol` est le ticker interrogé pour le cours
+// (ex. AAPL, CW8.PA, BTC-EUR) ; `currency` est la devise de cotation du titre,
+// convertie ensuite vers la devise du compte puis la devise de reporting.
+model Holding {
+  id          Int        @id @default(autoincrement())
+  user_id     Int
+  account_id  Int
+  symbol      String
+  name        String
+  asset_class AssetClass @default(equity)
+  currency    String     @default("EUR")
+  created_at  DateTime   @default(now()) @db.Timestamptz(6)
+
+  user    User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account Account        @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  orders  HoldingOrder[]
+
+  @@unique([account_id, symbol])
+  @@index([user_id])
+  @@map("holdings")
+}
+
+// Carnet d'ordres d'une position : la quantité courante et le prix de revient
+// (PRU) en dérivent → plus-value latente, performance, allocation.
+model HoldingOrder {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  holding_id Int
+  side       OrderSide
+  date       DateTime  @db.Date
+  quantity   Float
+  unit_price Float
+  fee        Float     @default(0)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  holding Holding @relation(fields: [holding_id], references: [id], onDelete: Cascade)
+
+  @@index([holding_id, date])
+  @@index([user_id])
+  @@map("holding_orders")
+}
+
+// Cache persistant des cours quotidiens, jumeau d'ExchangeRate. Un cours
+// historique est immuable une fois le marché clôturé : on le mémorise pour
+// valoriser le patrimoine dans le temps sans ré-interroger Yahoo. `currency`
+// est la devise de cotation renvoyée par le fournisseur. Non scopé par
+// utilisateur (donnée de marché universelle).
+model MarketData {
+  id         Int      @id @default(autoincrement())
+  symbol     String
+  date       DateTime @db.Date
+  price      Float
+  currency   String?
+  as_of      DateTime? @db.Date
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([symbol, date])
+  @@map("market_data")
 }

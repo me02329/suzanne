@@ -10,6 +10,7 @@ import {
   type Category,
   type CategoryRule,
   type DashboardSummary,
+  type Holding,
   type Institution,
   type RecurringTransaction,
   type SavingsGoal,
@@ -52,6 +53,7 @@ const Recurring = lazy(() => import('./pages/Recurring').then((m) => ({ default:
 const Forecast = lazy(() => import('./pages/Forecast').then((m) => ({ default: m.Forecast })));
 const Health = lazy(() => import('./pages/Health').then((m) => ({ default: m.Health })));
 const Goals = lazy(() => import('./pages/Goals').then((m) => ({ default: m.Goals })));
+const Investments = lazy(() => import('./pages/Investments').then((m) => ({ default: m.Investments })));
 const Rules = lazy(() => import('./pages/Rules').then((m) => ({ default: m.Rules })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Tags = lazy(() => import('./pages/Tags').then((m) => ({ default: m.Tags })));
@@ -91,6 +93,7 @@ export default function App() {
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([]);
   const [rules, setRules] = useState<CategoryRule[]>([]);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [snapshots, setSnapshots] = useState<AccountSnapshot[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +154,7 @@ export default function App() {
   const reloadStatic = async () => {
     if (!userId) return;
     const version = ++staticVersion.current;
-    const [unassignedTxs, accs, insts, cats, recs, rls, gls, snaps, tgs] = await Promise.all([
+    const [unassignedTxs, accs, insts, cats, recs, rls, gls, hlds, snaps, tgs] = await Promise.all([
       api.transactions(userId, undefined, 'unassigned_account'),
       api.accounts(userId),
       api.institutions(userId),
@@ -159,6 +162,7 @@ export default function App() {
       api.recurring(userId),
       api.rules(userId),
       api.goals(userId),
+      api.holdings(userId),
       api.snapshots(userId),
       api.tags(userId),
     ]);
@@ -170,6 +174,7 @@ export default function App() {
     setRecurring(recs);
     setRules(rls);
     setGoals(gls);
+    setHoldings(hlds);
     setSnapshots(snaps);
     setTags(tgs);
     setDataVersion((v) => v + 1);
@@ -471,6 +476,7 @@ export default function App() {
           <Route path="/forecast" element={userId ? <Forecast recurring={recurring} accounts={accounts} goals={goals} summary={summary} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
           <Route path="/health" element={userId ? <Health summary={summary} recurring={recurring} budgets={budgets} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
           <Route path="/goals" element={userId ? <Goals userId={userId} goals={goals} accounts={accounts} accountById={accountById} run={run} /> : null} />
+          <Route path="/investments" element={userId ? <Investments userId={userId} holdings={holdings} accounts={accounts} accountById={accountById} reportCurrency={reportCurrency} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/rules" element={userId ? <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} run={run} /> : null} />
           <Route path="/tools" element={userId ? <Tools userId={userId} accounts={accounts} run={run} /> : null} />
           <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} />} />

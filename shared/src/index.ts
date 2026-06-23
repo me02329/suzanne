@@ -176,6 +176,87 @@ export interface GoalContribution {
   created_at: string;
 }
 
+export type AssetClass = 'equity' | 'etf' | 'fund' | 'bond' | 'crypto' | 'commodity' | 'cash' | 'other';
+export type OrderSide = 'buy' | 'sell';
+
+// Ordre d'achat/vente d'une position. La quantité détenue et le PRU dérivent du
+// carnet (Σ achats − Σ ventes) ; on ne stocke pas de quantité courante.
+export interface HoldingOrder {
+  id: number;
+  user_id: number;
+  holding_id: number;
+  side: OrderSide;
+  date: string;
+  quantity: number;
+  unit_price: number;
+  fee: number;
+  created_at: string;
+}
+
+// Position détenue sur un compte d'investissement (PEA, compte-titres, crypto…).
+// `symbol` est le ticker interrogé pour le cours, `currency` sa devise de cotation.
+export interface Holding {
+  id: number;
+  user_id: number;
+  account_id: number;
+  symbol: string;
+  name: string;
+  asset_class: AssetClass;
+  currency: string;
+  created_at: string;
+  orders: HoldingOrder[];
+}
+
+export interface CreateHoldingBody {
+  account_id: number;
+  symbol: string;
+  name: string;
+  asset_class?: AssetClass;
+  currency?: string;
+}
+
+export interface CreateHoldingOrderBody {
+  side: OrderSide;
+  date: string;
+  quantity: number;
+  unit_price: number;
+  fee?: number;
+}
+
+// Une position valorisée au cours du jour (devise de reporting).
+export interface ValuedHolding {
+  id: number;
+  account_id: number;
+  symbol: string;
+  name: string;
+  asset_class: AssetClass;
+  currency: string;
+  quantity: number;
+  avg_cost: number;
+  price: number | null;
+  market_value: number;
+  cost_basis: number;
+  unrealized_pnl: number;
+  realized_pnl: number;
+  weight: number;
+}
+
+export interface HoldingAllocationSlice {
+  asset_class: AssetClass;
+  value: number;
+  weight: number;
+}
+
+export interface HoldingsValuation {
+  currency: string;
+  market_value: number;
+  cost_basis: number;
+  unrealized_pnl: number;
+  unrealized_pnl_pct: number;
+  holdings: ValuedHolding[];
+  allocation: HoldingAllocationSlice[];
+}
+
 export type BillFrequency = 'monthly' | 'yearly';
 
 // Facture attendue : dépense récurrente à fourchette de montant, rapprochée

@@ -122,9 +122,12 @@ describe('computeWealthSeries', () => {
   ];
   const fx = new Map([['EUR', 1], ['USD', 0.9]]);
   const dates = ['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30', '2026-05-31', '2026-06-30', '2026-07-31'].map(date);
+  // Taux constant sur toutes les dates : l'équivalence avec computeAccountBalancesAt
+  // (qui prend un taux unique) tient toujours.
+  const fxByDate = dates.map(() => fx);
 
   it('matches computeAccountBalancesAt at every date', () => {
-    const series = computeWealthSeries(accounts, transactions, snapshots, dates, fx);
+    const series = computeWealthSeries(accounts, transactions, snapshots, dates, fxByDate);
     dates.forEach((d, di) => {
       const reference = computeAccountBalancesAt(accounts, transactions, snapshots, d, fx)
         .map((row) => [row.account_id, r2(row.signed_balance)] as const)
@@ -137,7 +140,7 @@ describe('computeWealthSeries', () => {
   });
 
   it('tracks the account-less running balance per date', () => {
-    const series = computeWealthSeries(accounts, transactions, snapshots, dates, fx);
+    const series = computeWealthSeries(accounts, transactions, snapshots, dates, fxByDate);
     // The -75 expense lands on 2026-03-05.
     expect(series[1]!.unassignedBalance).toBe(0);   // 2026-02-28, before it
     expect(series[2]!.unassignedBalance).toBe(-75);  // 2026-03-31, after it

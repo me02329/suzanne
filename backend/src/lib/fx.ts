@@ -66,6 +66,15 @@ export async function fetchExchangeRate(fromRaw: string, toRaw: string, date?: s
 }
 
 async function fetchYahooFx(symbol: string, date?: string): Promise<{ rate: number; asOf: string | null }> {
+  const close = await fetchYahooClose(symbol, date);
+  return { rate: close.price, asOf: close.asOf };
+}
+
+// Dernière clôture Yahoo pour un symbole (taux FX `EURUSD=X`, action `AAPL`,
+// ETF `CW8.PA`, crypto `BTC-EUR`…) à une date donnée (ou la plus récente sans
+// date). Renvoie aussi la devise de cotation (`meta.currency`). Bas niveau,
+// partagé par le FX et la valorisation des positions.
+export async function fetchYahooClose(symbol: string, date?: string): Promise<{ price: number; asOf: string | null; currency: string | null }> {
   const center = date ? Math.floor(new Date(`${date}T12:00:00.000Z`).getTime() / 1000) : Math.floor(Date.now() / 1000);
   const period1 = center - 7 * 24 * 60 * 60;
   const period2 = date ? center + 3 * 24 * 60 * 60 : center;
@@ -78,36 +87,39 @@ async function fetchYahooFx(symbol: string, date?: string): Promise<{ rate: numb
     headers: { 'User-Agent': 'Mozilla/5.0 (suzanne)' },
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
-  if (!res.ok) throw new Error(`Yahoo FX HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
   const data = await res.json() as {
     chart?: {
       result?: Array<{
+        meta?: { currency?: string };
         timestamp?: number[];
         indicators?: { quote?: Array<{ close?: Array<number | null> }> };
       }>;
       error?: { description?: string } | null;
     };
   };
-  if (data.chart?.error) throw new Error(data.chart.error.description ?? 'Yahoo FX error');
+  if (data.chart?.error) throw new Error(data.chart.error.description ?? 'Yahoo error');
   const result = data.chart?.result?.[0];
+  const currency = result?.meta?.currency ?? null;
   const timestamps = result?.timestamp ?? [];
   const closes = result?.indicators?.quote?.[0]?.close ?? [];
-  // Pour un taux historique, ne pas dépasser la fin du jour demandé : la fenêtre
+  // Pour un cours historique, ne pas dépasser la fin du jour demandé : la fenêtre
   // interrogée déborde de quelques jours (fuseaux/week-ends) mais une clôture
-  // postérieure à la date fausserait la conversion. Sans date : dernière clôture.
+  // postérieure à la date fausserait la valeur. Sans date : dernière clôture.
   const maxTs = date ? new Date(`${date}T23:59:59.999Z`).getTime() / 1000 : Infinity;
-  let fallback: { rate: number; asOf: string | null } | null = null;
+  let fallback: { price: number; asOf: string | null; currency: string | null } | null = null;
   for (let i = closes.length - 1; i >= 0; i -= 1) {
     const close = closes[i];
     if (typeof close !== 'number' || !Number.isFinite(close) || close <= 0) continue;
     const ts = timestamps[i];
     const quote = {
-      rate: close,
+      price: close,
       asOf: typeof ts === 'number' ? new Date(ts * 1000).toISOString().slice(0, 10) : null,
+      currency,
     };
     if (typeof ts !== 'number' || ts <= maxTs) return quote;
     fallback = quote; // si toutes les clôtures sont après la date, on gardera la plus proche (itération descendante)
   }
   if (fallback) return fallback;
-  throw new Error(`No FX data for ${symbol}`);
+  throw new Error(`No data for ${symbol}`);
 }

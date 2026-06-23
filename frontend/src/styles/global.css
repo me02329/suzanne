@@ -2411,6 +2411,12 @@ button.category-link {
 .bar span { display: block; height: 100%; border-radius: inherit; }
 .bar.big { height: 13px; }
 
+/* Barre d'allocation empilée (segments côte à côte) — page Investissements. */
+.alloc-bar { display: flex; height: 13px; border-radius: 999px; overflow: hidden; margin-bottom: 14px; background: #eef0f4; }
+.alloc-bar span { display: block; height: 100%; }
+[data-theme="dark"] .alloc-bar { background: rgba(255, 255, 255, 0.06); }
+[data-theme="cream"] .alloc-bar { background: rgba(120, 111, 91, 0.18); }
+
 .cashflow { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
 .cashflow div { display: grid; gap: 6px; padding: 12px; border-radius: 8px; background: var(--surface-muted); }
 .cashflow span { color: var(--muted); font-size: 12px; font-weight: 700; }

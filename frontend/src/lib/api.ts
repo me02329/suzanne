@@ -20,8 +20,12 @@ import type {
   CreateSavingsGoalBody,
   CreateTagBody,
   CreateTransactionBody,
+  CreateHoldingBody,
+  CreateHoldingOrderBody,
   DashboardSummary,
   GoalContribution,
+  Holding,
+  HoldingsValuation,
   Institution,
   RecurringTransaction,
   SavingsGoal,
@@ -180,6 +184,21 @@ export const api = {
     http<GoalContribution[]>(`/users/${userId}/savings-goals/${goalId}/contributions`),
   deleteGoalContribution: (userId: number, goalId: number, contributionId: number) =>
     http<{ deleted: boolean; goal: SavingsGoal }>(`/users/${userId}/savings-goals/${goalId}/contributions/${contributionId}`, { method: 'DELETE' }),
+  holdings: (userId: number) => http<Holding[]>(`/users/${userId}/holdings`),
+  holdingsValuation: (userId: number, currency: string) =>
+    http<HoldingsValuation>(`/users/${userId}/holdings/valuation?currency=${currency}`),
+  createHolding: (userId: number, body: CreateHoldingBody) =>
+    http<Holding>(`/users/${userId}/holdings`, { method: 'POST', body: JSON.stringify(body) }),
+  updateHolding: (userId: number, id: number, body: Partial<Omit<CreateHoldingBody, 'account_id'>>) =>
+    http<Holding>(`/users/${userId}/holdings/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteHolding: (userId: number, id: number) =>
+    http<{ deleted: boolean }>(`/users/${userId}/holdings/${id}`, { method: 'DELETE' }),
+  addHoldingOrder: (userId: number, id: number, body: CreateHoldingOrderBody) =>
+    http<Holding>(`/users/${userId}/holdings/${id}/orders`, { method: 'POST', body: JSON.stringify(body) }),
+  updateHoldingOrder: (userId: number, id: number, orderId: number, body: Partial<CreateHoldingOrderBody>) =>
+    http<Holding>(`/users/${userId}/holdings/${id}/orders/${orderId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteHoldingOrder: (userId: number, id: number, orderId: number) =>
+    http<Holding>(`/users/${userId}/holdings/${id}/orders/${orderId}`, { method: 'DELETE' }),
   bills: (userId: number) => http<Bill[]>(`/users/${userId}/bills`),
   billsStatus: (userId: number, month: string) => http<BillsStatusSummary>(`/users/${userId}/bills/status?month=${month}`),
   createBill: (userId: number, body: CreateBillBody) => http<Bill>(`/users/${userId}/bills`, { method: 'POST', body: JSON.stringify(body) }),

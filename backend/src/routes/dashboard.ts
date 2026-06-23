@@ -5,6 +5,8 @@ import { asyncHandler } from '../middleware/errors.js';
 import { currencyQuery, idParam, monthString } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { buildFx } from '../lib/fxHelper.js';
+import { buildFxByDate } from '../lib/fxStore.js';
+import { securitiesByAccountByDate, securitiesByAccountNow } from '../lib/holdingsValuation.js';
 import { addMonthsUtc, dateKey, startOfUtcDay } from '../lib/dates.js';
 
 export const dashboardRouter = Router();
@@ -76,6 +78,15 @@ const ACCOUNT_SELECT = {
   initial_balance_date: true,
 } as const;
 const SNAPSHOT_SELECT = { account_id: true, date: true, balance: true } as const;
+const HOLDING_SELECT = {
+  id: true,
+  account_id: true,
+  symbol: true,
+  name: true,
+  asset_class: true,
+  currency: true,
+  orders: { select: { id: true, side: true, date: true, quantity: true, unit_price: true, fee: true } },
+} as const;
 
 // Effet d'une transaction sur le compte dont elle est la source (account_id).
 // Un transfert débite le compte source ; le crédit du compte destination est
@@ -98,13 +109,15 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const start = new Date(`${month}-01T00:00:00.000Z`);
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
 
-  const [transactions, accounts, categories, snapshots] = await Promise.all([
+  const [transactions, accounts, categories, snapshots, holdings] = await Promise.all([
     prisma.transaction.findMany({ where: { user_id }, select: TX_SELECT }),
     prisma.account.findMany({ where: { user_id }, select: ACCOUNT_SELECT }),
     prisma.category.findMany({ where: { user_id }, select: { id: true, name: true, color: true } }),
     prisma.accountSnapshot.findMany({ where: { user_id }, select: SNAPSHOT_SELECT }),
+    prisma.holding.findMany({ where: { user_id }, select: HOLDING_SELECT }),
   ]);
   const { rates: fx, degraded: fxDegraded } = await buildFx(accounts, reportCurrency);
+  const securities = await securitiesByAccountNow(holdings, accounts);
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   // Pas d'arrondi par transaction : les sommes sont arrondies une fois à la
   // sortie (round2), comme dans buildCashflow — sinon l'arrondi cumulé diverge.
@@ -117,7 +130,7 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const refunds = monthTransactions.filter(isRefund).reduce((s, t) => s + txValue(t, refundAllocatedAmount(t)), 0);
   const expenses = monthTransactions.filter((t) => t.type === 'expense').reduce((s, t) => s + txValue(t), 0) - refunds;
 
-  const accountBalances = computeAccountBalances(accounts, transactions, snapshots, fx);
+  const accountBalances = computeAccountBalances(accounts, transactions, snapshots, fx, securities);
   const unassignedBalance = computeUnassignedBalance(transactions);
   // Count income/expense transactions left without an account so the UI can
   // surface them as a fixable anomaly instead of silently folding them into
@@ -178,12 +191,12 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
   const granularity = String(req.query.granularity ?? 'month');
   const reportCurrency = currencyQuery.parse(req.query.currency ?? 'EUR');
 
-  const [transactions, accounts, snapshots] = await Promise.all([
+  const [transactions, accounts, snapshots, holdings] = await Promise.all([
     prisma.transaction.findMany({ where: { user_id }, select: BALANCE_TX_SELECT }),
     prisma.account.findMany({ where: { user_id }, select: ACCOUNT_SELECT }),
     prisma.accountSnapshot.findMany({ where: { user_id }, select: SNAPSHOT_SELECT }),
+    prisma.holding.findMany({ where: { user_id }, select: HOLDING_SELECT }),
   ]);
-  const { rates: fx } = await buildFx(accounts, reportCurrency);
 
   const today = startOfUtcDay(new Date());
   const firstDate = firstRelevantDate(accounts, transactions, snapshots) ?? today;
@@ -198,8 +211,14 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
   if (from > to) [from, to] = [to, from]; // tolerate an inverted range
   const dates = buildHistoryDates(from, to, granularity);
 
+  // Taux par date : un compte USD en 2023 est converti au taux de 2023, pas à
+  // celui d'aujourd'hui (cache persistant dans exchange_rates).
+  const fxByDate = await buildFxByDate(accounts, reportCurrency, dates);
+  // Titres valorisés au cours de chaque date (cache persistant dans market_data).
+  const securitiesByDate = await securitiesByAccountByDate(holdings, accounts, dates);
+
   // One chronological sweep instead of recomputing every account at every date.
-  const series = computeWealthSeries(accounts, transactions, snapshots, dates, fx);
+  const series = computeWealthSeries(accounts, transactions, snapshots, dates, fxByDate, securitiesByDate);
   const points = dates.map((date, di) => {
     const { accountBalances, unassignedBalance } = series[di]!;
     const assets = accountBalances.filter((a) => !a.is_liability).reduce((s, a) => s + a.balance, 0) + unassignedBalance;
@@ -240,6 +259,8 @@ export function computeAccountBalances(
   transactions: BalanceTx[],
   snapshots: Array<{ account_id: number; date: Date; balance: number }>,
   fx: Map<string, number>,
+  // Valeur de marché des titres par compte (devise du compte), ajoutée au cash.
+  securitiesByAccount?: Map<number, number>,
 ): Array<{
   account_id: number;
   name: string;
@@ -283,7 +304,8 @@ export function computeAccountBalances(
       .reduce((s, t) => (matches(t.date) ? s + sourceDelta(t) : s), 0);
     const incoming = (byDest.get(account.id) ?? [])
       .reduce((s, t) => (matches(t.date) ? s + (t.to_amount ?? t.amount) : s), 0);
-    const rawBalance = (base + outgoing + incoming) * (fx.get(account.currency) ?? 1);
+    const securities = securitiesByAccount?.get(account.id) ?? 0;
+    const rawBalance = (base + outgoing + incoming + securities) * (fx.get(account.currency) ?? 1);
     const isLiability = isLiabilityAccount(account.type);
     const balance = isLiability ? Math.abs(rawBalance) : rawBalance;
     return {
@@ -338,7 +360,11 @@ export function computeWealthSeries(
   transactions: BalanceTx[],
   snapshots: Array<{ account_id: number; date: Date; balance: number }>,
   dates: Date[],
-  fx: Map<string, number>,
+  // Taux par date (aligné sur `dates`) : chaque date convertit avec le taux qui
+  // avait cours ce jour-là plutôt qu'un taux unique appliqué à tout l'historique.
+  fxByDate: Map<string, number>[],
+  // Valeur de marché des titres par compte et par date (devise du compte).
+  securitiesByAccountByDate?: Map<number, number[]>,
 ): Array<{ accountBalances: AccountBalanceRow[]; unassignedBalance: number }> {
   const bySource = new Map<number, BalanceTx[]>();
   const byDest = new Map<number, BalanceTx[]>();
@@ -387,7 +413,8 @@ export function computeWealthSeries(
     for (const account of accounts) {
       const raw = rawByAccount.get(account.id)![di];
       if (raw == null) continue; // not eligible at this date — excluded like computeAccountBalancesAt
-      const rawBalance = raw * (fx.get(account.currency) ?? 1);
+      const securities = securitiesByAccountByDate?.get(account.id)?.[di] ?? 0;
+      const rawBalance = (raw + securities) * (fxByDate[di]!.get(account.currency) ?? 1);
       const isLiability = isLiabilityAccount(account.type);
       const balance = isLiability ? Math.abs(rawBalance) : rawBalance;
       accountBalances.push({
