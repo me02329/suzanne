@@ -374,6 +374,27 @@ export interface ImportResult {
   duplicates: Array<{ line: number; date: string; amount: number; description: string; reason: 'existing' | 'file' }>;
 }
 
+// Entrée du journal d'audit (qui/quoi/quand).
+export interface AuditLogEntry {
+  id: number;
+  user_id: number | null;
+  action: string;
+  entity: string;
+  entity_id: number | null;
+  status: number;
+  created_at: string;
+}
+
+// Métadonnées d'une sauvegarde (le contenu se télécharge à part).
+export interface BackupMeta {
+  id: number;
+  user_id: number | null;
+  label: string;
+  size: number;
+  auto: boolean;
+  created_at: string;
+}
+
 export type BillFrequency = 'monthly' | 'yearly';
 
 // Facture attendue : dépense récurrente à fourchette de montant, rapprochée

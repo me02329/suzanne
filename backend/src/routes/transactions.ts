@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../prisma.js';
+import { prisma, prismaBase } from '../prisma.js';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { createTransactionSchema, dateString, idParam, linkRecurringSchema, monthString, updateTransactionSchema } from '../lib/validation.js';
 import {
@@ -319,15 +319,53 @@ transactionsRouter.post('/users/:user_id/transactions/:id/link-recurring', async
   res.json(serializeTransaction(row));
 }));
 
+// Soft-delete : la transaction part en corbeille (deleted_at) et reste
+// restaurable. Les relations (splits, tags, remboursements) sont conservées.
 transactionsRouter.delete('/users/:user_id/transactions/:id', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  const result = await prisma.transaction.deleteMany({ where: { id, user_id } });
+  const result = await prismaBase.transaction.updateMany({ where: { id, user_id, deleted_at: null }, data: { deleted_at: new Date() } });
   if (result.count === 0) {
     res.status(404).json({ error: 'Not found' });
     return;
   }
   res.json({ deleted: true });
+}));
+
+// Corbeille : transactions supprimées (lecture via prismaBase pour contourner
+// le filtre soft-delete).
+transactionsRouter.get('/users/:user_id/transactions/trash', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const rows = await prismaBase.transaction.findMany({
+    where: { user_id, deleted_at: { not: null } },
+    include: transactionInclude,
+    orderBy: { deleted_at: 'desc' },
+    take: 200,
+  });
+  res.json(rows.map(serializeTransaction));
+}));
+
+transactionsRouter.post('/users/:user_id/transactions/:id/restore', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const id = idParam.parse(req.params.id);
+  const result = await prismaBase.transaction.updateMany({ where: { id, user_id, deleted_at: { not: null } }, data: { deleted_at: null } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Transaction introuvable dans la corbeille' });
+    return;
+  }
+  res.json({ restored: true });
+}));
+
+// Purge définitive d'une transaction de la corbeille (irréversible).
+transactionsRouter.delete('/users/:user_id/transactions/:id/purge', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const id = idParam.parse(req.params.id);
+  const result = await prismaBase.transaction.deleteMany({ where: { id, user_id, deleted_at: { not: null } } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'Transaction introuvable dans la corbeille' });
+    return;
+  }
+  res.json({ purged: true });
 }));
 
 // Modification en masse (compte et/ou catégorie) : un seul aller-retour au lieu
@@ -395,7 +433,8 @@ transactionsRouter.post('/users/:user_id/transactions/bulk-update', asyncHandler
 transactionsRouter.post('/users/:user_id/transactions/bulk-delete', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = z.object({ ids: z.array(z.coerce.number().int().positive()).min(1).max(500) }).parse(req.body);
-  const result = await prisma.transaction.deleteMany({ where: { id: { in: body.ids }, user_id } });
+  // Soft-delete groupé (corbeille).
+  const result = await prismaBase.transaction.updateMany({ where: { id: { in: body.ids }, user_id, deleted_at: null }, data: { deleted_at: new Date() } });
   res.json({ deleted: result.count });
 }));
 

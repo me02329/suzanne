@@ -316,6 +316,10 @@ export const createAttachmentSchema = z.object({
   }, 'Fichier trop volumineux (8 Mo max)'),
 });
 
+export const createBackupSchema = z.object({
+  label: z.string().trim().min(1).max(120).optional(),
+});
+
 const dateFormatEnum = z.enum(['auto', 'yyyy-mm-dd', 'dd/mm/yyyy', 'mm/dd/yyyy', 'dd-mm-yyyy', 'yyyymmdd']);
 export const createImportMappingSchema = z.object({
   name: z.string().trim().min(1).max(80),

@@ -8,6 +8,8 @@ import { guessColumn, parseCsvPreview } from '../lib/csv';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 import { StatementImportModal } from '../components/StatementImportModal';
+import { BackupsPanel } from '../components/BackupsPanel';
+import { AuditLogPanel } from '../components/AuditLogPanel';
 
 import type { Run } from '../lib/run';
 
@@ -304,6 +306,11 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
             <div><CheckSquare size={16} /> Pour un CSV bancaire, choisir le compte source avant d'importer.</div>
           </div>
         </Panel>
+      </section>
+
+      <section className="tools-grid">
+        <BackupsPanel userId={userId} run={run} />
+        <AuditLogPanel userId={userId} />
       </section>
       {lastCsvImport && (
         <Panel title="Dernier import CSV" icon={<FileUp />}>

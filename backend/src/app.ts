@@ -7,6 +7,7 @@ import { apiRouter } from './routes/index.js';
 import { healthRouter } from './routes/health.js';
 import { errorHandler } from './middleware/errors.js';
 import { appTokenAuth } from './middleware/auth.js';
+import { auditLog } from './middleware/audit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +21,7 @@ export function createApp() {
   app.use(express.json({ limit: '25mb' }));
   app.use(healthRouter);
   app.use('/api', appTokenAuth());
+  app.use('/api', auditLog());
   app.use('/api', apiRouter);
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
 

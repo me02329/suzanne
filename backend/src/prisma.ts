@@ -16,4 +16,23 @@ const adapter = new PrismaPg({
   max: Number(process.env.DATABASE_POOL_MAX ?? 5),
 });
 
-export const prisma = new PrismaClient({ adapter });
+// Client de base, NON filtré : à n'utiliser que pour la corbeille (lister /
+// restaurer / purger les transactions supprimées) et les écritures système
+// (journal d'audit, sauvegardes).
+export const prismaBase = new PrismaClient({ adapter });
+
+// Client applicatif : une extension exclut automatiquement les transactions
+// soft-deleted (deleted_at != null) de TOUTES les lectures, sans avoir à ajouter
+// le filtre dans chaque requête. Les écritures ne sont pas filtrées — le
+// soft-delete et la restauration passent par prismaBase.
+export const prisma = prismaBase.$extends({
+  query: {
+    transaction: {
+      async findMany({ args, query }) { args.where = { ...args.where, deleted_at: null }; return query(args); },
+      async findFirst({ args, query }) { args.where = { ...args.where, deleted_at: null }; return query(args); },
+      async count({ args, query }) { args.where = { ...args.where, deleted_at: null }; return query(args); },
+      async aggregate({ args, query }) { args.where = { ...args.where, deleted_at: null }; return query(args); },
+      async groupBy({ args, query }) { args.where = { ...args.where, deleted_at: null }; return query(args); },
+    },
+  },
+});

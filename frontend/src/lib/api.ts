@@ -24,6 +24,8 @@ import type {
   Alert,
   AnomalyReport,
   Attachment,
+  AuditLogEntry,
+  BackupMeta,
   CreateAlertBody,
   CreateAttachmentBody,
   CreateHoldingBody,
@@ -263,6 +265,24 @@ export const api = {
     http<ImportMapping>(`/users/${userId}/import-mappings`, { method: 'POST', body: JSON.stringify(body) }),
   deleteImportMapping: (userId: number, id: number) =>
     http<{ deleted: boolean }>(`/users/${userId}/import-mappings/${id}`, { method: 'DELETE' }),
+  trashedTransactions: (userId: number) => http<Transaction[]>(`/users/${userId}/transactions/trash`),
+  restoreTransaction: (userId: number, id: number) =>
+    http<{ restored: boolean }>(`/users/${userId}/transactions/${id}/restore`, { method: 'POST' }),
+  purgeTransaction: (userId: number, id: number) =>
+    http<{ purged: boolean }>(`/users/${userId}/transactions/${id}/purge`, { method: 'DELETE' }),
+  auditLog: (userId: number) => http<AuditLogEntry[]>(`/users/${userId}/audit-log`),
+  backups: (userId: number) => http<BackupMeta[]>(`/users/${userId}/backups`),
+  createBackup: (userId: number, label?: string) =>
+    http<BackupMeta>(`/users/${userId}/backups`, { method: 'POST', body: JSON.stringify(label ? { label } : {}) }),
+  restoreBackup: (userId: number, id: number) =>
+    http<{ transactions: { created: number; skipped: number } }>(`/users/${userId}/backups/${id}/restore`, { method: 'POST' }),
+  deleteBackup: (userId: number, id: number) =>
+    http<{ deleted: boolean }>(`/users/${userId}/backups/${id}`, { method: 'DELETE' }),
+  backupBlobUrl: async (userId: number, id: number): Promise<string> => {
+    const res = await fetch(`${API_BASE}/users/${userId}/backups/${id}/download`, { headers: { ...authHeaders() } });
+    if (!res.ok) throw new Error(`Téléchargement impossible (${res.status})`);
+    return URL.createObjectURL(await res.blob());
+  },
   exportJsonUrl: (userId: number) => `${API_BASE}/users/${userId}/export.json`,
   exportCsvUrl: (userId: number) => `${API_BASE}/users/${userId}/transactions.csv`,
   exportSelection: async (userId: number, body: { entities: string[]; from?: string | null; to?: string | null }) => {

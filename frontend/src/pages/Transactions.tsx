@@ -23,6 +23,7 @@ import { Panel } from '../components/Panel';
 import { Collapsible } from '../components/Collapsible';
 import { TagPicker } from '../components/TagPicker';
 import { AttachmentsModal } from '../components/AttachmentsModal';
+import { TrashModal } from '../components/TrashModal';
 import { TransactionsTable, type TxSort, type TxSortKey } from '../components/TransactionsTable';
 
 import type { Run } from '../lib/run';
@@ -85,6 +86,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   // Negative ids encode "copy" (no real backend row yet).
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [attachmentsFor, setAttachmentsFor] = useState<Transaction | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [linking, setLinking] = useState<Transaction | null>(null);
   // Remboursements : dépense → créer le revenu lié ; revenu → choisir la dépense liée.
   const [refundingExpense, setRefundingExpense] = useState<Transaction | null>(null);
@@ -672,6 +674,9 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
             {compact ? <Rows3 size={15} /> : <Rows2 size={15} />}
             {compact ? 'Confortable' : 'Compact'}
           </button>
+          <button type="button" className="ghost-button" onClick={() => setTrashOpen(true)} title="Corbeille">
+            <Trash2 size={15} /> Corbeille
+          </button>
         </div>
         {selectedCount > 0 && (
           <div className="bulk-bar">
@@ -717,8 +722,8 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           onAttachments={setAttachmentsFor}
           onDelete={(t) => void run(
             () => api.deleteTransaction(userId, t.id),
-            'Transaction supprimée',
-            { undo: () => api.createTransaction(userId, recreateBody(t)) },
+            'Transaction déplacée vers la corbeille',
+            { undo: () => api.restoreTransaction(userId, t.id) },
           )}
           highlightId={highlightId}
         />
@@ -928,6 +933,10 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           run={run}
           onClose={() => setAttachmentsFor(null)}
         />
+      )}
+
+      {trashOpen && (
+        <TrashModal userId={userId} categoryById={categoryById} run={run} onClose={() => setTrashOpen(false)} />
       )}
     </section>
   );

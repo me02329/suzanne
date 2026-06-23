@@ -9,7 +9,7 @@ import { parseOfx, parseQif } from '../lib/statementParsers.js';
 
 export const importExportRouter = Router();
 
-const EXPORT_ENTITIES = [
+export const EXPORT_ENTITIES = [
   'accounts',
   'institutions',
   'categories',
@@ -74,7 +74,7 @@ importExportRouter.post('/users/:user_id/import.json', asyncHandler(async (req, 
   res.json(result);
 }));
 
-async function buildExportPayload(user_id: number, entities: ExportEntity[], from: string | null, to: string | null) {
+export async function buildExportPayload(user_id: number, entities: ExportEntity[], from: string | null, to: string | null) {
   const want = new Set(entities);
   const dateFilter = from || to ? {
     date: {
@@ -176,7 +176,7 @@ function parseImportDate(raw: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-async function importPayload(user_id: number, payload: z.infer<typeof importSchema>['payload']): Promise<ImportSummary> {
+export async function importPayload(user_id: number, payload: z.infer<typeof importSchema>['payload']): Promise<ImportSummary> {
   const summary: ImportSummary = {
     institutions: { created: 0, reused: 0 },
     accounts: { created: 0, reused: 0 },

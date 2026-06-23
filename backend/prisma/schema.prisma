@@ -225,8 +225,13 @@ model Transaction {
   goal_contributions          GoalContribution[]
   bill_matches                BillMatch[]
   attachments                 Attachment[]
+  // Soft-delete : une suppression positionne deleted_at ; la transaction part en
+  // corbeille (exclue de toutes les lectures via une extension Prisma) et reste
+  // restaurable. Purge = suppression définitive.
+  deleted_at                  DateTime? @db.Timestamptz(6)
 
   @@index([user_id, date])
+  @@index([user_id, deleted_at])
   @@index([account_id])
   @@index([to_account_id])
   @@index([category_id])
@@ -582,6 +587,36 @@ model ImportMapping {
   @@unique([user_id, name])
   @@index([user_id])
   @@map("import_mappings")
+}
+
+// Journal d'audit : trace des mutations (qui/quoi/quand). Alimenté par un
+// middleware après chaque écriture réussie ; lecture seule côté UI.
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  user_id    Int?
+  action     String   // POST | PATCH | PUT | DELETE
+  entity     String   // segment de ressource (transactions, budgets…)
+  entity_id  Int?
+  status     Int
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([user_id, created_at])
+  @@map("audit_log")
+}
+
+// Sauvegarde automatique ou manuelle : snapshot JSON complet stocké en base
+// (comme les pièces jointes : pas de volume, restaurable). Rotation par nombre.
+model Backup {
+  id         Int      @id @default(autoincrement())
+  user_id    Int?
+  label      String
+  size       Int
+  auto       Boolean  @default(false)
+  data       Bytes
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at])
+  @@map("backups")
 }
 
 // Alerte configurable, évaluée à la volée (pas de canal d'envoi pour l'instant :
