@@ -8,6 +8,7 @@ import {
   type Alert,
   type BillsStatusSummary,
   type Budget,
+  type BudgetStatus,
   type Category,
   type CategoryRule,
   type DashboardSummary,
@@ -93,6 +94,7 @@ export default function App() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [budgetStatus, setBudgetStatus] = useState<BudgetStatus[]>([]);
   const [billsStatus, setBillsStatus] = useState<BillsStatusSummary | null>(null);
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([]);
   const [rules, setRules] = useState<CategoryRule[]>([]);
@@ -197,16 +199,18 @@ export default function App() {
     const version = ++monthVersion.current;
     setLoading(true);
     try {
-      const [dash, txs, bds, bls] = await Promise.all([
+      const [dash, txs, bds, bdStatus, bls] = await Promise.all([
         api.dashboard(userId, month, reportCurrency),
         api.transactions(userId, month),
         api.budgets(userId, month),
+        api.budgetsStatus(userId, month, reportCurrency),
         api.billsStatus(userId, month),
       ]);
       if (version !== monthVersion.current) return;
       setSummary(dash);
       setTransactions(txs);
       setBudgets(bds);
+      setBudgetStatus(bdStatus);
       setBillsStatus(bls);
     } finally {
       if (version === monthVersion.current) setLoading(false);
@@ -491,7 +495,7 @@ export default function App() {
           <Route path="/accounts" element={userId ? <Accounts userId={userId} accounts={accounts} institutions={institutions} snapshots={snapshots} institutionById={institutionById} summary={summary} run={run} /> : null} />
           <Route path="/accounts/:id" element={userId ? <AccountDetail userId={userId} accounts={accounts} summary={summary} snapshots={snapshots} categoryById={categoryById} reportCurrency={reportCurrency} run={run} /> : null} />
           <Route path="/categories" element={userId ? <Categories userId={userId} categories={categories} run={run} /> : null} />
-          <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} budgets={budgets} summary={summary} run={run} /> : null} />
+          <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} budgets={budgetStatus} run={run} /> : null} />
           <Route path="/recurring" element={userId ? <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} summary={summary} reportCurrency={reportCurrency} run={run} /> : null} />
           <Route path="/bills" element={userId ? <Bills userId={userId} month={month} billsStatus={billsStatus} accounts={accounts} categories={categories} accountById={accountById} run={run} /> : null} />
           <Route path="/forecast" element={userId ? <Forecast recurring={recurring} accounts={accounts} goals={goals} summary={summary} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />

@@ -437,6 +437,7 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
         data: {
           amount_limit: round2(Number(raw.amount_limit ?? 0)),
           recurring: Boolean(raw.recurring ?? existing.recurring),
+          rollover: Boolean(raw.rollover ?? existing.rollover),
         },
       });
       summary.budgets.updated += 1;
@@ -448,6 +449,7 @@ async function importPayload(user_id: number, payload: z.infer<typeof importSche
           month,
           amount_limit: round2(Number(raw.amount_limit ?? 0)),
           recurring: Boolean(raw.recurring ?? false),
+          rollover: Boolean(raw.rollover ?? false),
         },
       });
       summary.budgets.created += 1;

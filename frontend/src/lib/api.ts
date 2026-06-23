@@ -7,6 +7,7 @@ import type {
   Bill,
   BillsStatusSummary,
   Budget,
+  BudgetStatus,
   CategoryRule,
   Category,
   CreateAccountBody,
@@ -158,6 +159,8 @@ export const api = {
   bulkDeleteTransactions: (userId: number, ids: number[]) =>
     http<{ deleted: number }>(`/users/${userId}/transactions/bulk-delete`, { method: 'POST', body: JSON.stringify({ ids }) }),
   budgets: (userId: number, month?: string) => http<Budget[]>(`/users/${userId}/budgets${month ? `?month=${month}` : ''}`),
+  budgetsStatus: (userId: number, month: string, currency: string) =>
+    http<BudgetStatus[]>(`/users/${userId}/budgets/status?month=${month}&currency=${currency}`),
   setBudget: (userId: number, body: CreateBudgetBody) => http<Budget>(`/users/${userId}/budgets`, { method: 'POST', body: JSON.stringify(body) }),
   deleteBudget: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/budgets/${id}`, { method: 'DELETE' }),
   recurring: (userId: number) => http<RecurringTransaction[]>(`/users/${userId}/recurring-transactions`),

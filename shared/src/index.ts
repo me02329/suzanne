@@ -122,7 +122,16 @@ export interface Budget {
   month: string;
   amount_limit: number;
   recurring: boolean;
+  rollover: boolean;
   created_at: string;
+}
+
+// Budget enrichi du dépensé et du report d'enveloppe (GET /budgets/status).
+export interface BudgetStatus extends Budget {
+  spent: number;
+  carried_over: number;
+  effective_limit: number;
+  remaining: number;
 }
 
 export interface RecurringTransaction {
@@ -451,6 +460,7 @@ export interface CreateBudgetBody {
   month: string;
   amount_limit: number;
   recurring?: boolean;
+  rollover?: boolean;
 }
 
 export interface CreateRecurringBody {

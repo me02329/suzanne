@@ -7,6 +7,7 @@ import { round2 } from '../lib/money.js';
 import { buildFx } from '../lib/fxHelper.js';
 import { buildFxByDate } from '../lib/fxStore.js';
 import { securitiesByAccountByDate, securitiesByAccountNow } from '../lib/holdingsValuation.js';
+import { categoryAllocations, isRefund, refundAllocatedAmount, refundCategoryAllocations } from '../lib/categorySpend.js';
 import { addMonthsUtc, dateKey, startOfUtcDay } from '../lib/dates.js';
 
 export const dashboardRouter = Router();
@@ -93,13 +94,6 @@ const HOLDING_SELECT = {
 // ajouté séparément dans computeBalance.
 function sourceDelta(t: { type: string; amount: number }): number {
   return t.type === 'income' ? t.amount : -t.amount;
-}
-
-// Un remboursement est un revenu lié à une dépense : dans les agrégats de
-// cashflow il compte comme dépense négative (il annule la dépense d'origine)
-// au lieu de gonfler les revenus. Les soldes de comptes ne changent pas.
-function isRefund(t: Pick<Tx, 'type' | 'refunds_transaction_id' | 'refund_allocations_sent'>): boolean {
-  return t.type === 'income' && (t.refund_allocations_sent.length > 0 || t.refunds_transaction_id != null);
 }
 
 dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) => {
@@ -481,37 +475,6 @@ function computeUnassignedBalance(transactions: BalanceTx[]): number {
   return transactions
     .filter((t) => t.account_id == null && t.type !== 'transfer')
     .reduce((s, t) => s + sourceDelta(t), 0);
-}
-
-function categoryAllocations(t: Pick<Tx, 'amount' | 'category_id' | 'splits'>): Array<{ category_id: number | null; amount: number }> {
-  return t.splits.length > 0
-    ? t.splits.map((split) => ({ category_id: split.category_id, amount: split.amount }))
-    : [{ category_id: t.category_id, amount: t.amount }];
-}
-
-function refundCategoryAllocations(refund: Tx, target: Tx | undefined): Array<{ category_id: number | null; amount: number }> {
-  if (refund.refund_allocations_sent.length > 0) {
-    return refund.refund_allocations_sent.flatMap((refundAllocation) => {
-      const expense = refundAllocation.expense_transaction;
-      if (!expense || expense.amount <= 0) return [{ category_id: null, amount: refundAllocation.amount }];
-      return categoryAllocations(expense).map((categoryAllocation) => ({
-        category_id: categoryAllocation.category_id,
-        amount: refundAllocation.amount * (categoryAllocation.amount / expense.amount),
-      }));
-    });
-  }
-  if (!target || target.amount <= 0) return [{ category_id: null, amount: refund.amount }];
-  return categoryAllocations(target).map((allocation) => ({
-    category_id: allocation.category_id,
-    amount: refund.amount * (allocation.amount / target.amount),
-  }));
-}
-
-function refundAllocatedAmount(t: Pick<Tx, 'amount' | 'refund_allocations_sent' | 'refunds_transaction_id'>): number {
-  if (t.refund_allocations_sent.length > 0) {
-    return Math.min(t.amount, t.refund_allocations_sent.reduce((sum, allocation) => sum + allocation.amount, 0));
-  }
-  return t.refunds_transaction_id != null ? t.amount : 0;
 }
 
 function buildBalanceByGroup(

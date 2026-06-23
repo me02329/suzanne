@@ -165,8 +165,9 @@ export const createBudgetSchema = z.object({
   category_id: z.coerce.number().int().positive(),
   month: monthString,
   amount_limit: amount,
-  // Optionnel sans défaut : omis = conserver le flag existant lors d'un upsert.
+  // Optionnels sans défaut : omis = conserver les flags existants lors d'un upsert.
   recurring: z.coerce.boolean().optional(),
+  rollover: z.coerce.boolean().optional(),
 });
 
 export const createRecurringSchema = z.object({
