@@ -64,6 +64,21 @@ enum OrderSide {
   sell
 }
 
+// Type d'alerte configurable (évaluée à la volée). account_balance /
+// transaction_amount utilisent operator + threshold ; stale_snapshot utilise
+// threshold = nb de jours ; goal_behind n'utilise que goal_id.
+enum AlertType {
+  account_balance
+  transaction_amount
+  stale_snapshot
+  goal_behind
+}
+
+enum AlertOperator {
+  lt
+  gt
+}
+
 model User {
   id         Int      @id @default(autoincrement())
   name       String   @unique
@@ -86,6 +101,7 @@ model User {
   bill_matches            BillMatch[]
   holdings                Holding[]
   holding_orders          HoldingOrder[]
+  alerts                  Alert[]
 
   @@map("users")
 }
@@ -128,6 +144,7 @@ model Account {
   savings_goals          SavingsGoal[]
   bills                  Bill[]
   holdings               Holding[]
+  alerts                 Alert[]
 
   @@unique([user_id, name])
   @@index([user_id])
@@ -339,6 +356,7 @@ model SavingsGoal {
   user          User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
   account       Account?           @relation(fields: [account_id], references: [id], onDelete: SetNull)
   contributions GoalContribution[]
+  alerts        Alert[]
 
   @@index([user_id])
   @@index([account_id])
@@ -519,4 +537,29 @@ model MarketData {
 
   @@unique([symbol, date])
   @@map("market_data")
+}
+
+// Alerte configurable, évaluée à la volée (pas de canal d'envoi pour l'instant :
+// les déclenchements sont calculés et affichés au chargement). Selon le type :
+// - account_balance   : account_id + operator + threshold (montant)
+// - transaction_amount: operator + threshold (montant), account_id optionnel
+// - stale_snapshot    : account_id optionnel + threshold (nb de jours)
+// - goal_behind       : goal_id
+model Alert {
+  id         Int            @id @default(autoincrement())
+  user_id    Int
+  type       AlertType
+  account_id Int?
+  goal_id    Int?
+  operator   AlertOperator?
+  threshold  Float?
+  active     Boolean        @default(true)
+  created_at DateTime       @default(now()) @db.Timestamptz(6)
+
+  user    User         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account Account?     @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  goal    SavingsGoal? @relation(fields: [goal_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, active])
+  @@map("alerts")
 }

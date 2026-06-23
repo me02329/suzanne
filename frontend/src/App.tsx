@@ -5,6 +5,7 @@ import {
   REPORT_CURRENCIES,
   type Account,
   type AccountSnapshot,
+  type Alert,
   type BillsStatusSummary,
   type Budget,
   type Category,
@@ -16,6 +17,7 @@ import {
   type SavingsGoal,
   type Tag,
   type Transaction,
+  type TriggeredAlert,
   type User,
 } from '@suzanne/shared';
 import { api } from './lib/api';
@@ -54,6 +56,8 @@ const Forecast = lazy(() => import('./pages/Forecast').then((m) => ({ default: m
 const Health = lazy(() => import('./pages/Health').then((m) => ({ default: m.Health })));
 const Goals = lazy(() => import('./pages/Goals').then((m) => ({ default: m.Goals })));
 const Investments = lazy(() => import('./pages/Investments').then((m) => ({ default: m.Investments })));
+const Alerts = lazy(() => import('./pages/Alerts').then((m) => ({ default: m.Alerts })));
+const Anomalies = lazy(() => import('./pages/Anomalies').then((m) => ({ default: m.Anomalies })));
 const Rules = lazy(() => import('./pages/Rules').then((m) => ({ default: m.Rules })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Tags = lazy(() => import('./pages/Tags').then((m) => ({ default: m.Tags })));
@@ -94,6 +98,9 @@ export default function App() {
   const [rules, setRules] = useState<CategoryRule[]>([]);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [triggeredAlerts, setTriggeredAlerts] = useState<TriggeredAlert[]>([]);
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<number>>(new Set());
   const [tags, setTags] = useState<Tag[]>([]);
   const [snapshots, setSnapshots] = useState<AccountSnapshot[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +161,7 @@ export default function App() {
   const reloadStatic = async () => {
     if (!userId) return;
     const version = ++staticVersion.current;
-    const [unassignedTxs, accs, insts, cats, recs, rls, gls, hlds, snaps, tgs] = await Promise.all([
+    const [unassignedTxs, accs, insts, cats, recs, rls, gls, hlds, alrts, snaps, tgs] = await Promise.all([
       api.transactions(userId, undefined, 'unassigned_account'),
       api.accounts(userId),
       api.institutions(userId),
@@ -163,6 +170,7 @@ export default function App() {
       api.rules(userId),
       api.goals(userId),
       api.holdings(userId),
+      api.alerts(userId),
       api.snapshots(userId),
       api.tags(userId),
     ]);
@@ -175,6 +183,7 @@ export default function App() {
     setRules(rls);
     setGoals(gls);
     setHoldings(hlds);
+    setAlerts(alrts);
     setSnapshots(snaps);
     setTags(tgs);
     setDataVersion((v) => v + 1);
@@ -249,6 +258,18 @@ export default function App() {
     setError(null);
     reloadMonth().catch((e) => setError((e as Error).message));
   }, [userId, month, reportCurrency]);
+
+  // Alertes déclenchées : évaluées à la volée par le backend. Dépendent à la
+  // fois du mois/devise et de l'état (dataVersion bumpé par reloadStatic), donc
+  // effet dédié. Échec silencieux : une alerte indisponible ne doit pas bloquer.
+  useEffect(() => {
+    if (!userId) { setTriggeredAlerts([]); return; }
+    let cancelled = false;
+    api.triggeredAlerts(userId, reportCurrency, month)
+      .then((rows) => { if (!cancelled) setTriggeredAlerts(rows); })
+      .catch(() => { if (!cancelled) setTriggeredAlerts([]); });
+    return () => { cancelled = true; };
+  }, [userId, month, reportCurrency, dataVersion]);
 
   // A stream can't survive a reload: clear any persisted "streaming" flag once
   // on mount so a restored conversation doesn't show a stuck cursor.
@@ -477,6 +498,8 @@ export default function App() {
           <Route path="/health" element={userId ? <Health summary={summary} recurring={recurring} budgets={budgets} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
           <Route path="/goals" element={userId ? <Goals userId={userId} goals={goals} accounts={accounts} accountById={accountById} run={run} /> : null} />
           <Route path="/investments" element={userId ? <Investments userId={userId} holdings={holdings} accounts={accounts} accountById={accountById} reportCurrency={reportCurrency} dataVersion={dataVersion} run={run} /> : null} />
+          <Route path="/alerts" element={userId ? <Alerts userId={userId} alerts={alerts} triggered={triggeredAlerts} accounts={accounts} goals={goals} accountById={accountById} run={run} /> : null} />
+          <Route path="/anomalies" element={userId ? <Anomalies userId={userId} accountById={accountById} dataVersion={dataVersion} /> : null} />
           <Route path="/rules" element={userId ? <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} run={run} /> : null} />
           <Route path="/tools" element={userId ? <Tools userId={userId} accounts={accounts} run={run} /> : null} />
           <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} />} />

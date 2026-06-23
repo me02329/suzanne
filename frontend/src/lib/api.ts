@@ -20,9 +20,13 @@ import type {
   CreateSavingsGoalBody,
   CreateTagBody,
   CreateTransactionBody,
+  Alert,
+  AnomalyReport,
+  CreateAlertBody,
   CreateHoldingBody,
   CreateHoldingOrderBody,
   DashboardSummary,
+  TriggeredAlert,
   GoalContribution,
   Holding,
   HoldingsValuation,
@@ -199,6 +203,16 @@ export const api = {
     http<Holding>(`/users/${userId}/holdings/${id}/orders/${orderId}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteHoldingOrder: (userId: number, id: number, orderId: number) =>
     http<Holding>(`/users/${userId}/holdings/${id}/orders/${orderId}`, { method: 'DELETE' }),
+  anomalies: (userId: number) => http<AnomalyReport>(`/users/${userId}/anomalies`),
+  alerts: (userId: number) => http<Alert[]>(`/users/${userId}/alerts`),
+  triggeredAlerts: (userId: number, currency: string, month: string) =>
+    http<TriggeredAlert[]>(`/users/${userId}/alerts/triggered?currency=${currency}&month=${month}`),
+  createAlert: (userId: number, body: CreateAlertBody) =>
+    http<Alert>(`/users/${userId}/alerts`, { method: 'POST', body: JSON.stringify(body) }),
+  updateAlert: (userId: number, id: number, body: Partial<CreateAlertBody>) =>
+    http<Alert>(`/users/${userId}/alerts/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteAlert: (userId: number, id: number) =>
+    http<{ deleted: boolean }>(`/users/${userId}/alerts/${id}`, { method: 'DELETE' }),
   bills: (userId: number) => http<Bill[]>(`/users/${userId}/bills`),
   billsStatus: (userId: number, month: string) => http<BillsStatusSummary>(`/users/${userId}/bills/status?month=${month}`),
   createBill: (userId: number, body: CreateBillBody) => http<Bill>(`/users/${userId}/bills`, { method: 'POST', body: JSON.stringify(body) }),

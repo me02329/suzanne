@@ -257,6 +257,59 @@ export interface HoldingsValuation {
   allocation: HoldingAllocationSlice[];
 }
 
+export type AlertType = 'account_balance' | 'transaction_amount' | 'stale_snapshot' | 'goal_behind';
+export type AlertOperator = 'lt' | 'gt';
+
+// Alerte configurable, évaluée à la volée. Selon `type`, les champs requis
+// diffèrent (cf. createAlertSchema côté backend).
+export interface Alert {
+  id: number;
+  user_id: number;
+  type: AlertType;
+  account_id: number | null;
+  goal_id: number | null;
+  operator: AlertOperator | null;
+  threshold: number | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface CreateAlertBody {
+  type: AlertType;
+  account_id?: number | null;
+  goal_id?: number | null;
+  operator?: AlertOperator | null;
+  threshold?: number | null;
+  active?: boolean;
+}
+
+export interface TriggeredAlert {
+  id: number;
+  type: AlertType;
+  severity: 'warning' | 'info';
+  message: string;
+}
+
+// Analyse de qualité des données (page Anomalies).
+export interface AnomalyTxRef {
+  id: number;
+  date: string;
+  amount: number;
+  type: TransactionType;
+  description: string | null;
+  account_id: number | null;
+}
+export interface DuplicatePair {
+  a: AnomalyTxRef;
+  b: AnomalyTxRef;
+  days_apart: number;
+}
+export interface AnomalyReport {
+  no_account: AnomalyTxRef[];
+  no_category: AnomalyTxRef[];
+  duplicates: DuplicatePair[];
+}
+
 export type BillFrequency = 'monthly' | 'yearly';
 
 // Facture attendue : dépense récurrente à fourchette de montant, rapprochée

@@ -1,0 +1,86 @@
+// Détection d'anomalies de données, pure et testée. Trois familles :
+// - sans compte    : transaction de flux (revenu/dépense) non rattachée ;
+// - sans catégorie : revenu/dépense sans catégorie (les transferts sont exclus) ;
+// - doublons probables : même compte, même type, même montant, dates proches
+//   (import rejoué, double saisie). Surfacé comme « probable » — l'utilisateur
+//   tranche, on ne supprime jamais automatiquement.
+
+export interface AnomalyTx {
+  id: number;
+  date: Date;
+  amount: number;
+  type: string;
+  description: string | null;
+  account_id: number | null;
+  category_id: number | null;
+}
+
+export interface AnomalyTxRef {
+  id: number;
+  date: string;
+  amount: number;
+  type: string;
+  description: string | null;
+  account_id: number | null;
+}
+
+export interface DuplicatePair {
+  a: AnomalyTxRef;
+  b: AnomalyTxRef;
+  days_apart: number;
+}
+
+export interface AnomalyReport {
+  no_account: AnomalyTxRef[];
+  no_category: AnomalyTxRef[];
+  duplicates: DuplicatePair[];
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Fenêtre de proximité pour considérer deux mouvements identiques comme doublon.
+const DUPLICATE_WINDOW_DAYS = 2;
+
+const toRef = (t: AnomalyTx): AnomalyTxRef => ({
+  id: t.id,
+  date: t.date.toISOString().slice(0, 10),
+  amount: t.amount,
+  type: t.type,
+  description: t.description,
+  account_id: t.account_id,
+});
+
+export function detectAnomalies(transactions: AnomalyTx[]): AnomalyReport {
+  const no_account = transactions
+    .filter((t) => t.type !== 'transfer' && t.account_id == null)
+    .map(toRef);
+
+  const no_category = transactions
+    .filter((t) => t.type !== 'transfer' && t.category_id == null)
+    .map(toRef);
+
+  // Doublons : on regroupe par (compte|type|montant arrondi) puis on apparie les
+  // mouvements dont les dates sont à ≤ DUPLICATE_WINDOW_DAYS l'un de l'autre.
+  const groups = new Map<string, AnomalyTx[]>();
+  for (const t of transactions) {
+    if (t.account_id == null) continue; // un orphelin n'est pas un doublon de compte
+    const key = `${t.account_id}|${t.type}|${Math.round(t.amount * 100)}`;
+    const list = groups.get(key);
+    if (list) list.push(t); else groups.set(key, [t]);
+  }
+
+  const duplicates: DuplicatePair[] = [];
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const sorted = [...list].sort((a, b) => a.date.getTime() - b.date.getTime());
+    for (let i = 0; i < sorted.length - 1; i += 1) {
+      const a = sorted[i]!;
+      const b = sorted[i + 1]!;
+      const days = Math.round((b.date.getTime() - a.date.getTime()) / DAY_MS);
+      if (days <= DUPLICATE_WINDOW_DAYS) {
+        duplicates.push({ a: toRef(a), b: toRef(b), days_apart: days });
+      }
+    }
+  }
+
+  return { no_account, no_category, duplicates };
+}

@@ -272,6 +272,33 @@ export const createHoldingOrderSchema = z.object({
 });
 export const updateHoldingOrderSchema = createHoldingOrderSchema.partial();
 
+const alertShape = z.object({
+  type: z.enum(['account_balance', 'transaction_amount', 'stale_snapshot', 'goal_behind']),
+  account_id: z.coerce.number().int().positive().nullish(),
+  goal_id: z.coerce.number().int().positive().nullish(),
+  operator: z.enum(['lt', 'gt']).nullish(),
+  threshold: z.coerce.number().nullish(),
+  active: z.coerce.boolean().default(true),
+});
+// Chaque type d'alerte a ses champs requis (le modèle DB est volontairement
+// permissif pour partager une table) : on les impose ici.
+const alertRequiredCheck = (data: z.infer<typeof alertShape>, ctx: z.RefinementCtx) => {
+  if (data.type === 'account_balance' && (data.account_id == null || data.operator == null || data.threshold == null)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Une alerte de solde requiert un compte, un opérateur et un seuil' });
+  }
+  if (data.type === 'transaction_amount' && (data.operator == null || data.threshold == null)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Une alerte de transaction requiert un opérateur et un seuil' });
+  }
+  if (data.type === 'stale_snapshot' && data.threshold == null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Une alerte de relevé requiert un nombre de jours' });
+  }
+  if (data.type === 'goal_behind' && data.goal_id == null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Une alerte d\'objectif requiert un objectif' });
+  }
+};
+export const createAlertSchema = alertShape.superRefine(alertRequiredCheck);
+export const updateAlertSchema = alertShape.partial();
+
 export const csvImportSchema = z.object({
   csv: z.string().min(1),
   account_id: z.coerce.number().int().positive().nullish(),
