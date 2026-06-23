@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { csvImportSchema, dateString, idParam } from '../lib/validation.js';
+import { createImportMappingSchema, csvImportSchema, dateString, idParam, statementImportSchema } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { assertAccountOwned } from '../lib/transactionHelpers.js';
+import { parseOfx, parseQif } from '../lib/statementParsers.js';
 
 export const importExportRouter = Router();
 
@@ -621,15 +622,26 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
       description,
     });
   }
-  const duplicateKeys = await existingCsvDuplicateKeys(user_id, body.account_id ?? null, parsedRows);
+  res.json(await dedupeAndInsert(user_id, body.account_id ?? null, parsedRows, skipped));
+}));
+
+type ParsedImportRow = {
+  line: number;
+  user_id: number;
+  account_id: number | null;
+  category_id: number | null;
+  date: Date;
+  type: 'expense' | 'income';
+  amount: number;
+  description: string;
+};
+
+// Dédoublonne (contre l'existant ET au sein du fichier) puis insère en une seule
+// requête batch. Partagé par l'import CSV et l'import de relevé (OFX/QIF).
+async function dedupeAndInsert(user_id: number, account_id: number | null, parsedRows: ParsedImportRow[], baseSkipped: number) {
+  const duplicateKeys = await existingCsvDuplicateKeys(user_id, account_id, parsedRows);
   const seenInFile = new Set<string>();
-  const duplicates: Array<{
-    line: number;
-    date: string;
-    amount: number;
-    description: string;
-    reason: 'existing' | 'file';
-  }> = [];
+  const duplicates: Array<{ line: number; date: string; amount: number; description: string; reason: 'existing' | 'file' }> = [];
   const toCreate = parsedRows.filter((row) => {
     const key = csvDuplicateKey(row);
     const reason = duplicateKeys.has(key) ? 'existing' : seenInFile.has(key) ? 'file' : null;
@@ -646,11 +658,68 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
     seenInFile.add(key);
     return true;
   }).map(({ line: _line, ...row }) => row);
-  skipped += duplicates.length;
   // Une seule insertion batch (au lieu d'un INSERT par ligne) : import atomique
   // et beaucoup plus rapide sur les gros relevés.
   if (toCreate.length > 0) await prisma.transaction.createMany({ data: toCreate });
-  res.json({ imported: toCreate.length, skipped, duplicates_count: duplicates.length, duplicates });
+  return { imported: toCreate.length, skipped: baseSkipped + duplicates.length, duplicates_count: duplicates.length, duplicates };
+}
+
+// Mappings CSV sauvegardés (« profils de banque »).
+importExportRouter.get('/users/:user_id/import-mappings', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  res.json(await prisma.importMapping.findMany({ where: { user_id }, orderBy: { name: 'asc' } }));
+}));
+
+importExportRouter.post('/users/:user_id/import-mappings', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const body = createImportMappingSchema.parse(req.body);
+  // Upsert par nom : enregistrer un profil existant le met à jour.
+  const row = await prisma.importMapping.upsert({
+    where: { user_id_name: { user_id, name: body.name } },
+    create: { user_id, name: body.name, date_format: body.date_format, columns: body.columns },
+    update: { date_format: body.date_format, columns: body.columns },
+  });
+  res.status(201).json(row);
+}));
+
+importExportRouter.delete('/users/:user_id/import-mappings/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const id = idParam.parse(req.params.id);
+  const result = await prisma.importMapping.deleteMany({ where: { id, user_id } });
+  if (result.count === 0) { res.status(404).json({ error: 'Profil introuvable' }); return; }
+  res.json({ deleted: true });
+}));
+
+importExportRouter.post('/users/:user_id/import.statement', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const body = statementImportSchema.parse(req.body);
+  if (body.account_id) await assertAccountOwned(user_id, body.account_id);
+  const rules = await prisma.categoryRule.findMany({ where: { user_id } });
+  const raw = body.format === 'ofx' ? parseOfx(body.content) : parseQif(body.content);
+  // OFX : date non ambiguë (AAAAMMJJ). QIF : on respecte le format choisi.
+  const dateFormat = body.format === 'ofx' ? 'yyyymmdd' as const : body.date_format;
+
+  let skipped = 0;
+  const parsedRows: ParsedImportRow[] = [];
+  raw.forEach((row, index) => {
+    const date = parseDate(row.dateRaw, dateFormat);
+    const signedAmount = parseSignedAmount(row.amountRaw);
+    if (!date || signedAmount === null || signedAmount === 0) { skipped += 1; return; }
+    const description = row.description ?? '';
+    const matchedRule = rules.find((r) => description.toUpperCase().includes(r.pattern));
+    parsedRows.push({
+      line: index + 1,
+      user_id,
+      account_id: body.account_id ?? null,
+      category_id: matchedRule?.category_id ?? null,
+      date,
+      type: signedAmount > 0 ? 'income' : 'expense',
+      amount: round2(Math.abs(signedAmount)),
+      description,
+    });
+  });
+
+  res.json(await dedupeAndInsert(user_id, body.account_id ?? null, parsedRows, skipped));
 }));
 
 async function existingCsvDuplicateKeys(

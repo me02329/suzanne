@@ -335,6 +335,45 @@ export interface CreateAttachmentBody {
   data_base64: string;
 }
 
+export type ImportDateFormat = 'auto' | 'yyyy-mm-dd' | 'dd/mm/yyyy' | 'mm/dd/yyyy' | 'dd-mm-yyyy' | 'yyyymmdd';
+
+export interface ImportMappingColumns {
+  date: string;
+  amount: string;
+  description?: string | null;
+  type?: string | null;
+}
+
+// Profil de mapping CSV sauvegardé (par banque), réutilisable à l'import.
+export interface ImportMapping {
+  id: number;
+  user_id: number;
+  name: string;
+  date_format: ImportDateFormat;
+  columns: ImportMappingColumns;
+  created_at: string;
+}
+
+export interface CreateImportMappingBody {
+  name: string;
+  date_format: ImportDateFormat;
+  columns: ImportMappingColumns;
+}
+
+export interface StatementImportBody {
+  format: 'ofx' | 'qif';
+  content: string;
+  account_id?: number | null;
+  date_format?: ImportDateFormat;
+}
+
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  duplicates_count: number;
+  duplicates: Array<{ line: number; date: string; amount: number; description: string; reason: 'existing' | 'file' }>;
+}
+
 export type BillFrequency = 'monthly' | 'yearly';
 
 // Facture attendue : dépense récurrente à fourchette de montant, rapprochée

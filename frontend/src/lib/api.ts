@@ -28,7 +28,11 @@ import type {
   CreateAttachmentBody,
   CreateHoldingBody,
   CreateHoldingOrderBody,
+  CreateImportMappingBody,
   DashboardSummary,
+  ImportMapping,
+  ImportResult,
+  StatementImportBody,
   TriggeredAlert,
   GoalContribution,
   Holding,
@@ -252,6 +256,13 @@ export const api = {
       duplicates_count: number;
       duplicates: Array<{ line: number; date: string; amount: number; description: string; reason: 'existing' | 'file' }>;
     }>(`/users/${userId}/import.csv`, { method: 'POST', body: JSON.stringify(body) }),
+  importStatement: (userId: number, body: StatementImportBody) =>
+    http<ImportResult>(`/users/${userId}/import.statement`, { method: 'POST', body: JSON.stringify(body) }),
+  importMappings: (userId: number) => http<ImportMapping[]>(`/users/${userId}/import-mappings`),
+  saveImportMapping: (userId: number, body: CreateImportMappingBody) =>
+    http<ImportMapping>(`/users/${userId}/import-mappings`, { method: 'POST', body: JSON.stringify(body) }),
+  deleteImportMapping: (userId: number, id: number) =>
+    http<{ deleted: boolean }>(`/users/${userId}/import-mappings/${id}`, { method: 'DELETE' }),
   exportJsonUrl: (userId: number) => `${API_BASE}/users/${userId}/export.json`,
   exportCsvUrl: (userId: number) => `${API_BASE}/users/${userId}/transactions.csv`,
   exportSelection: async (userId: number, body: { entities: string[]; from?: string | null; to?: string | null }) => {

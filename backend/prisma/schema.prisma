@@ -103,6 +103,7 @@ model User {
   holding_orders          HoldingOrder[]
   alerts                  Alert[]
   attachments             Attachment[]
+  import_mappings         ImportMapping[]
 
   @@map("users")
 }
@@ -563,6 +564,24 @@ model Attachment {
   @@index([user_id])
   @@index([transaction_id])
   @@map("attachments")
+}
+
+// Mapping CSV sauvegardé (« profil de banque ») : colonnes + format de date,
+// pour ré-importer un relevé de la même banque sans tout reconfigurer.
+model ImportMapping {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  name        String
+  date_format String   @default("auto")
+  // Colonnes : { date, amount, description?, type? } (noms d'en-têtes CSV).
+  columns     Json
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, name])
+  @@index([user_id])
+  @@map("import_mappings")
 }
 
 // Alerte configurable, évaluée à la volée (pas de canal d'envoi pour l'instant :

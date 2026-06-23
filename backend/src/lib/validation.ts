@@ -316,6 +316,25 @@ export const createAttachmentSchema = z.object({
   }, 'Fichier trop volumineux (8 Mo max)'),
 });
 
+const dateFormatEnum = z.enum(['auto', 'yyyy-mm-dd', 'dd/mm/yyyy', 'mm/dd/yyyy', 'dd-mm-yyyy', 'yyyymmdd']);
+export const createImportMappingSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  date_format: dateFormatEnum.default('auto'),
+  columns: z.object({
+    date: z.string().trim().min(1),
+    amount: z.string().trim().min(1),
+    description: z.string().trim().min(1).nullish(),
+    type: z.string().trim().min(1).nullish(),
+  }),
+});
+
+export const statementImportSchema = z.object({
+  format: z.enum(['ofx', 'qif']),
+  content: z.string().min(1),
+  account_id: z.coerce.number().int().positive().nullish(),
+  date_format: z.enum(['auto', 'yyyy-mm-dd', 'dd/mm/yyyy', 'mm/dd/yyyy', 'dd-mm-yyyy', 'yyyymmdd']).default('auto'),
+});
+
 export const csvImportSchema = z.object({
   csv: z.string().min(1),
   account_id: z.coerce.number().int().positive().nullish(),

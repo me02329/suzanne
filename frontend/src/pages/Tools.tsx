@@ -1,12 +1,13 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, CheckSquare, DatabaseBackup, Download, FileJson, FileUp, RotateCcw, Table2, Upload, WalletCards } from 'lucide-react';
-import type { Account } from '@suzanne/shared';
+import { CalendarDays, CheckSquare, DatabaseBackup, Download, FileJson, FileUp, Landmark, RotateCcw, Table2, Upload, WalletCards } from 'lucide-react';
+import type { Account, ImportDateFormat, ImportMapping } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { numberOrNull } from '../lib/forms';
 import { guessColumn, parseCsvPreview } from '../lib/csv';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
+import { StatementImportModal } from '../components/StatementImportModal';
 
 import type { Run } from '../lib/run';
 
@@ -42,11 +43,14 @@ function currentYearRange() {
 export function Tools({ userId, accounts, run }: { userId: number; accounts: Account[]; run: Run }) {
   const [csv, setCsv] = useState('');
   const [importOpen, setImportOpen] = useState(false);
+  const [statementOpen, setStatementOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const preview = useMemo(() => parseCsvPreview(csv), [csv]);
   const [mapping, setMapping] = useState({ date: '', amount: '', description: '', type: '' });
+  const [dateFormat, setDateFormat] = useState<ImportDateFormat>('auto');
+  const [mappings, setMappings] = useState<ImportMapping[]>([]);
   const [lastCsvImport, setLastCsvImport] = useState<Awaited<ReturnType<typeof api.importCsv>> | null>(null);
 
   const [exportOpen, setExportOpen] = useState(false);
@@ -146,9 +150,34 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     if (importOpen) return;
     setCsv('');
     setMapping({ date: '', amount: '', description: '', type: '' });
+    setDateFormat('auto');
     setFileName(null);
     setDragActive(false);
   }, [importOpen]);
+
+  // Profils de mapping CSV sauvegardés (par banque), rechargés à l'ouverture.
+  useEffect(() => {
+    if (!importOpen) return;
+    api.importMappings(userId).then(setMappings).catch(() => setMappings([]));
+  }, [importOpen, userId]);
+
+  const applyMapping = (m: ImportMapping) => {
+    setMapping({ date: m.columns.date, amount: m.columns.amount, description: m.columns.description ?? '', type: m.columns.type ?? '' });
+    setDateFormat(m.date_format);
+  };
+  const saveMapping = () => {
+    const name = window.prompt('Nom du profil (ex. nom de la banque) :')?.trim();
+    if (!name) return;
+    void run(() => api.saveImportMapping(userId, {
+      name,
+      date_format: dateFormat,
+      columns: { date: mapping.date, amount: mapping.amount, description: mapping.description || null, type: mapping.type || null },
+    }), 'Profil enregistré').then((ok) => { if (ok) api.importMappings(userId).then(setMappings).catch(() => {}); });
+  };
+  const removeMapping = (m: ImportMapping) => {
+    void run(() => api.deleteImportMapping(userId, m.id), 'Profil supprimé')
+      .then((ok) => { if (ok) setMappings((cur) => cur.filter((x) => x.id !== m.id)); });
+  };
 
   const readFile = async (file: File) => {
     const text = await file.text();
@@ -184,7 +213,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
       const result = await api.importCsv(userId, {
         csv,
         account_id: numberOrNull(data.get('account_id')),
-        date_format: String(data.get('date_format') || 'auto'),
+        date_format: dateFormat,
         mapping: {
           date: mapping.date,
           amount: mapping.amount,
@@ -232,6 +261,11 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
           <span className="tool-card-icon"><FileUp size={20} /></span>
           <strong>Importer des transactions</strong>
           <span>CSV bancaire avec détection des colonnes et aperçu avant validation.</span>
+        </button>
+        <button className="tool-card" type="button" onClick={() => setStatementOpen(true)}>
+          <span className="tool-card-icon"><Landmark size={20} /></span>
+          <strong>Importer un relevé OFX / QIF</strong>
+          <span>Fichier bancaire standard, dédoublonnage et auto-catégorisation inclus.</span>
         </button>
         <button className="tool-card" type="button" onClick={() => setExportOpen(true)}>
           <span className="tool-card-icon"><Download size={20} /></span>
@@ -289,6 +323,9 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
           </div>
         </Panel>
       )}
+      {statementOpen && (
+        <StatementImportModal userId={userId} accounts={accounts} run={run} onClose={() => setStatementOpen(false)} />
+      )}
       {importOpen && (
         <Modal title="Importer CSV" onClose={() => setImportOpen(false)} wide>
           <form className="form tools-modal-form" onSubmit={submit}>
@@ -297,7 +334,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
               <span>Importe un relevé bancaire. Les colonnes date et montant sont obligatoires ; les autres peuvent rester ignorées.</span>
             </div>
             <label>Compte<select name="account_id"><option value="">Aucun</option>{pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}</select></label>
-            <label>Format de date<select name="date_format" defaultValue="auto">
+            <label>Format de date<select value={dateFormat} onChange={(e) => setDateFormat(e.target.value as ImportDateFormat)}>
               <option value="auto">Détection auto</option>
               <option value="yyyy-mm-dd">YYYY-MM-DD</option>
               <option value="dd/mm/yyyy">DD/MM/YYYY</option>
@@ -305,6 +342,14 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
               <option value="dd-mm-yyyy">DD-MM-YYYY</option>
               <option value="yyyymmdd">YYYYMMDD</option>
             </select></label>
+            {mappings.length > 0 && (
+              <label>Profil de banque
+                <select defaultValue="" onChange={(e) => { const m = mappings.find((x) => String(x.id) === e.target.value); if (m) applyMapping(m); }}>
+                  <option value="">Choisir un profil…</option>
+                  {mappings.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </label>
+            )}
             <div className="full">
               <div
                 className={`csv-drop${dragActive ? ' active' : ''}`}
@@ -335,6 +380,20 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
                 {columnSelect('amount', 'Montant', true)}
                 {columnSelect('description', 'Libellé')}
                 {columnSelect('type', 'Type')}
+                <div className="full">
+                  <button type="button" className="secondary" disabled={!mapping.date || !mapping.amount} onClick={saveMapping}>
+                    <DatabaseBackup size={16} /> Enregistrer ce mapping comme profil
+                  </button>
+                  {mappings.length > 0 && (
+                    <p className="panel-note">
+                      Profils : {mappings.map((m) => (
+                        <span key={m.id} className="badge-recurring" style={{ cursor: 'pointer' }} onClick={() => removeMapping(m)} title="Cliquer pour supprimer">
+                          {m.name} ✕
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                </div>
                 <div className="table-wrap full">
                   <table className="tx-table">
                     <thead><tr>{preview.headers.map((header) => <th key={header}>{header}</th>)}</tr></thead>
