@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, Rows2, Rows3, Search, Trash2 } from 'lucide-react';
 import {
   ACCOUNT_GROUPS,
@@ -17,6 +18,7 @@ import { api } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { numberOrNull } from '../lib/forms';
 import { money, todayIso, txLabel, typeLabel } from '../lib/format';
+import { localeTag } from '../i18n';
 import { usePersistedState } from '../lib/storage';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
@@ -82,6 +84,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
   onMonthChange: (month: string) => void;
   run: Run;
 }) {
+  const { t } = useTranslation();
   // `editing` doubles as the modal trigger: open when non-null, closed otherwise.
   // Negative ids encode "copy" (no real backend row yet).
   const [editing, setEditing] = useState<Transaction | null>(null);
@@ -340,13 +343,13 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     transaction: Transaction,
     patch: Partial<Pick<Transaction, 'account_id' | 'to_account_id' | 'category_id'>>,
   ) => {
-    void run(() => api.updateTransaction(userId, transaction.id, patch), 'Transaction modifiée');
+    void run(() => api.updateTransaction(userId, transaction.id, patch), t('Transaction modifiée'));
   };
 
   const toggleCleared = (transaction: Transaction) => {
     void run(
       () => api.updateTransaction(userId, transaction.id, { cleared: !transaction.cleared }),
-      transaction.cleared ? 'Transaction dépointée' : 'Transaction pointée',
+      transaction.cleared ? t('Transaction dépointée') : t('Transaction pointée'),
     );
   };
 
@@ -400,7 +403,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
     };
     // Le formulaire n'est vidé qu'après un succès : en cas d'erreur serveur,
     // la saisie reste en place pour corriger et resoumettre.
-    void run(() => api.createTransaction(userId, body), 'Transaction ajoutée').then((ok) => {
+    void run(() => api.createTransaction(userId, body), t('Transaction ajoutée')).then((ok) => {
       if (!ok) return;
       form.reset();
       setAddType('expense');
@@ -422,7 +425,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       type: quickType,
       date: String(data.get('date')),
       description: String(data.get('description') || ''),
-    }), 'Transaction ajoutée').then((ok) => {
+    }), t('Transaction ajoutée')).then((ok) => {
       if (!ok) return;
       form.reset();
       setQuickType('expense');
@@ -465,8 +468,8 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       splits,
     };
     const action = editing.id > 0
-      ? run(() => api.updateTransaction(userId, editing.id, body), 'Transaction modifiée')
-      : run(() => api.createTransaction(userId, body), 'Transaction copiée');
+      ? run(() => api.updateTransaction(userId, editing.id, body), t('Transaction modifiée'))
+      : run(() => api.createTransaction(userId, body), t('Transaction copiée'));
     void action.then((ok) => {
       if (ok) closeModal();
     });
@@ -513,7 +516,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       amount,
       date: String(data.get('date')),
       description: String(data.get('description') || ''),
-    }), 'Remboursement enregistré');
+    }), t('Remboursement enregistré'));
     setRefundingExpense(null);
   };
 
@@ -527,29 +530,29 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       sync_description: data.get('sync_description') === 'on',
       sync_amount: data.get('sync_amount') === 'on',
       sync_category_account: data.get('sync_category_account') === 'on',
-    }), recurringId ? 'Transaction liée à la récurrence' : 'Lien récurrence retiré');
+    }), recurringId ? t('Transaction liée à la récurrence') : t('Lien récurrence retiré'));
     setLinking(null);
   };
 
   return (
     <section className="stack">
       <form className="quick-entry" onSubmit={submitQuick}>
-        <div className="quick-type-toggle" role="group" aria-label="Type de transaction">
-          <button type="button" className={quickType === 'expense' ? 'active' : ''} onClick={() => setQuickType('expense')}>Dépense</button>
-          <button type="button" className={quickType === 'income' ? 'active' : ''} onClick={() => setQuickType('income')}>Revenu</button>
+        <div className="quick-type-toggle" role="group" aria-label={t('Type de transaction')}>
+          <button type="button" className={quickType === 'expense' ? 'active' : ''} onClick={() => setQuickType('expense')}>{t('Dépense')}</button>
+          <button type="button" className={quickType === 'income' ? 'active' : ''} onClick={() => setQuickType('income')}>{t('Revenu')}</button>
         </div>
-        <input ref={quickAmountRef} name="amount" type="number" min="0.01" step="0.01" placeholder="Montant" required />
-        <input name="description" placeholder="Libellé" />
+        <input ref={quickAmountRef} name="amount" type="number" min="0.01" step="0.01" placeholder={t('Montant')} required />
+        <input name="description" placeholder={t('Libellé')} />
         <select name="category_id">
-          <option value="">Catégorie</option>
+          <option value="">{t('Catégorie')}</option>
           {filteredQuickCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
         </select>
         <select name="account_id">
-          <option value="">Compte</option>
+          <option value="">{t('Compte')}</option>
           {pickableAccounts(accounts).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
         </select>
         <input name="date" type="date" defaultValue={todayIso()} required />
-        <button className="primary"><Plus size={16} /> Ajouter</button>
+        <button className="primary"><Plus size={16} /> {t('Ajouter')}</button>
       </form>
       <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
         <button
@@ -558,31 +561,31 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           onClick={() => setAddOpen(!addOpen)}
           aria-expanded={addOpen}
         >
-          <span className="collapsible-title"><Plus size={16} /> Ajouter une transaction</span>
+          <span className="collapsible-title"><Plus size={16} /> {t('Ajouter une transaction')}</span>
           {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         <Collapsible open={addOpen} className="collapsible-body">
             <form className="form form-inline" onSubmit={submitAdd}>
-              <label>Type
+              <label>{t('Type')}
                 <select value={addType} onChange={(e) => setAddType(e.target.value as TransactionType)}>
-                  <option value="expense">Dépense</option>
-                  <option value="income">Revenu</option>
-                  <option value="transfer">Transfert</option>
+                  <option value="expense">{t('Dépense')}</option>
+                  <option value="income">{t('Revenu')}</option>
+                  <option value="transfer">{t('Transfert')}</option>
                 </select>
               </label>
-              <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
-              <label>Montant<input name="amount" type="number" min="0.01" step="0.01" required onChange={(e) => setAddAmount(e.target.value)} /></label>
-              <label>{addType === 'transfer' ? 'Depuis le compte' : 'Compte'}
+              <label>{t('Date')}<input name="date" type="date" defaultValue={todayIso()} required /></label>
+              <label>{t('Montant')}<input name="amount" type="number" min="0.01" step="0.01" required onChange={(e) => setAddAmount(e.target.value)} /></label>
+              <label>{addType === 'transfer' ? t('Depuis le compte') : t('Compte')}
                 <select name="account_id" required={addType === 'transfer'}>
-                  <option value="">Aucun</option>
+                  <option value="">{t('Aucun')}</option>
                   {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </label>
               {addType === 'transfer'
-                ? <label>Vers le compte<select name="to_account_id" required><option value="">Choisir...</option>{pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+                ? <label>{t('Vers le compte')}<select name="to_account_id" required><option value="">{t('Choisir...')}</option>{pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
                 : (
                   <>
-                    <label>Catégorie<select name="category_id" disabled={addSplitEnabled}><option value="">Aucune</option>{filteredAddCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+                    <label>{t('Catégorie')}<select name="category_id" disabled={addSplitEnabled}><option value="">{t('Aucune')}</option>{filteredAddCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
                     <label className="checkbox-row inline-checkbox">
                       <input
                         type="checkbox"
@@ -599,12 +602,12 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
                           }
                         }}
                       />
-                      Ventiler
+                      {t('Ventiler')}
                     </label>
                   </>
                 )}
-              <label className="grow">Description<input name="description" placeholder="Ex: Carrefour, salaire, loyer..." /></label>
-              <label className="grow">Tags<TagPicker value={addTagIds} tags={tags} onChange={setAddTagIds} /></label>
+              <label className="grow">{t('Description')}<input name="description" placeholder={t('Ex: Carrefour, salaire, loyer...')} /></label>
+              <label className="grow">{t('Tags')}<TagPicker value={addTagIds} tags={tags} onChange={setAddTagIds} /></label>
               {addType !== 'transfer' && addSplitEnabled && (
                 <SplitEditor
                   drafts={addSplits}
@@ -618,90 +621,90 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           </Collapsible>
       </div>
 
-      <Panel title={issueFilter === 'unassigned_account' ? 'Transactions sans compte' : 'Historique du mois'}>
+      <Panel title={issueFilter === 'unassigned_account' ? t('Transactions sans compte') : t('Historique du mois')}>
         {issueFilter === 'unassigned_account' && (
           <div className="bulk-bar">
-            <strong>Toutes périodes</strong>
-            <span>Ces revenus/dépenses sont comptés dans les Liquidités tant qu'aucun compte n'est rattaché.</span>
-            <button type="button" className="secondary" onClick={onClearIssueFilter}>Revenir au mois courant</button>
+            <strong>{t('Toutes périodes')}</strong>
+            <span>{t('Ces revenus/dépenses sont comptés dans les Liquidités tant qu\'aucun compte n\'est rattaché.')}</span>
+            <button type="button" className="secondary" onClick={onClearIssueFilter}>{t('Revenir au mois courant')}</button>
           </div>
         )}
         <div className="table-tools">
           <div className="search-box inline">
             <Search size={16} />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher date, compte, catégorie..." />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('Rechercher date, compte, catégorie...')} />
           </div>
           <select value={filterType} onChange={(e) => setFilterType(e.target.value as 'all' | TransactionType)}>
-            <option value="all">Tous les types</option>
-            <option value="expense">Dépenses</option>
-            <option value="income">Revenus</option>
-            <option value="transfer">Transferts</option>
+            <option value="all">{t('Tous les types')}</option>
+            <option value="expense">{t('Dépenses')}</option>
+            <option value="income">{t('Revenus')}</option>
+            <option value="transfer">{t('Transferts')}</option>
           </select>
-          <select value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)} aria-label="Filtre de catégorie">
-            <option value="all">Toutes les catégories</option>
+          <select value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)} aria-label={t('Filtre de catégorie')}>
+            <option value="all">{t('Toutes les catégories')}</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select value={filterAccountGroup} onChange={(e) => setFilterAccountGroup(e.target.value)}>
-            <option value="all">Tous les comptes</option>
+            <option value="all">{t('Tous les comptes')}</option>
             {ACCOUNT_GROUPS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
           <select value={filterTagId} onChange={(e) => setFilterTagId(e.target.value)}>
-            <option value="all">Tous les tags</option>
-            {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            <option value="all">{t('Tous les tags')}</option>
+            {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
           </select>
-          <select value={filterCleared} onChange={(e) => setFilterCleared(e.target.value as 'all' | 'cleared' | 'uncleared')} aria-label="Filtre de pointage">
-            <option value="all">Pointées ou non</option>
-            <option value="cleared">Pointées</option>
-            <option value="uncleared">Non pointées</option>
+          <select value={filterCleared} onChange={(e) => setFilterCleared(e.target.value as 'all' | 'cleared' | 'uncleared')} aria-label={t('Filtre de pointage')}>
+            <option value="all">{t('Pointées ou non')}</option>
+            <option value="cleared">{t('Pointées')}</option>
+            <option value="uncleared">{t('Non pointées')}</option>
           </select>
           {activeFilterCount > 0 && (
             <button type="button" className="filter-reset" onClick={resetFilters}>
-              {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''} actif{activeFilterCount > 1 ? 's' : ''} · Réinitialiser
+              {t(activeFilterCount > 1 ? '{{n}} filtres actifs · Réinitialiser' : '{{n}} filtre actif · Réinitialiser', { n: activeFilterCount })}
             </button>
           )}
         </div>
         <div className="tx-summary">
-          <span><strong>{filteredTransactions.length}</strong> lignes</span>
+          <span><strong>{filteredTransactions.length}</strong> {t('lignes')}</span>
           <span className="income">+ {money(txTotals.income)}</span>
           <span className="expense">- {money(txTotals.expenses)}</span>
-          <span className="transfer">{money(txTotals.transfers)} transférés</span>
+          <span className="transfer">{money(txTotals.transfers)} {t('transférés')}</span>
           <button
             type="button"
             className="ghost-button tx-density-toggle"
             onClick={() => setCompact(!compact)}
-            title={compact ? 'Affichage confortable' : 'Affichage compact'}
+            title={compact ? t('Affichage confortable') : t('Affichage compact')}
           >
             {compact ? <Rows3 size={15} /> : <Rows2 size={15} />}
-            {compact ? 'Confortable' : 'Compact'}
+            {compact ? t('Confortable') : t('Compact')}
           </button>
-          <button type="button" className="ghost-button" onClick={() => setTrashOpen(true)} title="Corbeille">
-            <Trash2 size={15} /> Corbeille
+          <button type="button" className="ghost-button" onClick={() => setTrashOpen(true)} title={t('Corbeille')}>
+            <Trash2 size={15} /> {t('Corbeille')}
           </button>
         </div>
         {selectedCount > 0 && (
           <div className="bulk-bar">
-            <strong>{selectedCount} sélectionnée{selectedCount > 1 ? 's' : ''}</strong>
-            <button type="button" className="secondary" onClick={() => setBulkEditing(true)}>Modifier la sélection</button>
+            <strong>{t(selectedCount > 1 ? '{{n}} sélectionnées' : '{{n}} sélectionnée', { n: selectedCount })}</strong>
+            <button type="button" className="secondary" onClick={() => setBulkEditing(true)}>{t('Modifier la sélection')}</button>
             {tags.length > 0 && (
               <select
                 className="bulk-tag-select"
-                aria-label="Ajouter un tag à la sélection"
+                aria-label={t('Ajouter un tag à la sélection')}
                 value=""
                 onChange={(e) => { if (e.target.value) addTagToSelection(Number(e.target.value)); }}
               >
-                <option value="">Ajouter un tag…</option>
-                {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                <option value="">{t('Ajouter un tag…')}</option>
+                {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
               </select>
             )}
-            <button type="button" className="secondary" onClick={() => setSelectionCleared(true)}>Pointer</button>
-            <button type="button" className="ghost-button" onClick={() => setSelectionCleared(false)}>Dépointer</button>
-            <button type="button" className="danger" onClick={deleteSelection}>Supprimer</button>
-            <button type="button" className="ghost-button" onClick={clearSelection}>Désélectionner</button>
+            <button type="button" className="secondary" onClick={() => setSelectionCleared(true)}>{t('Pointer')}</button>
+            <button type="button" className="ghost-button" onClick={() => setSelectionCleared(false)}>{t('Dépointer')}</button>
+            <button type="button" className="danger" onClick={deleteSelection}>{t('Supprimer')}</button>
+            <button type="button" className="ghost-button" onClick={clearSelection}>{t('Désélectionner')}</button>
           </div>
         )}
         <TransactionsTable
           transactions={pagedTransactions}
-          emptyMessage={issueFilter === 'unassigned_account' ? 'Aucune transaction sans compte.' : 'Aucune transaction sur ce mois.'}
+          emptyMessage={issueFilter === 'unassigned_account' ? t('Aucune transaction sans compte.') : t('Aucune transaction sur ce mois.')}
           compact={compact}
           categories={categories}
           accounts={accounts}
@@ -720,10 +723,10 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
           onRefund={(t) => (t.type === 'expense' ? setRefundingExpense(t) : setLinkingRefund(t))}
           onToggleCleared={toggleCleared}
           onAttachments={setAttachmentsFor}
-          onDelete={(t) => void run(
-            () => api.deleteTransaction(userId, t.id),
-            'Transaction déplacée vers la corbeille',
-            { undo: () => api.restoreTransaction(userId, t.id) },
+          onDelete={(tx) => void run(
+            () => api.deleteTransaction(userId, tx.id),
+            t('Transaction déplacée vers la corbeille'),
+            { undo: () => api.restoreTransaction(userId, tx.id) },
           )}
           highlightId={highlightId}
         />
@@ -735,44 +738,44 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
               disabled={currentPage <= 1}
               onClick={() => setPage(currentPage - 1)}
             >
-              <ChevronLeft size={16} /> Précédent
+              <ChevronLeft size={16} /> {t('Précédent')}
             </button>
-            <span className="pagination-info">{pageStart}–{pageEnd} sur {sortedTransactions.length} · page {currentPage}/{totalPages}</span>
+            <span className="pagination-info">{t('{{start}}–{{end}} sur {{total}} · page {{page}}/{{pages}}', { start: pageStart, end: pageEnd, total: sortedTransactions.length, page: currentPage, pages: totalPages })}</span>
             <button
               type="button"
               className="secondary"
               disabled={currentPage >= totalPages}
               onClick={() => setPage(currentPage + 1)}
             >
-              Suivant <ChevronRight size={16} />
+              {t('Suivant')} <ChevronRight size={16} />
             </button>
           </div>
         )}
       </Panel>
 
       {editing && (
-        <Modal title={editing.id > 0 ? 'Modifier la transaction' : 'Copier la transaction'} onClose={closeModal}>
+        <Modal title={editing.id > 0 ? t('Modifier la transaction') : t('Copier la transaction')} onClose={closeModal}>
           <form className="form" onSubmit={submitEdit}>
-            <label>Type
+            <label>{t('Type')}
               <select value={editType} onChange={(e) => setEditType(e.target.value as TransactionType)}>
-                <option value="expense">Dépense</option>
-                <option value="income">Revenu</option>
-                <option value="transfer">Transfert</option>
+                <option value="expense">{t('Dépense')}</option>
+                <option value="income">{t('Revenu')}</option>
+                <option value="transfer">{t('Transfert')}</option>
               </select>
             </label>
-            <label>Date<input name="date" type="date" defaultValue={editing.date.slice(0, 10)} required /></label>
-            <label>Montant<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editing.amount} required onChange={(e) => setEditAmount(e.target.value)} /></label>
-            <label>{editType === 'transfer' ? 'Depuis le compte' : 'Compte'}
+            <label>{t('Date')}<input name="date" type="date" defaultValue={editing.date.slice(0, 10)} required /></label>
+            <label>{t('Montant')}<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editing.amount} required onChange={(e) => setEditAmount(e.target.value)} /></label>
+            <label>{editType === 'transfer' ? t('Depuis le compte') : t('Compte')}
               <select name="account_id" defaultValue={editing.account_id ?? ''} required={editType === 'transfer'}>
-                <option value="">Aucun</option>
+                <option value="">{t('Aucun')}</option>
                 {pickableAccounts(accounts, editing.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </label>
             {editType === 'transfer'
-              ? <label>Vers le compte<select name="to_account_id" defaultValue={editing.to_account_id ?? ''} required><option value="">Choisir...</option>{pickableAccounts(accounts, editing.to_account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+              ? <label>{t('Vers le compte')}<select name="to_account_id" defaultValue={editing.to_account_id ?? ''} required><option value="">{t('Choisir...')}</option>{pickableAccounts(accounts, editing.to_account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
               : (
                 <>
-                  <label>Catégorie<select name="category_id" defaultValue={editing.category_id ?? ''} disabled={editSplitEnabled}><option value="">Aucune</option>{filteredEditCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+                  <label>{t('Catégorie')}<select name="category_id" defaultValue={editing.category_id ?? ''} disabled={editSplitEnabled}><option value="">{t('Aucune')}</option>{filteredEditCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
                   <label className="checkbox-row inline-checkbox">
                     <input
                       type="checkbox"
@@ -787,12 +790,12 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
                         }
                       }}
                     />
-                    Ventiler cette transaction
+                    {t('Ventiler cette transaction')}
                   </label>
                 </>
               )}
-            <label className="full">Description<input name="description" defaultValue={editing.description ?? ''} placeholder="Ex: Carrefour, salaire, loyer..." /></label>
-            <label className="full">Tags<TagPicker value={editTagIds} tags={tags} onChange={setEditTagIds} /></label>
+            <label className="full">{t('Description')}<input name="description" defaultValue={editing.description ?? ''} placeholder={t('Ex: Carrefour, salaire, loyer...')} /></label>
+            <label className="full">{t('Tags')}<TagPicker value={editTagIds} tags={tags} onChange={setEditTagIds} /></label>
             {editType !== 'transfer' && editSplitEnabled && (
               <SplitEditor
                 drafts={editSplits}
@@ -801,56 +804,56 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
                 onChange={setEditSplits}
               />
             )}
-            <button className="primary">{editing.id > 0 ? 'Enregistrer' : 'Créer la copie'}</button>
-            <button type="button" className="secondary" onClick={closeModal}>Annuler</button>
+            <button className="primary">{editing.id > 0 ? t('Enregistrer') : t('Créer la copie')}</button>
+            <button type="button" className="secondary" onClick={closeModal}>{t('Annuler')}</button>
           </form>
         </Modal>
       )}
 
       {bulkEditing && (
-        <Modal title={`Modifier ${selectedCount} transaction${selectedCount > 1 ? 's' : ''}`} onClose={() => setBulkEditing(false)}>
+        <Modal title={t(selectedCount > 1 ? 'Modifier {{n}} transactions' : 'Modifier {{n}} transaction', { n: selectedCount })} onClose={() => setBulkEditing(false)}>
           <form className="form" onSubmit={submitBulkEdit}>
             <label className="bulk-field">
-              <span><input type="checkbox" name="apply_account" /> Changer le compte</span>
+              <span><input type="checkbox" name="apply_account" /> {t('Changer le compte')}</span>
               <select name="account_id">
-                <option value="">Sans compte</option>
+                <option value="">{t('Sans compte')}</option>
                 {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </label>
             <label className="bulk-field">
-              <span><input type="checkbox" name="apply_category" /> Changer la catégorie</span>
+              <span><input type="checkbox" name="apply_category" /> {t('Changer la catégorie')}</span>
               <select name="category_id">
-                <option value="">Sans catégorie</option>
-                <optgroup label="Dépenses">
+                <option value="">{t('Sans catégorie')}</option>
+                <optgroup label={t('Dépenses')}>
                   {categories.filter((c) => c.type === 'expense').map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </optgroup>
-                <optgroup label="Revenus">
+                <optgroup label={t('Revenus')}>
                   {categories.filter((c) => c.type === 'income').map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </optgroup>
               </select>
             </label>
-            <button className="primary">Appliquer aux transactions sélectionnées</button>
-            <button type="button" className="secondary" onClick={() => setBulkEditing(false)}>Annuler</button>
+            <button className="primary">{t('Appliquer aux transactions sélectionnées')}</button>
+            <button type="button" className="secondary" onClick={() => setBulkEditing(false)}>{t('Annuler')}</button>
           </form>
         </Modal>
       )}
 
       {refundingExpense && (
-        <Modal title="Enregistrer un remboursement" onClose={() => setRefundingExpense(null)}>
+        <Modal title={t('Enregistrer un remboursement')} onClose={() => setRefundingExpense(null)}>
           <form className="form" onSubmit={submitRefund}>
-            <label className="full">Dépense remboursée
+            <label className="full">{t('Dépense remboursée')}
               <input
-                value={`${new Date(refundingExpense.date).toLocaleDateString('fr-FR')} - ${txLabel(refundingExpense, categoryById)} (${money(refundingExpense.amount, accountById.get(refundingExpense.account_id ?? -1)?.currency ?? 'EUR')})`}
+                value={`${new Date(refundingExpense.date).toLocaleDateString(localeTag())} - ${txLabel(refundingExpense, categoryById)} (${money(refundingExpense.amount, accountById.get(refundingExpense.account_id ?? -1)?.currency ?? 'EUR')})`}
                 readOnly
               />
             </label>
             {refundedAmount(refundingExpense) > 0 && (
               <p className="panel-note">
-                Déjà remboursé : {money(refundedAmount(refundingExpense), accountById.get(refundingExpense.account_id ?? -1)?.currency ?? 'EUR')}
+                {t('Déjà remboursé : {{amount}}', { amount: money(refundedAmount(refundingExpense), accountById.get(refundingExpense.account_id ?? -1)?.currency ?? 'EUR') })}
               </p>
             )}
-            <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
-            <label>Montant
+            <label>{t('Date')}<input name="date" type="date" defaultValue={todayIso()} required /></label>
+            <label>{t('Montant')}
               <input
                 name="amount"
                 type="number"
@@ -868,21 +871,21 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
               const currency = accountById.get(refundingExpense.account_id ?? -1)?.currency ?? 'EUR';
               return (
                 <p className="panel-note">
-                  {money(remaining, currency)} viendront annuler la dépense ; le surplus de {money(surplus, currency)} sera compté comme revenu.
+                  {t('{{remaining}} viendront annuler la dépense ; le surplus de {{surplus}} sera compté comme revenu.', { remaining: money(remaining, currency), surplus: money(surplus, currency) })}
                 </p>
               );
             })()}
-            <label>Compte crédité
+            <label>{t('Compte crédité')}
               <select name="account_id" defaultValue={refundingExpense.account_id ?? ''}>
-                <option value="">Aucun</option>
+                <option value="">{t('Aucun')}</option>
                 {pickableAccounts(accounts, refundingExpense.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </label>
-            <label className="full">Description
-              <input name="description" defaultValue={`Remboursement : ${txLabel(refundingExpense, categoryById)}`} />
+            <label className="full">{t('Description')}
+              <input name="description" defaultValue={t('Remboursement : {{label}}', { label: txLabel(refundingExpense, categoryById) })} />
             </label>
-            <button className="primary">Enregistrer le remboursement</button>
-            <button type="button" className="secondary" onClick={() => setRefundingExpense(null)}>Annuler</button>
+            <button className="primary">{t('Enregistrer le remboursement')}</button>
+            <button type="button" className="secondary" onClick={() => setRefundingExpense(null)}>{t('Annuler')}</button>
           </form>
         </Modal>
       )}
@@ -898,8 +901,8 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
             void run(
               () => api.updateTransaction(userId, linkingRefund.id, { refund_allocations: allocations }),
               allocations.length > 0
-                ? `Remboursement ventilé sur ${allocations.length} dépense${allocations.length > 1 ? 's' : ''}`
-                : 'Lien de remboursement retiré',
+                ? t(allocations.length > 1 ? 'Remboursement ventilé sur {{n}} dépenses' : 'Remboursement ventilé sur {{n}} dépense', { n: allocations.length })
+                : t('Lien de remboursement retiré'),
             );
             setLinkingRefund(null);
           }}
@@ -907,20 +910,20 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       )}
 
       {linking && (
-        <Modal title="Lier à une récurrence" onClose={() => setLinking(null)}>
+        <Modal title={t('Lier à une récurrence')} onClose={() => setLinking(null)}>
           <form className="form" onSubmit={submitRecurringLink}>
-            <label className="full">Transaction<input value={`${new Date(linking.date).toLocaleDateString('fr-FR')} - ${txLabel(linking, categoryById)}`} readOnly /></label>
-            <label className="full">Récurrence<select name="recurring_transaction_id" defaultValue={linking.recurring_transaction_id ?? ''}>
-              <option value="">Aucune</option>
+            <label className="full">{t('Transaction')}<input value={`${new Date(linking.date).toLocaleDateString(localeTag())} - ${txLabel(linking, categoryById)}`} readOnly /></label>
+            <label className="full">{t('Récurrence')}<select name="recurring_transaction_id" defaultValue={linking.recurring_transaction_id ?? ''}>
+              <option value="">{t('Aucune')}</option>
               {recurring.filter((r) => r.type === linking.type || linking.type === 'transfer').map((r) => (
                 <option key={r.id} value={r.id}>{r.description} - {money(r.amount, accountById.get(r.account_id ?? -1)?.currency ?? 'EUR')}</option>
               ))}
             </select></label>
-            <label><input type="checkbox" name="sync_category_account" defaultChecked /> Synchroniser compte / catégorie / type</label>
-            <label><input type="checkbox" name="sync_description" /> Renommer comme la récurrence</label>
-            <label><input type="checkbox" name="sync_amount" /> Remplacer le montant par celui de la récurrence</label>
-            <button className="primary">Lier</button>
-            <button type="button" className="secondary" onClick={() => setLinking(null)}>Annuler</button>
+            <label><input type="checkbox" name="sync_category_account" defaultChecked /> {t('Synchroniser compte / catégorie / type')}</label>
+            <label><input type="checkbox" name="sync_description" /> {t('Renommer comme la récurrence')}</label>
+            <label><input type="checkbox" name="sync_amount" /> {t('Remplacer le montant par celui de la récurrence')}</label>
+            <button className="primary">{t('Lier')}</button>
+            <button type="button" className="secondary" onClick={() => setLinking(null)}>{t('Annuler')}</button>
           </form>
         </Modal>
       )}
@@ -952,6 +955,7 @@ function SplitEditor({ drafts, categories, targetAmount, onChange }: {
   targetAmount: number;
   onChange: (drafts: SplitDraft[]) => void;
 }) {
+  const { t } = useTranslation();
   const update = (key: string, patch: Partial<SplitDraft>) => {
     onChange(drafts.map((draft) => draft.key === key ? { ...draft, ...patch } : draft));
   };
@@ -972,13 +976,13 @@ function SplitEditor({ drafts, categories, targetAmount, onChange }: {
   return (
     <div className="split-editor full">
       <div className="split-editor-head">
-        <strong>Ventilation</strong>
+        <strong>{t('Ventilation')}</strong>
         <span className={balanced ? 'split-balanced' : targetAmount > 0 ? 'split-unbalanced' : undefined}>
           {targetAmount > 0
             ? (balanced
-              ? `✓ ${money(total)} ventilés`
-              : `${money(total)} / ${money(round(targetAmount))} · reste ${money(remaining)}`)
-            : `Total lignes : ${money(total)}`}
+              ? `✓ ${t('{{amount}} ventilés', { amount: money(total) })}`
+              : `${money(total)} / ${money(round(targetAmount))} · ${t('reste {{amount}}', { amount: money(remaining) })}`)
+            : t('Total lignes : {{amount}}', { amount: money(total) })}
         </span>
       </div>
       {drafts.map((draft) => (
@@ -986,9 +990,9 @@ function SplitEditor({ drafts, categories, targetAmount, onChange }: {
           <select
             value={draft.category_id}
             onChange={(e) => update(draft.key, { category_id: e.target.value })}
-            aria-label="Catégorie de ventilation"
+            aria-label={t('Catégorie de ventilation')}
           >
-            <option value="">Catégorie</option>
+            <option value="">{t('Catégorie')}</option>
             {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
           <div className="split-amount-cell">
@@ -998,32 +1002,32 @@ function SplitEditor({ drafts, categories, targetAmount, onChange }: {
               step="0.01"
               value={draft.amount}
               onChange={(e) => update(draft.key, { amount: e.target.value })}
-              placeholder="Montant"
-              aria-label="Montant ventilé"
+              placeholder={t('Montant')}
+              aria-label={t('Montant ventilé')}
             />
             <button
               type="button"
               className="ghost-button split-fill"
               onClick={() => fillRemaining(draft.key)}
               disabled={targetAmount <= 0}
-              title="Compléter avec le restant"
+              title={t('Compléter avec le restant')}
             >
-              solde
+              {t('solde')}
             </button>
           </div>
           <input
             value={draft.note}
             onChange={(e) => update(draft.key, { note: e.target.value })}
-            placeholder="Note (ex: ménager)"
-            aria-label="Note de ventilation"
+            placeholder={t('Note (ex: ménager)')}
+            aria-label={t('Note de ventilation')}
           />
-          <button type="button" className="ghost-button icon-only" onClick={() => remove(draft.key)} aria-label="Retirer la ligne">
+          <button type="button" className="ghost-button icon-only" onClick={() => remove(draft.key)} aria-label={t('Retirer la ligne')}>
             <Trash2 size={16} />
           </button>
         </div>
       ))}
       <button type="button" className="secondary split-add-row" onClick={() => onChange([...drafts, emptySplitDraft()])}>
-        <Plus size={16} /> Ajouter une ligne
+        <Plus size={16} /> {t('Ajouter une ligne')}
       </button>
     </div>
   );
@@ -1039,6 +1043,7 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
   onClose: () => void;
   onSubmit: (allocations: RefundAllocationDraft[]) => void;
 }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [candidates, setCandidates] = useState<Transaction[]>([]);
   const [selected, setSelected] = useState<Record<number, string>>(() => {
@@ -1059,14 +1064,14 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
   const existingAllocationByExpenseId = new Map((income.refund_allocations ?? []).map((allocation) => [allocation.expense_transaction_id, allocation]));
   // Reste remboursable d'une dépense : son montant moins ce que d'autres revenus
   // ont déjà remboursé (l'allocation du revenu courant, remplacée, est exclue).
-  const remainingForExpense = (t: Transaction) =>
-    roundAmount(t.amount - (refundedAmount(t) - (existingAllocationByExpenseId.get(t.id)?.amount ?? 0)));
+  const remainingForExpense = (tx: Transaction) =>
+    roundAmount(tx.amount - (refundedAmount(tx) - (existingAllocationByExpenseId.get(tx.id)?.amount ?? 0)));
   // On ne peut nette qu'une dépense réelle : un montant alloué supérieur à ce
   // reste serait refusé côté serveur. On le signale plutôt que de tenter.
   const overAllocatedExpenseIds = new Set(
     candidates
-      .filter((t) => selected[t.id] !== undefined && (Number(selected[t.id]) || 0) - remainingForExpense(t) > 0.01)
-      .map((t) => t.id),
+      .filter((tx) => selected[tx.id] !== undefined && (Number(selected[tx.id]) || 0) - remainingForExpense(tx) > 0.01)
+      .map((tx) => tx.id),
   );
 
   // Recherche débouncée côté serveur ; sans requête on liste les plus récentes.
@@ -1118,27 +1123,27 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
   const expenseLabel = (expenseId: number) => {
     const candidate = candidateById.get(expenseId);
     if (candidate) {
-      return `${new Date(candidate.date).toLocaleDateString('fr-FR')} · ${txLabel(candidate, categoryById)}`;
+      return `${new Date(candidate.date).toLocaleDateString(localeTag())} · ${txLabel(candidate, categoryById)}`;
     }
     const existing = existingAllocationByExpenseId.get(expenseId)?.expense_transaction;
     if (existing) {
-      return `${new Date(existing.date).toLocaleDateString('fr-FR')} · ${existing.description ?? `Dépense #${existing.id}`}`;
+      return `${new Date(existing.date).toLocaleDateString(localeTag())} · ${existing.description ?? t('Dépense #{{id}}', { id: existing.id })}`;
     }
-    return `Dépense #${expenseId}`;
+    return t('Dépense #{{id}}', { id: expenseId });
   };
 
   return (
-    <Modal title="Ventiler le remboursement" onClose={onClose}>
+    <Modal title={t('Ventiler le remboursement')} onClose={onClose}>
       <form className="form" onSubmit={submit}>
-        <label className="full">Remboursement
+        <label className="full">{t('Remboursement')}
           <input
-            value={`${new Date(income.date).toLocaleDateString('fr-FR')} - ${txLabel(income, categoryById)} (+${money(income.amount, accountById.get(income.account_id ?? -1)?.currency ?? 'EUR')})`}
+            value={`${new Date(income.date).toLocaleDateString(localeTag())} - ${txLabel(income, categoryById)} (+${money(income.amount, accountById.get(income.account_id ?? -1)?.currency ?? 'EUR')})`}
             readOnly
           />
         </label>
         <div className={`full refund-allocation-total ${overAllocated ? 'error' : ''}`}>
-          <span>Alloué : {money(selectedTotal, accountById.get(income.account_id ?? -1)?.currency ?? 'EUR')}</span>
-          <span>Reste : {money(Math.max(0, roundAmount(income.amount - selectedTotal)), accountById.get(income.account_id ?? -1)?.currency ?? 'EUR')}</span>
+          <span>{t('Alloué : {{amount}}', { amount: money(selectedTotal, accountById.get(income.account_id ?? -1)?.currency ?? 'EUR') })}</span>
+          <span>{t('Reste : {{amount}}', { amount: money(Math.max(0, roundAmount(income.amount - selectedTotal)), accountById.get(income.account_id ?? -1)?.currency ?? 'EUR') })}</span>
         </div>
         {selectedCount > 0 && (
           <div className="full refund-selected-list">
@@ -1149,32 +1154,32 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
             ))}
           </div>
         )}
-        <label className="full">Chercher la dépense
+        <label className="full">{t('Chercher la dépense')}
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ex: Carrefour, restaurant..."
+            placeholder={t('Ex: Carrefour, restaurant...')}
             autoFocus
           />
         </label>
         <div className="full refund-candidates">
-          {searching && candidates.length === 0 && <p className="empty">Recherche…</p>}
-          {!searching && candidates.length === 0 && <p className="empty">Aucune dépense trouvée.</p>}
-          {candidates.map((t) => {
-            const currency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
-            const refunded = refundedAmount(t);
-            const checked = selected[t.id] !== undefined;
-            const expenseOver = overAllocatedExpenseIds.has(t.id);
+          {searching && candidates.length === 0 && <p className="empty">{t('Recherche…')}</p>}
+          {!searching && candidates.length === 0 && <p className="empty">{t('Aucune dépense trouvée.')}</p>}
+          {candidates.map((tx) => {
+            const currency = accountById.get(tx.account_id ?? -1)?.currency ?? 'EUR';
+            const refunded = refundedAmount(tx);
+            const checked = selected[tx.id] !== undefined;
+            const expenseOver = overAllocatedExpenseIds.has(tx.id);
             return (
-              <div key={t.id} className="refund-candidate">
+              <div key={tx.id} className="refund-candidate">
                 <input
                   type="checkbox"
                   checked={checked}
-                  onChange={(event) => toggleExpense(t, event.target.checked)}
+                  onChange={(event) => toggleExpense(tx, event.target.checked)}
                 />
                 <span>
-                  {new Date(t.date).toLocaleDateString('fr-FR')} · {txLabel(t, categoryById)} · {money(t.amount, currency)}
-                  {refunded > 0 && ` (déjà remboursé ${money(refunded, currency)})`}
+                  {new Date(tx.date).toLocaleDateString(localeTag())} · {txLabel(tx, categoryById)} · {money(tx.amount, currency)}
+                  {refunded > 0 && ` ${t('(déjà remboursé {{amount}})', { amount: money(refunded, currency) })}`}
                 </span>
                 {checked && (
                   <input
@@ -1182,24 +1187,24 @@ function RefundLinkModal({ userId, income, accountById, categoryById, onClose, o
                     type="number"
                     min="0.01"
                     step="0.01"
-                    value={selected[t.id]}
-                    onChange={(event) => updateSelectedAmount(t.id, event.target.value)}
-                    aria-label={`Montant alloué à ${txLabel(t, categoryById)}`}
+                    value={selected[tx.id]}
+                    onChange={(event) => updateSelectedAmount(tx.id, event.target.value)}
+                    aria-label={t('Montant alloué à {{label}}', { label: txLabel(tx, categoryById) })}
                   />
                 )}
               </div>
             );
           })}
         </div>
-        {overAllocated && <p className="panel-note error">Le total alloué dépasse le montant du remboursement.</p>}
+        {overAllocated && <p className="panel-note error">{t('Le total alloué dépasse le montant du remboursement.')}</p>}
         {overAllocatedExpenseIds.size > 0 && (
-          <p className="panel-note error">Une allocation dépasse le reste remboursable de sa dépense.</p>
+          <p className="panel-note error">{t('Une allocation dépasse le reste remboursable de sa dépense.')}</p>
         )}
-        <button className="primary" disabled={selectedCount === 0 || overAllocated || overAllocatedExpenseIds.size > 0}>Enregistrer la ventilation</button>
+        <button className="primary" disabled={selectedCount === 0 || overAllocated || overAllocatedExpenseIds.size > 0}>{t('Enregistrer la ventilation')}</button>
         {selectedCount > 0 && (
-          <button type="button" className="secondary" onClick={() => onSubmit([])}>Retirer les liens</button>
+          <button type="button" className="secondary" onClick={() => onSubmit([])}>{t('Retirer les liens')}</button>
         )}
-        <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+        <button type="button" className="secondary" onClick={onClose}>{t('Annuler')}</button>
       </form>
     </Modal>
   );

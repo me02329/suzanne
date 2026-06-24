@@ -1,235 +1,1390 @@
 {
-  "Vue générale": { "fr": "Vue générale", "en": "Overview" },
-  "Patrimoine": { "fr": "Patrimoine", "en": "Net worth" },
-  "Statistiques": { "fr": "Statistiques", "en": "Statistics" },
-  "Prévisionnel": { "fr": "Prévisionnel", "en": "Forecast" },
-  "Santé financière": { "fr": "Santé financière", "en": "Financial health" },
-  "Alertes": { "fr": "Alertes", "en": "Alerts" },
-  "Transactions": { "fr": "Transactions", "en": "Transactions" },
-  "Comptes": { "fr": "Comptes", "en": "Accounts" },
-  "Budgets": { "fr": "Budgets", "en": "Budgets" },
-  "Factures": { "fr": "Factures", "en": "Bills" },
-  "Récurrents": { "fr": "Récurrents", "en": "Recurring" },
-  "Objectifs": { "fr": "Objectifs", "en": "Goals" },
-  "Investissements": { "fr": "Investissements", "en": "Investments" },
-  "Catégories": { "fr": "Catégories", "en": "Categories" },
-  "Tags": { "fr": "Tags", "en": "Tags" },
-  "Règles": { "fr": "Règles", "en": "Rules" },
-  "Anomalies": { "fr": "Anomalies", "en": "Anomalies" },
-  "Import/Export": { "fr": "Import/Export", "en": "Import/Export" },
-  "Utilisateurs": { "fr": "Utilisateurs", "en": "Users" },
-  "Paramètres": { "fr": "Paramètres", "en": "Settings" },
-  "Assistant IA": { "fr": "Assistant IA", "en": "AI assistant" },
-  "Pilotage": { "fr": "Pilotage", "en": "Insights" },
-  "Données": { "fr": "Données", "en": "Data" },
-  "Structure": { "fr": "Structure", "en": "Structure" },
-  "Administration": { "fr": "Administration", "en": "Administration" },
-  "Enregistrer": { "fr": "Enregistrer", "en": "Save" },
-  "Annuler": { "fr": "Annuler", "en": "Cancel" },
-  "Supprimer": { "fr": "Supprimer", "en": "Delete" },
-  "Ajouter": { "fr": "Ajouter", "en": "Add" },
-  "Fermer": { "fr": "Fermer", "en": "Close" },
-  "Modifier": { "fr": "Modifier", "en": "Edit" },
-  "Créer": { "fr": "Créer", "en": "Create" },
-  "Chargement…": { "fr": "Chargement…", "en": "Loading…" },
-  "Rechercher": { "fr": "Rechercher", "en": "Search" },
-  "Langue": { "fr": "Langue", "en": "Language" },
-  "Français": { "fr": "Français", "en": "Français" },
-  "English": { "fr": "English", "en": "English" },
-  "Change la langue de l’interface et le format des nombres et dates.": { "fr": "Change la langue de l’interface et le format des nombres et dates.", "en": "Changes the interface language and the number and date formats." },
-  "Nouvel utilisateur": { "fr": "Nouvel utilisateur", "en": "New user" },
-  "Nom": { "fr": "Nom", "en": "Name" },
-  "Ex: Démo, Famille...": { "fr": "Ex: Démo, Famille...", "en": "e.g. Demo, Family..." },
-  "Utilisateur créé": { "fr": "Utilisateur créé", "en": "User created" },
-  "Utilisateur supprimé": { "fr": "Utilisateur supprimé", "en": "User deleted" },
-  "actif": { "fr": "actif", "en": "active" },
-  "Créé le": { "fr": "Créé le", "en": "Created on" },
-  "Supprimer {{name}} et toutes ses données ?": { "fr": "Supprimer {{name}} et toutes ses données ?", "en": "Delete {{name}} and all their data?" },
-  "Aucun utilisateur.": { "fr": "Aucun utilisateur.", "en": "No users." },
-  "Actions": { "fr": "Actions", "en": "Actions" },
-  "Couleur": { "fr": "Couleur", "en": "Color" },
-  "Modifier « {{name}} »": { "fr": "Modifier « {{name}} »", "en": "Edit “{{name}}”" },
-  "Nouveau tag": { "fr": "Nouveau tag", "en": "New tag" },
-  "Tag ajouté": { "fr": "Tag ajouté", "en": "Tag added" },
-  "Tag modifié": { "fr": "Tag modifié", "en": "Tag updated" },
-  "Tag supprimé": { "fr": "Tag supprimé", "en": "Tag deleted" },
-  "Les tags sont des étiquettes libres et multi-valeurs sur les transactions, indépendantes des catégories.": { "fr": "Les tags sont des étiquettes libres et multi-valeurs sur les transactions, indépendantes des catégories.", "en": "Tags are free-form, multi-valued labels on transactions, independent of categories." },
-  "Voyage Italie, Mariage Jean...": { "fr": "Voyage Italie, Mariage Jean...", "en": "Italy trip, John's wedding..." },
-  "Aucun tag pour l'instant.": { "fr": "Aucun tag pour l'instant.", "en": "No tags yet." },
-  "Supprimer le tag « {{name}} » ? Les transactions qui le portent ne seront pas supprimées.": { "fr": "Supprimer le tag « {{name}} » ? Les transactions qui le portent ne seront pas supprimées.", "en": "Delete the “{{name}}” tag? Transactions carrying it won't be deleted." },
-  "Nouvelle catégorie": { "fr": "Nouvelle catégorie", "en": "New category" },
-  "Type": { "fr": "Type", "en": "Type" },
-  "Dépense": { "fr": "Dépense", "en": "Expense" },
-  "Revenu": { "fr": "Revenu", "en": "Income" },
-  "Icône": { "fr": "Icône", "en": "Icon" },
-  "Aucune catégorie.": { "fr": "Aucune catégorie.", "en": "No categories." },
-  "Catégorie mise à jour": { "fr": "Catégorie mise à jour", "en": "Category updated" },
-  "Catégorie supprimée": { "fr": "Catégorie supprimée", "en": "Category deleted" },
-  "Fusionner": { "fr": "Fusionner", "en": "Merge" },
-  "Fusionner dans": { "fr": "Fusionner dans", "en": "Merge into" },
-  "Fusionner « {{name}} »": { "fr": "Fusionner « {{name}} »", "en": "Merge “{{name}}”" },
-  "Fusionner dans une autre catégorie": { "fr": "Fusionner dans une autre catégorie", "en": "Merge into another category" },
-  "Choisir la catégorie cible…": { "fr": "Choisir la catégorie cible…", "en": "Choose the target category…" },
-  "la cible": { "fr": "la cible", "en": "the target" },
-  "« {{name}} » fusionnée dans « {{target}} »": { "fr": "« {{name}} » fusionnée dans « {{target}} »", "en": "“{{name}}” merged into “{{target}}”" },
-  "Aucune autre catégorie de revenu disponible.": { "fr": "Aucune autre catégorie de revenu disponible.", "en": "No other income category available." },
-  "Aucune autre catégorie de dépense disponible.": { "fr": "Aucune autre catégorie de dépense disponible.", "en": "No other expense category available." },
-  "Supprimer la catégorie « {{name}} » ? Ses transactions resteront mais perdront leur catégorie.": { "fr": "Supprimer la catégorie « {{name}} » ? Ses transactions resteront mais perdront leur catégorie.", "en": "Delete the “{{name}}” category? Its transactions will remain but lose their category." },
-  "Toutes les transactions, ventilations, budgets, récurrents, règles et factures de « {{name}} » seront réaffectés à la catégorie cible, puis « {{name}} » sera supprimée. Action irréversible.": { "fr": "Toutes les transactions, ventilations, budgets, récurrents, règles et factures de « {{name}} » seront réaffectés à la catégorie cible, puis « {{name}} » sera supprimée. Action irréversible.", "en": "All transactions, splits, budgets, recurring entries, rules and bills of “{{name}}” will be reassigned to the target category, then “{{name}}” will be deleted. This cannot be undone." },
-  "Change le mois via le sélecteur en haut à droite": { "fr": "Change le mois via le sélecteur en haut à droite", "en": "Switch the month with the picker at the top right" },
-  "Mois sélectionné": { "fr": "Mois sélectionné", "en": "Selected month" },
-  "Valeur nette": { "fr": "Valeur nette", "en": "Net worth" },
-  "Net du mois": { "fr": "Net du mois", "en": "Month net" },
-  "Cumul": { "fr": "Cumul", "en": "Cumulative" },
-  "vs": { "fr": "vs", "en": "vs" },
-  "pts vs": { "fr": "pts vs", "en": "pts vs" },
-  "Revenus": { "fr": "Revenus", "en": "Income" },
-  "Dépenses": { "fr": "Dépenses", "en": "Expenses" },
-  "Net mensuel": { "fr": "Net mensuel", "en": "Monthly net" },
-  "Taux d'épargne": { "fr": "Taux d'épargne", "en": "Savings rate" },
-  "Dépense moyenne": { "fr": "Dépense moyenne", "en": "Average expense" },
-  "Catégorie": { "fr": "Catégorie", "en": "Category" },
-  "dépassement prévu le {{date}}": { "fr": "dépassement prévu le {{date}}", "en": "overshoot expected on {{date}}" },
-  "Répartition des dépenses du mois": { "fr": "Répartition des dépenses du mois", "en": "Month expense breakdown" },
-  "Aucune dépense ce mois-ci.": { "fr": "Aucune dépense ce mois-ci.", "en": "No expenses this month." },
-  "Dépenses suivies": { "fr": "Dépenses suivies", "en": "Tracked spending" },
-  "Limites posées": { "fr": "Limites posées", "en": "Set limits" },
-  "Aucun budget": { "fr": "Aucun budget", "en": "No budget" },
-  "{{pct}} % consommé": { "fr": "{{pct}} % consommé", "en": "{{pct}}% used" },
-  "Ajoute des budgets pour suivre la consommation du mois.": { "fr": "Ajoute des budgets pour suivre la consommation du mois.", "en": "Add budgets to track this month's spending." },
-  "Voir les transactions de cette catégorie": { "fr": "Voir les transactions de cette catégorie", "en": "View this category's transactions" },
-  "dépassé de {{amount}}": { "fr": "dépassé de {{amount}}", "en": "over by {{amount}}" },
-  "+{{n}} autre budget en alerte": { "fr": "+{{n}} autre budget en alerte", "en": "+{{n}} other budget at risk" },
-  "+{{n}} autres budgets en alerte": { "fr": "+{{n}} autres budgets en alerte", "en": "+{{n}} other budgets at risk" },
-  "Plus grosses dépenses du mois": { "fr": "Plus grosses dépenses du mois", "en": "Biggest expenses of the month" },
-  "Factures du mois": { "fr": "Factures du mois", "en": "Bills this month" },
-  "Payées": { "fr": "Payées", "en": "Paid" },
-  "Payé / attendu": { "fr": "Payé / attendu", "en": "Paid / expected" },
-  "en retard": { "fr": "en retard", "en": "overdue" },
-  "Toutes les factures attendues du mois sont réglées.": { "fr": "Toutes les factures attendues du mois sont réglées.", "en": "All expected bills for the month are paid." },
-  "Aucune facture attendue ce mois-ci.": { "fr": "Aucune facture attendue ce mois-ci.", "en": "No expected bills this month." },
-  "Patrimoine net": { "fr": "Patrimoine net", "en": "Net worth" },
-  "Actifs": { "fr": "Actifs", "en": "Assets" },
-  "Passifs": { "fr": "Passifs", "en": "Liabilities" },
-  "Évolution, répartition et alertes sur la page Patrimoine.": { "fr": "Évolution, répartition et alertes sur la page Patrimoine.", "en": "Trend, breakdown and alerts on the Net worth page." },
-  "Abonnements": { "fr": "Abonnements", "en": "Subscriptions" },
-  "Mensuels": { "fr": "Mensuels", "en": "Monthly" },
-  "/mois": { "fr": "/mois", "en": "/mo" },
-  "Périodiques": { "fr": "Périodiques", "en": "Periodic" },
-  "/an": { "fr": "/an", "en": "/yr" },
-  "Hebdo": { "fr": "Hebdo", "en": "Weekly" },
-  "/sem": { "fr": "/sem", "en": "/wk" },
-  "Aucun abonnement actif.": { "fr": "Aucun abonnement actif.", "en": "No active subscriptions." },
-  "État actuel": { "fr": "État actuel", "en": "Current snapshot" },
-  "Photographie du patrimoine — indépendant du mois sélectionné": { "fr": "Photographie du patrimoine — indépendant du mois sélectionné", "en": "Net worth snapshot — independent of the selected month" },
-  "Liquidités": { "fr": "Liquidités", "en": "Cash" },
-  "Total": { "fr": "Total", "en": "Total" },
-  "Livrets": { "fr": "Livrets", "en": "Savings accounts" },
-  "Crypto": { "fr": "Crypto", "en": "Crypto" },
-  "Autres": { "fr": "Autres", "en": "Other" },
-  "Évolution du patrimoine": { "fr": "Évolution du patrimoine", "en": "Net worth over time" },
-  "1 mois": { "fr": "1 mois", "en": "1 month" },
-  "6 mois": { "fr": "6 mois", "en": "6 months" },
-  "12 mois": { "fr": "12 mois", "en": "12 months" },
-  "YTD": { "fr": "YTD", "en": "YTD" },
-  "Tout": { "fr": "Tout", "en": "All" },
-  "Personnalisé": { "fr": "Personnalisé", "en": "Custom" },
-  "Début de la période": { "fr": "Début de la période", "en": "Start of range" },
-  "Fin de la période (vide = aujourd'hui)": { "fr": "Fin de la période (vide = aujourd'hui)", "en": "End of range (empty = today)" },
-  "Jour": { "fr": "Jour", "en": "Day" },
-  "Semaine": { "fr": "Semaine", "en": "Week" },
-  "Mois": { "fr": "Mois", "en": "Month" },
-  "Découpage des séries": { "fr": "Découpage des séries", "en": "Series breakdown" },
-  "Par compte": { "fr": "Par compte", "en": "By account" },
-  "Par groupe": { "fr": "Par groupe", "en": "By group" },
-  "Type de graphique patrimoine": { "fr": "Type de graphique patrimoine", "en": "Net worth chart type" },
-  "Zones": { "fr": "Zones", "en": "Areas" },
-  "Lignes": { "fr": "Lignes", "en": "Lines" },
-  "Échelle du graphique patrimoine": { "fr": "Échelle du graphique patrimoine", "en": "Net worth chart scale" },
-  "Linéaire": { "fr": "Linéaire", "en": "Linear" },
-  "Pseudo-log": { "fr": "Pseudo-log", "en": "Pseudo-log" },
-  "Base 100": { "fr": "Base 100", "en": "Base 100" },
-  "Pseudo-log : zéro et les soldes négatifs restent affichables, tandis que les gros écarts sont compressés. Le tooltip conserve le montant réel.": { "fr": "Pseudo-log : zéro et les soldes négatifs restent affichables, tandis que les gros écarts sont compressés. Le tooltip conserve le montant réel.", "en": "Pseudo-log: zero and negative balances stay visible while large gaps are compressed. The tooltip keeps the real amount." },
-  "Base 100 : chaque série démarre à 100 depuis son premier solde non nul. Le tooltip conserve le montant réel.": { "fr": "Base 100 : chaque série démarre à 100 depuis son premier solde non nul. Le tooltip conserve le montant réel.", "en": "Base 100: each series starts at 100 from its first non-zero balance. The tooltip keeps the real amount." },
-  "Chargement de l'historique…": { "fr": "Chargement de l'historique…", "en": "Loading history…" },
-  "Pas encore assez d'historique pour tracer cette plage.": { "fr": "Pas encore assez d'historique pour tracer cette plage.", "en": "Not enough history yet to plot this range." },
-  "Répartition du patrimoine": { "fr": "Répartition du patrimoine", "en": "Net worth breakdown" },
-  "Aucun solde à répartir.": { "fr": "Aucun solde à répartir.", "en": "No balance to break down." },
-  "Soldes par compte": { "fr": "Soldes par compte", "en": "Balances by account" },
-  "Solde": { "fr": "Solde", "en": "Balance" },
-  "Aucun compte à afficher.": { "fr": "Aucun compte à afficher.", "en": "No accounts to display." },
-  "Alertes comptes": { "fr": "Alertes comptes", "en": "Account alerts" },
-  "Aucune alerte sur les comptes.": { "fr": "Aucune alerte sur les comptes.", "en": "No account alerts." },
-  "Taux de change indisponibles": { "fr": "Taux de change indisponibles", "en": "Exchange rates unavailable" },
-  "Impossible de rafraîchir le taux pour {{currencies}}. Les montants convertis utilisent un taux périmé ou approché — réessaie plus tard.": { "fr": "Impossible de rafraîchir le taux pour {{currencies}}. Les montants convertis utilisent un taux périmé ou approché — réessaie plus tard.", "en": "Couldn't refresh the rate for {{currencies}}. Converted amounts use a stale or approximate rate — try again later." },
-  "{{count}} transaction sans compte, toutes périodes": { "fr": "{{count}} transaction sans compte, toutes périodes", "en": "{{count}} transaction without an account, all periods" },
-  "{{count}} transactions sans compte, toutes périodes": { "fr": "{{count}} transactions sans compte, toutes périodes", "en": "{{count}} transactions without an account, all periods" },
-  "{{amount}} de revenus/dépenses historiques n'ont pas de compte rattaché. Elles peuvent être catégorisées mais restent hors compte, donc elles sont ajoutées aux Liquidités.": { "fr": "{{amount}} de revenus/dépenses historiques n'ont pas de compte rattaché. Elles peuvent être catégorisées mais restent hors compte, donc elles sont ajoutées aux Liquidités.", "en": "{{amount}} of historical income/expense has no account attached. It can be categorized but stays off-account, so it's added to Cash." },
-  "Voir et corriger": { "fr": "Voir et corriger", "en": "View and fix" },
-  "Cash élevé sur compte courant": { "fr": "Cash élevé sur compte courant", "en": "High cash on checking account" },
-  "{{amount}} restent sur compte courant. Une partie pourrait être fléchée vers livret ou investissement.": { "fr": "{{amount}} restent sur compte courant. Une partie pourrait être fléchée vers livret ou investissement.", "en": "{{amount}} is sitting on the checking account. Some could be moved to savings or investments." },
-  "{{name}} proche du plafond": { "fr": "{{name}} proche du plafond", "en": "{{name}} near its ceiling" },
-  "Crypto élevée dans le patrimoine": { "fr": "Crypto élevée dans le patrimoine", "en": "High crypto share of net worth" },
-  "{{pct}} % des actifs sont en crypto.": { "fr": "{{pct}} % des actifs sont en crypto.", "en": "{{pct}}% of assets are in crypto." },
-  "Passifs à suivre": { "fr": "Passifs à suivre", "en": "Liabilities to watch" },
-  "{{amount}} de crédits/emprunts sont intégrés au patrimoine net.": { "fr": "{{amount}} de crédits/emprunts sont intégrés au patrimoine net.", "en": "{{amount}} of credit/loans is included in net worth." },
-  "Compte": { "fr": "Compte", "en": "Account" },
-  "Devise": { "fr": "Devise", "en": "Currency" },
-  "Date": { "fr": "Date", "en": "Date" },
-  "{{n}} créés": { "fr": "{{n}} créés", "en": "{{n}} created" },
-  "{{n}} mis à jour": { "fr": "{{n}} mis à jour", "en": "{{n}} updated" },
-  "Snapshots enregistrés : {{parts}}": { "fr": "Snapshots enregistrés : {{parts}}", "en": "Snapshots saved: {{parts}}" },
-  "Aucun changement": { "fr": "Aucun changement", "en": "No change" },
-  "Compte modifié": { "fr": "Compte modifié", "en": "Account updated" },
-  "Compte ajouté": { "fr": "Compte ajouté", "en": "Account added" },
-  "Institution ajoutée": { "fr": "Institution ajoutée", "en": "Institution added" },
-  "Institution renommée": { "fr": "Institution renommée", "en": "Institution renamed" },
-  "Compte réassigné": { "fr": "Compte réassigné", "en": "Account reassigned" },
-  "Sans institution": { "fr": "Sans institution", "en": "No institution" },
-  "Saisir snapshots de fin de mois": { "fr": "Saisir snapshots de fin de mois", "en": "Enter end-of-month snapshots" },
-  "Saisis le solde réel à une date précise. Laisse vide les comptes non vérifiés. Re-saisir la même date écrase la valeur précédente.": { "fr": "Saisis le solde réel à une date précise. Laisse vide les comptes non vérifiés. Re-saisir la même date écrase la valeur précédente.", "en": "Enter the real balance at a given date. Leave unverified accounts blank. Re-entering the same date overwrites the previous value." },
-  "Date du snapshot": { "fr": "Date du snapshot", "en": "Snapshot date" },
-  "Remplir avec le dernier solde connu + transactions": { "fr": "Remplir avec le dernier solde connu + transactions", "en": "Fill with the last known balance + transactions" },
-  "Calcul…": { "fr": "Calcul…", "en": "Computing…" },
-  "Pré-remplir": { "fr": "Pré-remplir", "en": "Pre-fill" },
-  "Crée d'abord un compte pour saisir des snapshots.": { "fr": "Crée d'abord un compte pour saisir des snapshots.", "en": "Create an account first to enter snapshots." },
-  "Solde estimé": { "fr": "Solde estimé", "en": "Estimated balance" },
-  "Nouveau solde réel": { "fr": "Nouveau solde réel", "en": "New real balance" },
-  "en {{currency}}": { "fr": "en {{currency}}", "en": "in {{currency}}" },
-  "Solde réel pour {{name}} en {{currency}}": { "fr": "Solde réel pour {{name}} en {{currency}}", "en": "Real balance for {{name}} in {{currency}}" },
-  "Nouveau compte": { "fr": "Nouveau compte", "en": "New account" },
-  "Aucune": { "fr": "Aucune", "en": "None" },
-  "Solde initial": { "fr": "Solde initial", "en": "Initial balance" },
-  "Date initiale": { "fr": "Date initiale", "en": "Initial date" },
-  "Nouvelle institution": { "fr": "Nouvelle institution", "en": "New institution" },
-  "Banque, broker, caisse...": { "fr": "Banque, broker, caisse...", "en": "Bank, broker, fund..." },
-  "Institutions et comptes": { "fr": "Institutions et comptes", "en": "Institutions and accounts" },
-  "Crée une institution et un compte pour commencer.": { "fr": "Crée une institution et un compte pour commencer.", "en": "Create an institution and an account to get started." },
-  "{{n}} compte": { "fr": "{{n}} compte", "en": "{{n}} account" },
-  "{{n}} comptes": { "fr": "{{n}} comptes", "en": "{{n}} accounts" },
-  "Renommer l'institution": { "fr": "Renommer l'institution", "en": "Rename institution" },
-  "Supprimer l'institution": { "fr": "Supprimer l'institution", "en": "Delete institution" },
-  "Supprimer l'institution « {{name}} » ?": { "fr": "Supprimer l'institution « {{name}} » ?", "en": "Delete the “{{name}}” institution?" },
-  "Institution supprimée": { "fr": "Institution supprimée", "en": "Institution deleted" },
-  "Aucun compte rattaché.": { "fr": "Aucun compte rattaché.", "en": "No accounts attached." },
-  "Transactions hors compte": { "fr": "Transactions hors compte", "en": "Off-account transactions" },
-  "Revenus/dépenses historiques sans compte": { "fr": "Revenus/dépenses historiques sans compte", "en": "Historical income/expense without an account" },
-  "Clôturé": { "fr": "Clôturé", "en": "Closed" },
-  "Voir la fiche de {{name}}": { "fr": "Voir la fiche de {{name}}", "en": "View {{name}}'s details" },
-  "Voir la fiche": { "fr": "Voir la fiche", "en": "View details" },
-  "Réassigner {{name}} à une institution": { "fr": "Réassigner {{name}} à une institution", "en": "Reassign {{name}} to an institution" },
-  "Réassigner à…": { "fr": "Réassigner à…", "en": "Reassign to…" },
-  "Rouvrir le compte": { "fr": "Rouvrir le compte", "en": "Reopen account" },
-  "Compte rouvert": { "fr": "Compte rouvert", "en": "Account reopened" },
-  "Clôturer (archiver) le compte": { "fr": "Clôturer (archiver) le compte", "en": "Close (archive) account" },
-  "Clôturer le compte « {{name}} » ? Il est masqué des saisies mais son historique et son solde sont conservés. Réversible à tout moment.": { "fr": "Clôturer le compte « {{name}} » ? Il est masqué des saisies mais son historique et son solde sont conservés. Réversible à tout moment.", "en": "Close the “{{name}}” account? It's hidden from entry forms but its history and balance are kept. Reversible at any time." },
-  "Compte clôturé": { "fr": "Compte clôturé", "en": "Account closed" },
-  "Supprimer définitivement": { "fr": "Supprimer définitivement", "en": "Delete permanently" },
-  "Supprimer définitivement le compte « {{name}} » ? Ses transactions ne sont pas supprimées mais détachées (elles passent « sans compte »). Pour conserver un historique cohérent, préfère la clôture.": { "fr": "Supprimer définitivement le compte « {{name}} » ? Ses transactions ne sont pas supprimées mais détachées (elles passent « sans compte »). Pour conserver un historique cohérent, préfère la clôture.", "en": "Permanently delete the “{{name}}” account? Its transactions aren't deleted but detached (they become “no account”). To keep a consistent history, prefer closing it." },
-  "Compte supprimé": { "fr": "Compte supprimé", "en": "Account deleted" },
-  "Snapshots récents": { "fr": "Snapshots récents", "en": "Recent snapshots" },
-  "Aucun snapshot.": { "fr": "Aucun snapshot.", "en": "No snapshots." },
-  "Supprimer ce snapshot ?": { "fr": "Supprimer ce snapshot ?", "en": "Delete this snapshot?" },
-  "Snapshot supprimé": { "fr": "Snapshot supprimé", "en": "Snapshot deleted" },
-  "Modifier {{name}}": { "fr": "Modifier {{name}}", "en": "Edit {{name}}" }
+  "Vue générale": {
+    "fr": "Vue générale",
+    "en": "Overview"
+  },
+  "Patrimoine": {
+    "fr": "Patrimoine",
+    "en": "Net worth"
+  },
+  "Statistiques": {
+    "fr": "Statistiques",
+    "en": "Statistics"
+  },
+  "Prévisionnel": {
+    "fr": "Prévisionnel",
+    "en": "Forecast"
+  },
+  "Santé financière": {
+    "fr": "Santé financière",
+    "en": "Financial health"
+  },
+  "Alertes": {
+    "fr": "Alertes",
+    "en": "Alerts"
+  },
+  "Transactions": {
+    "fr": "Transactions",
+    "en": "Transactions"
+  },
+  "Comptes": {
+    "fr": "Comptes",
+    "en": "Accounts"
+  },
+  "Budgets": {
+    "fr": "Budgets",
+    "en": "Budgets"
+  },
+  "Factures": {
+    "fr": "Factures",
+    "en": "Bills"
+  },
+  "Récurrents": {
+    "fr": "Récurrents",
+    "en": "Recurring"
+  },
+  "Objectifs": {
+    "fr": "Objectifs",
+    "en": "Goals"
+  },
+  "Investissements": {
+    "fr": "Investissements",
+    "en": "Investments"
+  },
+  "Catégories": {
+    "fr": "Catégories",
+    "en": "Categories"
+  },
+  "Tags": {
+    "fr": "Tags",
+    "en": "Tags"
+  },
+  "Règles": {
+    "fr": "Règles",
+    "en": "Rules"
+  },
+  "Anomalies": {
+    "fr": "Anomalies",
+    "en": "Anomalies"
+  },
+  "Import/Export": {
+    "fr": "Import/Export",
+    "en": "Import/Export"
+  },
+  "Utilisateurs": {
+    "fr": "Utilisateurs",
+    "en": "Users"
+  },
+  "Paramètres": {
+    "fr": "Paramètres",
+    "en": "Settings"
+  },
+  "Assistant IA": {
+    "fr": "Assistant IA",
+    "en": "AI assistant"
+  },
+  "Pilotage": {
+    "fr": "Pilotage",
+    "en": "Insights"
+  },
+  "Données": {
+    "fr": "Données",
+    "en": "Data"
+  },
+  "Structure": {
+    "fr": "Structure",
+    "en": "Structure"
+  },
+  "Administration": {
+    "fr": "Administration",
+    "en": "Administration"
+  },
+  "Enregistrer": {
+    "fr": "Enregistrer",
+    "en": "Save"
+  },
+  "Annuler": {
+    "fr": "Annuler",
+    "en": "Cancel"
+  },
+  "Supprimer": {
+    "fr": "Supprimer",
+    "en": "Delete"
+  },
+  "Ajouter": {
+    "fr": "Ajouter",
+    "en": "Add"
+  },
+  "Fermer": {
+    "fr": "Fermer",
+    "en": "Close"
+  },
+  "Modifier": {
+    "fr": "Modifier",
+    "en": "Edit"
+  },
+  "Créer": {
+    "fr": "Créer",
+    "en": "Create"
+  },
+  "Chargement…": {
+    "fr": "Chargement…",
+    "en": "Loading…"
+  },
+  "Rechercher": {
+    "fr": "Rechercher",
+    "en": "Search"
+  },
+  "Langue": {
+    "fr": "Langue",
+    "en": "Language"
+  },
+  "Français": {
+    "fr": "Français",
+    "en": "Français"
+  },
+  "English": {
+    "fr": "English",
+    "en": "English"
+  },
+  "Change la langue de l’interface et le format des nombres et dates.": {
+    "fr": "Change la langue de l’interface et le format des nombres et dates.",
+    "en": "Changes the interface language and the number and date formats."
+  },
+  "Nouvel utilisateur": {
+    "fr": "Nouvel utilisateur",
+    "en": "New user"
+  },
+  "Nom": {
+    "fr": "Nom",
+    "en": "Name"
+  },
+  "Ex: Démo, Famille...": {
+    "fr": "Ex: Démo, Famille...",
+    "en": "e.g. Demo, Family..."
+  },
+  "Utilisateur créé": {
+    "fr": "Utilisateur créé",
+    "en": "User created"
+  },
+  "Utilisateur supprimé": {
+    "fr": "Utilisateur supprimé",
+    "en": "User deleted"
+  },
+  "actif": {
+    "fr": "actif",
+    "en": "active"
+  },
+  "Créé le": {
+    "fr": "Créé le",
+    "en": "Created on"
+  },
+  "Supprimer {{name}} et toutes ses données ?": {
+    "fr": "Supprimer {{name}} et toutes ses données ?",
+    "en": "Delete {{name}} and all their data?"
+  },
+  "Aucun utilisateur.": {
+    "fr": "Aucun utilisateur.",
+    "en": "No users."
+  },
+  "Actions": {
+    "fr": "Actions",
+    "en": "Actions"
+  },
+  "Couleur": {
+    "fr": "Couleur",
+    "en": "Color"
+  },
+  "Modifier « {{name}} »": {
+    "fr": "Modifier « {{name}} »",
+    "en": "Edit “{{name}}”"
+  },
+  "Nouveau tag": {
+    "fr": "Nouveau tag",
+    "en": "New tag"
+  },
+  "Tag ajouté": {
+    "fr": "Tag ajouté",
+    "en": "Tag added"
+  },
+  "Tag modifié": {
+    "fr": "Tag modifié",
+    "en": "Tag updated"
+  },
+  "Tag supprimé": {
+    "fr": "Tag supprimé",
+    "en": "Tag deleted"
+  },
+  "Les tags sont des étiquettes libres et multi-valeurs sur les transactions, indépendantes des catégories.": {
+    "fr": "Les tags sont des étiquettes libres et multi-valeurs sur les transactions, indépendantes des catégories.",
+    "en": "Tags are free-form, multi-valued labels on transactions, independent of categories."
+  },
+  "Voyage Italie, Mariage Jean...": {
+    "fr": "Voyage Italie, Mariage Jean...",
+    "en": "Italy trip, John's wedding..."
+  },
+  "Aucun tag pour l'instant.": {
+    "fr": "Aucun tag pour l'instant.",
+    "en": "No tags yet."
+  },
+  "Supprimer le tag « {{name}} » ? Les transactions qui le portent ne seront pas supprimées.": {
+    "fr": "Supprimer le tag « {{name}} » ? Les transactions qui le portent ne seront pas supprimées.",
+    "en": "Delete the “{{name}}” tag? Transactions carrying it won't be deleted."
+  },
+  "Nouvelle catégorie": {
+    "fr": "Nouvelle catégorie",
+    "en": "New category"
+  },
+  "Type": {
+    "fr": "Type",
+    "en": "Type"
+  },
+  "Dépense": {
+    "fr": "Dépense",
+    "en": "Expense"
+  },
+  "Revenu": {
+    "fr": "Revenu",
+    "en": "Income"
+  },
+  "Icône": {
+    "fr": "Icône",
+    "en": "Icon"
+  },
+  "Aucune catégorie.": {
+    "fr": "Aucune catégorie.",
+    "en": "No categories."
+  },
+  "Catégorie mise à jour": {
+    "fr": "Catégorie mise à jour",
+    "en": "Category updated"
+  },
+  "Catégorie supprimée": {
+    "fr": "Catégorie supprimée",
+    "en": "Category deleted"
+  },
+  "Fusionner": {
+    "fr": "Fusionner",
+    "en": "Merge"
+  },
+  "Fusionner dans": {
+    "fr": "Fusionner dans",
+    "en": "Merge into"
+  },
+  "Fusionner « {{name}} »": {
+    "fr": "Fusionner « {{name}} »",
+    "en": "Merge “{{name}}”"
+  },
+  "Fusionner dans une autre catégorie": {
+    "fr": "Fusionner dans une autre catégorie",
+    "en": "Merge into another category"
+  },
+  "Choisir la catégorie cible…": {
+    "fr": "Choisir la catégorie cible…",
+    "en": "Choose the target category…"
+  },
+  "la cible": {
+    "fr": "la cible",
+    "en": "the target"
+  },
+  "« {{name}} » fusionnée dans « {{target}} »": {
+    "fr": "« {{name}} » fusionnée dans « {{target}} »",
+    "en": "“{{name}}” merged into “{{target}}”"
+  },
+  "Aucune autre catégorie de revenu disponible.": {
+    "fr": "Aucune autre catégorie de revenu disponible.",
+    "en": "No other income category available."
+  },
+  "Aucune autre catégorie de dépense disponible.": {
+    "fr": "Aucune autre catégorie de dépense disponible.",
+    "en": "No other expense category available."
+  },
+  "Supprimer la catégorie « {{name}} » ? Ses transactions resteront mais perdront leur catégorie.": {
+    "fr": "Supprimer la catégorie « {{name}} » ? Ses transactions resteront mais perdront leur catégorie.",
+    "en": "Delete the “{{name}}” category? Its transactions will remain but lose their category."
+  },
+  "Toutes les transactions, ventilations, budgets, récurrents, règles et factures de « {{name}} » seront réaffectés à la catégorie cible, puis « {{name}} » sera supprimée. Action irréversible.": {
+    "fr": "Toutes les transactions, ventilations, budgets, récurrents, règles et factures de « {{name}} » seront réaffectés à la catégorie cible, puis « {{name}} » sera supprimée. Action irréversible.",
+    "en": "All transactions, splits, budgets, recurring entries, rules and bills of “{{name}}” will be reassigned to the target category, then “{{name}}” will be deleted. This cannot be undone."
+  },
+  "Change le mois via le sélecteur en haut à droite": {
+    "fr": "Change le mois via le sélecteur en haut à droite",
+    "en": "Switch the month with the picker at the top right"
+  },
+  "Mois sélectionné": {
+    "fr": "Mois sélectionné",
+    "en": "Selected month"
+  },
+  "Valeur nette": {
+    "fr": "Valeur nette",
+    "en": "Net worth"
+  },
+  "Net du mois": {
+    "fr": "Net du mois",
+    "en": "Month net"
+  },
+  "Cumul": {
+    "fr": "Cumul",
+    "en": "Cumulative"
+  },
+  "vs": {
+    "fr": "vs",
+    "en": "vs"
+  },
+  "pts vs": {
+    "fr": "pts vs",
+    "en": "pts vs"
+  },
+  "Revenus": {
+    "fr": "Revenus",
+    "en": "Income"
+  },
+  "Dépenses": {
+    "fr": "Dépenses",
+    "en": "Expenses"
+  },
+  "Net mensuel": {
+    "fr": "Net mensuel",
+    "en": "Monthly net"
+  },
+  "Taux d'épargne": {
+    "fr": "Taux d'épargne",
+    "en": "Savings rate"
+  },
+  "Dépense moyenne": {
+    "fr": "Dépense moyenne",
+    "en": "Average expense"
+  },
+  "Catégorie": {
+    "fr": "Catégorie",
+    "en": "Category"
+  },
+  "dépassement prévu le {{date}}": {
+    "fr": "dépassement prévu le {{date}}",
+    "en": "overshoot expected on {{date}}"
+  },
+  "Répartition des dépenses du mois": {
+    "fr": "Répartition des dépenses du mois",
+    "en": "Month expense breakdown"
+  },
+  "Aucune dépense ce mois-ci.": {
+    "fr": "Aucune dépense ce mois-ci.",
+    "en": "No expenses this month."
+  },
+  "Dépenses suivies": {
+    "fr": "Dépenses suivies",
+    "en": "Tracked spending"
+  },
+  "Limites posées": {
+    "fr": "Limites posées",
+    "en": "Set limits"
+  },
+  "Aucun budget": {
+    "fr": "Aucun budget",
+    "en": "No budget"
+  },
+  "{{pct}} % consommé": {
+    "fr": "{{pct}} % consommé",
+    "en": "{{pct}}% used"
+  },
+  "Ajoute des budgets pour suivre la consommation du mois.": {
+    "fr": "Ajoute des budgets pour suivre la consommation du mois.",
+    "en": "Add budgets to track this month's spending."
+  },
+  "Voir les transactions de cette catégorie": {
+    "fr": "Voir les transactions de cette catégorie",
+    "en": "View this category's transactions"
+  },
+  "dépassé de {{amount}}": {
+    "fr": "dépassé de {{amount}}",
+    "en": "over by {{amount}}"
+  },
+  "+{{n}} autre budget en alerte": {
+    "fr": "+{{n}} autre budget en alerte",
+    "en": "+{{n}} other budget at risk"
+  },
+  "+{{n}} autres budgets en alerte": {
+    "fr": "+{{n}} autres budgets en alerte",
+    "en": "+{{n}} other budgets at risk"
+  },
+  "Plus grosses dépenses du mois": {
+    "fr": "Plus grosses dépenses du mois",
+    "en": "Biggest expenses of the month"
+  },
+  "Factures du mois": {
+    "fr": "Factures du mois",
+    "en": "Bills this month"
+  },
+  "Payées": {
+    "fr": "Payées",
+    "en": "Paid"
+  },
+  "Payé / attendu": {
+    "fr": "Payé / attendu",
+    "en": "Paid / expected"
+  },
+  "en retard": {
+    "fr": "en retard",
+    "en": "overdue"
+  },
+  "Toutes les factures attendues du mois sont réglées.": {
+    "fr": "Toutes les factures attendues du mois sont réglées.",
+    "en": "All expected bills for the month are paid."
+  },
+  "Aucune facture attendue ce mois-ci.": {
+    "fr": "Aucune facture attendue ce mois-ci.",
+    "en": "No expected bills this month."
+  },
+  "Patrimoine net": {
+    "fr": "Patrimoine net",
+    "en": "Net worth"
+  },
+  "Actifs": {
+    "fr": "Actifs",
+    "en": "Assets"
+  },
+  "Passifs": {
+    "fr": "Passifs",
+    "en": "Liabilities"
+  },
+  "Évolution, répartition et alertes sur la page Patrimoine.": {
+    "fr": "Évolution, répartition et alertes sur la page Patrimoine.",
+    "en": "Trend, breakdown and alerts on the Net worth page."
+  },
+  "Abonnements": {
+    "fr": "Abonnements",
+    "en": "Subscriptions"
+  },
+  "Mensuels": {
+    "fr": "Mensuels",
+    "en": "Monthly"
+  },
+  "/mois": {
+    "fr": "/mois",
+    "en": "/mo"
+  },
+  "Périodiques": {
+    "fr": "Périodiques",
+    "en": "Periodic"
+  },
+  "/an": {
+    "fr": "/an",
+    "en": "/yr"
+  },
+  "Hebdo": {
+    "fr": "Hebdo",
+    "en": "Weekly"
+  },
+  "/sem": {
+    "fr": "/sem",
+    "en": "/wk"
+  },
+  "Aucun abonnement actif.": {
+    "fr": "Aucun abonnement actif.",
+    "en": "No active subscriptions."
+  },
+  "État actuel": {
+    "fr": "État actuel",
+    "en": "Current snapshot"
+  },
+  "Photographie du patrimoine — indépendant du mois sélectionné": {
+    "fr": "Photographie du patrimoine — indépendant du mois sélectionné",
+    "en": "Net worth snapshot — independent of the selected month"
+  },
+  "Liquidités": {
+    "fr": "Liquidités",
+    "en": "Cash"
+  },
+  "Total": {
+    "fr": "Total",
+    "en": "Total"
+  },
+  "Livrets": {
+    "fr": "Livrets",
+    "en": "Savings accounts"
+  },
+  "Crypto": {
+    "fr": "Crypto",
+    "en": "Crypto"
+  },
+  "Autres": {
+    "fr": "Autres",
+    "en": "Other"
+  },
+  "Évolution du patrimoine": {
+    "fr": "Évolution du patrimoine",
+    "en": "Net worth over time"
+  },
+  "1 mois": {
+    "fr": "1 mois",
+    "en": "1 month"
+  },
+  "6 mois": {
+    "fr": "6 mois",
+    "en": "6 months"
+  },
+  "12 mois": {
+    "fr": "12 mois",
+    "en": "12 months"
+  },
+  "YTD": {
+    "fr": "YTD",
+    "en": "YTD"
+  },
+  "Tout": {
+    "fr": "Tout",
+    "en": "All"
+  },
+  "Personnalisé": {
+    "fr": "Personnalisé",
+    "en": "Custom"
+  },
+  "Début de la période": {
+    "fr": "Début de la période",
+    "en": "Start of range"
+  },
+  "Fin de la période (vide = aujourd'hui)": {
+    "fr": "Fin de la période (vide = aujourd'hui)",
+    "en": "End of range (empty = today)"
+  },
+  "Jour": {
+    "fr": "Jour",
+    "en": "Day"
+  },
+  "Semaine": {
+    "fr": "Semaine",
+    "en": "Week"
+  },
+  "Mois": {
+    "fr": "Mois",
+    "en": "Month"
+  },
+  "Découpage des séries": {
+    "fr": "Découpage des séries",
+    "en": "Series breakdown"
+  },
+  "Par compte": {
+    "fr": "Par compte",
+    "en": "By account"
+  },
+  "Par groupe": {
+    "fr": "Par groupe",
+    "en": "By group"
+  },
+  "Type de graphique patrimoine": {
+    "fr": "Type de graphique patrimoine",
+    "en": "Net worth chart type"
+  },
+  "Zones": {
+    "fr": "Zones",
+    "en": "Areas"
+  },
+  "Lignes": {
+    "fr": "Lignes",
+    "en": "Lines"
+  },
+  "Échelle du graphique patrimoine": {
+    "fr": "Échelle du graphique patrimoine",
+    "en": "Net worth chart scale"
+  },
+  "Linéaire": {
+    "fr": "Linéaire",
+    "en": "Linear"
+  },
+  "Pseudo-log": {
+    "fr": "Pseudo-log",
+    "en": "Pseudo-log"
+  },
+  "Base 100": {
+    "fr": "Base 100",
+    "en": "Base 100"
+  },
+  "Pseudo-log : zéro et les soldes négatifs restent affichables, tandis que les gros écarts sont compressés. Le tooltip conserve le montant réel.": {
+    "fr": "Pseudo-log : zéro et les soldes négatifs restent affichables, tandis que les gros écarts sont compressés. Le tooltip conserve le montant réel.",
+    "en": "Pseudo-log: zero and negative balances stay visible while large gaps are compressed. The tooltip keeps the real amount."
+  },
+  "Base 100 : chaque série démarre à 100 depuis son premier solde non nul. Le tooltip conserve le montant réel.": {
+    "fr": "Base 100 : chaque série démarre à 100 depuis son premier solde non nul. Le tooltip conserve le montant réel.",
+    "en": "Base 100: each series starts at 100 from its first non-zero balance. The tooltip keeps the real amount."
+  },
+  "Chargement de l'historique…": {
+    "fr": "Chargement de l'historique…",
+    "en": "Loading history…"
+  },
+  "Pas encore assez d'historique pour tracer cette plage.": {
+    "fr": "Pas encore assez d'historique pour tracer cette plage.",
+    "en": "Not enough history yet to plot this range."
+  },
+  "Répartition du patrimoine": {
+    "fr": "Répartition du patrimoine",
+    "en": "Net worth breakdown"
+  },
+  "Aucun solde à répartir.": {
+    "fr": "Aucun solde à répartir.",
+    "en": "No balance to break down."
+  },
+  "Soldes par compte": {
+    "fr": "Soldes par compte",
+    "en": "Balances by account"
+  },
+  "Solde": {
+    "fr": "Solde",
+    "en": "Balance"
+  },
+  "Aucun compte à afficher.": {
+    "fr": "Aucun compte à afficher.",
+    "en": "No accounts to display."
+  },
+  "Alertes comptes": {
+    "fr": "Alertes comptes",
+    "en": "Account alerts"
+  },
+  "Aucune alerte sur les comptes.": {
+    "fr": "Aucune alerte sur les comptes.",
+    "en": "No account alerts."
+  },
+  "Taux de change indisponibles": {
+    "fr": "Taux de change indisponibles",
+    "en": "Exchange rates unavailable"
+  },
+  "Impossible de rafraîchir le taux pour {{currencies}}. Les montants convertis utilisent un taux périmé ou approché — réessaie plus tard.": {
+    "fr": "Impossible de rafraîchir le taux pour {{currencies}}. Les montants convertis utilisent un taux périmé ou approché — réessaie plus tard.",
+    "en": "Couldn't refresh the rate for {{currencies}}. Converted amounts use a stale or approximate rate — try again later."
+  },
+  "{{count}} transaction sans compte, toutes périodes": {
+    "fr": "{{count}} transaction sans compte, toutes périodes",
+    "en": "{{count}} transaction without an account, all periods"
+  },
+  "{{count}} transactions sans compte, toutes périodes": {
+    "fr": "{{count}} transactions sans compte, toutes périodes",
+    "en": "{{count}} transactions without an account, all periods"
+  },
+  "{{amount}} de revenus/dépenses historiques n'ont pas de compte rattaché. Elles peuvent être catégorisées mais restent hors compte, donc elles sont ajoutées aux Liquidités.": {
+    "fr": "{{amount}} de revenus/dépenses historiques n'ont pas de compte rattaché. Elles peuvent être catégorisées mais restent hors compte, donc elles sont ajoutées aux Liquidités.",
+    "en": "{{amount}} of historical income/expense has no account attached. It can be categorized but stays off-account, so it's added to Cash."
+  },
+  "Voir et corriger": {
+    "fr": "Voir et corriger",
+    "en": "View and fix"
+  },
+  "Cash élevé sur compte courant": {
+    "fr": "Cash élevé sur compte courant",
+    "en": "High cash on checking account"
+  },
+  "{{amount}} restent sur compte courant. Une partie pourrait être fléchée vers livret ou investissement.": {
+    "fr": "{{amount}} restent sur compte courant. Une partie pourrait être fléchée vers livret ou investissement.",
+    "en": "{{amount}} is sitting on the checking account. Some could be moved to savings or investments."
+  },
+  "{{name}} proche du plafond": {
+    "fr": "{{name}} proche du plafond",
+    "en": "{{name}} near its ceiling"
+  },
+  "Crypto élevée dans le patrimoine": {
+    "fr": "Crypto élevée dans le patrimoine",
+    "en": "High crypto share of net worth"
+  },
+  "{{pct}} % des actifs sont en crypto.": {
+    "fr": "{{pct}} % des actifs sont en crypto.",
+    "en": "{{pct}}% of assets are in crypto."
+  },
+  "Passifs à suivre": {
+    "fr": "Passifs à suivre",
+    "en": "Liabilities to watch"
+  },
+  "{{amount}} de crédits/emprunts sont intégrés au patrimoine net.": {
+    "fr": "{{amount}} de crédits/emprunts sont intégrés au patrimoine net.",
+    "en": "{{amount}} of credit/loans is included in net worth."
+  },
+  "Compte": {
+    "fr": "Compte",
+    "en": "Account"
+  },
+  "Devise": {
+    "fr": "Devise",
+    "en": "Currency"
+  },
+  "Date": {
+    "fr": "Date",
+    "en": "Date"
+  },
+  "{{n}} créés": {
+    "fr": "{{n}} créés",
+    "en": "{{n}} created"
+  },
+  "{{n}} mis à jour": {
+    "fr": "{{n}} mis à jour",
+    "en": "{{n}} updated"
+  },
+  "Snapshots enregistrés : {{parts}}": {
+    "fr": "Snapshots enregistrés : {{parts}}",
+    "en": "Snapshots saved: {{parts}}"
+  },
+  "Aucun changement": {
+    "fr": "Aucun changement",
+    "en": "No change"
+  },
+  "Compte modifié": {
+    "fr": "Compte modifié",
+    "en": "Account updated"
+  },
+  "Compte ajouté": {
+    "fr": "Compte ajouté",
+    "en": "Account added"
+  },
+  "Institution ajoutée": {
+    "fr": "Institution ajoutée",
+    "en": "Institution added"
+  },
+  "Institution renommée": {
+    "fr": "Institution renommée",
+    "en": "Institution renamed"
+  },
+  "Compte réassigné": {
+    "fr": "Compte réassigné",
+    "en": "Account reassigned"
+  },
+  "Sans institution": {
+    "fr": "Sans institution",
+    "en": "No institution"
+  },
+  "Saisir snapshots de fin de mois": {
+    "fr": "Saisir snapshots de fin de mois",
+    "en": "Enter end-of-month snapshots"
+  },
+  "Saisis le solde réel à une date précise. Laisse vide les comptes non vérifiés. Re-saisir la même date écrase la valeur précédente.": {
+    "fr": "Saisis le solde réel à une date précise. Laisse vide les comptes non vérifiés. Re-saisir la même date écrase la valeur précédente.",
+    "en": "Enter the real balance at a given date. Leave unverified accounts blank. Re-entering the same date overwrites the previous value."
+  },
+  "Date du snapshot": {
+    "fr": "Date du snapshot",
+    "en": "Snapshot date"
+  },
+  "Remplir avec le dernier solde connu + transactions": {
+    "fr": "Remplir avec le dernier solde connu + transactions",
+    "en": "Fill with the last known balance + transactions"
+  },
+  "Calcul…": {
+    "fr": "Calcul…",
+    "en": "Computing…"
+  },
+  "Pré-remplir": {
+    "fr": "Pré-remplir",
+    "en": "Pre-fill"
+  },
+  "Crée d'abord un compte pour saisir des snapshots.": {
+    "fr": "Crée d'abord un compte pour saisir des snapshots.",
+    "en": "Create an account first to enter snapshots."
+  },
+  "Solde estimé": {
+    "fr": "Solde estimé",
+    "en": "Estimated balance"
+  },
+  "Nouveau solde réel": {
+    "fr": "Nouveau solde réel",
+    "en": "New real balance"
+  },
+  "en {{currency}}": {
+    "fr": "en {{currency}}",
+    "en": "in {{currency}}"
+  },
+  "Solde réel pour {{name}} en {{currency}}": {
+    "fr": "Solde réel pour {{name}} en {{currency}}",
+    "en": "Real balance for {{name}} in {{currency}}"
+  },
+  "Nouveau compte": {
+    "fr": "Nouveau compte",
+    "en": "New account"
+  },
+  "Aucune": {
+    "fr": "Aucune",
+    "en": "None"
+  },
+  "Solde initial": {
+    "fr": "Solde initial",
+    "en": "Initial balance"
+  },
+  "Date initiale": {
+    "fr": "Date initiale",
+    "en": "Initial date"
+  },
+  "Nouvelle institution": {
+    "fr": "Nouvelle institution",
+    "en": "New institution"
+  },
+  "Banque, broker, caisse...": {
+    "fr": "Banque, broker, caisse...",
+    "en": "Bank, broker, fund..."
+  },
+  "Institutions et comptes": {
+    "fr": "Institutions et comptes",
+    "en": "Institutions and accounts"
+  },
+  "Crée une institution et un compte pour commencer.": {
+    "fr": "Crée une institution et un compte pour commencer.",
+    "en": "Create an institution and an account to get started."
+  },
+  "{{n}} compte": {
+    "fr": "{{n}} compte",
+    "en": "{{n}} account"
+  },
+  "{{n}} comptes": {
+    "fr": "{{n}} comptes",
+    "en": "{{n}} accounts"
+  },
+  "Renommer l'institution": {
+    "fr": "Renommer l'institution",
+    "en": "Rename institution"
+  },
+  "Supprimer l'institution": {
+    "fr": "Supprimer l'institution",
+    "en": "Delete institution"
+  },
+  "Supprimer l'institution « {{name}} » ?": {
+    "fr": "Supprimer l'institution « {{name}} » ?",
+    "en": "Delete the “{{name}}” institution?"
+  },
+  "Institution supprimée": {
+    "fr": "Institution supprimée",
+    "en": "Institution deleted"
+  },
+  "Aucun compte rattaché.": {
+    "fr": "Aucun compte rattaché.",
+    "en": "No accounts attached."
+  },
+  "Transactions hors compte": {
+    "fr": "Transactions hors compte",
+    "en": "Off-account transactions"
+  },
+  "Revenus/dépenses historiques sans compte": {
+    "fr": "Revenus/dépenses historiques sans compte",
+    "en": "Historical income/expense without an account"
+  },
+  "Clôturé": {
+    "fr": "Clôturé",
+    "en": "Closed"
+  },
+  "Voir la fiche de {{name}}": {
+    "fr": "Voir la fiche de {{name}}",
+    "en": "View {{name}}'s details"
+  },
+  "Voir la fiche": {
+    "fr": "Voir la fiche",
+    "en": "View details"
+  },
+  "Réassigner {{name}} à une institution": {
+    "fr": "Réassigner {{name}} à une institution",
+    "en": "Reassign {{name}} to an institution"
+  },
+  "Réassigner à…": {
+    "fr": "Réassigner à…",
+    "en": "Reassign to…"
+  },
+  "Rouvrir le compte": {
+    "fr": "Rouvrir le compte",
+    "en": "Reopen account"
+  },
+  "Compte rouvert": {
+    "fr": "Compte rouvert",
+    "en": "Account reopened"
+  },
+  "Clôturer (archiver) le compte": {
+    "fr": "Clôturer (archiver) le compte",
+    "en": "Close (archive) account"
+  },
+  "Clôturer le compte « {{name}} » ? Il est masqué des saisies mais son historique et son solde sont conservés. Réversible à tout moment.": {
+    "fr": "Clôturer le compte « {{name}} » ? Il est masqué des saisies mais son historique et son solde sont conservés. Réversible à tout moment.",
+    "en": "Close the “{{name}}” account? It's hidden from entry forms but its history and balance are kept. Reversible at any time."
+  },
+  "Compte clôturé": {
+    "fr": "Compte clôturé",
+    "en": "Account closed"
+  },
+  "Supprimer définitivement": {
+    "fr": "Supprimer définitivement",
+    "en": "Delete permanently"
+  },
+  "Supprimer définitivement le compte « {{name}} » ? Ses transactions ne sont pas supprimées mais détachées (elles passent « sans compte »). Pour conserver un historique cohérent, préfère la clôture.": {
+    "fr": "Supprimer définitivement le compte « {{name}} » ? Ses transactions ne sont pas supprimées mais détachées (elles passent « sans compte »). Pour conserver un historique cohérent, préfère la clôture.",
+    "en": "Permanently delete the “{{name}}” account? Its transactions aren't deleted but detached (they become “no account”). To keep a consistent history, prefer closing it."
+  },
+  "Compte supprimé": {
+    "fr": "Compte supprimé",
+    "en": "Account deleted"
+  },
+  "Snapshots récents": {
+    "fr": "Snapshots récents",
+    "en": "Recent snapshots"
+  },
+  "Aucun snapshot.": {
+    "fr": "Aucun snapshot.",
+    "en": "No snapshots."
+  },
+  "Supprimer ce snapshot ?": {
+    "fr": "Supprimer ce snapshot ?",
+    "en": "Delete this snapshot?"
+  },
+  "Snapshot supprimé": {
+    "fr": "Snapshot supprimé",
+    "en": "Snapshot deleted"
+  },
+  "Modifier {{name}}": {
+    "fr": "Modifier {{name}}",
+    "en": "Edit {{name}}"
+  },
+  "Transaction ajoutée": {
+    "fr": "Transaction ajoutée",
+    "en": "Transaction added"
+  },
+  "Transaction modifiée": {
+    "fr": "Transaction modifiée",
+    "en": "Transaction updated"
+  },
+  "Transaction copiée": {
+    "fr": "Transaction copiée",
+    "en": "Transaction copied"
+  },
+  "Transaction pointée": {
+    "fr": "Transaction pointée",
+    "en": "Transaction cleared"
+  },
+  "Transaction dépointée": {
+    "fr": "Transaction dépointée",
+    "en": "Transaction uncleared"
+  },
+  "Transaction déplacée vers la corbeille": {
+    "fr": "Transaction déplacée vers la corbeille",
+    "en": "Transaction moved to trash"
+  },
+  "Transaction liée à la récurrence": {
+    "fr": "Transaction liée à la récurrence",
+    "en": "Transaction linked to recurring"
+  },
+  "Lien récurrence retiré": {
+    "fr": "Lien récurrence retiré",
+    "en": "Recurring link removed"
+  },
+  "Lien de remboursement retiré": {
+    "fr": "Lien de remboursement retiré",
+    "en": "Refund link removed"
+  },
+  "Remboursement enregistré": {
+    "fr": "Remboursement enregistré",
+    "en": "Refund recorded"
+  },
+  "Type de transaction": {
+    "fr": "Type de transaction",
+    "en": "Transaction type"
+  },
+  "Transfert": {
+    "fr": "Transfert",
+    "en": "Transfer"
+  },
+  "Transferts": {
+    "fr": "Transferts",
+    "en": "Transfers"
+  },
+  "Libellé": {
+    "fr": "Libellé",
+    "en": "Label"
+  },
+  "Montant": {
+    "fr": "Montant",
+    "en": "Amount"
+  },
+  "Ajouter une transaction": {
+    "fr": "Ajouter une transaction",
+    "en": "Add a transaction"
+  },
+  "Depuis le compte": {
+    "fr": "Depuis le compte",
+    "en": "From account"
+  },
+  "Vers le compte": {
+    "fr": "Vers le compte",
+    "en": "To account"
+  },
+  "Aucun": {
+    "fr": "Aucun",
+    "en": "None"
+  },
+  "Choisir...": {
+    "fr": "Choisir...",
+    "en": "Choose..."
+  },
+  "Ventiler": {
+    "fr": "Ventiler",
+    "en": "Split"
+  },
+  "Ventiler cette transaction": {
+    "fr": "Ventiler cette transaction",
+    "en": "Split this transaction"
+  },
+  "Description": {
+    "fr": "Description",
+    "en": "Description"
+  },
+  "Ex: Carrefour, salaire, loyer...": {
+    "fr": "Ex: Carrefour, salaire, loyer...",
+    "en": "e.g. Walmart, salary, rent..."
+  },
+  "Transactions sans compte": {
+    "fr": "Transactions sans compte",
+    "en": "Transactions without an account"
+  },
+  "Historique du mois": {
+    "fr": "Historique du mois",
+    "en": "Month history"
+  },
+  "Toutes périodes": {
+    "fr": "Toutes périodes",
+    "en": "All periods"
+  },
+  "Ces revenus/dépenses sont comptés dans les Liquidités tant qu'aucun compte n'est rattaché.": {
+    "fr": "Ces revenus/dépenses sont comptés dans les Liquidités tant qu'aucun compte n'est rattaché.",
+    "en": "This income/expense counts toward Cash as long as no account is attached."
+  },
+  "Revenir au mois courant": {
+    "fr": "Revenir au mois courant",
+    "en": "Back to the current month"
+  },
+  "Rechercher date, compte, catégorie...": {
+    "fr": "Rechercher date, compte, catégorie...",
+    "en": "Search date, account, category..."
+  },
+  "Tous les types": {
+    "fr": "Tous les types",
+    "en": "All types"
+  },
+  "Toutes les catégories": {
+    "fr": "Toutes les catégories",
+    "en": "All categories"
+  },
+  "Tous les comptes": {
+    "fr": "Tous les comptes",
+    "en": "All accounts"
+  },
+  "Tous les tags": {
+    "fr": "Tous les tags",
+    "en": "All tags"
+  },
+  "Filtre de catégorie": {
+    "fr": "Filtre de catégorie",
+    "en": "Category filter"
+  },
+  "Filtre de pointage": {
+    "fr": "Filtre de pointage",
+    "en": "Cleared filter"
+  },
+  "Pointées ou non": {
+    "fr": "Pointées ou non",
+    "en": "Cleared or not"
+  },
+  "Pointées": {
+    "fr": "Pointées",
+    "en": "Cleared"
+  },
+  "Non pointées": {
+    "fr": "Non pointées",
+    "en": "Uncleared"
+  },
+  "lignes": {
+    "fr": "lignes",
+    "en": "rows"
+  },
+  "transférés": {
+    "fr": "transférés",
+    "en": "transferred"
+  },
+  "Affichage confortable": {
+    "fr": "Affichage confortable",
+    "en": "Comfortable view"
+  },
+  "Affichage compact": {
+    "fr": "Affichage compact",
+    "en": "Compact view"
+  },
+  "Confortable": {
+    "fr": "Confortable",
+    "en": "Comfortable"
+  },
+  "Compact": {
+    "fr": "Compact",
+    "en": "Compact"
+  },
+  "Corbeille": {
+    "fr": "Corbeille",
+    "en": "Trash"
+  },
+  "Modifier la sélection": {
+    "fr": "Modifier la sélection",
+    "en": "Edit selection"
+  },
+  "Ajouter un tag à la sélection": {
+    "fr": "Ajouter un tag à la sélection",
+    "en": "Add a tag to the selection"
+  },
+  "Ajouter un tag…": {
+    "fr": "Ajouter un tag…",
+    "en": "Add a tag…"
+  },
+  "Pointer": {
+    "fr": "Pointer",
+    "en": "Clear"
+  },
+  "Dépointer": {
+    "fr": "Dépointer",
+    "en": "Unclear"
+  },
+  "Désélectionner": {
+    "fr": "Désélectionner",
+    "en": "Deselect"
+  },
+  "Aucune transaction sans compte.": {
+    "fr": "Aucune transaction sans compte.",
+    "en": "No transactions without an account."
+  },
+  "Aucune transaction sur ce mois.": {
+    "fr": "Aucune transaction sur ce mois.",
+    "en": "No transactions this month."
+  },
+  "Précédent": {
+    "fr": "Précédent",
+    "en": "Previous"
+  },
+  "Suivant": {
+    "fr": "Suivant",
+    "en": "Next"
+  },
+  "{{start}}–{{end}} sur {{total}} · page {{page}}/{{pages}}": {
+    "fr": "{{start}}–{{end}} sur {{total}} · page {{page}}/{{pages}}",
+    "en": "{{start}}–{{end}} of {{total}} · page {{page}}/{{pages}}"
+  },
+  "Modifier la transaction": {
+    "fr": "Modifier la transaction",
+    "en": "Edit transaction"
+  },
+  "Copier la transaction": {
+    "fr": "Copier la transaction",
+    "en": "Copy transaction"
+  },
+  "Créer la copie": {
+    "fr": "Créer la copie",
+    "en": "Create copy"
+  },
+  "Changer le compte": {
+    "fr": "Changer le compte",
+    "en": "Change account"
+  },
+  "Sans compte": {
+    "fr": "Sans compte",
+    "en": "No account"
+  },
+  "Changer la catégorie": {
+    "fr": "Changer la catégorie",
+    "en": "Change category"
+  },
+  "Sans catégorie": {
+    "fr": "Sans catégorie",
+    "en": "No category"
+  },
+  "Appliquer aux transactions sélectionnées": {
+    "fr": "Appliquer aux transactions sélectionnées",
+    "en": "Apply to selected transactions"
+  },
+  "Enregistrer un remboursement": {
+    "fr": "Enregistrer un remboursement",
+    "en": "Record a refund"
+  },
+  "Dépense remboursée": {
+    "fr": "Dépense remboursée",
+    "en": "Refunded expense"
+  },
+  "Déjà remboursé : {{amount}}": {
+    "fr": "Déjà remboursé : {{amount}}",
+    "en": "Already refunded: {{amount}}"
+  },
+  "{{remaining}} viendront annuler la dépense ; le surplus de {{surplus}} sera compté comme revenu.": {
+    "fr": "{{remaining}} viendront annuler la dépense ; le surplus de {{surplus}} sera compté comme revenu.",
+    "en": "{{remaining}} will offset the expense; the {{surplus}} surplus will count as income."
+  },
+  "Compte crédité": {
+    "fr": "Compte crédité",
+    "en": "Credited account"
+  },
+  "Remboursement : {{label}}": {
+    "fr": "Remboursement : {{label}}",
+    "en": "Refund: {{label}}"
+  },
+  "Enregistrer le remboursement": {
+    "fr": "Enregistrer le remboursement",
+    "en": "Record the refund"
+  },
+  "Lier à une récurrence": {
+    "fr": "Lier à une récurrence",
+    "en": "Link to a recurring entry"
+  },
+  "Transaction": {
+    "fr": "Transaction",
+    "en": "Transaction"
+  },
+  "Récurrence": {
+    "fr": "Récurrence",
+    "en": "Recurring"
+  },
+  "Synchroniser compte / catégorie / type": {
+    "fr": "Synchroniser compte / catégorie / type",
+    "en": "Sync account / category / type"
+  },
+  "Renommer comme la récurrence": {
+    "fr": "Renommer comme la récurrence",
+    "en": "Rename like the recurring entry"
+  },
+  "Remplacer le montant par celui de la récurrence": {
+    "fr": "Remplacer le montant par celui de la récurrence",
+    "en": "Replace the amount with the recurring one"
+  },
+  "Lier": {
+    "fr": "Lier",
+    "en": "Link"
+  },
+  "Ventilation": {
+    "fr": "Ventilation",
+    "en": "Split"
+  },
+  "{{amount}} ventilés": {
+    "fr": "{{amount}} ventilés",
+    "en": "{{amount}} split"
+  },
+  "reste {{amount}}": {
+    "fr": "reste {{amount}}",
+    "en": "remaining {{amount}}"
+  },
+  "Total lignes : {{amount}}": {
+    "fr": "Total lignes : {{amount}}",
+    "en": "Lines total: {{amount}}"
+  },
+  "Catégorie de ventilation": {
+    "fr": "Catégorie de ventilation",
+    "en": "Split category"
+  },
+  "Montant ventilé": {
+    "fr": "Montant ventilé",
+    "en": "Split amount"
+  },
+  "Compléter avec le restant": {
+    "fr": "Compléter avec le restant",
+    "en": "Fill with the remainder"
+  },
+  "solde": {
+    "fr": "solde",
+    "en": "fill"
+  },
+  "Note (ex: ménager)": {
+    "fr": "Note (ex: ménager)",
+    "en": "Note (e.g. household)"
+  },
+  "Note de ventilation": {
+    "fr": "Note de ventilation",
+    "en": "Split note"
+  },
+  "Retirer la ligne": {
+    "fr": "Retirer la ligne",
+    "en": "Remove line"
+  },
+  "Ajouter une ligne": {
+    "fr": "Ajouter une ligne",
+    "en": "Add a line"
+  },
+  "Ventiler le remboursement": {
+    "fr": "Ventiler le remboursement",
+    "en": "Split the refund"
+  },
+  "Remboursement": {
+    "fr": "Remboursement",
+    "en": "Refund"
+  },
+  "Alloué : {{amount}}": {
+    "fr": "Alloué : {{amount}}",
+    "en": "Allocated: {{amount}}"
+  },
+  "Reste : {{amount}}": {
+    "fr": "Reste : {{amount}}",
+    "en": "Remaining: {{amount}}"
+  },
+  "Chercher la dépense": {
+    "fr": "Chercher la dépense",
+    "en": "Search the expense"
+  },
+  "Ex: Carrefour, restaurant...": {
+    "fr": "Ex: Carrefour, restaurant...",
+    "en": "e.g. Walmart, restaurant..."
+  },
+  "Recherche…": {
+    "fr": "Recherche…",
+    "en": "Searching…"
+  },
+  "Aucune dépense trouvée.": {
+    "fr": "Aucune dépense trouvée.",
+    "en": "No expense found."
+  },
+  "(déjà remboursé {{amount}})": {
+    "fr": "(déjà remboursé {{amount}})",
+    "en": "(already refunded {{amount}})"
+  },
+  "Montant alloué à {{label}}": {
+    "fr": "Montant alloué à {{label}}",
+    "en": "Amount allocated to {{label}}"
+  },
+  "Le total alloué dépasse le montant du remboursement.": {
+    "fr": "Le total alloué dépasse le montant du remboursement.",
+    "en": "The allocated total exceeds the refund amount."
+  },
+  "Une allocation dépasse le reste remboursable de sa dépense.": {
+    "fr": "Une allocation dépasse le reste remboursable de sa dépense.",
+    "en": "An allocation exceeds the refundable remainder of its expense."
+  },
+  "Enregistrer la ventilation": {
+    "fr": "Enregistrer la ventilation",
+    "en": "Save the split"
+  },
+  "Retirer les liens": {
+    "fr": "Retirer les liens",
+    "en": "Remove links"
+  },
+  "Dépense #{{id}}": {
+    "fr": "Dépense #{{id}}",
+    "en": "Expense #{{id}}"
+  },
+  "{{n}} filtres actifs · Réinitialiser": {
+    "fr": "{{n}} filtres actifs · Réinitialiser",
+    "en": "{{n}} active filters · Reset"
+  },
+  "{{n}} filtre actif · Réinitialiser": {
+    "fr": "{{n}} filtre actif · Réinitialiser",
+    "en": "{{n}} active filter · Reset"
+  },
+  "{{n}} sélectionnées": {
+    "fr": "{{n}} sélectionnées",
+    "en": "{{n}} selected"
+  },
+  "{{n}} sélectionnée": {
+    "fr": "{{n}} sélectionnée",
+    "en": "{{n}} selected"
+  },
+  "Modifier {{n}} transactions": {
+    "fr": "Modifier {{n}} transactions",
+    "en": "Edit {{n}} transactions"
+  },
+  "Modifier {{n}} transaction": {
+    "fr": "Modifier {{n}} transaction",
+    "en": "Edit {{n}} transaction"
+  },
+  "Remboursement ventilé sur {{n}} dépenses": {
+    "fr": "Remboursement ventilé sur {{n}} dépenses",
+    "en": "Refund split across {{n}} expenses"
+  },
+  "Remboursement ventilé sur {{n}} dépense": {
+    "fr": "Remboursement ventilé sur {{n}} dépense",
+    "en": "Refund split across {{n}} expense"
+  }
 }
