@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { ArrowDownCircle, ArrowUpCircle, Banknote, Wallet } from 'lucide-react';
 import {
   Area,
@@ -33,6 +35,7 @@ import {
   todayIso,
   truncate,
 } from '../lib/format';
+import { localeTag } from '../i18n';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { fitDomain, symlogConstant, symlogInverse, toBase100, toSymlog, type ChartScaleMode } from '../lib/chartScale';
@@ -61,6 +64,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
   dataVersion: number;
   onOpenUnassignedTransactions: () => void;
 }) {
+  const { t } = useTranslation();
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, displayCurrency);
   const moneyCompact = (value: number) => moneyCompactFmt(value, displayCurrency);
@@ -102,7 +106,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
   const wealthSeriesConfig: WealthSeriesEntry[] = useMemo(() => {
     if (wealthViewMode === 'account') {
       return [
-        { key: 'net_worth', label: 'Total', color: chartTheme.total, width: 3 },
+        { key: 'net_worth', label: t('Total'), color: chartTheme.total, width: 3 },
         ...accounts.map((account, idx) => ({
           key: `account_${account.id}`,
           label: account.name,
@@ -112,18 +116,18 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
       ];
     }
     return [
-      { key: 'net_worth', label: 'Total', color: chartTheme.total, width: 3 },
-      { key: 'assets', label: 'Actifs', color: chartTheme.income, width: 2 },
-      { key: 'liabilities', label: 'Passifs', color: chartTheme.expense, width: 2 },
-      { key: 'cash', label: 'Liquidités', color: accountGroupColor('cash'), width: 2 },
-      { key: 'regulated_savings', label: 'Livrets', color: accountGroupColor('regulated_savings'), width: 2 },
-      { key: 'investments', label: 'Investissements', color: accountGroupColor('investments'), width: 2 },
-      { key: 'crypto', label: 'Crypto', color: accountGroupColor('crypto'), width: 2 },
-      { key: 'other', label: 'Autres', color: accountGroupColor('other'), width: 2 },
+      { key: 'net_worth', label: t('Total'), color: chartTheme.total, width: 3 },
+      { key: 'assets', label: t('Actifs'), color: chartTheme.income, width: 2 },
+      { key: 'liabilities', label: t('Passifs'), color: chartTheme.expense, width: 2 },
+      { key: 'cash', label: t('Liquidités'), color: accountGroupColor('cash'), width: 2 },
+      { key: 'regulated_savings', label: t('Livrets'), color: accountGroupColor('regulated_savings'), width: 2 },
+      { key: 'investments', label: t('Investissements'), color: accountGroupColor('investments'), width: 2 },
+      { key: 'crypto', label: t('Crypto'), color: accountGroupColor('crypto'), width: 2 },
+      { key: 'other', label: t('Autres'), color: accountGroupColor('other'), width: 2 },
     ];
     // `chartTheme` est en dépendance : sans lui, le mémo gardait les couleurs
     // de séries (Total/Actifs/Passifs) du thème précédent jusqu'au rechargement.
-  }, [wealthViewMode, accounts, chartTheme]);
+  }, [wealthViewMode, accounts, chartTheme, t]);
 
   const defaultWealthSeries = useMemo<Record<string, boolean>>(() => {
     if (wealthViewMode === 'account') {
@@ -179,6 +183,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
 
   const fxDegraded = summary?.fx_degraded ?? [];
   const accountAlerts = buildAccountAlerts(
+    t,
     accountBalances,
     summary?.balance_assets ?? 0,
     displayCurrency,
@@ -191,8 +196,8 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
   const alerts: typeof accountAlerts = [
     ...(fxDegraded.length > 0
       ? [{
-          title: 'Taux de change indisponibles',
-          detail: `Impossible de rafraîchir le taux pour ${fxDegraded.join(', ')}. Les montants convertis utilisent un taux périmé ou approché — réessaie plus tard.`,
+          title: t('Taux de change indisponibles'),
+          detail: t('Impossible de rafraîchir le taux pour {{currencies}}. Les montants convertis utilisent un taux périmé ou approché — réessaie plus tard.', { currencies: fxDegraded.join(', ') }),
           tone: 'warning' as const,
         }]
       : []),
@@ -205,7 +210,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
     const row: Record<string, unknown> = {
       ...point,
       label: wealthGranularity === 'day' || wealthGranularity === 'week'
-        ? new Date(`${point.date}T00:00:00.000Z`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+        ? new Date(`${point.date}T00:00:00.000Z`).toLocaleDateString(localeTag(), { day: '2-digit', month: 'short' })
         : formatMonth(point.date.slice(0, 7)),
       cash: point.by_group.cash ?? 0,
       regulated_savings: point.by_group.regulated_savings ?? 0,
@@ -269,24 +274,24 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
   const netWorth = summary?.net_worth ?? summary?.balance ?? null;
 
   return (
-    <DashboardSection title="État actuel" subtitle="Photographie du patrimoine — indépendant du mois sélectionné">
+    <DashboardSection title={t('État actuel')} subtitle={t('Photographie du patrimoine — indépendant du mois sélectionné')}>
       <section className="stats">
-        <Stat icon={<Wallet />} label="Patrimoine net" value={money(netWorth ?? 0)} signed={netWorth} />
-        <Stat icon={<ArrowUpCircle />} label="Actifs" value={money(summary?.balance_assets ?? 0)} positive />
-        <Stat icon={<ArrowDownCircle />} label="Passifs" value={money(summary?.balance_liabilities ?? 0)} negative />
-        <Stat icon={<Banknote />} label="Liquidités" value={money(cashBalance)} />
+        <Stat icon={<Wallet />} label={t('Patrimoine net')} value={money(netWorth ?? 0)} signed={netWorth} />
+        <Stat icon={<ArrowUpCircle />} label={t('Actifs')} value={money(summary?.balance_assets ?? 0)} positive />
+        <Stat icon={<ArrowDownCircle />} label={t('Passifs')} value={money(summary?.balance_liabilities ?? 0)} negative />
+        <Stat icon={<Banknote />} label={t('Liquidités')} value={money(cashBalance)} />
       </section>
 
       <section className="chart-full">
-        <Panel title="Évolution du patrimoine">
+        <Panel title={t('Évolution du patrimoine')}>
           <div className="panel-toolbar">
             <select value={wealthRange} onChange={(e) => setWealthRange(e.target.value)}>
-              <option value="1m">1 mois</option>
-              <option value="6m">6 mois</option>
-              <option value="12m">12 mois</option>
-              <option value="ytd">YTD</option>
-              <option value="all">Tout</option>
-              <option value="custom">Personnalisé</option>
+              <option value="1m">{t('1 mois')}</option>
+              <option value="6m">{t('6 mois')}</option>
+              <option value="12m">{t('12 mois')}</option>
+              <option value="ytd">{t('YTD')}</option>
+              <option value="all">{t('Tout')}</option>
+              <option value="custom">{t('Personnalisé')}</option>
             </select>
             {wealthRange === 'custom' && (
               <>
@@ -295,7 +300,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                   value={wealthFrom}
                   max={wealthTo || todayIso()}
                   onChange={(e) => setWealthFrom(e.target.value)}
-                  aria-label="Début de la période"
+                  aria-label={t('Début de la période')}
                 />
                 <span className="range-sep">→</span>
                 <input
@@ -304,34 +309,34 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                   min={wealthFrom || undefined}
                   max={todayIso()}
                   onChange={(e) => setWealthTo(e.target.value)}
-                  aria-label="Fin de la période (vide = aujourd'hui)"
+                  aria-label={t('Fin de la période (vide = aujourd\'hui)')}
                 />
               </>
             )}
             <select value={wealthGranularity} onChange={(e) => setWealthGranularity(e.target.value)}>
-              <option value="day">Jour</option>
-              <option value="week">Semaine</option>
-              <option value="month">Mois</option>
+              <option value="day">{t('Jour')}</option>
+              <option value="week">{t('Semaine')}</option>
+              <option value="month">{t('Mois')}</option>
             </select>
-            <select value={wealthViewMode} onChange={(e) => setWealthViewMode(e.target.value as 'group' | 'account')} aria-label="Découpage des séries">
-              <option value="account">Par compte</option>
-              <option value="group">Par groupe</option>
+            <select value={wealthViewMode} onChange={(e) => setWealthViewMode(e.target.value as 'group' | 'account')} aria-label={t('Découpage des séries')}>
+              <option value="account">{t('Par compte')}</option>
+              <option value="group">{t('Par groupe')}</option>
             </select>
-            <select value={wealthChartMode} onChange={(e) => setWealthChartMode(e.target.value as 'area' | 'line')} aria-label="Type de graphique patrimoine">
-              <option value="area">Zones</option>
-              <option value="line">Lignes</option>
+            <select value={wealthChartMode} onChange={(e) => setWealthChartMode(e.target.value as 'area' | 'line')} aria-label={t('Type de graphique patrimoine')}>
+              <option value="area">{t('Zones')}</option>
+              <option value="line">{t('Lignes')}</option>
             </select>
-            <select value={wealthScaleMode} onChange={(e) => setWealthScaleMode(e.target.value as ChartScaleMode)} aria-label="Échelle du graphique patrimoine">
-              <option value="linear">Linéaire</option>
-              <option value="symlog">Pseudo-log</option>
-              <option value="base100">Base 100</option>
+            <select value={wealthScaleMode} onChange={(e) => setWealthScaleMode(e.target.value as ChartScaleMode)} aria-label={t('Échelle du graphique patrimoine')}>
+              <option value="linear">{t('Linéaire')}</option>
+              <option value="symlog">{t('Pseudo-log')}</option>
+              <option value="base100">{t('Base 100')}</option>
             </select>
           </div>
           {effectiveWealthScaleMode === 'symlog' && (
-            <p className="panel-note">Pseudo-log : zéro et les soldes négatifs restent affichables, tandis que les gros écarts sont compressés. Le tooltip conserve le montant réel.</p>
+            <p className="panel-note">{t('Pseudo-log : zéro et les soldes négatifs restent affichables, tandis que les gros écarts sont compressés. Le tooltip conserve le montant réel.')}</p>
           )}
           {effectiveWealthScaleMode === 'base100' && (
-            <p className="panel-note">Base 100 : chaque série démarre à 100 depuis son premier solde non nul. Le tooltip conserve le montant réel.</p>
+            <p className="panel-note">{t('Base 100 : chaque série démarre à 100 depuis son premier solde non nul. Le tooltip conserve le montant réel.')}</p>
           )}
           <div className="series-toggles">
             {wealthSeriesConfig.map(({ key, label }) => (
@@ -376,14 +381,14 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyChart message={wealthLoading ? 'Chargement de l\'historique…' : 'Pas encore assez d\'historique pour tracer cette plage.'} />
+              <EmptyChart message={wealthLoading ? t('Chargement de l\'historique…') : t('Pas encore assez d\'historique pour tracer cette plage.')} />
             )}
           </div>
         </Panel>
       </section>
 
       <section className="chart-full">
-        <Panel title="Répartition du patrimoine">
+        <Panel title={t('Répartition du patrimoine')}>
           <div className="chart-split">
             <div className="donut-area">
               {wealthByGroup.length > 0 ? (
@@ -396,7 +401,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <EmptyChart message="Aucun solde à répartir." />
+                <EmptyChart message={t('Aucun solde à répartir.')} />
               )}
             </div>
             <div className="category-list compact">
@@ -407,14 +412,14 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                   <strong className={row.is_liability ? 'expense' : ''}>{row.is_liability ? '-' : ''}{money(row.amount)}</strong>
                 </div>
               ))}
-              {wealthByGroup.length === 0 && <p className="empty">Aucun solde à répartir.</p>}
+              {wealthByGroup.length === 0 && <p className="empty">{t('Aucun solde à répartir.')}</p>}
             </div>
           </div>
         </Panel>
       </section>
 
       <section className="charts-grid">
-        <Panel title="Soldes par compte">
+        <Panel title={t('Soldes par compte')}>
           <div className="chart-area small">
             {accountsHasData ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -432,7 +437,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                   <Tooltip formatter={(value) => money(Number(value))} />
                   <Bar
                     dataKey="value"
-                    name="Solde"
+                    name={t('Solde')}
                     fill={netColor}
                     radius={[0, 4, 4, 0]}
                     isAnimationActive={false}
@@ -445,11 +450,11 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyChart message="Aucun compte à afficher." />
+              <EmptyChart message={t('Aucun compte à afficher.')} />
             )}
           </div>
         </Panel>
-        <Panel title="Alertes comptes">
+        <Panel title={t('Alertes comptes')}>
           <div className="alert-list">
             {alerts.map((alert) => (
               <div className={`account-alert ${alert.tone}`} key={alert.title}>
@@ -462,7 +467,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                 )}
               </div>
             ))}
-            {alerts.length === 0 && <p className="empty">Aucune alerte sur les comptes.</p>}
+            {alerts.length === 0 && <p className="empty">{t('Aucune alerte sur les comptes.')}</p>}
           </div>
         </Panel>
       </section>
@@ -471,6 +476,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
 }
 
 function buildAccountAlerts(
+  t: TFunction,
   accountBalances: DashboardSummary['account_balances'],
   totalAssets: number,
   currency: string,
@@ -486,10 +492,10 @@ function buildAccountAlerts(
   // miss — surface them as a warning so the user can edit and assign one.
   if (unassignedCount > 0) {
     alerts.push({
-      title: `${unassignedCount} transaction${unassignedCount > 1 ? 's' : ''} sans compte, toutes périodes`,
-      detail: `${fmt(unassignedBalance)} de revenus/dépenses historiques n'ont pas de compte rattaché. Elles peuvent être catégorisées mais restent hors compte, donc elles sont ajoutées aux Liquidités.`,
+      title: t(unassignedCount > 1 ? '{{count}} transactions sans compte, toutes périodes' : '{{count}} transaction sans compte, toutes périodes', { count: unassignedCount }),
+      detail: t('{{amount}} de revenus/dépenses historiques n\'ont pas de compte rattaché. Elles peuvent être catégorisées mais restent hors compte, donc elles sont ajoutées aux Liquidités.', { amount: fmt(unassignedBalance) }),
       tone: 'warning',
-      action: { label: 'Voir et corriger', onClick: onOpenUnassignedTransactions },
+      action: { label: t('Voir et corriger'), onClick: onOpenUnassignedTransactions },
     });
   }
 
@@ -498,8 +504,8 @@ function buildAccountAlerts(
     .reduce((sum, a) => sum + a.balance, 0);
   if (checking > 3000) {
     alerts.push({
-      title: 'Cash élevé sur compte courant',
-      detail: `${fmt(checking)} restent sur compte courant. Une partie pourrait être fléchée vers livret ou investissement.`,
+      title: t('Cash élevé sur compte courant'),
+      detail: t('{{amount}} restent sur compte courant. Une partie pourrait être fléchée vers livret ou investissement.', { amount: fmt(checking) }),
       tone: 'info',
     });
   }
@@ -510,7 +516,7 @@ function buildAccountAlerts(
     const pct = account.balance / ceiling;
     if (pct >= 0.9) {
       alerts.push({
-        title: `${account.name} proche du plafond`,
+        title: t('{{name}} proche du plafond', { name: account.name }),
         detail: `${fmt(account.balance)} / ${fmt(ceiling)} (${Math.round(pct * 100)} %).`,
         tone: pct >= 1 ? 'danger' : 'warning',
       });
@@ -522,8 +528,8 @@ function buildAccountAlerts(
     .reduce((sum, a) => sum + a.balance, 0);
   if (totalAssets > 0 && crypto / totalAssets >= 0.15) {
     alerts.push({
-      title: 'Crypto élevée dans le patrimoine',
-      detail: `${Math.round((crypto / totalAssets) * 100)} % des actifs sont en crypto.`,
+      title: t('Crypto élevée dans le patrimoine'),
+      detail: t('{{pct}} % des actifs sont en crypto.', { pct: Math.round((crypto / totalAssets) * 100) }),
       tone: 'warning',
     });
   }
@@ -533,8 +539,8 @@ function buildAccountAlerts(
     .reduce((sum, a) => sum + a.balance, 0);
   if (liabilities > 0) {
     alerts.push({
-      title: 'Passifs à suivre',
-      detail: `${fmt(liabilities)} de crédits/emprunts sont intégrés au patrimoine net.`,
+      title: t('Passifs à suivre'),
+      detail: t('{{amount}} de crédits/emprunts sont intégrés au patrimoine net.', { amount: fmt(liabilities) }),
       tone: 'info',
     });
   }
