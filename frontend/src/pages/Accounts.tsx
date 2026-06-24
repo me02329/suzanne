@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Archive, ArchiveRestore, CalendarCheck, ChevronDown, ChevronUp, Landmark, LineChart, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
 import {
   ACCOUNT_TYPES,
@@ -14,6 +15,7 @@ import {
 } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { lastDayOfPreviousMonthIso, money, todayIso } from '../lib/format';
+import { localeTag } from '../i18n';
 import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
@@ -35,6 +37,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
   summary: DashboardSummary | null;
   run: Run;
 }) {
+  const { t } = useTranslation();
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [editingInstitution, setEditingInstitution] = useState<Institution | null>(null);
   const [snapshotDate, setSnapshotDate] = useState<string>(() => lastDayOfPreviousMonthIso());
@@ -88,9 +91,9 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       (result) => {
         const { created, updated } = result as { created: number; updated: number };
         const parts: string[] = [];
-        if (created > 0) parts.push(`${created} créé${created > 1 ? 's' : ''}`);
-        if (updated > 0) parts.push(`${updated} mis à jour`);
-        return parts.length > 0 ? `Snapshots enregistrés : ${parts.join(', ')}` : 'Aucun changement';
+        if (created > 0) parts.push(t('{{n}} créés', { n: created }));
+        if (updated > 0) parts.push(t('{{n}} mis à jour', { n: updated }));
+        return parts.length > 0 ? t('Snapshots enregistrés : {{parts}}', { parts: parts.join(', ') }) : t('Aucun changement');
       },
     );
     setSnapshotInputs({});
@@ -126,10 +129,10 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       initial_balance_date: String(data.get('initial_balance_date')),
     };
     if (editingAccount) {
-      void run(() => api.updateAccount(userId, editingAccount.id, body), 'Compte modifié');
+      void run(() => api.updateAccount(userId, editingAccount.id, body), t('Compte modifié'));
       setEditingAccount(null);
     } else {
-      void run(() => api.createAccount(userId, body), 'Compte ajouté');
+      void run(() => api.createAccount(userId, body), t('Compte ajouté'));
       form.reset();
     }
   };
@@ -138,7 +141,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    void run(() => api.createInstitution(userId, { name: String(data.get('name')) }), 'Institution ajoutée');
+    void run(() => api.createInstitution(userId, { name: String(data.get('name')) }), t('Institution ajoutée'));
     form.reset();
   };
 
@@ -147,20 +150,20 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
     if (!editingInstitution) return;
     const name = String(new FormData(event.currentTarget).get('name')).trim();
     if (!name) return;
-    void run(() => api.updateInstitution(userId, editingInstitution.id, { name }), 'Institution renommée');
+    void run(() => api.updateInstitution(userId, editingInstitution.id, { name }), t('Institution renommée'));
     setEditingInstitution(null);
   };
 
   // Réassignation rapide d'un compte à une autre institution (ou aucune).
   const reassignAccount = (account: Account, institutionId: number | null) => {
     if ((account.institution_id ?? null) === institutionId) return;
-    void run(() => api.updateAccount(userId, account.id, { institution_id: institutionId }), 'Compte réassigné');
+    void run(() => api.updateAccount(userId, account.id, { institution_id: institutionId }), t('Compte réassigné'));
   };
 
   const filledCount = Object.values(snapshotInputs).filter((v) => v.trim() !== '').length;
   const institutionOrder: Array<{ id: number | null; name: string }> = [
     ...institutions.map((i) => ({ id: i.id as number | null, name: i.name })),
-    { id: null, name: 'Sans institution' },
+    { id: null, name: t('Sans institution') },
   ];
   const hasUnassigned = (accountsByInstitution.get(null)?.length ?? 0) > 0 || hasUnassignedTransactions;
 
@@ -173,17 +176,16 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
           onClick={() => setSnapshotsOpen(!snapshotsOpen)}
           aria-expanded={snapshotsOpen}
         >
-          <span className="collapsible-title"><CalendarCheck size={16} /> Saisir snapshots de fin de mois</span>
+          <span className="collapsible-title"><CalendarCheck size={16} /> {t('Saisir snapshots de fin de mois')}</span>
           {snapshotsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         <Collapsible open={snapshotsOpen} className="collapsible-body">
             <p className="panel-note">
-              Saisis le solde réel à une date précise. Laisse vide les comptes non vérifiés.
-              Re-saisir la même date écrase la valeur précédente.
+              {t('Saisis le solde réel à une date précise. Laisse vide les comptes non vérifiés. Re-saisir la même date écrase la valeur précédente.')}
             </p>
             <form className="form snapshot-batch-form" onSubmit={submitSnapshotBatch}>
               <div className="snapshot-batch-controls">
-                <label>Date du snapshot
+                <label>{t('Date du snapshot')}
                   <input type="date" value={snapshotDate} onChange={(e) => setSnapshotDate(e.target.value)} required />
                 </label>
                 <button
@@ -191,22 +193,22 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                   className="secondary"
                   onClick={() => void prefillSnapshots()}
                   disabled={prefilling || accounts.length === 0}
-                  title="Remplir avec le dernier solde connu + transactions"
+                  title={t('Remplir avec le dernier solde connu + transactions')}
                 >
-                  <Wand2 size={16} /> {prefilling ? 'Calcul…' : 'Pré-remplir'}
+                  <Wand2 size={16} /> {prefilling ? t('Calcul…') : t('Pré-remplir')}
                 </button>
               </div>
               {accounts.length === 0 ? (
-                <p className="empty">Crée d'abord un compte pour saisir des snapshots.</p>
+                <p className="empty">{t('Crée d\'abord un compte pour saisir des snapshots.')}</p>
               ) : (
                 <div className="table-wrap full">
                   <table className="tx-table snapshot-batch-table">
                     <thead>
                       <tr>
-                        <th>Compte</th>
-                        <th>Devise</th>
-                        <th className="amount-cell">Solde estimé</th>
-                        <th className="amount-cell">Nouveau solde réel</th>
+                        <th>{t('Compte')}</th>
+                        <th>{t('Devise')}</th>
+                        <th className="amount-cell">{t('Solde estimé')}</th>
+                        <th className="amount-cell">{t('Nouveau solde réel')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -231,10 +233,10 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                                     type="number"
                                     step="0.01"
                                     inputMode="decimal"
-                                    placeholder={`en ${account.currency}`}
+                                    placeholder={t('en {{currency}}', { currency: account.currency })}
                                     value={snapshotInputs[account.id] ?? ''}
                                     onChange={(e) => setSnapshotInputs((current) => ({ ...current, [account.id]: e.target.value }))}
-                                    aria-label={`Solde réel pour ${account.name} en ${account.currency}`}
+                                    aria-label={t('Solde réel pour {{name}} en {{currency}}', { name: account.name, currency: account.currency })}
                                   />
                                 </td>
                               </tr>
@@ -247,7 +249,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                 </div>
               )}
               <button className="primary" disabled={filledCount === 0}>
-                <CalendarCheck size={16} /> Enregistrer {filledCount > 0 ? `(${filledCount})` : ''}
+                <CalendarCheck size={16} /> {t('Enregistrer')} {filledCount > 0 ? `(${filledCount})` : ''}
               </button>
             </form>
           </Collapsible>
@@ -260,32 +262,32 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
           onClick={() => setAccountOpen(!accountOpen)}
           aria-expanded={accountOpen}
         >
-          <span className="collapsible-title"><Plus size={16} /> Nouveau compte</span>
+          <span className="collapsible-title"><Plus size={16} /> {t('Nouveau compte')}</span>
           {accountOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         <Collapsible open={accountOpen} className="collapsible-body">
             <form className="form form-inline" onSubmit={submitAccount} key={editingAccount?.id ?? 'new-account'}>
-              <label className="grow">Nom<input name="name" defaultValue={editingAccount?.name ?? ''} required /></label>
-              <label>Type
+              <label className="grow">{t('Nom')}<input name="name" defaultValue={editingAccount?.name ?? ''} required /></label>
+              <label>{t('Type')}
                 <select name="type" defaultValue={editingAccount?.type ?? 'checking'}>
                   {ACCOUNT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </label>
-              <label>Institution
+              <label>{t('Institution')}
                 <select name="institution_id" defaultValue={editingAccount?.institution_id ?? ''}>
-                  <option value="">Aucune</option>
+                  <option value="">{t('Aucune')}</option>
                   {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
                 </select>
               </label>
-              <label>Devise
+              <label>{t('Devise')}
                 <select name="currency" defaultValue={editingAccount?.currency ?? 'EUR'} required>
                   {REPORT_CURRENCIES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </label>
-              <label>Solde initial<input name="initial_balance" type="number" step="0.01" defaultValue={editingAccount?.initial_balance ?? 0} /></label>
-              <label>Date initiale<input name="initial_balance_date" type="date" defaultValue={editingAccount?.initial_balance_date?.slice(0, 10) ?? todayIso()} required /></label>
-              <button className="primary"><Landmark size={16} /> {editingAccount ? 'Enregistrer' : 'Ajouter'}</button>
-              {editingAccount && <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>Annuler</button>}
+              <label>{t('Solde initial')}<input name="initial_balance" type="number" step="0.01" defaultValue={editingAccount?.initial_balance ?? 0} /></label>
+              <label>{t('Date initiale')}<input name="initial_balance_date" type="date" defaultValue={editingAccount?.initial_balance_date?.slice(0, 10) ?? todayIso()} required /></label>
+              <button className="primary"><Landmark size={16} /> {editingAccount ? t('Enregistrer') : t('Ajouter')}</button>
+              {editingAccount && <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>{t('Annuler')}</button>}
             </form>
           </Collapsible>
       </div>
@@ -297,20 +299,20 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
           onClick={() => setInstitutionOpen(!institutionOpen)}
           aria-expanded={institutionOpen}
         >
-          <span className="collapsible-title"><Plus size={16} /> Nouvelle institution</span>
+          <span className="collapsible-title"><Plus size={16} /> {t('Nouvelle institution')}</span>
           {institutionOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         <Collapsible open={institutionOpen} className="collapsible-body">
             <form className="form form-inline" onSubmit={submitInstitution}>
-              <label className="grow">Nom<input name="name" required placeholder="Banque, broker, caisse..." /></label>
-              <button className="primary">Ajouter</button>
+              <label className="grow">{t('Nom')}<input name="name" required placeholder={t('Banque, broker, caisse...')} /></label>
+              <button className="primary">{t('Ajouter')}</button>
             </form>
           </Collapsible>
       </div>
 
-      <Panel title="Institutions et comptes">
+      <Panel title={t('Institutions et comptes')}>
         {accounts.length === 0 && institutions.length === 0 ? (
-          <p className="empty">Crée une institution et un compte pour commencer.</p>
+          <p className="empty">{t('Crée une institution et un compte pour commencer.')}</p>
         ) : (
           <div className="institution-list">
             {institutionOrder.map((institution) => {
@@ -329,13 +331,13 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                   <div className="institution-card-header">
                     <div>
                       <strong title={institution.name}>{institution.name}</strong>
-                      <span>{accountsHere.length} compte{accountsHere.length > 1 ? 's' : ''}</span>
+                      <span>{t(accountsHere.length > 1 ? '{{n}} comptes' : '{{n}} compte', { n: accountsHere.length })}</span>
                     </div>
                     <div className="institution-card-actions">
                       <span className="institution-total">{money(total, reportCurrency)}</span>
                       {institution.id !== null && (
                         <IconButton
-                          label="Renommer l'institution"
+                          label={t('Renommer l\'institution')}
                           tone="neutral"
                           icon={<Pencil size={14} />}
                           onClick={() => setEditingInstitution(institutions.find((i) => i.id === institution.id) ?? null)}
@@ -343,23 +345,23 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                       )}
                       {institution.id !== null && accountsHere.length === 0 && (
                         <IconButton
-                          label="Supprimer l'institution"
+                          label={t('Supprimer l\'institution')}
                           icon={<Trash2 size={14} />}
-                          confirm={`Supprimer l'institution « ${institution.name} » ?`}
-                          onClick={() => void run(() => api.deleteInstitution(userId, institution.id as number), 'Institution supprimée')}
+                          confirm={t('Supprimer l\'institution « {{name}} » ?', { name: institution.name })}
+                          onClick={() => void run(() => api.deleteInstitution(userId, institution.id as number), t('Institution supprimée'))}
                         />
                       )}
                     </div>
                   </div>
                   {accountsHere.length === 0 && !showUnassignedTransactions ? (
-                    <p className="empty inline">Aucun compte rattaché.</p>
+                    <p className="empty inline">{t('Aucun compte rattaché.')}</p>
                   ) : (
                     <ul className="institution-accounts">
                       {showUnassignedTransactions && (
                         <li>
                           <div className="account-line-main">
-                            <strong>Transactions hors compte</strong>
-                            <span>Revenus/dépenses historiques sans compte</span>
+                            <strong>{t('Transactions hors compte')}</strong>
+                            <span>{t('Revenus/dépenses historiques sans compte')}</span>
                           </div>
                           <div className="account-line-amount">
                             {money(unassignedBalance, reportCurrency)}
@@ -374,7 +376,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                             <div className="account-line-main">
                               <Link className="account-line-name" to={`/accounts/${account.id}`} title={account.name}>
                                 {account.name}
-                                {account.archived && <span className="badge-archived">Clôturé</span>}
+                                {account.archived && <span className="badge-archived">{t('Clôturé')}</span>}
                               </Link>
                               <span>{accountTypeLabel(account.type)} · {account.currency}</span>
                             </div>
@@ -382,35 +384,35 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                               {money(estimated?.signed_balance ?? account.initial_balance, reportCurrency)}
                             </div>
                             <div className="account-line-actions">
-                              <Link className="icon-button neutral" to={`/accounts/${account.id}`} aria-label={`Voir la fiche de ${account.name}`} title="Voir la fiche"><LineChart size={14} /></Link>
+                              <Link className="icon-button neutral" to={`/accounts/${account.id}`} aria-label={t('Voir la fiche de {{name}}', { name: account.name })} title={t('Voir la fiche')}><LineChart size={14} /></Link>
                               <select
                                 className="reassign-select"
-                                aria-label={`Réassigner ${account.name} à une institution`}
-                                title="Réassigner à…"
+                                aria-label={t('Réassigner {{name}} à une institution', { name: account.name })}
+                                title={t('Réassigner à…')}
                                 value={account.institution_id ?? ''}
                                 onChange={(e) => reassignAccount(account, e.target.value ? Number(e.target.value) : null)}
                               >
-                                <option value="">Sans institution</option>
+                                <option value="">{t('Sans institution')}</option>
                                 {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
                               </select>
-                              <IconButton label="Modifier" tone="neutral" icon={<Pencil size={14} />} onClick={() => { setEditingAccount(account); setAccountOpen(true); }} />
+                              <IconButton label={t('Modifier')} tone="neutral" icon={<Pencil size={14} />} onClick={() => { setEditingAccount(account); setAccountOpen(true); }} />
                               {account.archived ? (
                                 <IconButton
-                                  label="Rouvrir le compte"
+                                  label={t('Rouvrir le compte')}
                                   tone="accent"
                                   icon={<ArchiveRestore size={14} />}
-                                  onClick={() => void run(() => api.updateAccount(userId, account.id, { archived: false }), 'Compte rouvert')}
+                                  onClick={() => void run(() => api.updateAccount(userId, account.id, { archived: false }), t('Compte rouvert'))}
                                 />
                               ) : (
                                 <IconButton
-                                  label="Clôturer (archiver) le compte"
+                                  label={t('Clôturer (archiver) le compte')}
                                   tone="neutral"
                                   icon={<Archive size={14} />}
-                                  confirm={`Clôturer le compte « ${account.name} » ? Il est masqué des saisies mais son historique et son solde sont conservés. Réversible à tout moment.`}
-                                  onClick={() => void run(() => api.updateAccount(userId, account.id, { archived: true }), 'Compte clôturé')}
+                                  confirm={t('Clôturer le compte « {{name}} » ? Il est masqué des saisies mais son historique et son solde sont conservés. Réversible à tout moment.', { name: account.name })}
+                                  onClick={() => void run(() => api.updateAccount(userId, account.id, { archived: true }), t('Compte clôturé'))}
                                 />
                               )}
-                              <IconButton label="Supprimer définitivement" icon={<Trash2 size={14} />} confirm={`Supprimer définitivement le compte « ${account.name} » ? Ses transactions ne sont pas supprimées mais détachées (elles passent « sans compte »). Pour conserver un historique cohérent, préfère la clôture.`} onClick={() => void run(() => api.deleteAccount(userId, account.id), 'Compte supprimé')} />
+                              <IconButton label={t('Supprimer définitivement')} icon={<Trash2 size={14} />} confirm={t('Supprimer définitivement le compte « {{name}} » ? Ses transactions ne sont pas supprimées mais détachées (elles passent « sans compte »). Pour conserver un historique cohérent, préfère la clôture.', { name: account.name })} onClick={() => void run(() => api.deleteAccount(userId, account.id), t('Compte supprimé'))} />
                             </div>
                           </li>
                         );
@@ -425,20 +427,20 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       </Panel>
 
       <Panel
-        title="Snapshots récents"
+        title={t('Snapshots récents')}
         action={<LimitPicker limit={snapshotsLimit.limit} onChange={snapshotsLimit.setLimit} total={snapshots.length} />}
       >
-        <DataTable scroll empty={snapshots.length === 0 ? 'Aucun snapshot.' : null}>
-          <thead><tr><th>Date</th><th>Compte</th><th className="amount-cell">Solde</th><th className="actions-cell">Actions</th></tr></thead>
+        <DataTable scroll empty={snapshots.length === 0 ? t('Aucun snapshot.') : null}>
+          <thead><tr><th>{t('Date')}</th><th>{t('Compte')}</th><th className="amount-cell">{t('Solde')}</th><th className="actions-cell">{t('Actions')}</th></tr></thead>
           <tbody>
             {snapshotsLimit.clamp(snapshots).map((s) => {
               const account = accounts.find((a) => a.id === s.account_id);
               return (
                 <tr key={s.id}>
-                  <td>{new Date(s.date).toLocaleDateString('fr-FR')}</td>
-                  <td>{account?.name ?? 'Compte'}</td>
+                  <td>{new Date(s.date).toLocaleDateString(localeTag())}</td>
+                  <td>{account?.name ?? t('Compte')}</td>
                   <td className="amount-cell">{money(s.balance, account?.currency ?? 'EUR')}</td>
-                  <td className="actions-cell"><IconButton label="Supprimer" confirm="Supprimer ce snapshot ?" onClick={() => void run(() => api.deleteSnapshot(userId, s.id), 'Snapshot supprimé')} /></td>
+                  <td className="actions-cell"><IconButton label={t('Supprimer')} confirm={t('Supprimer ce snapshot ?')} onClick={() => void run(() => api.deleteSnapshot(userId, s.id), t('Snapshot supprimé'))} /></td>
                 </tr>
               );
             })}
@@ -447,26 +449,26 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       </Panel>
 
       {editingAccount && !accountOpen && (
-        <Modal title={`Modifier ${editingAccount.name}`} onClose={() => setEditingAccount(null)}>
+        <Modal title={t('Modifier {{name}}', { name: editingAccount.name })} onClose={() => setEditingAccount(null)}>
           <form className="form" onSubmit={submitAccount} key={`modal-${editingAccount.id}`}>
-            <label>Nom<input name="name" defaultValue={editingAccount.name} required /></label>
-            <label>Type<select name="type" defaultValue={editingAccount.type}>{ACCOUNT_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
-            <label>Institution<select name="institution_id" defaultValue={editingAccount.institution_id ?? ''}><option value="">Aucune</option>{institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
-            <label>Devise<select name="currency" defaultValue={editingAccount.currency} required>{REPORT_CURRENCIES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
-            <label>Solde initial<input name="initial_balance" type="number" step="0.01" defaultValue={editingAccount.initial_balance} /></label>
-            <label>Date initiale<input name="initial_balance_date" type="date" defaultValue={editingAccount.initial_balance_date.slice(0, 10)} required /></label>
-            <button className="primary">Enregistrer</button>
-            <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>Annuler</button>
+            <label>{t('Nom')}<input name="name" defaultValue={editingAccount.name} required /></label>
+            <label>{t('Type')}<select name="type" defaultValue={editingAccount.type}>{ACCOUNT_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+            <label>{t('Institution')}<select name="institution_id" defaultValue={editingAccount.institution_id ?? ''}><option value="">{t('Aucune')}</option>{institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
+            <label>{t('Devise')}<select name="currency" defaultValue={editingAccount.currency} required>{REPORT_CURRENCIES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+            <label>{t('Solde initial')}<input name="initial_balance" type="number" step="0.01" defaultValue={editingAccount.initial_balance} /></label>
+            <label>{t('Date initiale')}<input name="initial_balance_date" type="date" defaultValue={editingAccount.initial_balance_date.slice(0, 10)} required /></label>
+            <button className="primary">{t('Enregistrer')}</button>
+            <button type="button" className="secondary" onClick={() => setEditingAccount(null)}>{t('Annuler')}</button>
           </form>
         </Modal>
       )}
 
       {editingInstitution && (
-        <Modal title={`Renommer « ${editingInstitution.name} »`} onClose={() => setEditingInstitution(null)}>
+        <Modal title={t('Renommer « {{name}} »', { name: editingInstitution.name })} onClose={() => setEditingInstitution(null)}>
           <form className="form" onSubmit={submitInstitutionEdit} key={`inst-${editingInstitution.id}`}>
-            <label>Nom<input name="name" defaultValue={editingInstitution.name} required maxLength={120} autoFocus /></label>
-            <button className="primary">Enregistrer</button>
-            <button type="button" className="secondary" onClick={() => setEditingInstitution(null)}>Annuler</button>
+            <label>{t('Nom')}<input name="name" defaultValue={editingInstitution.name} required maxLength={120} autoFocus /></label>
+            <button className="primary">{t('Enregistrer')}</button>
+            <button type="button" className="secondary" onClick={() => setEditingInstitution(null)}>{t('Annuler')}</button>
           </form>
         </Modal>
       )}
