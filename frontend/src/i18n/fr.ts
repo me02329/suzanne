@@ -1,0 +1,61 @@
+// Ressources FR. Le français reste la langue de référence (clés = libellés
+// d'origine). L'anglais (en.ts) miroite cette structure.
+export const fr = {
+  language: { fr: 'Français', en: 'English', label: 'Langue' },
+  nav: {
+    dashboard: 'Vue générale',
+    wealth: 'Patrimoine',
+    statistics: 'Statistiques',
+    forecast: 'Prévisionnel',
+    health: 'Santé financière',
+    alerts: 'Alertes',
+    transactions: 'Transactions',
+    accounts: 'Comptes',
+    budgets: 'Budgets',
+    bills: 'Factures',
+    recurring: 'Récurrents',
+    goals: 'Objectifs',
+    investments: 'Investissements',
+    categories: 'Catégories',
+    tags: 'Tags',
+    rules: 'Règles',
+    anomalies: 'Anomalies',
+    tools: 'Import/Export',
+    users: 'Utilisateurs',
+    settings: 'Paramètres',
+    assistant: 'Assistant IA',
+  },
+  navSections: {
+    pilotage: 'Pilotage',
+    donnees: 'Données',
+    structure: 'Structure',
+    admin: 'Administration',
+  },
+  common: {
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+    delete: 'Supprimer',
+    add: 'Ajouter',
+    close: 'Fermer',
+    edit: 'Modifier',
+    loading: 'Chargement…',
+    search: 'Rechercher',
+  },
+  shell: {
+    searchPlaceholder: 'Rechercher (transactions, comptes…)',
+    reportCurrency: 'Devise de reporting',
+    previousMonth: 'Mois précédent',
+    nextMonth: 'Mois suivant',
+    menu: 'Menu',
+    keyboardShortcuts: 'Raccourcis clavier',
+  },
+  settings: {
+    title: 'Paramètres',
+    appearance: 'Apparence',
+    theme: 'Thème',
+    language: 'Langue',
+    languageHint: 'Change la langue de l’interface et le format des nombres et dates.',
+  },
+};
+
+export type Resources = typeof fr;

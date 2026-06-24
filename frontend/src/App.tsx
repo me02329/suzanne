@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Menu, X } from 'lucide-react';
 import {
   REPORT_CURRENCIES,
@@ -76,6 +77,7 @@ export default function App() {
   // persisted value only to decide where "/" should land on next launch.
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const tab = tabFromPath(location.pathname);
   const [lastTab, setLastTab] = usePersistedState<Tab>('active_tab', 'dashboard');
   const [theme, setTheme] = useTheme();
@@ -391,11 +393,11 @@ export default function App() {
                   onClick={() => toggleSection(section.id)}
                   aria-expanded={open}
                 >
-                  <span>{section.label}</span>
+                  <span>{t(`navSections.${section.id}`)}</span>
                   {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
                 {open && section.items.map((item) => (
-                  <TabButton key={item.tab} tab={item.tab} current={tab} setTab={setActiveTab} label={item.label} icon={item.icon} />
+                  <TabButton key={item.tab} tab={item.tab} current={tab} setTab={setActiveTab} label={t(`nav.${item.tab}`)} icon={item.icon} />
                 ))}
               </div>
             );
@@ -409,8 +411,8 @@ export default function App() {
             <Menu size={22} />
           </button>
           <div>
-            <p className="eyebrow">{activeNav?.label ?? 'Vue générale'}</p>
-            <h1>{activeNav?.label ?? 'Vue générale'}</h1>
+            <p className="eyebrow">{activeNav ? t(`nav.${activeNav.tab}`) : t('nav.dashboard')}</p>
+            <h1>{activeNav ? t(`nav.${activeNav.tab}`) : t('nav.dashboard')}</h1>
           </div>
           {loading && <span className="spinner" aria-label="Chargement" />}
         </div>

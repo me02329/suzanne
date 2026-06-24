@@ -1,8 +1,9 @@
 import type { Category, RecurringFrequency, Transaction, TransactionType } from '@suzanne/shared';
+import { localeTag } from '../i18n';
 
 export function money(value: number, currency = 'EUR') {
   try {
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(value);
+    return new Intl.NumberFormat(localeTag(), { style: 'currency', currency }).format(value);
   } catch {
     return `${value.toFixed(2)} ${currency}`;
   }
@@ -11,7 +12,7 @@ export function money(value: number, currency = 'EUR') {
 // Compact format for chart axes: 1234 -> "1,2 k€", 1_500_000 -> "1,5 M€".
 export function moneyCompact(value: number, currency = 'EUR') {
   try {
-    return new Intl.NumberFormat('fr-FR', {
+    return new Intl.NumberFormat(localeTag(), {
       style: 'currency',
       currency,
       notation: 'compact',
@@ -24,13 +25,13 @@ export function moneyCompact(value: number, currency = 'EUR') {
 
 export function formatMonth(month: string) {
   const date = new Date(`${month}-01T00:00:00.000Z`);
-  return new Intl.DateTimeFormat('fr-FR', { month: 'short' }).format(date);
+  return new Intl.DateTimeFormat(localeTag(), { month: 'short' }).format(date);
 }
 
 // "Mai 2026", used as the dashboard section header for the month-scoped block.
 export function formatMonthLong(month: string) {
   const date = new Date(`${month}-01T00:00:00.000Z`);
-  const formatted = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(date);
+  const formatted = new Intl.DateTimeFormat(localeTag(), { month: 'long', year: 'numeric' }).format(date);
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 

@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { CheckCircle2, KeyRound, Loader2, Save, Sparkles, Trash2 } from 'lucide-react';
+import { CheckCircle2, KeyRound, Languages, Loader2, Save, Sparkles, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { api, type AiSettings } from '../lib/api';
 import { Panel } from '../components/Panel';
+import { currentLang, setLanguage, type Lang } from '../i18n';
 
 const SOURCE_LABELS: Record<string, string> = {
   database: 'Configurée depuis cette page',
@@ -11,6 +13,7 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 export function Settings() {
+  const { t } = useTranslation();
   const [data, setData] = useState<AiSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -75,6 +78,16 @@ export function Settings() {
 
   return (
     <section className="stack">
+      <Panel title={t('settings.language')} icon={<Languages />}>
+        <p className="panel-note">{t('settings.languageHint')}</p>
+        <label style={{ maxWidth: '16rem' }}>{t('language.label')}
+          <select value={currentLang()} onChange={(e) => setLanguage(e.target.value as Lang)}>
+            <option value="fr">{t('language.fr')}</option>
+            <option value="en">{t('language.en')}</option>
+          </select>
+        </label>
+      </Panel>
+
       <Panel title="Assistant IA" icon={<Sparkles />}>
         <p className="panel-note">
           Configure ici la clé API et le modèle utilisés par l'assistant. Les valeurs définies depuis cette page
