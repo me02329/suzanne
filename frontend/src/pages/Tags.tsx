@@ -1,7 +1,9 @@
 import { FormEvent, useState } from 'react';
 import { ChevronDown, ChevronUp, Pencil, Plus, Tag as TagIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Tag } from '@suzanne/shared';
 import { api } from '../lib/api';
+import { localeTag } from '../i18n';
 import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
@@ -12,6 +14,7 @@ import { Collapsible } from '../components/Collapsible';
 import type { Run } from '../lib/run';
 
 export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: Run }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState<Tag | null>(null);
   const [addOpen, setAddOpen] = usePersistedState<boolean>('tags_add_open', tags.length === 0);
 
@@ -22,7 +25,7 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
     void run(() => api.createTag(userId, {
       name: String(data.get('name')),
       color: String(data.get('color')),
-    }), 'Tag ajouté');
+    }), t('Tag ajouté'));
     form.reset();
   };
 
@@ -33,7 +36,7 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
     void run(() => api.updateTag(userId, editing.id, {
       name: String(data.get('name')),
       color: String(data.get('color')),
-    }), 'Tag modifié');
+    }), t('Tag modifié'));
     setEditing(null);
   };
 
@@ -41,30 +44,30 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
     <section className="stack">
       <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
         <button type="button" className="collapsible-header" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
-          <span className="collapsible-title"><Plus size={16} /> Nouveau tag</span>
+          <span className="collapsible-title"><Plus size={16} /> {t('Nouveau tag')}</span>
           {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         <Collapsible open={addOpen} className="collapsible-body">
-            <p className="panel-note">Les tags sont des étiquettes libres et multi-valeurs sur les transactions, indépendantes des catégories.</p>
+            <p className="panel-note">{t('Les tags sont des étiquettes libres et multi-valeurs sur les transactions, indépendantes des catégories.')}</p>
             <form className="form form-inline" onSubmit={submit}>
-              <label className="grow">Nom<input name="name" required maxLength={40} placeholder="Voyage Italie, Mariage Jean..." /></label>
-              <label>Couleur<input name="color" type="color" defaultValue="#6366f1" /></label>
-              <button className="primary"><TagIcon size={16} /> Ajouter</button>
+              <label className="grow">{t('Nom')}<input name="name" required maxLength={40} placeholder={t('Voyage Italie, Mariage Jean...')} /></label>
+              <label>{t('Couleur')}<input name="color" type="color" defaultValue="#6366f1" /></label>
+              <button className="primary"><TagIcon size={16} /> {t('Ajouter')}</button>
             </form>
           </Collapsible>
       </div>
-      <Panel title="Tags" icon={<TagIcon />}>
-        <DataTable empty={tags.length === 0 ? 'Aucun tag pour l\'instant.' : null}>
-          <thead><tr><th>Nom</th><th>Couleur</th><th>Créé le</th><th className="actions-cell">Actions</th></tr></thead>
+      <Panel title={t('Tags')} icon={<TagIcon />}>
+        <DataTable empty={tags.length === 0 ? t('Aucun tag pour l\'instant.') : null}>
+          <thead><tr><th>{t('Nom')}</th><th>{t('Couleur')}</th><th>{t('Créé le')}</th><th className="actions-cell">{t('Actions')}</th></tr></thead>
           <tbody>
-            {tags.map((t) => (
-              <tr key={t.id}>
-                <td><span className="tag-chip" style={{ background: t.color }} title={t.name}>{t.name}</span></td>
-                <td><code>{t.color}</code></td>
-                <td>{new Date(t.created_at).toLocaleDateString('fr-FR')}</td>
+            {tags.map((tag) => (
+              <tr key={tag.id}>
+                <td><span className="tag-chip" style={{ background: tag.color }} title={tag.name}>{tag.name}</span></td>
+                <td><code>{tag.color}</code></td>
+                <td>{new Date(tag.created_at).toLocaleDateString(localeTag())}</td>
                 <td className="actions-cell">
-                  <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(t)} />
-                  <IconButton label="Supprimer" confirm={`Supprimer le tag « ${t.name} » ? Les transactions qui le portent ne seront pas supprimées.`} onClick={() => void run(() => api.deleteTag(userId, t.id), 'Tag supprimé')} />
+                  <IconButton label={t('Modifier')} tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(tag)} />
+                  <IconButton label={t('Supprimer')} confirm={t('Supprimer le tag « {{name}} » ? Les transactions qui le portent ne seront pas supprimées.', { name: tag.name })} onClick={() => void run(() => api.deleteTag(userId, tag.id), t('Tag supprimé'))} />
                 </td>
               </tr>
             ))}
@@ -73,12 +76,12 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
       </Panel>
 
       {editing && (
-        <Modal title={`Modifier "${editing.name}"`} onClose={() => setEditing(null)}>
+        <Modal title={t('Modifier « {{name}} »', { name: editing.name })} onClose={() => setEditing(null)}>
           <form className="form" onSubmit={submitEdit}>
-            <label>Nom<input name="name" defaultValue={editing.name} required maxLength={40} /></label>
-            <label>Couleur<input name="color" type="color" defaultValue={editing.color} /></label>
-            <button className="primary">Enregistrer</button>
-            <button type="button" className="secondary" onClick={() => setEditing(null)}>Annuler</button>
+            <label>{t('Nom')}<input name="name" defaultValue={editing.name} required maxLength={40} /></label>
+            <label>{t('Couleur')}<input name="color" type="color" defaultValue={editing.color} /></label>
+            <button className="primary">{t('Enregistrer')}</button>
+            <button type="button" className="secondary" onClick={() => setEditing(null)}>{t('Annuler')}</button>
           </form>
         </Modal>
       )}
