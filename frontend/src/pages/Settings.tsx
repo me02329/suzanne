@@ -78,12 +78,12 @@ export function Settings() {
 
   return (
     <section className="stack">
-      <Panel title={t('settings.language')} icon={<Languages />}>
-        <p className="panel-note">{t('settings.languageHint')}</p>
-        <label style={{ maxWidth: '16rem' }}>{t('language.label')}
+      <Panel title={t('Langue')} icon={<Languages />}>
+        <p className="panel-note">{t('Change la langue de l’interface et le format des nombres et dates.')}</p>
+        <label style={{ maxWidth: '16rem' }}>{t('Langue')}
           <select value={currentLang()} onChange={(e) => setLanguage(e.target.value as Lang)}>
-            <option value="fr">{t('language.fr')}</option>
-            <option value="en">{t('language.en')}</option>
+            <option value="fr">{t('Français')}</option>
+            <option value="en">{t('English')}</option>
           </select>
         </label>
       </Panel>

@@ -393,11 +393,11 @@ export default function App() {
                   onClick={() => toggleSection(section.id)}
                   aria-expanded={open}
                 >
-                  <span>{t(`navSections.${section.id}`)}</span>
+                  <span>{t(section.label)}</span>
                   {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
                 {open && section.items.map((item) => (
-                  <TabButton key={item.tab} tab={item.tab} current={tab} setTab={setActiveTab} label={t(`nav.${item.tab}`)} icon={item.icon} />
+                  <TabButton key={item.tab} tab={item.tab} current={tab} setTab={setActiveTab} label={t(item.label)} icon={item.icon} />
                 ))}
               </div>
             );
@@ -411,8 +411,8 @@ export default function App() {
             <Menu size={22} />
           </button>
           <div>
-            <p className="eyebrow">{activeNav ? t(`nav.${activeNav.tab}`) : t('nav.dashboard')}</p>
-            <h1>{activeNav ? t(`nav.${activeNav.tab}`) : t('nav.dashboard')}</h1>
+            <p className="eyebrow">{t(activeNav?.label ?? 'Vue générale')}</p>
+            <h1>{t(activeNav?.label ?? 'Vue générale')}</h1>
           </div>
           {loading && <span className="spinner" aria-label="Chargement" />}
         </div>
