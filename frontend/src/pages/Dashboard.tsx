@@ -25,7 +25,9 @@ import type {
   RecurringTransaction,
   Transaction,
 } from '@suzanne/shared';
+import { useTranslation } from 'react-i18next';
 import { formatMonth, formatMonthLong, money as moneyFmt } from '../lib/format';
+import { localeTag } from '../i18n';
 import { useChartTheme } from '../lib/chartTheme';
 import { CADENCE_META, cadenceAmount, cadenceOf, cadenceTotals } from '../lib/subscriptions';
 import { DashboardSection } from '../components/DashboardSection';
@@ -48,6 +50,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
 }) {
+  const { t } = useTranslation();
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, displayCurrency);
   const chartTheme = useChartTheme();
@@ -114,10 +117,10 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
           const overshootDay = dayOfMonth + Math.ceil(daysToLimit);
           if (overshootDay <= daysInSelectedMonth) {
             const date = new Date(Date.UTC(year, monthIdx, overshootDay));
-            forecast = `dépassement prévu le ${date.toISOString().slice(8, 10)}/${monthStr}`;
+            forecast = t('dépassement prévu le {{date}}', { date: `${date.toISOString().slice(8, 10)}/${monthStr}` });
           }
         }
-        return { id: b.id, category_id: b.category_id, name: category?.name ?? 'Catégorie', color: category?.color ?? '#94a3b8', spent, limit: b.amount_limit, pct, forecast };
+        return { id: b.id, category_id: b.category_id, name: category?.name ?? t('Catégorie'), color: category?.color ?? '#94a3b8', spent, limit: b.amount_limit, pct, forecast };
       })
       .filter((row) => row.pct >= 80)
       .sort((a, b) => b.pct - a.pct);
@@ -139,7 +142,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
   const categoryHasData = categoryRows.length > 0;
   const netWorth = summary?.net_worth ?? summary?.balance ?? null;
   const netMonthly = summary?.net ?? null;
-  const monthLabel = summary?.month ? formatMonthLong(summary.month) : 'Mois sélectionné';
+  const monthLabel = summary?.month ? formatMonthLong(summary.month) : t('Mois sélectionné');
 
   // En-tête « produit » façon Binance : valeur nette en gros chiffre + sparkline
   // de la trajectoire cumulée (cumulative_net) déjà présente dans la série 12 mois.
@@ -171,24 +174,24 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
     const arrow = diff === 0 ? '→' : diff > 0 ? '↑' : '↓';
     const tone = diff === 0 ? '' : (diff > 0) === (goodWhen === 'up') ? 'income' : 'expense';
     const pctText = pct == null ? '' : `${Math.abs(pct)}% `;
-    return <span className={tone}>{arrow} {pctText}vs {formatMonth(prevMonthRow.month)} ({money(previous)})</span>;
+    return <span className={tone}>{arrow} {pctText}{t('vs')} {formatMonth(prevMonthRow.month)} ({money(previous)})</span>;
   };
   const savingRateDelta = (() => {
     if (prevSavingRate == null || !prevMonthRow) return null;
     const diff = savingRate - prevSavingRate;
     const arrow = diff === 0 ? '→' : diff > 0 ? '↑' : '↓';
     const tone = diff === 0 ? '' : diff > 0 ? 'income' : 'expense';
-    return <span className={tone}>{arrow} {Math.abs(diff)} pts vs {formatMonth(prevMonthRow.month)} ({prevSavingRate}%)</span>;
+    return <span className={tone}>{arrow} {Math.abs(diff)} {t('pts vs')} {formatMonth(prevMonthRow.month)} ({prevSavingRate}%)</span>;
   })();
 
   return (
-    <DashboardSection title={monthLabel} subtitle="Change le mois via le sélecteur en haut à droite">
+    <DashboardSection title={monthLabel} subtitle={t('Change le mois via le sélecteur en haut à droite')}>
       <section className="balance-hero">
         <div className="balance-hero-main">
-          <span className="balance-hero-label">Valeur nette</span>
+          <span className="balance-hero-label">{t('Valeur nette')}</span>
           <strong className="balance-hero-value">{money(heroValue)}</strong>
           {moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up') && (
-            <span className="balance-hero-delta">Net du mois&nbsp;: {moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up')}</span>
+            <span className="balance-hero-delta">{t('Net du mois')}&nbsp;: {moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up')}</span>
           )}
         </div>
         {sparkData.length > 1 && (
@@ -209,7 +212,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                 <Area
                   type="monotone"
                   dataKey="cumulative_net"
-                  name="Cumul"
+                  name={t('Cumul')}
                   stroke={sparkColor}
                   strokeWidth={2}
                   fill="url(#sparkFill)"
@@ -223,16 +226,16 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
       </section>
 
       <section className="stats">
-        <Stat icon={<ArrowUpCircle />} label="Revenus" value={money(summary?.income ?? 0)} positive delta={moneyDelta(summary?.income ?? 0, prevMonthRow?.income, 'up')} to="/transactions?type=income" />
-        <Stat icon={<ArrowDownCircle />} label="Dépenses" value={money(summary?.expenses ?? 0)} negative delta={moneyDelta(summary?.expenses ?? 0, prevMonthRow?.expenses, 'down')} to="/transactions?type=expense" />
-        <Stat icon={<Euro />} label="Net mensuel" value={money(netMonthly ?? 0)} signed={netMonthly} delta={moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up')} />
-        <Stat icon={<BarChart3 />} label="Taux d'épargne" value={`${savingRate}%`} delta={savingRateDelta} />
-        <Stat icon={<CreditCard />} label="Transactions" value={String(transactionCount)} to="/transactions" />
-        <Stat icon={<Banknote />} label="Dépense moyenne" value={money(averageExpense)} />
+        <Stat icon={<ArrowUpCircle />} label={t('Revenus')} value={money(summary?.income ?? 0)} positive delta={moneyDelta(summary?.income ?? 0, prevMonthRow?.income, 'up')} to="/transactions?type=income" />
+        <Stat icon={<ArrowDownCircle />} label={t('Dépenses')} value={money(summary?.expenses ?? 0)} negative delta={moneyDelta(summary?.expenses ?? 0, prevMonthRow?.expenses, 'down')} to="/transactions?type=expense" />
+        <Stat icon={<Euro />} label={t('Net mensuel')} value={money(netMonthly ?? 0)} signed={netMonthly} delta={moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up')} />
+        <Stat icon={<BarChart3 />} label={t('Taux d\'épargne')} value={`${savingRate}%`} delta={savingRateDelta} />
+        <Stat icon={<CreditCard />} label={t('Transactions')} value={String(transactionCount)} to="/transactions" />
+        <Stat icon={<Banknote />} label={t('Dépense moyenne')} value={money(averageExpense)} />
       </section>
 
       <section className="charts-grid">
-        <Panel title="Répartition des dépenses du mois">
+        <Panel title={t('Répartition des dépenses du mois')}>
           <div className="chart-split">
             <div className="donut-area">
               {categoryHasData ? (
@@ -255,7 +258,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <EmptyChart message="Aucune dépense ce mois-ci." />
+                <EmptyChart message={t('Aucune dépense ce mois-ci.')} />
               )}
             </div>
             <div className="category-list compact">
@@ -272,24 +275,24 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                   <strong>{money(row.amount)}</strong>
                 </div>
               ))}
-              {!categoryHasData && <p className="empty">Aucune dépense ce mois-ci.</p>}
+              {!categoryHasData && <p className="empty">{t('Aucune dépense ce mois-ci.')}</p>}
             </div>
           </div>
         </Panel>
 
-        <SummaryCard title="Budgets" to="/budgets">
+        <SummaryCard title={t('Budgets')} to="/budgets">
           <div className="dashboard-metric">
             <div>
-              <span>Dépenses suivies</span>
+              <span>{t('Dépenses suivies')}</span>
               <strong>{money(budgetUsed)}</strong>
             </div>
             <div>
-              <span>Limites posées</span>
-              <strong>{budgetLimit > 0 ? money(budgetLimit) : 'Aucun budget'}</strong>
+              <span>{t('Limites posées')}</span>
+              <strong>{budgetLimit > 0 ? money(budgetLimit) : t('Aucun budget')}</strong>
             </div>
           </div>
           <div className="bar big"><span style={{ width: `${budgetPct}%`, background: budgetPct >= 100 ? 'var(--expense)' : 'var(--accent)' }} /></div>
-          <p className="panel-note">{budgetLimit > 0 ? `${Math.round(budgetPct)} % consommé` : 'Ajoute des budgets pour suivre la consommation du mois.'}</p>
+          <p className="panel-note">{budgetLimit > 0 ? t('{{pct}} % consommé', { pct: Math.round(budgetPct) }) : t('Ajoute des budgets pour suivre la consommation du mois.')}</p>
           {visibleBudgetAlerts.length > 0 && (
             <div className="category-list compact">
               {visibleBudgetAlerts.map((row) => (
@@ -297,7 +300,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                   type="button"
                   className="category-row budget-alert-row category-link"
                   key={row.id}
-                  title="Voir les transactions de cette catégorie"
+                  title={t('Voir les transactions de cette catégorie')}
                   onClick={() => openCategory(row.category_id)}
                 >
                   <span className="dot inline" style={{ background: row.color }} />
@@ -306,7 +309,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                     <span className={`budget-alert-note ${row.pct >= 100 ? 'over' : ''}`}>
                       {money(row.spent)} / {money(row.limit)}
                       {row.pct >= 100
-                        ? ` · dépassé de ${money(row.spent - row.limit)}`
+                        ? ` · ${t('dépassé de {{amount}}', { amount: money(row.spent - row.limit) })}`
                         : row.forecast ? ` · ${row.forecast}` : ''}
                     </span>
                   </div>
@@ -314,7 +317,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                 </button>
               ))}
               {hiddenBudgetAlerts > 0 && (
-                <p className="panel-note">+{hiddenBudgetAlerts} autre{hiddenBudgetAlerts > 1 ? 's' : ''} budget{hiddenBudgetAlerts > 1 ? 's' : ''} en alerte</p>
+                <p className="panel-note">{t(hiddenBudgetAlerts > 1 ? '+{{n}} autres budgets en alerte' : '+{{n}} autre budget en alerte', { n: hiddenBudgetAlerts })}</p>
               )}
             </div>
           )}
@@ -322,7 +325,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
       </section>
 
       <section className="charts-grid">
-        <SummaryCard title="Plus grosses dépenses du mois" to="/transactions">
+        <SummaryCard title={t('Plus grosses dépenses du mois')} to="/transactions">
           <TransactionList
             transactions={topExpenses}
             categoryById={categoryById}
@@ -331,16 +334,16 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
           />
         </SummaryCard>
 
-        <SummaryCard title="Factures du mois" to="/bills">
+        <SummaryCard title={t('Factures du mois')} to="/bills">
           {billsStatus && billsStatus.due_count > 0 ? (
             <>
               <div className="dashboard-metric">
                 <div>
-                  <span>Payées</span>
+                  <span>{t('Payées')}</span>
                   <strong>{billsStatus.paid_count} / {billsStatus.due_count}</strong>
                 </div>
                 <div>
-                  <span>Payé / attendu</span>
+                  <span>{t('Payé / attendu')}</span>
                   <strong>{moneyFmt(billsStatus.paid_total)} / {moneyFmt(billsStatus.expected_total)}</strong>
                 </div>
               </div>
@@ -354,8 +357,8 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                         <span className="dot" style={{ background: entry.status === 'late' ? 'var(--expense)' : 'var(--muted)' }} />
                         <span title={entry.bill.name}>
                           {entry.bill.name}
-                          {entry.expected_date ? ` · ${new Date(entry.expected_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}` : ''}
-                          {entry.status === 'late' ? ' · en retard' : ''}
+                          {entry.expected_date ? ` · ${new Date(entry.expected_date).toLocaleDateString(localeTag(), { day: '2-digit', month: '2-digit' })}` : ''}
+                          {entry.status === 'late' ? ` · ${t('en retard')}` : ''}
                         </span>
                         <strong className={entry.status === 'late' ? 'expense' : undefined}>~{moneyFmt(mid, currency)}</strong>
                       </div>
@@ -363,52 +366,52 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                   })}
                 </div>
               ) : (
-                <p className="panel-note">Toutes les factures attendues du mois sont réglées.</p>
+                <p className="panel-note">{t('Toutes les factures attendues du mois sont réglées.')}</p>
               )}
             </>
           ) : (
-            <p className="empty">Aucune facture attendue ce mois-ci.</p>
+            <p className="empty">{t('Aucune facture attendue ce mois-ci.')}</p>
           )}
         </SummaryCard>
       </section>
 
       <section className="charts-grid">
-        <SummaryCard title="Patrimoine" to="/wealth">
+        <SummaryCard title={t('Patrimoine')} to="/wealth">
           <div className="dashboard-metric">
             <div>
-              <span>Patrimoine net</span>
+              <span>{t('Patrimoine net')}</span>
               <strong className={netWorth != null && netWorth < 0 ? 'expense' : 'income'}>{money(netWorth ?? 0)}</strong>
             </div>
             <div>
-              <span>Actifs</span>
+              <span>{t('Actifs')}</span>
               <strong>{money(summary?.balance_assets ?? 0)}</strong>
             </div>
             <div>
-              <span>Passifs</span>
+              <span>{t('Passifs')}</span>
               <strong>{money(summary?.balance_liabilities ?? 0)}</strong>
             </div>
           </div>
-          <p className="panel-note">Évolution, répartition et alertes sur la page Patrimoine.</p>
+          <p className="panel-note">{t('Évolution, répartition et alertes sur la page Patrimoine.')}</p>
         </SummaryCard>
 
-        <SummaryCard title="Abonnements" to="/recurring">
+        <SummaryCard title={t('Abonnements')} to="/recurring">
           {activeExpenseRecurring.length > 0 ? (
             <>
               <div className="dashboard-metric">
                 <div>
-                  <span>Mensuels</span>
-                  <strong className="expense">{money(subTotals.monthly)}<small className="cadence-unit">/mois</small></strong>
+                  <span>{t('Mensuels')}</span>
+                  <strong className="expense">{money(subTotals.monthly)}<small className="cadence-unit">{t('/mois')}</small></strong>
                 </div>
                 {subTotals.periodic > 0 && (
                   <div>
-                    <span>Périodiques</span>
-                    <strong className="expense">{money(subTotals.periodic)}<small className="cadence-unit">/an</small></strong>
+                    <span>{t('Périodiques')}</span>
+                    <strong className="expense">{money(subTotals.periodic)}<small className="cadence-unit">{t('/an')}</small></strong>
                   </div>
                 )}
                 {subTotals.weekly > 0 && (
                   <div>
-                    <span>Hebdo</span>
-                    <strong className="expense">{money(subTotals.weekly)}<small className="cadence-unit">/sem</small></strong>
+                    <span>{t('Hebdo')}</span>
+                    <strong className="expense">{money(subTotals.weekly)}<small className="cadence-unit">{t('/sem')}</small></strong>
                   </div>
                 )}
               </div>
@@ -423,7 +426,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
               </div>
             </>
           ) : (
-            <p className="empty">Aucun abonnement actif.</p>
+            <p className="empty">{t('Aucun abonnement actif.')}</p>
           )}
         </SummaryCard>
       </section>
