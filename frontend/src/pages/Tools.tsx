@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, CheckSquare, DatabaseBackup, Download, FileJson, FileUp, Landmark, RotateCcw, Table2, Upload, WalletCards } from 'lucide-react';
+import { ChevronRight, DatabaseBackup, Download, FileJson, FileUp, Landmark, Loader2, RotateCcw, Table2, Upload, X } from 'lucide-react';
 import type { Account, BackupImportSummary, ImportDateFormat, ImportMapping } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
@@ -8,12 +8,12 @@ import { todayIso } from '../lib/format';
 import { guessColumn, parseCsvPreview } from '../lib/csv';
 import { saveBlob, summarizeBackupImport } from '../lib/download';
 import { Modal } from '../components/Modal';
-import { Panel } from '../components/Panel';
 import { StatementImportModal } from '../components/StatementImportModal';
 import { BackupsPanel } from '../components/BackupsPanel';
 import { AuditLogPanel } from '../components/AuditLogPanel';
 
 import type { Run } from '../lib/run';
+import '../styles/pages/settings.css';
 
 const EXPORT_ENTITIES = [
   { key: 'transactions', label: 'Transactions' },
@@ -32,11 +32,13 @@ const EXPORT_ENTITIES = [
   { key: 'alerts', label: 'Alertes' },
   { key: 'import_mappings', label: "Profils d'import CSV" },
   { key: 'attachments', label: 'Pièces jointes (justificatifs)' },
+  { key: 'global_budgets', label: 'Budget du mois' },
+  { key: 'sinking_funds', label: 'Provisions' },
 ] as const;
 
 const PLACEHOLDER_CSV = `dateOp\tdateVal\tlabel\tamount\n2026-05-24\t2026-05-24\tCourses\t-12,50`;
 const ALL_EXPORT_KEYS = EXPORT_ENTITIES.map((e) => e.key);
-const FINANCE_EXPORT_KEYS = ['transactions', 'accounts', 'categories', 'budgets', 'recurring', 'goals', 'goal_contributions', 'bills', 'snapshots', 'holdings'];
+const FINANCE_EXPORT_KEYS = ['transactions', 'accounts', 'categories', 'budgets', 'recurring', 'goals', 'goal_contributions', 'bills', 'snapshots', 'holdings', 'global_budgets', 'sinking_funds'];
 const STRUCTURE_EXPORT_KEYS = ['accounts', 'institutions', 'categories', 'category_rules', 'tags', 'import_mappings', 'alerts'];
 
 function currentYearRange() {
@@ -253,152 +255,134 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     </select></label>
   );
 
+  const fullBackup = () => void runExport({ entities: ALL_EXPORT_KEYS, from: null, to: null, closeModal: false });
+
   return (
-    <section className="tools-page">
-      <section className="tools-hero">
-        <div>
-          <span className="tools-kicker">Maintenance des données</span>
-          <h2>Importer, exporter, restaurer</h2>
-          <p>Actions rapides pour sauvegarder Suzanne, alimenter les transactions et reprendre un export JSON.</p>
-        </div>
-        <div className="tools-hero-actions">
-          <button className="primary" type="button" onClick={() => void runExport({ entities: ALL_EXPORT_KEYS, from: null, to: null, closeModal: false })} disabled={exporting}>
-            <DatabaseBackup size={16} /> Sauvegarde complète
+    <section className="st-page tools-page">
+      <div className="st-tools-grid">
+        <section className="panel st-actions" aria-labelledby="tools-import-title">
+          <h2 id="tools-import-title" className="st-list-title">Importer</h2>
+          <button className="st-action" type="button" onClick={() => setImportOpen(true)}>
+            <span className="st-action-icon"><FileUp size={18} /></span>
+            <span className="st-action-text"><strong>Fichier CSV de ta banque</strong><small>Colonnes détectées, aperçu avant validation</small></span>
+            <ChevronRight size={16} className="st-action-chevron" aria-hidden="true" />
           </button>
-          <button className="secondary" type="button" onClick={() => void runCsvExport()} disabled={exporting}>
-            <Table2 size={16} /> CSV transactions
+          <button className="st-action" type="button" onClick={() => setStatementOpen(true)}>
+            <span className="st-action-icon"><Landmark size={18} /></span>
+            <span className="st-action-text"><strong>Relevé OFX / QIF</strong><small>Doublons ignorés, règles appliquées</small></span>
+            <ChevronRight size={16} className="st-action-chevron" aria-hidden="true" />
           </button>
-        </div>
-      </section>
+          <button className="st-action" type="button" onClick={() => setRestoreOpen(true)}>
+            <span className="st-action-icon"><RotateCcw size={18} /></span>
+            <span className="st-action-text"><strong>Restaurer un export JSON</strong><small>Rien n’est écrasé ni dupliqué</small></span>
+            <ChevronRight size={16} className="st-action-chevron" aria-hidden="true" />
+          </button>
+        </section>
 
-      <section className="tools-action-grid">
-        <button className="tool-card primary-card" type="button" onClick={() => setImportOpen(true)}>
-          <span className="tool-card-icon"><FileUp size={20} /></span>
-          <strong>Importer des transactions</strong>
-          <span>CSV bancaire avec détection des colonnes et aperçu avant validation.</span>
-        </button>
-        <button className="tool-card" type="button" onClick={() => setStatementOpen(true)}>
-          <span className="tool-card-icon"><Landmark size={20} /></span>
-          <strong>Importer un relevé OFX / QIF</strong>
-          <span>Fichier bancaire standard, dédoublonnage et auto-catégorisation inclus.</span>
-        </button>
-        <button className="tool-card" type="button" onClick={() => setExportOpen(true)}>
-          <span className="tool-card-icon"><Download size={20} /></span>
-          <strong>Exporter sur mesure</strong>
-          <span>Choisir les entités et limiter la sauvegarde à une plage de dates.</span>
-        </button>
-        <button className="tool-card" type="button" onClick={() => setRestoreOpen(true)}>
-          <span className="tool-card-icon"><RotateCcw size={20} /></span>
-          <strong>Restaurer un JSON</strong>
-          <span>Réimporter un export Suzanne en réutilisant les entités existantes.</span>
-        </button>
-      </section>
+        <section className="panel st-actions" aria-labelledby="tools-export-title">
+          <h2 id="tools-export-title" className="st-list-title">Exporter</h2>
+          <button className="st-action" type="button" onClick={fullBackup} disabled={exporting}>
+            <span className="st-action-icon"><DatabaseBackup size={18} /></span>
+            <span className="st-action-text"><strong>Sauvegarde complète</strong><small>Tout, en JSON réimportable</small></span>
+            {exporting ? <Loader2 size={16} className="spin-icon st-action-chevron" aria-hidden="true" /> : <Download size={16} className="st-action-chevron" aria-hidden="true" />}
+          </button>
+          <button className="st-action" type="button" onClick={() => setExportOpen(true)}>
+            <span className="st-action-icon"><FileJson size={18} /></span>
+            <span className="st-action-text"><strong>Export sur mesure</strong><small>Choisir les données et la période</small></span>
+            <ChevronRight size={16} className="st-action-chevron" aria-hidden="true" />
+          </button>
+          <button className="st-action" type="button" onClick={() => void runCsvExport()} disabled={exporting}>
+            <span className="st-action-icon"><Table2 size={18} /></span>
+            <span className="st-action-text"><strong>Opérations en CSV</strong><small>Pour un tableur (séparateur ;)</small></span>
+            <Download size={16} className="st-action-chevron" aria-hidden="true" />
+          </button>
+        </section>
+      </div>
 
-      <section className="tools-grid">
-        <Panel title="Raccourcis d'export" icon={<DatabaseBackup />}>
-          <div className="quick-export-list">
-            <button type="button" onClick={() => void runExport({ entities: ALL_EXPORT_KEYS, from: null, to: null, closeModal: false })} disabled={exporting}>
-              <DatabaseBackup size={16} />
-              <span><strong>Backup complet</strong><small>Tout le modèle, sans filtre de date</small></span>
-            </button>
-            <button type="button" onClick={() => void runExport({ entities: FINANCE_EXPORT_KEYS, ...currentYearRange(), closeModal: false })} disabled={exporting}>
-              <CalendarDays size={16} />
-              <span><strong>Année en cours</strong><small>Transactions, budgets, récurrents, objectifs, snapshots</small></span>
-            </button>
-            <button type="button" onClick={() => void runCsvExport()} disabled={exporting}>
-              <Table2 size={16} />
-              <span><strong>CSV transactions</strong><small>Pour Excel / LibreOffice (séparateur ;), réimportable</small></span>
-            </button>
+      {lastCsvImport && (
+        <section className="panel st-import-result" aria-live="polite">
+          <div className="st-import-head">
+            <h2 className="st-list-title">Dernier import CSV</h2>
+            <button type="button" className="icon-button neutral" aria-label="Masquer" onClick={() => setLastCsvImport(null)}><X size={16} /></button>
           </div>
-        </Panel>
+          <p className="st-import-figures">
+            <strong>{lastCsvImport.imported}</strong> importée{lastCsvImport.imported > 1 ? 's' : ''}
+            <span> · {lastCsvImport.skipped} ignorée{lastCsvImport.skipped > 1 ? 's' : ''}, dont {lastCsvImport.duplicates_count} doublon{lastCsvImport.duplicates_count > 1 ? 's' : ''}</span>
+          </p>
+          {(lastCsvImport.before_reference ?? 0) > 0 && (
+            <p className="panel-note">
+              {lastCsvImport.before_reference} opération(s) antérieure(s) au solde de référence du compte ({lastCsvImport.reference_date}) :
+              elles complètent l’historique sans modifier le solde actuel.
+            </p>
+          )}
+          {lastCsvImport.duplicates.length > 0 && (
+            <ul className="st-dupes">
+              {lastCsvImport.duplicates.slice(0, 12).map((duplicate) => (
+                <li key={`${duplicate.line}-${duplicate.reason}`}>
+                  <strong>Ligne {duplicate.line}</strong>
+                  <span>{duplicate.date} · <span className="amount-cell">{duplicate.amount}</span> · {duplicate.description || 'Sans libellé'} · {duplicate.reason === 'existing' ? 'déjà présente' : 'doublon du fichier'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
-        <Panel title="Bonnes pratiques" icon={<WalletCards />}>
-          <div className="tools-checklist">
-            <div><CheckSquare size={16} /> Faire un backup complet avant un gros import.</div>
-            <div><CheckSquare size={16} /> Restaurer est sans risque : ce qui existe déjà est reconnu et n'est pas dupliqué.</div>
-            <div><CheckSquare size={16} /> Pour un CSV bancaire, choisir le compte source avant d'importer.</div>
-          </div>
-        </Panel>
-      </section>
-
-      <section className="tools-grid">
+      <div className="st-tools-grid st-tools-data">
         <BackupsPanel userId={userId} run={run} />
         <AuditLogPanel userId={userId} />
-      </section>
-      {lastCsvImport && (
-        <Panel title="Dernier import CSV" icon={<FileUp />}>
-          <div className="import-summary">
-            <strong>{lastCsvImport.imported} transactions importées</strong>
-            <span>{lastCsvImport.skipped} lignes ignorées, dont {lastCsvImport.duplicates_count} doublons.</span>
-            {(lastCsvImport.before_reference ?? 0) > 0 && (
-              <span>
-                {lastCsvImport.before_reference} opération(s) antérieure(s) au solde de référence du compte ({lastCsvImport.reference_date}) :
-                elles complètent l'historique sans modifier le solde actuel.
-              </span>
-            )}
-            {lastCsvImport.duplicates.length > 0 && (
-              <div className="duplicate-list">
-                {lastCsvImport.duplicates.slice(0, 12).map((duplicate) => (
-                  <div key={`${duplicate.line}-${duplicate.reason}`}>
-                    <strong>Ligne {duplicate.line}</strong>
-                    <span>{duplicate.date} · {duplicate.amount} · {duplicate.description || 'Sans libellé'} · {duplicate.reason === 'existing' ? 'déjà présente' : 'doublon du fichier'}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </Panel>
-      )}
+      </div>
+
       {statementOpen && (
         <StatementImportModal userId={userId} accounts={accounts} run={run} onClose={() => setStatementOpen(false)} />
       )}
+
       {importOpen && (
-        <Modal title="Importer CSV" onClose={() => setImportOpen(false)} wide>
+        <Modal title="Importer un CSV" onClose={() => setImportOpen(false)} wide>
           <form className="form tools-modal-form" onSubmit={submit}>
-            <div className="modal-intro full">
-              <FileUp size={18} />
-              <span>Importe un relevé bancaire. Les colonnes date et montant sont obligatoires ; les autres peuvent rester ignorées.</span>
+            <div className="full">
+              <div
+                className={`csv-drop${dragActive ? ' active' : ''}${fileName ? ' loaded' : ''}`}
+                onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={onDrop}
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInputRef.current?.click(); } }}
+                role="button"
+                tabIndex={0}
+              >
+                <Upload size={20} />
+                <span>{fileName ? <><strong>{fileName}</strong> · touche pour changer</> : 'Dépose le fichier CSV ici, ou touche pour parcourir'}</span>
+              </div>
+              <input ref={fileInputRef} type="file" accept=".csv,text/csv" hidden onChange={onFileInput} />
             </div>
             <label>Compte<select name="account_id"><option value="">Aucun</option>{pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}</select></label>
             <label>Format de date<select value={dateFormat} onChange={(e) => setDateFormat(e.target.value as ImportDateFormat)}>
               <option value="auto">Détection auto</option>
-              <option value="yyyy-mm-dd">YYYY-MM-DD</option>
-              <option value="dd/mm/yyyy">DD/MM/YYYY</option>
-              <option value="mm/dd/yyyy">MM/DD/YYYY</option>
-              <option value="dd-mm-yyyy">DD-MM-YYYY</option>
-              <option value="yyyymmdd">YYYYMMDD</option>
+              <option value="yyyy-mm-dd">AAAA-MM-JJ</option>
+              <option value="dd/mm/yyyy">JJ/MM/AAAA</option>
+              <option value="mm/dd/yyyy">MM/JJ/AAAA</option>
+              <option value="dd-mm-yyyy">JJ-MM-AAAA</option>
+              <option value="yyyymmdd">AAAAMMJJ</option>
             </select></label>
             {mappings.length > 0 && (
-              <label>Profil de banque
+              <label className="full">Profil de banque
                 <select defaultValue="" onChange={(e) => { const m = mappings.find((x) => String(x.id) === e.target.value); if (m) applyMapping(m); }}>
                   <option value="">Choisir un profil…</option>
                   {mappings.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </label>
             )}
-            <div className="full">
-              <div
-                className={`csv-drop${dragActive ? ' active' : ''}`}
-                onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
-                onDragLeave={() => setDragActive(false)}
-                onDrop={onDrop}
-                onClick={() => fileInputRef.current?.click()}
-                role="button"
-                tabIndex={0}
-              >
-                <Upload size={20} />
-                <span>{fileName ? `${fileName} chargé. Cliquez pour changer.` : 'Glissez un fichier CSV ici, ou cliquez pour parcourir.'}</span>
-              </div>
-              <input ref={fileInputRef} type="file" accept=".csv,text/csv" hidden onChange={onFileInput} />
-            </div>
-            <label className="full">CSV
+            <details className="full st-paste">
+              <summary>Ou coller le contenu du CSV</summary>
               <textarea
+                aria-label="Contenu CSV"
                 value={csv}
                 onChange={(e) => { setCsv(e.target.value); setFileName(null); }}
                 placeholder={PLACEHOLDER_CSV}
-                required
+                rows={6}
               />
-            </label>
+            </details>
             {preview.headers.length > 0 && (
               <>
                 <div className="form-section-title">Colonnes à importer</div>
@@ -406,21 +390,18 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
                 {columnSelect('amount', 'Montant', true)}
                 {columnSelect('description', 'Libellé')}
                 {columnSelect('type', 'Type')}
-                <div className="full">
+                <div className="full st-mapping">
                   <button type="button" className="secondary" disabled={!mapping.date || !mapping.amount} onClick={saveMapping}>
-                    <DatabaseBackup size={16} /> Enregistrer ce mapping comme profil
+                    <DatabaseBackup size={16} /> Enregistrer comme profil
                   </button>
-                  {mappings.length > 0 && (
-                    <p className="panel-note">
-                      Profils : {mappings.map((m) => (
-                        <span key={m.id} className="badge-recurring" style={{ cursor: 'pointer' }} onClick={() => removeMapping(m)} title="Cliquer pour supprimer">
-                          {m.name} ✕
-                        </span>
-                      ))}
-                    </p>
-                  )}
+                  {mappings.map((m) => (
+                    <span key={m.id} className="st-chip">
+                      {m.name}
+                      <button type="button" aria-label={`Supprimer le profil ${m.name}`} title="Supprimer ce profil" onClick={() => removeMapping(m)}><X size={12} /></button>
+                    </span>
+                  ))}
                 </div>
-                <div className="table-wrap full">
+                <div className="table-wrap table-nocards full st-preview-table">
                   <table className="tx-table">
                     <thead><tr>{preview.headers.map((header) => <th key={header}>{header}</th>)}</tr></thead>
                     <tbody>{preview.rows.slice(0, 5).map((row, idx) => <tr key={idx}>{preview.headers.map((header) => <td key={header}>{row[header] ?? ''}</td>)}</tr>)}</tbody>
@@ -429,27 +410,23 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
               </>
             )}
             <div className="modal-actions full">
-              <button className="primary" disabled={!mapping.date || !mapping.amount}>Importer</button>
               <button type="button" className="secondary" onClick={() => setImportOpen(false)}>Annuler</button>
+              <button className="primary" disabled={!csv.trim() || !mapping.date || !mapping.amount}>Importer</button>
             </div>
           </form>
         </Modal>
       )}
 
       {exportOpen && (
-        <Modal title="Exporter une sauvegarde" onClose={() => setExportOpen(false)}>
+        <Modal title="Export sur mesure" onClose={() => setExportOpen(false)}>
           <div className="form tools-modal-form">
-            <div className="modal-intro full">
-              <FileJson size={18} />
-              <span>Le JSON est le format de sauvegarde réimportable. Le CSV transactions sert plutôt à consulter ou traiter dans un tableur.</span>
-            </div>
+            <div className="form-section-title">Données ({exportEntities.size}/{EXPORT_ENTITIES.length})</div>
             <div className="preset-row full">
-              <button type="button" className="secondary" onClick={() => setExportPreset(ALL_EXPORT_KEYS)}>Tout cocher</button>
-              <button type="button" className="secondary" onClick={() => setExportPreset(FINANCE_EXPORT_KEYS)}>Données financières</button>
-              <button type="button" className="secondary" onClick={() => setExportPreset(STRUCTURE_EXPORT_KEYS)}>Structure seule</button>
-              <button type="button" className="secondary" onClick={() => setExportPreset([])}>Vider</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset(ALL_EXPORT_KEYS)}>Tout</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset(FINANCE_EXPORT_KEYS)}>Finances</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset(STRUCTURE_EXPORT_KEYS)}>Structure</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset([])}>Aucune</button>
             </div>
-            <div className="form-section-title">Données à inclure ({exportEntities.size}/{EXPORT_ENTITIES.length})</div>
             <div className="checkbox-grid full">
               {EXPORT_ENTITIES.map((entity) => (
                 <label key={entity.key} className="checkbox-row">
@@ -462,19 +439,18 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
                 </label>
               ))}
             </div>
-            <div className="form-section-title">Plage de dates (transactions et snapshots)</div>
+            <div className="form-section-title">Période (opérations et soldes)</div>
             <label>Du<input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} /></label>
             <label>Au<input type="date" value={exportTo} onChange={(e) => setExportTo(e.target.value)} /></label>
             <div className="preset-row full">
               <button type="button" className="secondary" onClick={setCurrentYearExportRange}>Année en cours</button>
-              <button type="button" className="secondary" onClick={() => { setExportFrom(''); setExportTo(''); }}>Sans filtre</button>
+              <button type="button" className="secondary" onClick={() => { setExportFrom(''); setExportTo(''); }}>Toutes les dates</button>
             </div>
-            <p className="panel-note full">Laisser vide pour exporter sans filtre de date. Les budgets sont filtrés par mois équivalent.</p>
             <div className="modal-actions full">
-              <button className="primary" type="button" onClick={() => void runExport()} disabled={exporting || exportEntities.size === 0}>
-                <Download size={16} /> {exporting ? 'Export en cours…' : 'Télécharger'}
-              </button>
               <button type="button" className="secondary" onClick={() => setExportOpen(false)}>Annuler</button>
+              <button className="primary" type="button" onClick={() => void runExport()} disabled={exporting || exportEntities.size === 0}>
+                <Download size={16} /> {exporting ? 'Export…' : 'Télécharger'}
+              </button>
             </div>
           </div>
         </Modal>
@@ -483,36 +459,39 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
       {restoreOpen && (
         <Modal title="Restaurer une sauvegarde" onClose={() => setRestoreOpen(false)}>
           <div className="form tools-modal-form">
-            <p className="panel-note">
-              Importe un export JSON Suzanne. Rien n'est écrasé : les éléments déjà présents (mêmes noms, ou transaction identique —
-              même compte, date, montant et libellé) sont reconnus et non dupliqués. L'import est tout ou rien : en cas d'erreur, rien n'est écrit.
+            <p className="panel-note full">
+              Rien n’est écrasé : ce qui existe déjà (mêmes noms, ou même opération — compte, date, montant, libellé) est reconnu
+              et pas dupliqué. Tout ou rien : en cas d’erreur, rien n’est écrit.
             </p>
             <div
-              className={`csv-drop${restoreDragActive ? ' active' : ''}`}
+              className={`csv-drop full${restoreDragActive ? ' active' : ''}${restoreFileName ? ' loaded' : ''}`}
               onDragOver={(event) => { event.preventDefault(); setRestoreDragActive(true); }}
               onDragLeave={() => setRestoreDragActive(false)}
               onDrop={(event) => void onRestoreDrop(event)}
               onClick={() => restoreFileRef.current?.click()}
+              onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); restoreFileRef.current?.click(); } }}
               role="button"
               tabIndex={0}
             >
               <Upload size={20} />
-              <span>{restoreFileName ? `${restoreFileName} chargé. Cliquez pour changer.` : 'Glisser un fichier JSON ou cliquer pour parcourir.'}</span>
+              <span>{restoreFileName ? <><strong>{restoreFileName}</strong> · touche pour changer</> : 'Dépose le fichier JSON ici, ou touche pour parcourir'}</span>
             </div>
             <input ref={restoreFileRef} type="file" accept="application/json,.json" hidden onChange={onRestoreFile} />
-            <label className="full">JSON
+            <details className="full st-paste">
+              <summary>Ou coller le JSON</summary>
               <textarea
+                aria-label="Contenu JSON"
                 value={restorePayload}
-                onChange={(e) => setRestorePayload(e.target.value)}
+                onChange={(e) => { setRestorePayload(e.target.value); setRestoreFileName(null); }}
                 placeholder='{"version":1,"accounts":[...],...}'
-                rows={8}
+                rows={6}
               />
-            </label>
+            </details>
             <div className="modal-actions full">
-              <button className="primary" type="button" onClick={runRestore} disabled={restoring || !restorePayload.trim()}>
-                <Upload size={16} /> {restoring ? 'Import en cours…' : 'Restaurer'}
-              </button>
               <button type="button" className="secondary" onClick={() => setRestoreOpen(false)}>Annuler</button>
+              <button className="primary" type="button" onClick={() => void runRestore()} disabled={restoring || !restorePayload.trim()}>
+                <Upload size={16} /> {restoring ? 'Import…' : 'Restaurer'}
+              </button>
             </div>
           </div>
         </Modal>

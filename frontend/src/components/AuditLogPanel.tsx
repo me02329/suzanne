@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { History, Loader2 } from 'lucide-react';
+const PAGE = 12;
+import { Loader2 } from 'lucide-react';
 import type { AuditLogEntry } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { DataTable } from './DataTable';
@@ -16,6 +17,7 @@ const ENTITY_LABEL: Record<string, string> = {
 // Journal d'audit : dernières mutations (qui/quoi/quand).
 export function AuditLogPanel({ userId, dataVersion = 0 }: { userId: number; dataVersion?: number }) {
   const [items, setItems] = useState<AuditLogEntry[] | null>(null);
+  const [shown, setShown] = useState(PAGE);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,23 +28,30 @@ export function AuditLogPanel({ userId, dataVersion = 0 }: { userId: number; dat
   }, [userId, dataVersion]);
 
   return (
-    <Panel title="Activité récente" icon={<History />}>
-      <p className="panel-note">Journal des modifications (200 dernières).</p>
+    <Panel title="Activité récente">
+      <p className="panel-note">Les dernières modifications, de la plus récente à la plus ancienne.</p>
       {items == null ? (
         <p className="empty"><Loader2 className="spin-icon" size={16} /> Chargement…</p>
       ) : (
-        <DataTable scroll empty={items.length === 0 ? 'Aucune activité enregistrée.' : null}>
-          <thead><tr><th>Quand</th><th>Action</th><th>Élément</th></tr></thead>
+        <>
+        <DataTable empty={items.length === 0 ? 'Aucune activité enregistrée.' : null}>
+          <thead><tr><th>Élément</th><th>Action</th><th>Quand</th></tr></thead>
           <tbody>
-            {items.map((e) => (
+            {items.slice(0, shown).map((e) => (
               <tr key={e.id}>
-                <td data-label="Quand">{new Date(e.created_at).toLocaleString('fr-FR')}</td>
+                <td className="cell-primary"><strong>{ENTITY_LABEL[e.entity] ?? e.entity}{e.entity_id != null ? ` #${e.entity_id}` : ''}</strong></td>
                 <td data-label="Action">{ACTION_LABEL[e.action] ?? e.action}</td>
-                <td data-label="Élément">{ENTITY_LABEL[e.entity] ?? e.entity}{e.entity_id != null ? ` #${e.entity_id}` : ''}</td>
+                <td className="st-muted" data-label="Quand">{new Date(e.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
               </tr>
             ))}
           </tbody>
         </DataTable>
+        {items.length > shown && (
+          <button type="button" className="secondary st-more" onClick={() => setShown((n) => n + 50)}>
+            Voir plus ({items.length - shown})
+          </button>
+        )}
+        </>
       )}
     </Panel>
   );

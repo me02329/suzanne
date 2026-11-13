@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { FileUp, Loader2, Upload } from 'lucide-react';
 import type { Account, ImportDateFormat, ImportResult } from '@suzanne/shared';
 import { api } from '../lib/api';
@@ -20,16 +20,21 @@ export function StatementImportModal({ userId, accounts, run, onClose }: {
   const [content, setContent] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     setContent(await file.text());
     setFileName(file.name);
+    setResult(null);
     if (file.name.toLowerCase().endsWith('.qif')) setFormat('qif');
     if (file.name.toLowerCase().endsWith('.ofx')) setFormat('ofx');
   };
 
   const submit = () => {
+    setBusy(true);
     void run(async () => {
       const r = await api.importStatement(userId, {
         format,
@@ -39,20 +44,30 @@ export function StatementImportModal({ userId, accounts, run, onClose }: {
       });
       setResult(r);
       return r;
-    }, (r) => `Relevé : ${(r as ImportResult).imported} importées, ${(r as ImportResult).duplicates_count} doublons ignorés`);
+    }, (r) => `Relevé : ${(r as ImportResult).imported} importées, ${(r as ImportResult).duplicates_count} doublons ignorés`).finally(() => setBusy(false));
   };
 
   return (
-    <Modal title="Importer un relevé (OFX / QIF)" onClose={onClose} wide>
-      <p className="panel-note">
-        Glisse un fichier <code>.ofx</code> ou <code>.qif</code> exporté depuis ta banque. Les doublons (déjà présents
-        ou en double dans le fichier) sont détectés et ignorés, et les règles d'auto-catégorisation s'appliquent.
-      </p>
+    <Modal title="Importer un relevé OFX / QIF" onClose={onClose} wide>
       <div className="form tools-modal-form">
-        <label>Fichier
-          <input type="file" accept=".ofx,.qif,application/x-ofx,text/plain" onChange={(e) => void onFile(e.target.files?.[0])} />
-        </label>
-        {fileName && <p className="panel-note"><FileUp size={14} /> {fileName} · {content.length.toLocaleString('fr-FR')} caractères</p>}
+        <div
+          className={`csv-drop full${dragActive ? ' active' : ''}${fileName ? ' loaded' : ''}`}
+          onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={(event) => { event.preventDefault(); setDragActive(false); void onFile(event.dataTransfer.files?.[0]); }}
+          onClick={() => fileRef.current?.click()}
+          onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileRef.current?.click(); } }}
+          role="button"
+          tabIndex={0}
+        >
+          <Upload size={20} />
+          <span>
+            {fileName
+              ? <><strong>{fileName}</strong> · {content.length.toLocaleString('fr-FR')} caractères · touche pour changer</>
+              : 'Dépose le fichier .ofx ou .qif ici, ou touche pour parcourir'}
+          </span>
+        </div>
+        <input ref={fileRef} type="file" accept=".ofx,.qif,application/x-ofx,text/plain" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
         <label>Format
           <select value={format} onChange={(e) => setFormat(e.target.value as 'ofx' | 'qif')}>
             <option value="ofx">OFX</option>
@@ -75,17 +90,18 @@ export function StatementImportModal({ userId, accounts, run, onClose }: {
             </select>
           </label>
         )}
+        <p className="panel-note full">Les doublons (déjà présents ou répétés dans le fichier) sont ignorés, et tes règles de catégorie s’appliquent.</p>
         {result && (
-          <div className="panel-note">
-            <strong>{result.imported}</strong> transactions importées · {result.skipped} ignorées
-            {result.duplicates_count > 0 && ` (dont ${result.duplicates_count} doublons)`}.
+          <div className="notice full" role="status">
+            <FileUp size={16} /> <strong>{result.imported}</strong> importée{result.imported > 1 ? 's' : ''} · {result.skipped} ignorée{result.skipped > 1 ? 's' : ''}
+            {result.duplicates_count > 0 && ` (dont ${result.duplicates_count} doublon${result.duplicates_count > 1 ? 's' : ''})`}
           </div>
         )}
-        <div className="form-inline">
-          <button type="button" className="primary" disabled={!content} onClick={submit}>
-            {content ? <Upload size={16} /> : <Loader2 size={16} />} Importer
+        <div className="modal-actions full">
+          <button type="button" className="secondary" onClick={onClose}>{result ? 'Fermer' : 'Annuler'}</button>
+          <button type="button" className="primary" disabled={!content || busy} onClick={submit}>
+            {busy ? <Loader2 className="spin-icon" size={16} /> : <Upload size={16} />} Importer
           </button>
-          <button type="button" className="secondary" onClick={onClose}>Fermer</button>
         </div>
       </div>
     </Modal>

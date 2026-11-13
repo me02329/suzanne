@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Clock, DatabaseBackup, Download, Loader2, Plus, RotateCcw } from 'lucide-react';
+import { Clock, DatabaseBackup, Download, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import type { BackupImportSummary, BackupMeta } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { saveBlob, summarizeBackupImport } from '../lib/download';
 import { DataTable } from './DataTable';
 import { IconButton } from './IconButton';
 import { Panel } from './Panel';
+import { RowMenu } from './ui/RowMenu';
 import type { Run } from '../lib/run';
 
 function humanSize(bytes: number): string {
@@ -50,28 +51,37 @@ export function BackupsPanel({ userId, run }: { userId: number; run: Run }) {
   };
 
   return (
-    <Panel title="Sauvegardes" icon={<DatabaseBackup />}>
-      <p className="panel-note">Snapshots complets stockés dans la base. Une sauvegarde automatique est créée chaque jour (les 14 dernières sont conservées).</p>
-      <div className="form-inline" style={{ marginBottom: 12 }}>
-        <button type="button" className="primary" disabled={busy} onClick={create}>
-          {busy ? <Loader2 className="spin-icon" size={16} /> : <Plus size={16} />} Créer une sauvegarde
+    <Panel
+      title="Sauvegardes"
+      action={(
+        <button type="button" className="secondary" disabled={busy} onClick={create}>
+          {busy ? <Loader2 className="spin-icon" size={16} /> : <Plus size={16} />} Créer
         </button>
-      </div>
+      )}
+    >
+      <p className="panel-note">Une sauvegarde automatique par jour, les 14 dernières sont gardées.</p>
       {items == null ? (
         <p className="empty"><Loader2 className="spin-icon" size={16} /> Chargement…</p>
       ) : (
         <DataTable scroll empty={items.length === 0 ? 'Aucune sauvegarde.' : null}>
-          <thead><tr><th>Sauvegarde</th><th className="amount-cell">Taille</th><th>Date</th><th className="actions-cell">Actions</th></tr></thead>
+          <thead><tr><th>Sauvegarde</th><th>Date</th><th className="amount-cell">Taille</th><th className="actions-cell"><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
             {items.map((b) => (
               <tr key={b.id}>
-                <td data-label="Sauvegarde">{b.auto ? <Clock size={13} /> : <DatabaseBackup size={13} />} {b.label}</td>
-                <td className="amount-cell" data-label="Taille">{humanSize(b.size)}</td>
-                <td data-label="Date">{new Date(b.created_at).toLocaleString('fr-FR')}</td>
+                <td className="cell-primary">
+                  <span className="st-name">
+                    {b.auto ? <Clock size={14} aria-label="Automatique" /> : <DatabaseBackup size={14} aria-label="Manuelle" />}
+                    <span title={b.label}>{b.label}</span>
+                  </span>
+                </td>
+                <td className="st-muted" data-label="Date">{new Date(b.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                <td className="amount-cell st-muted" data-label="Taille">{humanSize(b.size)}</td>
                 <td className="actions-cell">
                   <IconButton label="Télécharger" tone="neutral" icon={<Download size={16} />} onClick={() => void download(b)} />
-                  <IconButton label="Restaurer" tone="accent" confirm="Restaurer cette sauvegarde ? Rien n'est écrasé ni dupliqué : seules les données absentes sont recréées." icon={<RotateCcw size={16} />} onClick={() => restore(b)} />
-                  <IconButton label="Supprimer" confirm="Supprimer cette sauvegarde ?" onClick={() => remove(b)} />
+                  <RowMenu items={[
+                    { label: 'Restaurer', icon: <RotateCcw />, confirm: 'Restaurer cette sauvegarde ? Rien n’est écrasé ni dupliqué : seules les données absentes sont recréées.', onSelect: () => restore(b) },
+                    { label: 'Supprimer', icon: <Trash2 />, danger: true, confirm: 'Supprimer cette sauvegarde ?', onSelect: () => remove(b) },
+                  ]} />
                 </td>
               </tr>
             ))}

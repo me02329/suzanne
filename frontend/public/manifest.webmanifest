@@ -5,8 +5,8 @@
   "start_url": "/transactions",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#eef2f7",
-  "theme_color": "#2563eb",
+  "background_color": "#f2efe6",
+  "theme_color": "#17150f",
   "icons": [
     {
       "src": "/icons/icon.svg",

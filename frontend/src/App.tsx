@@ -468,6 +468,8 @@ export default function App() {
                 reportCurrency={reportCurrency}
                 categoryById={categoryById}
                 accountById={accountById}
+                userId={userId}
+                budgetStatus={budgetStatus}
               />
             )}
           />
@@ -516,7 +518,7 @@ export default function App() {
           <Route path="/accounts" element={userId ? <Accounts userId={userId} accounts={accounts} institutions={institutions} snapshots={snapshots} institutionById={institutionById} summary={summary} run={run} /> : null} />
           <Route path="/accounts/:id" element={userId ? <AccountDetail userId={userId} accounts={accounts} summary={summary} snapshots={snapshots} categoryById={categoryById} reportCurrency={reportCurrency} run={run} /> : null} />
           <Route path="/categories" element={userId ? <Categories userId={userId} categories={categories} run={run} /> : null} />
-          <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} budgets={budgetStatus} run={run} /> : null} />
+          <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} run={run} reportCurrency={reportCurrency} dataVersion={dataVersion} /> : null} />
           <Route path="/recurring" element={userId ? <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} summary={summary} reportCurrency={reportCurrency} run={run} /> : null} />
           <Route path="/bills" element={userId ? <Bills userId={userId} month={month} billsStatus={billsStatus} accounts={accounts} categories={categories} accountById={accountById} run={run} /> : null} />
           <Route path="/forecast" element={userId ? <Forecast recurring={recurring} accounts={accounts} goals={goals} summary={summary} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />

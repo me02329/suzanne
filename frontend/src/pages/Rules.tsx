@@ -1,14 +1,50 @@
 import { FormEvent, useState } from 'react';
-import { Check, ChevronDown, ChevronUp, Pencil, Plus, Wand2, X } from 'lucide-react';
+import { ArrowRight, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
 import type { Category, CategoryRule } from '@suzanne/shared';
 import { api } from '../lib/api';
-import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
-import { Panel } from '../components/Panel';
-import { Collapsible } from '../components/Collapsible';
-
+import { Modal } from '../components/Modal';
+import { RowMenu } from '../components/ui/RowMenu';
 import type { Run } from '../lib/run';
+import '../styles/pages/settings.css';
+
+type RuleBody = { pattern: string; category_id: number };
+
+function RuleForm({ initial, categories, onSubmit, onCancel, submitLabel }: {
+  initial?: CategoryRule;
+  categories: Category[];
+  onSubmit: (body: RuleBody) => void;
+  onCancel: () => void;
+  submitLabel: string;
+}) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const pattern = String(data.get('pattern')).trim();
+    const category_id = Number(data.get('category_id'));
+    if (!pattern || !Number.isFinite(category_id) || category_id <= 0) return;
+    onSubmit({ pattern, category_id });
+  };
+  return (
+    <form className="form st-form" onSubmit={submit}>
+      <label className="full">Si le libellé contient
+        <input name="pattern" defaultValue={initial?.pattern} placeholder="CARREFOUR" required autoComplete="off" autoCapitalize="characters" />
+      </label>
+      <label className="full">alors classer dans
+        <select name="category_id" defaultValue={initial?.category_id ?? ''} required>
+          <option value="" disabled>Choisir une catégorie…</option>
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </label>
+      <p className="panel-note full">S'applique aux imports, et aux opérations sans catégorie via « Appliquer ».</p>
+      <div className="modal-actions full">
+        <button type="button" className="secondary" onClick={onCancel}>Annuler</button>
+        <button className="primary">{submitLabel}</button>
+      </div>
+    </form>
+  );
+}
 
 export function Rules({ userId, rules, categories, categoryById, run }: {
   userId: number;
@@ -17,115 +53,91 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
   categoryById: Map<number, Category>;
   run: Run;
 }) {
-  const [addOpen, setAddOpen] = usePersistedState<boolean>('rules_add_open', rules.length === 0);
-  // Édition inline d'une règle (mot-clé + catégorie).
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editPattern, setEditPattern] = useState('');
-  const [editCategoryId, setEditCategoryId] = useState('');
-  const startEdit = (rule: CategoryRule) => {
-    setEditingId(rule.id);
-    setEditPattern(rule.pattern);
-    setEditCategoryId(String(rule.category_id));
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<CategoryRule | null>(null);
+
+  const create = (body: RuleBody) => {
+    void run(() => api.setRule(userId, body), 'Règle enregistrée').then((ok) => { if (ok) setCreating(false); });
   };
-  const saveEdit = (rule: CategoryRule) => {
-    const pattern = editPattern.trim();
-    const category_id = Number(editCategoryId);
-    if (!pattern || !Number.isFinite(category_id) || category_id <= 0) return;
-    void run(() => api.updateRule(userId, rule.id, { pattern, category_id }), 'Règle mise à jour')
-      .then((ok) => { if (ok) setEditingId(null); });
+  const update = (body: RuleBody) => {
+    if (!editing) return;
+    void run(() => api.updateRule(userId, editing.id, body), 'Règle mise à jour').then((ok) => { if (ok) setEditing(null); });
   };
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    void run(() => api.setRule(userId, {
-      pattern: String(data.get('pattern')),
-      category_id: Number(data.get('category_id')),
-    }), 'Règle enregistrée');
-    event.currentTarget.reset();
+  // Une règle supprimée se recrée à l'identique : suppression annulable, sans confirmation.
+  const remove = (rule: CategoryRule) => {
+    void run(() => api.deleteRule(userId, rule.id), 'Règle supprimée', {
+      undo: () => api.setRule(userId, { pattern: rule.pattern, category_id: rule.category_id }),
+    });
   };
+  const applyAll = () => {
+    if (!window.confirm('Appliquer les règles à toutes les opérations sans catégorie ?')) return;
+    void run(
+      () => api.applyRules(userId),
+      (result) => {
+        const { categorized } = result as { categorized: number };
+        return categorized > 0
+          ? `${categorized} opération${categorized > 1 ? 's' : ''} catégorisée${categorized > 1 ? 's' : ''}`
+          : 'Aucune opération sans catégorie à classer';
+      },
+    );
+  };
+
   return (
-    <section className="stack">
-      <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
-        <button type="button" className="collapsible-header" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
-          <span className="collapsible-title"><Plus size={16} /> Nouvelle règle</span>
-          {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-        <Collapsible open={addOpen} className="collapsible-body">
-            <p className="panel-note">Si le libellé d'une transaction contient le mot-clé, elle reçoit automatiquement la catégorie choisie. Appliquées à l'<strong>import CSV</strong>, et rétroactivement aux transactions sans catégorie via le bouton <strong>« Appliquer »</strong> ci-dessous.</p>
-            <form className="form form-inline" onSubmit={submit}>
-              <label className="grow">Mot-clé<input name="pattern" placeholder="CARREFOUR" required /></label>
-              <label>Catégorie<select name="category_id" required>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-              <button className="primary"><Plus size={16} /> Enregistrer</button>
-            </form>
-          </Collapsible>
-      </div>
-      <Panel
-        title="Règles"
-        icon={<Wand2 />}
-        action={rules.length > 0 ? (
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => {
-              if (!window.confirm('Appliquer les règles à toutes les transactions sans catégorie ?')) return;
-              void run(
-                () => api.applyRules(userId),
-                (result) => {
-                  const { categorized } = result as { categorized: number };
-                  return categorized > 0
-                    ? `${categorized} transaction${categorized > 1 ? 's' : ''} catégorisée${categorized > 1 ? 's' : ''}`
-                    : 'Aucune transaction sans catégorie à classer';
-                },
-              );
-            }}
-          >
-            <Wand2 size={16} /> Appliquer aux transactions sans catégorie
+    <section className="st-page">
+      <div className="st-toolbar">
+        <p className="st-summary">
+          <strong>{rules.length}</strong> règle{rules.length > 1 ? 's' : ''}
+          <span className="st-sub">le mot-clé trouvé dans le libellé décide de la catégorie</span>
+        </p>
+        <div className="st-toolbar-actions">
+          {rules.length > 0 && (
+            <button type="button" className="secondary" onClick={applyAll}>
+              <Wand2 size={16} /> Appliquer<span className="st-hide-sm">&nbsp;aux opérations sans catégorie</span>
+            </button>
+          )}
+          <button type="button" className="primary accent" onClick={() => setCreating(true)} disabled={categories.length === 0}>
+            <Plus size={16} /> Nouvelle règle
           </button>
-        ) : undefined}
-      >
-        <DataTable empty={rules.length === 0 ? 'Aucune règle.' : null}>
-          <thead><tr><th>Mot-clé</th><th>Catégorie</th><th>Créée le</th><th className="actions-cell">Actions</th></tr></thead>
+        </div>
+      </div>
+
+      <div className="panel st-list">
+        <DataTable empty={rules.length === 0 ? 'Aucune règle. Ajoute un mot-clé (ex. CARREFOUR) pour classer tes opérations automatiquement.' : null}>
+          <thead><tr><th>Mot-clé</th><th>Catégorie</th><th>Créée le</th><th className="actions-cell"><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>
-            {rules.map((r) => (
-              <tr key={r.id}>
-                {editingId === r.id ? (
-                  <>
-                    <td>
-                      <input
-                        className="inline-amount-input"
-                        value={editPattern}
-                        autoFocus
-                        onChange={(e) => setEditPattern(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(r); if (e.key === 'Escape') setEditingId(null); }}
-                      />
-                    </td>
-                    <td>
-                      <select className="inline-select" value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)}>
-                        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    </td>
-                    <td>{new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
-                    <td className="actions-cell">
-                      <IconButton label="Valider" tone="accent" icon={<Check size={16} />} onClick={() => saveEdit(r)} />
-                      <IconButton label="Annuler" tone="neutral" icon={<X size={16} />} onClick={() => setEditingId(null)} />
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td><strong>{r.pattern}</strong></td>
-                    <td>{categoryById.get(r.category_id)?.name ?? 'Catégorie'}</td>
-                    <td>{new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
-                    <td className="actions-cell">
-                      <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => startEdit(r)} />
-                      <IconButton label="Supprimer" confirm={`Supprimer la règle « ${r.pattern} » ?`} onClick={() => void run(() => api.deleteRule(userId, r.id), 'Règle supprimée')} />
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
+            {rules.map((r) => {
+              const category = categoryById.get(r.category_id);
+              return (
+                <tr key={r.id}>
+                  <td className="cell-primary"><code className="st-pattern" title={r.pattern}>{r.pattern}</code><ArrowRight size={14} className="st-arrow" aria-hidden="true" /></td>
+                  <td data-label="Catégorie">
+                    <span className="st-name">
+                      <span className="dot" style={{ background: category?.color ?? 'var(--faint)' }} aria-hidden="true" />
+                      {category?.name ?? 'Catégorie supprimée'}
+                    </span>
+                  </td>
+                  <td className="st-muted" data-label="Créée le">{new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
+                  <td className="actions-cell">
+                    <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(r)} />
+                    <RowMenu items={[{ label: 'Supprimer', icon: <Trash2 />, danger: true, onSelect: () => remove(r) }]} />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </DataTable>
-      </Panel>
+      </div>
+
+      {creating && (
+        <Modal title="Nouvelle règle" onClose={() => setCreating(false)}>
+          <RuleForm categories={categories} onSubmit={create} onCancel={() => setCreating(false)} submitLabel="Enregistrer" />
+        </Modal>
+      )}
+      {editing && (
+        <Modal title="Modifier la règle" onClose={() => setEditing(null)}>
+          <RuleForm key={editing.id} initial={editing} categories={categories} onSubmit={update} onCancel={() => setEditing(null)} submitLabel="Enregistrer" />
+        </Modal>
+      )}
     </section>
   );
 }

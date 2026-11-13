@@ -1,23 +1,63 @@
 import { FormEvent, useState } from 'react';
-import { ChevronDown, ChevronUp, FolderTree, GitMerge, Pencil, Plus } from 'lucide-react';
+import { GitMerge, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Category } from '@suzanne/shared';
 import { api } from '../lib/api';
-import { usePersistedState } from '../lib/storage';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Modal } from '../components/Modal';
-import { Panel } from '../components/Panel';
-import { Collapsible } from '../components/Collapsible';
-
+import { RowMenu } from '../components/ui/RowMenu';
 import type { Run } from '../lib/run';
+import '../styles/pages/settings.css';
+
+const DEFAULT_COLOR = '#6b8f00';
+
+// Formulaire partagé création / modification (dans une modale).
+function CategoryForm({ initial, onSubmit, onCancel, submitLabel }: {
+  initial?: Category;
+  onSubmit: (body: { name: string; type: Category['type']; color: string; icon: string }) => void;
+  onCancel: () => void;
+  submitLabel: string;
+}) {
+  const { t } = useTranslation();
+  const [type, setType] = useState<Category['type']>(initial?.type ?? 'expense');
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    onSubmit({
+      name: String(data.get('name')).trim(),
+      type,
+      color: String(data.get('color')),
+      icon: String(data.get('icon') || '').trim(),
+    });
+  };
+  return (
+    <form className="form st-form" onSubmit={submit}>
+      <label className="full">{t('Nom')}<input name="name" defaultValue={initial?.name} required maxLength={60} autoComplete="off" /></label>
+      <fieldset className="full st-segment">
+        <legend>{t('Type')}</legend>
+        <button type="button" className={type === 'expense' ? 'active' : ''} aria-pressed={type === 'expense'} onClick={() => setType('expense')}>{t('Dépense')}</button>
+        <button type="button" className={type === 'income' ? 'active' : ''} aria-pressed={type === 'income'} onClick={() => setType('income')}>{t('Revenu')}</button>
+      </fieldset>
+      <label>{t('Couleur')}<input name="color" type="color" defaultValue={initial?.color ?? DEFAULT_COLOR} /></label>
+      <label>{t('Icône')}<input name="icon" defaultValue={initial?.icon ?? ''} placeholder="shopping-cart" autoComplete="off" /></label>
+      <div className="modal-actions full">
+        <button type="button" className="secondary" onClick={onCancel}>{t('Annuler')}</button>
+        <button className="primary">{submitLabel}</button>
+      </div>
+    </form>
+  );
+}
 
 export function Categories({ userId, categories, run }: { userId: number; categories: Category[]; run: Run }) {
   const { t } = useTranslation();
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [merging, setMerging] = useState<Category | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState('');
-  const [addOpen, setAddOpen] = usePersistedState<boolean>('categories_add_open', categories.length === 0);
+
+  const expenses = categories.filter((c) => c.type !== 'income');
+  const incomes = categories.filter((c) => c.type === 'income');
 
   // Cibles de fusion possibles : autres catégories du même type (les revenus et
   // dépenses ne se mélangent pas, comme côté backend).
@@ -34,105 +74,103 @@ export function Categories({ userId, categories, run }: { userId: number; catego
     ).then((ok) => { if (ok) setMerging(null); });
   };
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    void run(() => api.createCategory(userId, {
-      name: String(data.get('name')),
-      type: String(data.get('type')) as Category['type'],
-      color: String(data.get('color')),
-      icon: String(data.get('icon') || ''),
-    }));
-    event.currentTarget.reset();
+  const create = (body: { name: string; type: Category['type']; color: string; icon: string }) => {
+    void run(() => api.createCategory(userId, body), t('Catégorie ajoutée'))
+      .then((ok) => { if (ok) setCreating(false); });
+  };
+  const update = (body: { name: string; type: Category['type']; color: string; icon: string }) => {
+    if (!editing) return;
+    void run(() => api.updateCategory(userId, editing.id, body), t('Catégorie mise à jour'))
+      .then((ok) => { if (ok) setEditing(null); });
   };
 
-  const submitEdit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editing) return;
-    const data = new FormData(event.currentTarget);
-    void run(() => api.updateCategory(userId, editing.id, {
-      name: String(data.get('name')),
-      type: String(data.get('type')) as Category['type'],
-      color: String(data.get('color')),
-      icon: String(data.get('icon') || ''),
-    }), t('Catégorie mise à jour'));
-    setEditing(null);
-  };
+  const table = (rows: Category[], empty: string) => (
+    <DataTable empty={rows.length === 0 ? empty : null}>
+      <thead><tr><th>{t('Nom')}</th><th>{t('Icône')}</th><th className="actions-cell"><span className="sr-only">{t('Actions')}</span></th></tr></thead>
+      <tbody>
+        {rows.map((c) => (
+          <tr key={c.id}>
+            <td className="cell-primary">
+              <span className="st-name">
+                <span className="dot" style={{ background: c.color }} aria-hidden="true" />
+                <strong title={c.name}>{c.name}</strong>
+              </span>
+            </td>
+            <td className="st-muted" data-label={t('Icône')}>{c.icon || '—'}</td>
+            <td className="actions-cell">
+              <IconButton label={t('Modifier')} tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(c)} />
+              <RowMenu items={[
+                { label: t('Fusionner dans…'), icon: <GitMerge />, onSelect: () => startMerge(c) },
+                {
+                  label: t('Supprimer'), icon: <Trash2 />, danger: true,
+                  // Irréversible : les transactions perdent leur catégorie.
+                  confirm: t('Supprimer la catégorie « {{name}} » ? Ses transactions resteront mais perdront leur catégorie.', { name: c.name }),
+                  onSelect: () => void run(() => api.deleteCategory(userId, c.id), t('Catégorie supprimée')),
+                },
+              ]} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </DataTable>
+  );
 
   return (
-    <section className="stack">
-      <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
-        <button type="button" className="collapsible-header" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
-          <span className="collapsible-title"><Plus size={16} /> {t('Nouvelle catégorie')}</span>
-          {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+    <section className="st-page">
+      <div className="st-toolbar">
+        <p className="st-summary">
+          <strong>{categories.length}</strong> {categories.length > 1 ? t('catégories') : t('catégorie')}
+          <span className="st-sub">{expenses.length} {t('dépenses')}, {incomes.length} {t('revenus')}</span>
+        </p>
+        <button type="button" className="primary accent" onClick={() => setCreating(true)}>
+          <Plus size={16} /> {t('Nouvelle catégorie')}
         </button>
-        <Collapsible open={addOpen} className="collapsible-body">
-            <form className="form form-inline" onSubmit={submit}>
-              <label className="grow">{t('Nom')}<input name="name" required /></label>
-              <label>{t('Type')}<select name="type"><option value="expense">{t('Dépense')}</option><option value="income">{t('Revenu')}</option></select></label>
-              <label>{t('Couleur')}<input name="color" type="color" defaultValue="#6366f1" /></label>
-              <label>{t('Icône')}<input name="icon" placeholder="shopping-cart" /></label>
-              <button className="primary"><Plus size={16} /> {t('Ajouter')}</button>
-            </form>
-          </Collapsible>
       </div>
-      <Panel title={t('Catégories')} icon={<FolderTree />}>
-        <DataTable empty={categories.length === 0 ? t('Aucune catégorie.') : null}>
-          <thead><tr><th>{t('Nom')}</th><th>{t('Type')}</th><th>{t('Icône')}</th><th className="actions-cell">{t('Actions')}</th></tr></thead>
-          <tbody>
-            {categories.map((c) => (
-              <tr key={c.id}>
-                <td><span className="dot inline" style={{ background: c.color }} /><strong title={c.name}>{c.name}</strong></td>
-                <td><span className={`pill ${c.type}`}>{c.type === 'income' ? t('Revenu') : t('Dépense')}</span></td>
-                <td>{c.icon ?? '-'}</td>
-                <td className="actions-cell">
-                  <IconButton label={t('Modifier')} tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(c)} />
-                  <IconButton label={t('Fusionner dans une autre catégorie')} tone="neutral" icon={<GitMerge size={16} />} onClick={() => startMerge(c)} />
-                  <IconButton label={t('Supprimer')} confirm={t('Supprimer la catégorie « {{name}} » ? Ses transactions resteront mais perdront leur catégorie.', { name: c.name })} onClick={() => void run(() => api.deleteCategory(userId, c.id), t('Catégorie supprimée'))} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </DataTable>
-      </Panel>
 
-      {merging && (
-        <Modal title={t('Fusionner « {{name}} »', { name: merging.name })} onClose={() => setMerging(null)}>
-          <div className="form">
-            <p className="panel-note">
-              {t('Toutes les transactions, ventilations, budgets, récurrents, règles et factures de « {{name}} » seront réaffectés à la catégorie cible, puis « {{name}} » sera supprimée. Action irréversible.', { name: merging.name })}
-            </p>
-            {mergeTargets.length === 0 ? (
-              <p className="empty">{merging.type === 'income' ? t('Aucune autre catégorie de revenu disponible.') : t('Aucune autre catégorie de dépense disponible.')}</p>
-            ) : (
-              <label>{t('Fusionner dans')}
-                <select value={mergeTargetId} onChange={(e) => setMergeTargetId(e.target.value)} autoFocus>
-                  <option value="">{t('Choisir la catégorie cible…')}</option>
-                  {mergeTargets.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </label>
-            )}
-            <button className="primary" disabled={!mergeTargetId} onClick={submitMerge}>{t('Fusionner')}</button>
-            <button type="button" className="secondary" onClick={() => setMerging(null)}>{t('Annuler')}</button>
-          </div>
+      <div className="st-columns">
+        <div className="panel st-list">
+          <h2 className="st-list-title">{t('Dépenses')} <span>{expenses.length}</span></h2>
+          {table(expenses, t('Aucune catégorie de dépense.'))}
+        </div>
+        <div className="panel st-list">
+          <h2 className="st-list-title">{t('Revenus')} <span>{incomes.length}</span></h2>
+          {table(incomes, t('Aucune catégorie de revenu.'))}
+        </div>
+      </div>
+
+      {creating && (
+        <Modal title={t('Nouvelle catégorie')} onClose={() => setCreating(false)}>
+          <CategoryForm onSubmit={create} onCancel={() => setCreating(false)} submitLabel={t('Ajouter')} />
         </Modal>
       )}
 
       {editing && (
         <Modal title={t('Modifier « {{name}} »', { name: editing.name })} onClose={() => setEditing(null)}>
-          <form className="form" onSubmit={submitEdit} key={editing.id}>
-            <label>{t('Nom')}<input name="name" defaultValue={editing.name} required /></label>
-            <label>{t('Type')}
-              <select name="type" defaultValue={editing.type}>
-                <option value="expense">{t('Dépense')}</option>
-                <option value="income">{t('Revenu')}</option>
-              </select>
-            </label>
-            <label>{t('Couleur')}<input name="color" type="color" defaultValue={editing.color} /></label>
-            <label>{t('Icône')}<input name="icon" defaultValue={editing.icon ?? ''} placeholder="shopping-cart" /></label>
-            <button className="primary">{t('Enregistrer')}</button>
-            <button type="button" className="secondary" onClick={() => setEditing(null)}>{t('Annuler')}</button>
-          </form>
+          <CategoryForm key={editing.id} initial={editing} onSubmit={update} onCancel={() => setEditing(null)} submitLabel={t('Enregistrer')} />
+        </Modal>
+      )}
+
+      {merging && (
+        <Modal title={t('Fusionner « {{name}} »', { name: merging.name })} onClose={() => setMerging(null)}>
+          <div className="form st-form">
+            <p className="panel-note full">
+              {t('Toutes les transactions, ventilations, budgets, récurrents, règles et factures de « {{name}} » seront réaffectés à la catégorie cible, puis « {{name}} » sera supprimée. Action irréversible.', { name: merging.name })}
+            </p>
+            {mergeTargets.length === 0 ? (
+              <p className="empty full">{merging.type === 'income' ? t('Aucune autre catégorie de revenu disponible.') : t('Aucune autre catégorie de dépense disponible.')}</p>
+            ) : (
+              <label className="full">{t('Fusionner dans')}
+                <select value={mergeTargetId} onChange={(e) => setMergeTargetId(e.target.value)}>
+                  <option value="">{t('Choisir la catégorie cible…')}</option>
+                  {mergeTargets.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+            )}
+            <div className="modal-actions full">
+              <button type="button" className="secondary" onClick={() => setMerging(null)}>{t('Annuler')}</button>
+              <button type="button" className="primary" disabled={!mergeTargetId} onClick={submitMerge}>{t('Fusionner')}</button>
+            </div>
+          </div>
         </Modal>
       )}
     </section>
