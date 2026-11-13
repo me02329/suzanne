@@ -357,6 +357,8 @@ export const csvImportSchema = z.object({
     description: z.string().min(1).nullish(),
     type: z.string().min(1).nullish(),
   }).nullish(),
+  // Passer outre le garde-fou « la colonne montant ressemble à un solde ».
+  allow_balance_like: z.coerce.boolean().optional(),
 });
 
 export const currencyQuery = currencyCode.default('EUR');

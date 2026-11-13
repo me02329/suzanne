@@ -53,3 +53,21 @@ describe('valuePosition', () => {
     expect(v.unrealized_pnl).toBe(0);
   });
 });
+
+describe('revente totale puis rachat', () => {
+  const d = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+  it("repart d'un PRU neuf et garde la plus-value réalisée de la première ligne", () => {
+    const orders = [
+      { side: 'buy' as const, date: d('2020-01-10'), quantity: 10, unit_price: 100, fee: 0 },
+      { side: 'buy' as const, date: d('2020-06-10'), quantity: 10, unit_price: 120, fee: 0 },
+      // PRU 110 ; tout vendu à 150 → +800 réalisés.
+      { side: 'sell' as const, date: d('2021-11-10'), quantity: 20, unit_price: 150, fee: 0 },
+      // Rachat 3 ans plus tard : nouveau PRU = 200, pas 110.
+      { side: 'buy' as const, date: d('2024-11-10'), quantity: 5, unit_price: 200, fee: 0 },
+    ];
+    const s = positionStats(orders);
+    expect(s).toMatchObject({ quantity: 5, avg_cost: 200, cost_basis: 1000, realized_pnl: 800 });
+    // Entre la revente et le rachat, la ligne est à zéro (pas de PRU fantôme).
+    expect(positionStats(orders, d('2023-01-01'))).toMatchObject({ quantity: 0, cost_basis: 0, avg_cost: 0, realized_pnl: 800 });
+  });
+});

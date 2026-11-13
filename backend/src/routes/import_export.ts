@@ -160,8 +160,36 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
       description,
     });
   }
+  if (!body.allow_balance_like) assertNotBalanceColumn(headers[mapping.amount] ?? '', parsedRows);
   res.json(await dedupeAndInsert(user_id, body.account_id ?? null, parsedRows, skipped));
 }));
+
+// Garde-fou : une colonne « solde » prise pour le montant transforme chaque
+// achat en revenu égal au solde du jour (cas réel avec le CSV Boursorama, dont
+// la colonne `accountbalance` côtoie `amount`). On refuse si l'en-tête dit
+// « solde/balance », ou si les « montants » ont la signature d'un solde :
+// quasiment tous positifs ET identiques entre les lignes d'une même journée.
+export function looksLikeBalanceColumn(header: string, rows: Array<{ date: Date; type: string; amount: number }>): boolean {
+  if (/(balance|solde)/i.test(header)) return true;
+  if (rows.length < 6) return false;
+  const positive = rows.filter((r) => r.type === 'income').length / rows.length;
+  if (positive < 0.9) return false;
+  const byDay = new Map<string, number[]>();
+  for (const r of rows) {
+    const k = r.date.toISOString().slice(0, 10);
+    const list = byDay.get(k); if (list) list.push(r.amount); else byDay.set(k, [r.amount]);
+  }
+  const multi = [...byDay.values()].filter((v) => v.length >= 2);
+  if (multi.length < 2) return false;
+  const constant = multi.filter((v) => v.every((x) => x === v[0])).length;
+  return constant / multi.length >= 0.5;
+}
+
+function assertNotBalanceColumn(header: string, rows: Array<{ date: Date; type: string; amount: number }>): void {
+  if (looksLikeBalanceColumn(header, rows)) {
+    throw new HttpError(400, `La colonne « ${header} » ressemble à un solde de compte, pas à un montant d'opération (valeurs identiques pour toutes les opérations d'un même jour). Choisis la colonne du montant (ex. « amount » chez Boursorama).`);
+  }
+}
 
 type ParsedImportRow = {
   line: number;
@@ -176,8 +204,36 @@ type ParsedImportRow = {
 
 // Dédoublonne (contre l'existant ET au sein du fichier) puis insère en une seule
 // requête batch. Partagé par l'import CSV et l'import de relevé (OFX/QIF).
+// Opérations générées automatiquement par un récurrent (libellé et montant du
+// modèle) autour des dates importées : une ligne de relevé qui leur correspond
+// (même sens, montant à ±20 %, date à ±6 jours) les REMPLACE, sinon le salaire
+// ou l'abonnement serait compté deux fois (projection + réel).
+async function recurringProjections(user_id: number, account_id: number | null, rows: ParsedImportRow[]) {
+  if (account_id == null || rows.length === 0) return [];
+  const dates = rows.map((r) => r.date.getTime()).sort((a, b) => a - b);
+  const pad = 6 * 86400000;
+  const generated = await prisma.transaction.findMany({
+    where: {
+      user_id,
+      kind: 'standard',
+      recurring_transaction_id: { not: null },
+      date: { gte: new Date(dates[0]! - pad), lte: new Date(dates[dates.length - 1]! + pad) },
+      lines: { some: { account_id } },
+    },
+    select: { id: true, date: true, description: true, recurring_transaction_id: true, lines: { select: { amount: true } }, recurring_transaction: { select: { description: true, amount: true } } },
+  });
+  return generated
+    .filter((t) => t.recurring_transaction && t.lines.length === 1
+      && (t.description ?? '') === t.recurring_transaction.description
+      && Math.abs(Math.abs(t.lines[0]!.amount) - t.recurring_transaction.amount) < 0.01)
+    .map((t) => ({ id: t.id, date: t.date.getTime(), amount: t.lines[0]!.amount, recurring_transaction_id: t.recurring_transaction_id!, description: t.description ?? '' }));
+}
+
 async function dedupeAndInsert(user_id: number, account_id: number | null, parsedRows: ParsedImportRow[], baseSkipped: number) {
   const duplicateKeys = await existingCsvDuplicateKeys(user_id, account_id, parsedRows);
+  const projections = await recurringProjections(user_id, account_id, parsedRows);
+  const replaced: Array<{ projection_id: number; line: number; description: string; date: string }> = [];
+  const recurringLink = new Map<ParsedImportRow, number>();
   const seenInFile = new Set<string>();
   const duplicates: Array<{ line: number; date: string; amount: number; description: string; reason: 'existing' | 'file' }> = [];
   const toCreate = parsedRows.filter((row) => {
@@ -195,17 +251,34 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
     }
     seenInFile.add(key);
     return true;
-  }).map(({ line: _line, ...row }) => row);
+  });
   // Une seule insertion batch (au lieu d'un INSERT par ligne) : import atomique
   // et beaucoup plus rapide sur les gros relevés.
+  // Chaque projection ne peut être remplacée qu'une fois, par la ligne la plus proche.
+  const usedProjections = new Set<number>();
+  for (const row of toCreate) {
+    const signed = row.type === 'income' ? row.amount : -row.amount;
+    const candidates = projections
+      .filter((p) => !usedProjections.has(p.id) && Math.sign(p.amount) === Math.sign(signed)
+        && Math.abs(p.date - row.date.getTime()) <= 6 * 86400000
+        && Math.abs(Math.abs(signed) - Math.abs(p.amount)) <= Math.abs(p.amount) * 0.2)
+      .sort((a, b) => Math.abs(a.date - row.date.getTime()) - Math.abs(b.date - row.date.getTime()));
+    const match = candidates[0];
+    if (!match) continue;
+    usedProjections.add(match.id);
+    recurringLink.set(row, match.recurring_transaction_id);
+    replaced.push({ projection_id: match.id, line: row.line, description: match.description, date: new Date(match.date).toISOString().slice(0, 10) });
+  }
   if (toCreate.length > 0) {
     // Import atomique : tout ou rien.
     await prisma.$transaction(async (tx) => {
+      if (usedProjections.size > 0) await tx.transaction.deleteMany({ where: { id: { in: [...usedProjections] }, user_id } });
       for (const row of toCreate) {
         await tx.transaction.create({
           data: {
             user_id: row.user_id,
             kind: 'standard',
+            recurring_transaction_id: recurringLink.get(row) ?? null,
             date: row.date,
             description: row.description,
             lines: {
@@ -237,7 +310,7 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
       before_reference = toCreate.filter((row) => row.date < ref).length;
     }
   }
-  return { imported: toCreate.length, skipped: baseSkipped + duplicates.length, duplicates_count: duplicates.length, duplicates, before_reference, reference_date };
+  return { imported: toCreate.length, skipped: baseSkipped + duplicates.length, duplicates_count: duplicates.length, duplicates, before_reference, reference_date, recurring_replaced: replaced };
 }
 
 // Mappings CSV sauvegardés (« profils de banque »).
