@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../prisma.js';
+import { prisma, prismaBase } from '../prisma.js';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { createImportMappingSchema, csvImportSchema, dateString, idParam, statementImportSchema } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
@@ -118,18 +119,13 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
   const dataLines = lines.slice(1);
   const mapping = resolveMapping(headers, body.mapping ?? null);
   let skipped = 0;
-  const parsedRows: Array<{
-    line: number;
-    user_id: number;
-    account_id: number | null;
-    category_id: number | null;
-    date: Date;
-    type: 'expense' | 'income';
-    amount: number;
-    description: string;
-  }> = [];
+  const parsedRows: ParsedImportRow[] = [];
+  const occurrences = new Map<string, number>();
   for (const [index, line] of dataLines.entries()) {
     const cells = splitCsv(line, delimiter);
+    const rawKey = line.trim().replace(/\s+/g, ' ');
+    const occurrence = (occurrences.get(rawKey) ?? 0) + 1;
+    occurrences.set(rawKey, occurrence);
     const dateRaw = cell(cells, mapping.date);
     const amountRaw = cell(cells, mapping.amount);
     const descriptionRaw = mapping.description != null ? cell(cells, mapping.description) : '';
@@ -158,6 +154,7 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
       type,
       amount: round2(Math.abs(signedAmount)),
       description,
+      fingerprint: fingerprintOf(body.account_id ?? null, `csv:${rawKey}#${occurrence}`),
     });
   }
   if (!body.allow_balance_like) assertNotBalanceColumn(headers[mapping.amount] ?? '', parsedRows);
@@ -191,7 +188,14 @@ function assertNotBalanceColumn(header: string, rows: Array<{ date: Date; type: 
   }
 }
 
+// Empreinte d'une ligne de relevé : stable d'un import à l'autre, indépendante
+// des modifications faites ensuite dans l'app (libellé, catégorie).
+function fingerprintOf(account_id: number | null, raw: string): string {
+  return createHash('sha256').update(`${account_id ?? '-'}|${raw}`).digest('hex').slice(0, 40);
+}
+
 type ParsedImportRow = {
+  fingerprint?: string;
   line: number;
   user_id: number;
   account_id: number | null;
@@ -231,6 +235,10 @@ async function recurringProjections(user_id: number, account_id: number | null, 
 
 async function dedupeAndInsert(user_id: number, account_id: number | null, parsedRows: ParsedImportRow[], baseSkipped: number) {
   const duplicateKeys = await existingCsvDuplicateKeys(user_id, account_id, parsedRows);
+  const fingerprints = parsedRows.map((r) => r.fingerprint).filter((f): f is string => Boolean(f));
+  const knownFingerprints = new Set(fingerprints.length > 0
+    ? (await prismaBase.transaction.findMany({ where: { user_id, import_fingerprint: { in: fingerprints } }, select: { import_fingerprint: true } })).map((t) => t.import_fingerprint!)
+    : []);
   const projections = await recurringProjections(user_id, account_id, parsedRows);
   const replaced: Array<{ projection_id: number; line: number; description: string; date: string }> = [];
   const recurringLink = new Map<ParsedImportRow, number>();
@@ -238,7 +246,12 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
   const duplicates: Array<{ line: number; date: string; amount: number; description: string; reason: 'existing' | 'file' }> = [];
   const toCreate = parsedRows.filter((row) => {
     const key = csvDuplicateKey(row);
-    const reason = duplicateKeys.has(key) ? 'existing' : seenInFile.has(key) ? 'file' : null;
+    // Empreinte connue (même ligne de relevé déjà importée, y compris en
+    // corbeille) : doublon certain. Sinon, l'ancienne heuristique (données
+    // importées avant les empreintes).
+    const reason = row.fingerprint && knownFingerprints.has(row.fingerprint)
+      ? 'existing'
+      : duplicateKeys.has(key) ? 'existing' : seenInFile.has(key) && !row.fingerprint ? 'file' : null;
     if (reason) {
       duplicates.push({
         line: row.line,
@@ -279,6 +292,7 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
             user_id: row.user_id,
             kind: 'standard',
             recurring_transaction_id: recurringLink.get(row) ?? null,
+            import_fingerprint: row.fingerprint ?? null,
             date: row.date,
             description: row.description,
             lines: {
@@ -350,7 +364,11 @@ importExportRouter.post('/users/:user_id/import.statement', asyncHandler(async (
 
   let skipped = 0;
   const parsedRows: ParsedImportRow[] = [];
+  const stmtOccurrences = new Map<string, number>();
   raw.forEach((row, index) => {
+    const rawKey = row.externalId ? `fitid:${row.externalId}` : `${body.format}:${row.dateRaw}|${row.amountRaw}|${row.description}`;
+    const occurrence = (stmtOccurrences.get(rawKey) ?? 0) + 1;
+    stmtOccurrences.set(rawKey, occurrence);
     const date = parseDate(row.dateRaw, dateFormat);
     const signedAmount = parseSignedAmount(row.amountRaw);
     if (!date || signedAmount === null || signedAmount === 0) { skipped += 1; return; }
@@ -365,6 +383,7 @@ importExportRouter.post('/users/:user_id/import.statement', asyncHandler(async (
       type: signedAmount > 0 ? 'income' : 'expense',
       amount: round2(Math.abs(signedAmount)),
       description,
+      fingerprint: fingerprintOf(body.account_id ?? null, row.externalId ? rawKey : `${rawKey}#${occurrence}`),
     });
   });
 

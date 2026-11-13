@@ -7,6 +7,8 @@ export interface RawStatementRow {
   dateRaw: string;
   amountRaw: string;
   description: string;
+  /** Identifiant unique de l'opération fourni par la banque (OFX FITID). */
+  externalId?: string;
 }
 
 // OFX (SGML/XML des banques) : on lit les blocs <STMTTRN>…</STMTTRN> et, dans
@@ -25,10 +27,12 @@ export function parseOfx(content: string): RawStatementRow[] {
     if (!posted || !amount) continue;
     const name = tag(block, 'NAME') ?? '';
     const memo = tag(block, 'MEMO') ?? '';
+    const fitid = tag(block, 'FITID');
     rows.push({
       dateRaw: posted.slice(0, 8), // AAAAMMJJ
       amountRaw: amount,
       description: [name, memo].filter(Boolean).join(' — ').trim(),
+      ...(fitid ? { externalId: fitid } : {}),
     });
   }
   return rows;

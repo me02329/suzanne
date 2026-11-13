@@ -111,6 +111,9 @@ model User {
 
 model Institution {
   id         Int      @id @default(autoincrement())
+  // Identité stable (UUID) : conservée dans les sauvegardes, elle permet de
+  // reconnaître l'élément d'une machine à l'autre même après modification.
+  uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    Int
   name       String
   created_at DateTime @default(now()) @db.Timestamptz(6)
@@ -125,6 +128,9 @@ model Institution {
 
 model Account {
   id                   Int      @id @default(autoincrement())
+  // Identité stable (UUID) : conservée dans les sauvegardes, elle permet de
+  // reconnaître l'élément d'une machine à l'autre même après modification.
+  uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id              Int
   institution_id       Int?
   name                 String
@@ -163,6 +169,9 @@ model Account {
 
 model Category {
   id         Int      @id @default(autoincrement())
+  // Identité stable (UUID) : conservée dans les sauvegardes, elle permet de
+  // reconnaître l'élément d'une machine à l'autre même après modification.
+  uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    Int
   name       String
   type       CategoryType
@@ -210,6 +219,9 @@ enum TransactionKind {
 // dans ses lignes (TransactionLine), une par compte/catégorie touché.
 model Transaction {
   id            Int             @id @default(autoincrement())
+  // Identité stable (UUID) : conservée dans les sauvegardes, elle permet de
+  // reconnaître l'élément d'une machine à l'autre même après modification.
+  uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id       Int
   kind          TransactionKind @default(standard)
   recurring_transaction_id Int?
@@ -223,6 +235,10 @@ model Transaction {
   created_at    DateTime        @default(now()) @db.Timestamptz(6)
   // Soft-delete : corbeille restaurable ; purge = suppression définitive.
   deleted_at    DateTime?       @db.Timestamptz(6)
+  // Empreinte de la ligne de relevé d'origine (identifiant OFX de la banque, ou
+  // hash de la ligne CSV brute) : un relevé réimporté n'est jamais dupliqué,
+  // même si l'opération a été renommée ou recatégorisée depuis.
+  import_fingerprint String?
 
   user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   recurring_transaction RecurringTransaction? @relation(fields: [recurring_transaction_id], references: [id], onDelete: SetNull)
@@ -237,6 +253,7 @@ model Transaction {
   attachments        Attachment[]
   holding_order      HoldingOrder?
 
+  @@unique([user_id, import_fingerprint])
   @@index([user_id, date])
   @@index([user_id, deleted_at])
   @@index([recurring_transaction_id])
@@ -285,6 +302,9 @@ model TransactionLine {
 
 model Tag {
   id         Int      @id @default(autoincrement())
+  // Identité stable (UUID) : conservée dans les sauvegardes, elle permet de
+  // reconnaître l'élément d'une machine à l'autre même après modification.
+  uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    Int
   name       String
   color      String   @default("#6366f1")
@@ -352,6 +372,9 @@ model GlobalBudget {
 // virtuelle : aucun argent n'est déplacé.
 model SinkingFund {
   id            Int      @id @default(autoincrement())
+  // Identité stable (UUID) : conservée dans les sauvegardes, elle permet de
+  // reconnaître l'élément d'une machine à l'autre même après modification.
+  uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id       Int
   name          String
   category_id   Int?
@@ -371,6 +394,9 @@ model SinkingFund {
 
 model RecurringTransaction {
   id            Int       @id @default(autoincrement())
+  // Identité stable (UUID) : conservée dans les sauvegardes, elle permet de
+  // reconnaître l'élément d'une machine à l'autre même après modification.
+  uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id       Int
   account_id    Int?
   category_id   Int?
@@ -399,6 +425,9 @@ model RecurringTransaction {
 
 model SavingsGoal {
   id             Int      @id @default(autoincrement())
+  // Identité stable (UUID) : conservée dans les sauvegardes, elle permet de
+  // reconnaître l'élément d'une machine à l'autre même après modification.
+  uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id        Int
   account_id     Int?
   name           String
@@ -445,6 +474,9 @@ model GoalContribution {
 // description. `start_date` ancre la répétition (mois de départ + jour attendu).
 model Bill {
   id          Int           @id @default(autoincrement())
+  // Identité stable (UUID) : conservée dans les sauvegardes, elle permet de
+  // reconnaître l'élément d'une machine à l'autre même après modification.
+  uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id     Int
   account_id  Int?
   category_id Int?
@@ -538,6 +570,9 @@ model ExchangeRate {
 // convertie ensuite vers la devise du compte puis la devise de reporting.
 model Holding {
   id          Int        @id @default(autoincrement())
+  // Identité stable (UUID) : conservée dans les sauvegardes, elle permet de
+  // reconnaître l'élément d'une machine à l'autre même après modification.
+  uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id     Int
   account_id  Int
   symbol      String

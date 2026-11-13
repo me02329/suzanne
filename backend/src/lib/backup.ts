@@ -231,6 +231,7 @@ const FREQUENCIES = new Set(['weekly', 'monthly', 'yearly']);
 const BILL_FREQUENCIES = new Set(['monthly', 'yearly']);
 // Pas de SVG (script exécutable) : mêmes types sûrs que l'upload devrait imposer.
 const SAFE_ATTACHMENT_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf']);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_FORMATS = new Set(['auto', 'yyyy-mm-dd', 'dd/mm/yyyy', 'mm/dd/yyyy', 'dd-mm-yyyy', 'yyyymmdd']);
 
 // Date d'import (`YYYY-MM-DD…` ou Date sérialisée) ; null si absente/invalide.
@@ -261,6 +262,10 @@ class MultiIndex {
   take(key: string): number | undefined {
     return this.map.get(key)?.shift();
   }
+  /** Retire un id déjà reconnu autrement (uid, empreinte). */
+  remove(id: number) {
+    for (const list of this.map.values()) { const i = list.indexOf(id); if (i >= 0) { list.splice(i, 1); return; } }
+  }
 }
 
 export async function importPayload(user_id: number, payload: BackupPayload): Promise<ImportSummary> {
@@ -282,16 +287,32 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
   // l'export partiel) désigne directement une ligne existante de ce profil.
   const sameUser = payload.user?.id === user_id;
 
+  // Identité stable : un uid connu de ce profil = le même élément (même s'il a
+  // été renommé ou modifié depuis) ; inconnu = on crée en le conservant ; connu
+  // d'un AUTRE profil (copie de sauvegarde entre profils) = nouvelle identité.
+  // Une opération mise à la corbeille depuis reste en corbeille.
+  type UidModel = 'tag' | 'institution' | 'account' | 'category' | 'recurringTransaction' | 'transaction' | 'savingsGoal';
+  const uidLookup = async (model: UidModel, rawUid: unknown): Promise<{ reuseId?: number; createUid?: string }> => {
+    if (typeof rawUid !== 'string' || !UUID_RE.test(rawUid)) return {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const row = await (db[model] as any).findUnique({ where: { uid: rawUid }, select: { id: true, user_id: true } }) as { id: number; user_id: number } | null;
+    if (!row) return { createUid: rawUid };
+    return row.user_id === user_id ? { reuseId: row.id } : {};
+  };
+  const withUid = (hit: { createUid?: string }) => (hit.createUid ? { uid: hit.createUid } : {});
+
   // --- Référentiels ---------------------------------------------------------
   const tagMap = new Map<number, number>();
   const tagsByName = new Map((await db.tag.findMany({ where: { user_id } })).map((t) => [t.name, t.id]));
   for (const raw of payload.tags ?? []) {
     const n = name(raw.name);
     if (!n) { summary.tags.skipped += 1; continue; }
+    const hit = await uidLookup('tag', raw.uid);
+    if (hit.reuseId) { tagMap.set(num(raw.id, -1), hit.reuseId); summary.tags.reused += 1; continue; }
     let id = tagsByName.get(n);
     if (id) summary.tags.reused += 1;
     else {
-      id = (await db.tag.create({ data: { user_id, name: n, color: str(raw.color, 20) ?? '#6366f1' } })).id;
+      id = (await db.tag.create({ data: { user_id, name: n, color: str(raw.color, 20) ?? '#6366f1', ...withUid(hit) } })).id;
       tagsByName.set(n, id);
       summary.tags.created += 1;
     }
@@ -303,10 +324,12 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
   for (const raw of payload.institutions ?? []) {
     const n = name(raw.name);
     if (!n) { summary.institutions.skipped += 1; continue; }
+    const hit = await uidLookup('institution', raw.uid);
+    if (hit.reuseId) { institutionMap.set(num(raw.id, -1), hit.reuseId); summary.institutions.reused += 1; continue; }
     let id = institutionsByName.get(n);
     if (id) summary.institutions.reused += 1;
     else {
-      id = (await db.institution.create({ data: { user_id, name: n } })).id;
+      id = (await db.institution.create({ data: { user_id, name: n, ...withUid(hit) } })).id;
       institutionsByName.set(n, id);
       summary.institutions.created += 1;
     }
@@ -320,6 +343,8 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
   for (const raw of payload.accounts ?? []) {
     const n = name(raw.name);
     if (!n) { summary.accounts.skipped += 1; continue; }
+    const hit = await uidLookup('account', raw.uid);
+    if (hit.reuseId) { accountMap.set(num(raw.id, -1), hit.reuseId); accountsByName.set(n, hit.reuseId); summary.accounts.reused += 1; continue; }
     let id = accountsByName.get(n);
     if (id) summary.accounts.reused += 1;
     else {
@@ -328,6 +353,7 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
       id = (await db.account.create({
         data: {
           user_id,
+          ...withUid(hit),
           institution_id: raw.institution_id != null ? institutionMap.get(num(raw.institution_id)) ?? null : null,
           name: n,
           type: type as AccountType,
@@ -362,11 +388,13 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
     const n = name(raw.name);
     const type = raw.type;
     if (!n || (type !== 'expense' && type !== 'income')) { summary.categories.skipped += 1; continue; }
+    const hit = await uidLookup('category', raw.uid);
+    if (hit.reuseId) { categoryMap.set(num(raw.id, -1), hit.reuseId); categoriesByKey.set(`${type}|${n}`, hit.reuseId); summary.categories.reused += 1; continue; }
     let id = categoriesByKey.get(`${type}|${n}`);
     if (id) summary.categories.reused += 1;
     else {
       id = (await db.category.create({
-        data: { user_id, name: n, type, color: str(raw.color, 20) ?? '#6366f1', icon: str(raw.icon, 40) },
+        data: { user_id, ...withUid(hit), name: n, type, color: str(raw.color, 20) ?? '#6366f1', icon: str(raw.icon, 40) },
       })).id;
       categoriesByKey.set(`${type}|${n}`, id);
       ownedCategories.add(id);
@@ -420,7 +448,8 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
       month_of_year: intOrNull(raw.month_of_year),
     };
     const lastExecuted = parseDay(raw.last_executed);
-    const existingId = recurringIndex.take(recurringKey(data));
+    const hit = await uidLookup('recurringTransaction', raw.uid);
+    const existingId = hit.reuseId ?? recurringIndex.take(recurringKey(data));
     let id: number;
     if (existingId) {
       id = existingId;
@@ -434,6 +463,7 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
       id = (await db.recurringTransaction.create({
         data: {
           user_id,
+          ...withUid(hit),
           ...data,
           active: raw.active ?? true,
           end_date: parseDay(raw.end_date),
@@ -538,7 +568,14 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
       }
     }
 
-    const existingId = txIndex.take(txKey(kind, date, description, lines));
+    const hit = await uidLookup('transaction', raw.uid);
+    const fingerprint = typeof raw.import_fingerprint === 'string' ? raw.import_fingerprint.slice(0, 64) : null;
+    const byFingerprint = fingerprint
+      ? (await db.transaction.findFirst({ where: { user_id, import_fingerprint: fingerprint }, select: { id: true } }))?.id
+      : undefined;
+    const knownId = hit.reuseId ?? byFingerprint;
+    if (knownId) txIndex.remove(knownId);
+    const existingId = knownId ?? txIndex.take(txKey(kind, date, description, lines));
     if (existingId) {
       if (raw.id != null) txMap.set(num(raw.id), existingId);
       summary.transactions.reused += 1;
@@ -555,6 +592,8 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
     const created = await db.transaction.create({
       data: {
         user_id,
+        ...withUid(hit),
+        import_fingerprint: fingerprint,
         kind: kind as 'standard' | 'transfer' | 'adjustment',
         recurring_transaction_id,
         date,
@@ -637,12 +676,15 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
   for (const raw of payload.goals ?? []) {
     const n = name(raw.name);
     if (!n) { summary.goals.skipped += 1; continue; }
+    const hit = await uidLookup('savingsGoal', raw.uid);
+    if (hit.reuseId) { if (raw.id != null) goalMap.set(num(raw.id), hit.reuseId); summary.goals.reused += 1; continue; }
     let id = goalsByName.get(n);
     if (id) summary.goals.reused += 1;
     else {
       id = (await db.savingsGoal.create({
         data: {
           user_id,
+          ...withUid(hit),
           account_id: resolveAccount(raw.account_id, raw.account_name),
           name: n,
           target_amount: round2(num(raw.target_amount)),
