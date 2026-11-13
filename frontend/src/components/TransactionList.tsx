@@ -1,5 +1,6 @@
 import type { Account, Category, Transaction } from '@suzanne/shared';
 import { money, txLabel } from '../lib/format';
+import { formatTxDate } from './transactions/txUtils';
 
 export function TransactionList({ transactions, categoryById, accountById, onPick }: {
   transactions: Transaction[];
@@ -21,7 +22,7 @@ export function TransactionList({ transactions, categoryById, accountById, onPic
           <>
             <div>
               <strong title={txLabel(t, categoryById)}>{txLabel(t, categoryById)}</strong>
-              <span title={`${accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · ${categoryLabel}`}>{new Date(t.date).toLocaleDateString('fr-FR')} · {accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · {categoryLabel}</span>
+              <span title={`${accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · ${categoryLabel}`}>{formatTxDate(t.date)} · {accountById.get(t.account_id ?? -1)?.name ?? 'Sans compte'} · {categoryLabel}</span>
             </div>
             {t.type === 'transfer'
               ? <strong className="transfer">{money(t.amount, sourceCurrency)} {'->'} {money(t.to_amount ?? t.amount, destinationCurrency)}</strong>

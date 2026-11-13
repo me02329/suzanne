@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { CandlestickChart, ChevronDown, ChevronUp, Coins, Layers, Loader2, Pencil, Plus, TrendingUp, Wallet } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Layers, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   accountTypeGroup,
   type Account,
@@ -11,14 +12,13 @@ import {
 import { api } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { money, todayIso } from '../lib/format';
-import { usePersistedState } from '../lib/storage';
-import { DataTable } from '../components/DataTable';
-import { IconButton } from '../components/IconButton';
+import { formatDateFr, formatPct, formatQuantity, parseDecimal } from '../lib/pea';
 import { Modal } from '../components/Modal';
-import { Panel } from '../components/Panel';
-import { Stat } from '../components/Stat';
-import { Collapsible } from '../components/Collapsible';
+import { RowMenu } from '../components/accounts/RowMenu';
 import type { Run } from '../lib/run';
+import '../styles/pages/accounts.css';
+import '../styles/pages/pea.css';
+import '../styles/pages/investments.css';
 
 const ASSET_CLASSES: ReadonlyArray<{ value: AssetClass; label: string }> = [
   { value: 'equity', label: 'Action' },
@@ -31,17 +31,16 @@ const ASSET_CLASSES: ReadonlyArray<{ value: AssetClass; label: string }> = [
   { value: 'other', label: 'Autre' },
 ];
 const ASSET_LABEL = new Map(ASSET_CLASSES.map((a) => [a.value, a.label]));
-const ALLOCATION_COLORS = ['#7c3aed', '#2563eb', '#0891b2', '#f59e0b', '#16a34a', '#db2777', '#64748b', '#9333ea'];
+// Nuances d'encre (pas de couleur décorative) pour la barre d'allocation.
+const ALLOC_SHADES = [1, 0.72, 0.5, 0.34, 0.22, 0.14, 0.09, 0.05];
 
-// Comptes pertinents pour des titres : groupes investissements / crypto en
-// priorité, mais on n'empêche pas d'en attacher ailleurs.
 function investmentAccounts(accounts: Account[], keepId?: number | null): Account[] {
   const pickable = pickableAccounts(accounts, keepId);
   const invest = pickable.filter((a) => ['investments', 'crypto'].includes(accountTypeGroup(a.type)));
   return invest.length > 0 ? invest : pickable;
 }
 
-const signedMoney = (value: number, currency: string) => `${value >= 0 ? '+' : '-'}${money(Math.abs(value), currency)}`;
+const signed = (v: number, ccy: string) => `${v >= 0 ? '+' : '−'}${money(Math.abs(v), ccy)}`;
 
 export function Investments({ userId, holdings, accounts, accountById, reportCurrency, dataVersion, run }: {
   userId: number;
@@ -54,12 +53,9 @@ export function Investments({ userId, holdings, accounts, accountById, reportCur
 }) {
   const [valuation, setValuation] = useState<HoldingsValuation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<Holding | null>(null);
-  const [ordersFor, setOrdersFor] = useState<Holding | null>(null);
-  const [addOpen, setAddOpen] = usePersistedState<boolean>('investments_add_open', holdings.length === 0);
+  const [form, setForm] = useState<Holding | 'new' | null>(null);
+  const [ordersFor, setOrdersFor] = useState<number | null>(null);
 
-  // Valorisation au cours du jour : non couverte par le reload global (elle tape
-  // les prix de marché en direct), donc rechargée sur dataVersion + devise.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -71,228 +67,231 @@ export function Investments({ userId, holdings, accounts, accountById, reportCur
   }, [userId, reportCurrency, dataVersion]);
 
   const valById = new Map<number, ValuedHolding>((valuation?.holdings ?? []).map((h) => [h.id, h]));
-
-  const submitAdd = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    void run(() => api.createHolding(userId, {
-      account_id: Number(data.get('account_id')),
-      symbol: String(data.get('symbol')),
-      name: String(data.get('name')),
-      asset_class: String(data.get('asset_class')) as AssetClass,
-      currency: String(data.get('currency') || 'EUR'),
-    }), 'Position ajoutée');
-    event.currentTarget.reset();
-  };
-
-  const submitEdit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editing) return;
-    const data = new FormData(event.currentTarget);
-    void run(() => api.updateHolding(userId, editing.id, {
-      symbol: String(data.get('symbol')),
-      name: String(data.get('name')),
-      asset_class: String(data.get('asset_class')) as AssetClass,
-      currency: String(data.get('currency') || 'EUR'),
-    }), 'Position modifiée');
-    setEditing(null);
-  };
-
   const total = valuation?.market_value ?? 0;
+  const pnl = valuation?.unrealized_pnl ?? 0;
+  const missingQuotes = (valuation?.holdings ?? []).some((h) => h.quantity > 0 && h.price == null);
+
+  const removeHolding = (h: Holding) => void run(() => api.deleteHolding(userId, h.id), `${h.symbol} supprimé`, {
+    undo: async () => {
+      const created = await api.createHolding(userId, { account_id: h.account_id, symbol: h.symbol, name: h.name, asset_class: h.asset_class, currency: h.currency });
+      for (const o of [...h.orders].sort((a, b) => a.date.localeCompare(b.date))) {
+        await api.addHoldingOrder(userId, created.id, { side: o.side, date: o.date, quantity: o.quantity, unit_price: o.unit_price, fee: o.fee });
+      }
+    },
+  });
+
+  // Groupé par compte, triées par valeur décroissante.
+  const byAccount = new Map<number, Holding[]>();
+  for (const h of holdings) byAccount.set(h.account_id, [...(byAccount.get(h.account_id) ?? []), h]);
+  const groups = Array.from(byAccount.entries())
+    .map(([id, list]) => ({
+      account: accountById.get(id),
+      id,
+      list: list.sort((a, b) => (valById.get(b.id)?.market_value ?? 0) - (valById.get(a.id)?.market_value ?? 0)),
+      value: list.reduce((s, h) => s + (valById.get(h.id)?.market_value ?? 0), 0),
+    }))
+    .sort((a, b) => b.value - a.value);
 
   return (
-    <section className="stack">
-      <div className="stats">
-        <Stat icon={<Wallet />} label="Valeur de marché" value={money(total, reportCurrency)} />
-        <Stat icon={<Coins />} label="Prix de revient" value={money(valuation?.cost_basis ?? 0, reportCurrency)} />
-        <Stat
-          icon={<TrendingUp />}
-          label="Plus-value latente"
-          value={signedMoney(valuation?.unrealized_pnl ?? 0, reportCurrency)}
-          signed={valuation?.unrealized_pnl ?? 0}
-        />
-        <Stat
-          icon={<TrendingUp />}
-          label="Performance latente"
-          value={`${(valuation?.unrealized_pnl_pct ?? 0) >= 0 ? '+' : ''}${(valuation?.unrealized_pnl_pct ?? 0).toFixed(2)} %`}
-          signed={valuation?.unrealized_pnl_pct ?? 0}
-        />
-      </div>
+    <section className="pg-stack">
+      <header className="acc-hero">
+        <div className="acc-hero-main">
+          <span className="acc-kicker">Valeur des placements</span>
+          <strong className="acc-hero-value num">{money(total, reportCurrency)}</strong>
+          <span className="acc-hero-sub">
+            <span>Prix de revient <b className="num">{money(valuation?.cost_basis ?? 0, reportCurrency)}</b></span>
+            <span>Latent <b className={`num ${pnl >= 0 ? 'income' : 'expense'}`}>{signed(pnl, reportCurrency)} ({formatPct(valuation?.unrealized_pnl_pct ?? 0)})</b></span>
+          </span>
+        </div>
+        <div className="acc-hero-actions">
+          <button type="button" className="primary accent" onClick={() => setForm('new')}><Plus size={16} /> Ajouter une position</button>
+        </div>
+      </header>
 
-      <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
-        <button type="button" className="collapsible-header" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
-          <span className="collapsible-title"><Plus size={16} /> Nouvelle position</span>
-          {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-        <Collapsible open={addOpen} className="collapsible-body">
-          <p className="panel-note">
-            Le <strong>symbole</strong> est le ticker interrogé pour le cours (ex. <code>AAPL</code>, <code>CW8.PA</code>, <code>BTC-EUR</code>).
-            La <strong>devise</strong> doit correspondre à la devise de cotation du titre. La quantité détenue et le prix de revient se déduisent du carnet d'ordres.
-          </p>
-          <form className="form form-inline" onSubmit={submitAdd}>
-            <label>Compte
-              <select name="account_id" required>
-                {investmentAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-            </label>
-            <label>Symbole<input name="symbol" placeholder="CW8.PA" required /></label>
-            <label className="grow">Nom<input name="name" placeholder="Amundi MSCI World" required /></label>
-            <label>Classe
-              <select name="asset_class" defaultValue="etf">
-                {ASSET_CLASSES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-              </select>
-            </label>
-            <label>Devise<input name="currency" defaultValue="EUR" maxLength={3} style={{ width: '5rem' }} /></label>
-            <button className="primary"><Plus size={16} /> Ajouter</button>
-          </form>
-        </Collapsible>
-      </div>
+      {loading && holdings.length > 0 && <p className="acc-muted"><Loader2 className="spin-icon" size={14} /> Valorisation au cours du jour…</p>}
+      {!loading && missingQuotes && <p className="pea-note">Certains cours sont indisponibles : ces lignes sont valorisées au prix de revient.</p>}
 
-      <Panel title="Positions" icon={<CandlestickChart />}>
-        {loading && holdings.length > 0 && <p className="panel-note"><Loader2 className="spin-icon" size={14} /> Valorisation au cours du jour…</p>}
-        <DataTable scroll empty={holdings.length === 0 ? 'Aucune position. Ajoute une position puis ses ordres d\'achat/vente.' : null}>
-          <thead><tr>
-            <th>Symbole</th><th>Compte</th><th className="amount-cell">Quantité</th><th className="amount-cell">PRU</th>
-            <th className="amount-cell">Cours</th><th className="amount-cell">Valeur</th><th className="amount-cell">+/- value</th>
-            <th className="amount-cell">Poids</th><th className="actions-cell">Actions</th>
-          </tr></thead>
-          <tbody>
-            {holdings.map((h) => {
-              const v = valById.get(h.id);
-              const account = accountById.get(h.account_id);
-              return (
-                <tr key={h.id}>
-                  <td data-label="Symbole">
-                    <strong>{h.symbol}</strong>
-                    <span className="muted" style={{ display: 'block', fontSize: '0.8em' }}>{h.name} · {ASSET_LABEL.get(h.asset_class)}</span>
-                  </td>
-                  <td data-label="Compte">{account?.name ?? <span className="muted">—</span>}</td>
-                  <td className="amount-cell" data-label="Quantité">{v ? v.quantity : <span className="muted">0</span>}</td>
-                  <td className="amount-cell" data-label="PRU">{v ? money(v.avg_cost, h.currency) : '—'}</td>
-                  <td className="amount-cell" data-label="Cours">{v?.price != null ? money(v.price, h.currency) : <span className="muted">n/d</span>}</td>
-                  <td className="amount-cell" data-label="Valeur">{v ? money(v.market_value, reportCurrency) : '—'}</td>
-                  <td className={`amount-cell ${v && v.unrealized_pnl >= 0 ? 'income' : v ? 'expense' : ''}`} data-label="+/- value">
-                    {v ? signedMoney(v.unrealized_pnl, reportCurrency) : '—'}
-                  </td>
-                  <td className="amount-cell" data-label="Poids">{v ? `${v.weight.toFixed(1)} %` : '—'}</td>
-                  <td className="actions-cell">
-                    <IconButton label="Ordres" tone="accent" icon={<Layers size={16} />} onClick={() => setOrdersFor(h)} />
-                    <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(h)} />
-                    <IconButton label="Supprimer" confirm={`Supprimer la position ${h.symbol} et tous ses ordres ?`} onClick={() => void run(() => api.deleteHolding(userId, h.id), 'Position supprimée')} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </DataTable>
-      </Panel>
+      {holdings.length === 0 ? (
+        <div className="acc-empty">
+          <p>Aucune position.</p>
+          <p className="acc-muted">Ajoute une position (ETF, action, crypto…) puis ses ordres d'achat et de vente.</p>
+        </div>
+      ) : groups.map((g) => (
+        <section className="pg-section" key={g.id}>
+          <div className="pg-section-head">
+            <h2>{g.account ? <Link className="inv-acc-link" to={`/accounts/${g.id}`}>{g.account.name}</Link> : 'Compte inconnu'}</h2>
+            <span className="num acc-muted">{money(g.value, reportCurrency)}</span>
+          </div>
+          <div className="pea-table-wrap">
+            <table className="pea-table inv-table">
+              <thead><tr>
+                <th>Titre</th><th className="r">Quantité</th><th className="r">PRU</th><th className="r">Cours</th>
+                <th className="r">Valeur</th><th className="r">+/- latente</th><th className="r">Poids</th><th aria-label="Actions" />
+              </tr></thead>
+              <tbody>
+                {g.list.map((h) => {
+                  const v = valById.get(h.id);
+                  // Quantité exacte depuis le carnet (la valorisation l'arrondit à 2 décimales).
+                  const qty = h.orders.reduce((sum, o) => sum + (o.side === 'buy' ? o.quantity : -o.quantity), 0);
+                  const pct = v && v.cost_basis > 0 ? (v.unrealized_pnl / v.cost_basis) * 100 : null;
+                  return (
+                    <tr key={h.id}>
+                      <td className="pea-title"><strong>{h.name || h.symbol}</strong><span>{h.symbol} · {ASSET_LABEL.get(h.asset_class)}</span></td>
+                      <td className="r num" data-label="Quantité">{formatQuantity(Math.round(qty * 1e8) / 1e8)}</td>
+                      <td className="r num" data-label="PRU">{v ? money(v.avg_cost, h.currency) : '—'}</td>
+                      <td className="r num" data-label="Cours">{v?.price != null ? money(v.price, h.currency) : <span className="acc-muted">n/d</span>}</td>
+                      <td className="r num pea-value" data-label="Valeur">{v ? money(v.market_value, reportCurrency) : '—'}</td>
+                      <td className={`r num ${v && v.price != null ? (v.unrealized_pnl >= 0 ? 'income' : 'expense') : ''}`} data-label="+/- latente">
+                        {v && v.price != null ? <>{signed(v.unrealized_pnl, reportCurrency)} <small>{formatPct(pct)}</small></> : '—'}
+                      </td>
+                      <td className="r num" data-label="Poids">{v ? formatPct(v.weight, false) : '—'}</td>
+                      <td className="inv-actions-cell"><div className="inv-actions">
+                        <button type="button" className="secondary inv-orders-btn" onClick={() => setOrdersFor(h.id)}><Layers size={15} /> Ordres <span className="acc-count">{h.orders.length}</span></button>
+                        <RowMenu label={`Plus d'actions pour ${h.symbol}`} items={[
+                          { label: 'Modifier', icon: <Pencil size={16} />, onClick: () => setForm(h) },
+                          { label: 'Supprimer', icon: <Trash2 size={16} />, danger: true, onClick: () => removeHolding(h) },
+                        ]} />
+                      </div></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
 
       {valuation && valuation.allocation.length > 0 && (
-        <Panel title="Allocation par classe d'actif" icon={<Layers />}>
-          <div className="alloc-bar">
-            {valuation.allocation.map((slice, i) => (
-              <span key={slice.asset_class} title={`${ASSET_LABEL.get(slice.asset_class)} · ${slice.weight}%`}
-                style={{ width: `${slice.weight}%`, background: ALLOCATION_COLORS[i % ALLOCATION_COLORS.length] }} />
-            ))}
-          </div>
-          <DataTable empty={null}>
-            <thead><tr><th>Classe</th><th className="amount-cell">Valeur</th><th className="amount-cell">Poids</th></tr></thead>
-            <tbody>
-              {valuation.allocation.map((slice, i) => (
-                <tr key={slice.asset_class}>
-                  <td><span className="dot inline" style={{ background: ALLOCATION_COLORS[i % ALLOCATION_COLORS.length] }} /> {ASSET_LABEL.get(slice.asset_class)}</td>
-                  <td className="amount-cell">{money(slice.value, reportCurrency)}</td>
-                  <td className="amount-cell">{slice.weight.toFixed(1)} %</td>
-                </tr>
+        <section className="pg-section">
+          <div className="pg-section-head"><h2>Allocation</h2></div>
+          <div className="inv-alloc">
+            <div className="inv-alloc-bar">
+              {valuation.allocation.map((s, i) => (
+                <span key={s.asset_class} title={`${ASSET_LABEL.get(s.asset_class)} · ${s.weight} %`} style={{ width: `${s.weight}%`, opacity: ALLOC_SHADES[i % ALLOC_SHADES.length] }} />
               ))}
-            </tbody>
-          </DataTable>
-        </Panel>
+            </div>
+            <ul className="inv-alloc-list">
+              {valuation.allocation.map((s, i) => (
+                <li key={s.asset_class}>
+                  <i style={{ opacity: ALLOC_SHADES[i % ALLOC_SHADES.length] }} />
+                  <span>{ASSET_LABEL.get(s.asset_class)}</span>
+                  <span className="num">{money(s.value, reportCurrency)}</span>
+                  <span className="num acc-muted">{formatPct(s.weight, false)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
       )}
 
-      {editing && (
-        <Modal title={`Modifier ${editing.symbol}`} onClose={() => setEditing(null)}>
-          <form className="form" onSubmit={submitEdit}>
-            <label>Symbole<input name="symbol" defaultValue={editing.symbol} required /></label>
-            <label>Nom<input name="name" defaultValue={editing.name} required /></label>
-            <label>Classe
-              <select name="asset_class" defaultValue={editing.asset_class}>
-                {ASSET_CLASSES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-              </select>
-            </label>
-            <label>Devise<input name="currency" defaultValue={editing.currency} maxLength={3} /></label>
-            <button className="primary">Enregistrer</button>
-            <button type="button" className="secondary" onClick={() => setEditing(null)}>Annuler</button>
-          </form>
-        </Modal>
-      )}
-
-      {ordersFor && (
-        <OrdersModal
-          userId={userId}
-          holding={holdings.find((h) => h.id === ordersFor.id) ?? ordersFor}
-          run={run}
-          onClose={() => setOrdersFor(null)}
-        />
+      {form && <HoldingModal userId={userId} holding={form === 'new' ? null : form} accounts={accounts} run={run} onClose={() => setForm(null)} />}
+      {ordersFor != null && holdings.some((h) => h.id === ordersFor) && (
+        <OrdersModal userId={userId} holding={holdings.find((h) => h.id === ordersFor)!} run={run} onClose={() => setOrdersFor(null)} />
       )}
     </section>
   );
 }
 
-// Carnet d'ordres d'une position. La liste vient du prop `holdings` (rechargé
-// par le reload global après chaque mutation via `run`).
-function OrdersModal({ userId, holding, run, onClose }: {
-  userId: number;
-  holding: Holding;
-  run: Run;
-  onClose: () => void;
-}) {
+function HoldingModal({ userId, holding, accounts, run, onClose }: { userId: number; holding: Holding | null; accounts: Account[]; run: Run; onClose: () => void }) {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const body = {
+      symbol: String(data.get('symbol')).trim(),
+      name: String(data.get('name')).trim(),
+      asset_class: String(data.get('asset_class')) as AssetClass,
+      currency: String(data.get('currency') || 'EUR').trim().toUpperCase(),
+    };
+    void run(
+      () => (holding ? api.updateHolding(userId, holding.id, body) : api.createHolding(userId, { ...body, account_id: Number(data.get('account_id')) })),
+      holding ? 'Position modifiée' : 'Position ajoutée',
+    ).then((ok) => { if (ok) onClose(); });
+  };
+  return (
+    <Modal title={holding ? `Modifier ${holding.symbol}` : 'Ajouter une position'} onClose={onClose}>
+      <form className="form acc-form sheet-ok" onSubmit={submit}>
+        {!holding && (
+          <label className="full">Compte
+            <select name="account_id" required>
+              {investmentAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </label>
+        )}
+        <label>Symbole<input name="symbol" defaultValue={holding?.symbol ?? ''} placeholder="CW8.PA" required autoCapitalize="characters" /></label>
+        <label>Devise<input name="currency" defaultValue={holding?.currency ?? 'EUR'} maxLength={3} required /></label>
+        <label className="full">Nom<input name="name" defaultValue={holding?.name ?? ''} placeholder="Amundi MSCI World" required /></label>
+        <label className="full">Classe
+          <select name="asset_class" defaultValue={holding?.asset_class ?? 'etf'}>
+            {ASSET_CLASSES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+          </select>
+        </label>
+        <p className="acc-muted full">Le symbole est le ticker du cours (ex. CW8.PA, AAPL, BTC-EUR), la devise celle de cotation.</p>
+        <div className="acc-form-actions full">
+          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+          <button className="primary">{holding ? 'Enregistrer' : 'Ajouter'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// Carnet d'ordres : quantités décimales (8 décimales), saisie à la virgule.
+function OrdersModal({ userId, holding, run, onClose }: { userId: number; holding: Holding; run: Run; onClose: () => void }) {
+  const [error, setError] = useState<string | null>(null);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
+    const quantity = parseDecimal(data.get('quantity'), 8);
+    const unit_price = parseDecimal(data.get('unit_price'), 6);
+    const fee = parseDecimal(data.get('fee') || '0');
+    if (!(quantity > 0)) { setError('Quantité invalide (jusqu’à 8 décimales).'); return; }
+    if (!(unit_price >= 0)) { setError('Prix unitaire invalide.'); return; }
+    if (!(fee >= 0)) { setError('Frais invalides.'); return; }
+    setError(null);
     void run(() => api.addHoldingOrder(userId, holding.id, {
       side: String(data.get('side')) as 'buy' | 'sell',
       date: String(data.get('date')),
-      quantity: Number(data.get('quantity')),
-      unit_price: Number(data.get('unit_price')),
-      fee: Number(data.get('fee') || 0),
+      quantity, unit_price, fee,
     }), 'Ordre ajouté').then((ok) => { if (ok) form.reset(); });
   };
-
+  const orders = [...holding.orders].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
   return (
     <Modal title={`Ordres · ${holding.symbol}`} onClose={onClose} wide>
-      <form className="form form-inline" onSubmit={submit}>
+      <form className="form inv-order-form sheet-ok" onSubmit={submit}>
         <label>Sens
-          <select name="side" defaultValue="buy">
-            <option value="buy">Achat</option>
-            <option value="sell">Vente</option>
-          </select>
+          <select name="side" defaultValue="buy"><option value="buy">Achat</option><option value="sell">Vente</option></select>
         </label>
         <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
-        <label>Quantité<input name="quantity" type="number" min="0.00000001" step="any" required /></label>
-        <label>Prix unitaire<input name="unit_price" type="number" min="0" step="any" required /></label>
-        <label>Frais<input name="fee" type="number" min="0" step="0.01" defaultValue="0" /></label>
+        <label>Quantité<input name="quantity" inputMode="decimal" autoComplete="off" placeholder="0,12345678" required /></label>
+        <label>Prix unitaire ({holding.currency})<input name="unit_price" inputMode="decimal" autoComplete="off" placeholder="0,00" required /></label>
+        <label>Frais<input name="fee" inputMode="decimal" autoComplete="off" defaultValue="0" /></label>
         <button className="primary"><Plus size={16} /> Ajouter l'ordre</button>
+        {error && <p className="acc-error full" role="alert">{error}</p>}
       </form>
-      <DataTable scroll empty={holding.orders.length === 0 ? 'Aucun ordre.' : null}>
-        <thead><tr><th>Date</th><th>Sens</th><th className="amount-cell">Quantité</th><th className="amount-cell">Prix</th><th className="amount-cell">Frais</th><th className="actions-cell">Actions</th></tr></thead>
-        <tbody>
-          {[...holding.orders].sort((a, b) => b.date.localeCompare(a.date)).map((o) => (
-            <tr key={o.id}>
-              <td data-label="Date">{new Date(o.date).toLocaleDateString('fr-FR')}</td>
-              <td data-label="Sens"><span className={o.side === 'buy' ? 'income' : 'expense'}>{o.side === 'buy' ? 'Achat' : 'Vente'}</span></td>
-              <td className="amount-cell" data-label="Quantité">{o.quantity}</td>
-              <td className="amount-cell" data-label="Prix">{money(o.unit_price, holding.currency)}</td>
-              <td className="amount-cell" data-label="Frais">{o.fee ? money(o.fee, holding.currency) : '—'}</td>
-              <td className="actions-cell">
-                <IconButton label="Supprimer l'ordre" confirm="Supprimer cet ordre ?" onClick={() => void run(() => api.deleteHoldingOrder(userId, holding.id, o.id), 'Ordre supprimé')} />
-              </td>
-            </tr>
+      {orders.length === 0 ? <p className="acc-muted">Aucun ordre.</p> : (
+        <ul className="inv-orders">
+          {orders.map((o) => (
+            <li key={o.id}>
+              <span className={`inv-side ${o.side}`}>{o.side === 'buy' ? 'Achat' : 'Vente'}</span>
+              <div className="inv-order-main">
+                <span className="num">{formatQuantity(o.quantity)} × {money(o.unit_price, holding.currency)}</span>
+                <span className="acc-muted">{formatDateFr(o.date)}{o.fee ? ` · frais ${money(o.fee, holding.currency)}` : ''}</span>
+              </div>
+              <span className="num inv-order-total">{money(o.quantity * o.unit_price + (o.side === 'buy' ? o.fee : -o.fee), holding.currency)}</span>
+              <button
+                type="button"
+                className="row-btn"
+                aria-label="Supprimer l'ordre"
+                title="Supprimer"
+                onClick={() => void run(() => api.deleteHoldingOrder(userId, holding.id, o.id), 'Ordre supprimé', {
+                  undo: () => api.addHoldingOrder(userId, holding.id, { side: o.side, date: o.date, quantity: o.quantity, unit_price: o.unit_price, fee: o.fee }),
+                })}
+              ><Trash2 size={16} /></button>
+            </li>
           ))}
-        </tbody>
-      </DataTable>
-      <button type="button" className="secondary" onClick={onClose}>Fermer</button>
+        </ul>
+      )}
     </Modal>
   );
 }

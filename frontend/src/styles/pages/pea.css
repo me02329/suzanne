@@ -1,0 +1,78 @@
+/* Vue PEA / compte-titres (fiche compte). Primitives (.kpis, .num, .pg-section)
+   dans accounts.css. */
+
+.pea { display: grid; gap: 22px; min-width: 0; }
+.pea-note {
+  margin: 0; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-muted); color: var(--muted); font-size: 13.5px;
+}
+
+.pea-table-wrap { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow-x: auto; }
+.pea-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.pea-table th {
+  padding: 12px 14px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap;
+  font-size: 11px; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+}
+.pea-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+.pea-table tbody tr:last-child td { border-bottom: 0; }
+.pea-table .r { text-align: right; }
+.pea-table small { color: var(--muted); font-size: 12px; }
+.pea-table td.income small, .pea-table td.expense small { color: inherit; opacity: 0.8; }
+.pea-title { display: grid; gap: 1px; white-space: normal !important; min-width: 160px; }
+.pea-title span { color: var(--muted); font-size: 12px; font-family: var(--num-font); }
+.pea-value { font-weight: 600; }
+.pea-weight { display: inline-block; width: 48px; height: 5px; margin-right: 8px; vertical-align: middle; border-radius: 3px; background: var(--surface-muted); overflow: hidden; }
+.pea-weight i { display: block; height: 100%; background: var(--text); opacity: 0.55; }
+
+.pea-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.pea-card { display: grid; gap: 10px; align-content: start; padding: 18px 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.pea-card h2 { margin: 0; font-size: 18px; }
+.pea-big { margin: 0; font-family: var(--num-font); font-size: 24px; font-weight: 600; letter-spacing: -0.03em; overflow-wrap: anywhere; }
+.pea-big span { color: var(--muted); font-size: 15px; font-weight: 500; }
+.pea-bar { height: 10px; border-radius: 999px; background: var(--surface-muted); border: 1px solid var(--border); overflow: hidden; }
+.pea-bar i { display: block; height: 100%; background: var(--text); border-radius: inherit; }
+.pea-bar i.full { background: var(--expense); }
+.pea-dl { display: grid; gap: 0; margin: 0; }
+.pea-dl > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; min-height: 36px; padding: 6px 0; border-bottom: 1px dashed var(--border); }
+.pea-dl > div:last-child { border-bottom: 0; }
+.pea-dl dt { color: var(--muted); font-size: 13.5px; }
+.pea-dl dt small { margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--surface-muted); font-size: 11px; }
+.pea-dl dd { margin: 0; text-align: right; font-weight: 550; }
+.pea-dl .pea-total dt { color: var(--text); font-weight: 650; }
+.pea-dl .pea-total dd { font-weight: 700; }
+.pea-foot { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.pea-sim { display: grid; gap: 6px; color: var(--muted); font-size: 12.5px; font-weight: 650; }
+.pea-sim input { width: 100%; font-family: var(--num-font); }
+
+.pea-flows { list-style: none; margin: 0; padding: 4px 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.pea-flows li { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 48px; padding: 4px 18px; }
+.pea-flows li + li { border-top: 1px solid var(--border); }
+.pea-flow-date { color: var(--muted); font-size: 13px; }
+.pea-flow-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pea-more { justify-self: start; }
+
+@media (max-width: 900px) {
+  .pea-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .pea { gap: 18px; }
+  /* Positions en cartes : titre + valeur en tête, détails en 2 colonnes. */
+  .pea-table-wrap { border: 0; background: none; overflow: visible; }
+  .pea-table, .pea-table tbody { display: block; }
+  .pea-table thead { display: none; }
+  .pea-table tbody tr {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px;
+    padding: 14px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+  }
+  .pea-table td { display: grid; gap: 2px; padding: 0; border: 0; text-align: left !important; white-space: normal; }
+  .pea-table td[data-label]::before { content: attr(data-label); color: var(--muted); font-family: var(--font-sans); font-size: 11px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; }
+  .pea-title { grid-column: 1 / -1; min-width: 0; }
+  .pea-weight { width: 40px; }
+  .pea-card { padding: 16px; }
+  .pea-flows li { grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 14px; }
+  .pea-flow-date { grid-column: 1; grid-row: 2; font-size: 12px; }
+  .pea-flow-label { grid-column: 1; grid-row: 1; }
+  .pea-flows .num { grid-column: 2; grid-row: 1 / span 2; }
+  .pea-more { justify-self: stretch; }
+}

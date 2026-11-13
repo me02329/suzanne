@@ -1,0 +1,27 @@
+/* Objectifs (/goals). */
+
+.goal-card { display: grid; gap: 10px; align-content: start; padding: 16px 16px 16px 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.goal-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.goal-head h2 { margin: 0; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-dot { width: 10px; height: 10px; border-radius: 3px; }
+.goal-amount { margin: 0; font-size: 26px; font-weight: 600; }
+.goal-amount small { font-size: 14px; color: var(--muted); font-weight: 500; }
+.goal-bar { height: 8px; border-radius: 999px; background: var(--surface-muted); border: 1px solid var(--border); overflow: hidden; }
+.goal-bar i { display: block; height: 100%; border-radius: inherit; }
+.goal-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12.5px; }
+.goal-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.goal-meta span:first-child { font-family: var(--num-font); color: var(--text); }
+.goal-cta { justify-self: start; margin-top: 2px; }
+
+.goal-history { list-style: none; margin: 12px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); }
+.goal-history li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; min-height: 52px; padding: 4px 6px 4px 14px; }
+.goal-history li + li { border-top: 1px solid var(--border); }
+.goal-history-main { display: grid; min-width: 0; }
+.goal-history-main span { display: inline-flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-history-main small { color: var(--muted); }
+.goal-tx { color: var(--muted); }
+
+@media (max-width: 640px) {
+  .goal-amount { font-size: 22px; }
+  .goal-cta { justify-self: stretch; }
+}

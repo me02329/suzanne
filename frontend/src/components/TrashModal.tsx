@@ -3,6 +3,7 @@ import { Loader2, RotateCcw, Trash2 } from 'lucide-react';
 import type { Category, Transaction } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { money, txLabel } from '../lib/format';
+import { formatTxDate } from './transactions/txUtils';
 import { DataTable } from './DataTable';
 import { IconButton } from './IconButton';
 import { Modal } from './Modal';
@@ -45,7 +46,7 @@ export function TrashModal({ userId, categoryById, run, onClose }: {
           <tbody>
             {items.map((t) => (
               <tr key={t.id}>
-                <td data-label="Date">{new Date(t.date).toLocaleDateString('fr-FR')}</td>
+                <td data-label="Date">{formatTxDate(t.date)}</td>
                 <td data-label="Libellé">{txLabel(t, categoryById)}</td>
                 <td className={`amount-cell ${t.type === 'income' ? 'income' : t.type === 'expense' ? 'expense' : 'transfer'}`} data-label="Montant">
                   {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{money(Math.abs(t.amount))}

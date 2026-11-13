@@ -352,3 +352,13 @@ function nextMonth(month: string): string {
   const date = new Date(Date.UTC(Number(yearRaw), Number(monthRaw), 1));
   return date.toISOString();
 }
+
+// Une opération (lien direct ?tx=<id>). Déclarée après /transactions/trash pour
+// que « trash » ne soit pas pris pour un id.
+transactionsRouter.get('/users/:user_id/transactions/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const id = idParam.parse(req.params.id);
+  const row = await prisma.transaction.findFirst({ where: { id, user_id }, include: transactionInclude });
+  if (!row) throw new HttpError(404, 'Opération introuvable');
+  res.json(serializeTransaction(row));
+}));

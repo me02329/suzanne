@@ -1,19 +1,16 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { ArrowLeftRight, ChevronDown, ChevronUp, Coins, HandCoins, History, Link2, Loader2, Pencil, PiggyBank, Plus } from 'lucide-react';
+import { ArrowLeftRight, Coins, HandCoins, History, Link2, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Account, GoalContribution, SavingsGoal } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { money, todayIso } from '../lib/format';
 import { numberOrNull } from '../lib/forms';
-import { usePersistedState } from '../lib/storage';
-import { DataTable } from '../components/DataTable';
-import { IconButton } from '../components/IconButton';
-import { LimitPicker, useListLimit } from '../components/LimitPicker';
+import { formatDateFr, parseDecimal } from '../lib/pea';
 import { Modal } from '../components/Modal';
-import { Panel } from '../components/Panel';
-import { Collapsible } from '../components/Collapsible';
-
+import { RowMenu } from '../components/accounts/RowMenu';
 import type { Run } from '../lib/run';
+import '../styles/pages/accounts.css';
+import '../styles/pages/goals.css';
 
 export function Goals({ userId, goals, accounts, accountById, run }: {
   userId: number;
@@ -22,281 +19,216 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
   accountById: Map<number, Account>;
   run: Run;
 }) {
-  const [contributing, setContributing] = useState<SavingsGoal | null>(null);
-  const [withdrawing, setWithdrawing] = useState<SavingsGoal | null>(null);
-  const [editing, setEditing] = useState<SavingsGoal | null>(null);
-  const [historyGoal, setHistoryGoal] = useState<SavingsGoal | null>(null);
-  const [addOpen, setAddOpen] = usePersistedState<boolean>('goals_add_open', goals.length === 0);
+  const [form, setForm] = useState<SavingsGoal | 'new' | null>(null);
+  const [moving, setMoving] = useState<{ goal: SavingsGoal; kind: 'in' | 'out' } | null>(null);
+  const [historyGoal, setHistoryGoal] = useState<number | null>(null);
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    void run(() => api.createGoal(userId, {
-      name: String(data.get('name')),
-      target_amount: Number(data.get('target_amount')),
-      current_amount: Number(data.get('current_amount') || 0),
-      deadline: String(data.get('deadline') || '') || null,
-      color: String(data.get('color')),
-      account_id: numberOrNull(data.get('account_id')),
-    }), 'Objectif ajouté');
-    event.currentTarget.reset();
-  };
+  const saved = goals.reduce((s, g) => s + g.current_amount, 0);
+  const target = goals.reduce((s, g) => s + g.target_amount, 0);
+  const pctAll = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
 
-  const submitEdit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editing) return;
-    const data = new FormData(event.currentTarget);
-    void run(() => api.updateGoal(userId, editing.id, {
-      name: String(data.get('name')),
-      target_amount: Number(data.get('target_amount')),
-      current_amount: Number(data.get('current_amount') || 0),
-      deadline: String(data.get('deadline') || '') || null,
-      color: String(data.get('color')),
-      account_id: numberOrNull(data.get('account_id')),
-    }), 'Objectif modifié');
-    setEditing(null);
-  };
-
-  const submitContribution = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!contributing) return;
-    const data = new FormData(event.currentTarget);
-    void run(() => api.contributeGoal(userId, contributing.id, {
-      amount: Number(data.get('amount')),
-      date: String(data.get('date')),
-      source_account_id: numberOrNull(data.get('source_account_id')),
-      description: String(data.get('description') || '') || null,
-    }), 'Versement enregistré');
-    setContributing(null);
-  };
-
-  const submitWithdrawal = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!withdrawing) return;
-    const data = new FormData(event.currentTarget);
-    void run(() => api.withdrawGoal(userId, withdrawing.id, {
-      amount: Number(data.get('amount')),
-      date: String(data.get('date')),
-      destination_account_id: numberOrNull(data.get('destination_account_id')),
-      description: String(data.get('description') || '') || null,
-    }), 'Retrait enregistré');
-    setWithdrawing(null);
-  };
+  const remove = (g: SavingsGoal) => void run(() => api.deleteGoal(userId, g.id), `Objectif « ${g.name} » supprimé`, {
+    undo: () => api.createGoal(userId, { name: g.name, target_amount: g.target_amount, current_amount: g.current_amount, deadline: g.deadline?.slice(0, 10) ?? null, color: g.color, account_id: g.account_id }),
+  });
 
   return (
-    <section className="stack">
-      <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
-        <button type="button" className="collapsible-header" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
-          <span className="collapsible-title"><Plus size={16} /> Nouvel objectif</span>
-          {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-        <Collapsible open={addOpen} className="collapsible-body">
-            <p className="panel-note">
-              Lié à un compte : la progression peut être alimentée par un versement (transfert depuis un autre compte).
-              Sans compte : reste un compteur manuel.
-            </p>
-            <form className="form form-inline" onSubmit={submit}>
-              <label className="grow">Nom<input name="name" required /></label>
-              <label>Cible<input name="target_amount" type="number" min="0.01" step="0.01" required /></label>
-              <label>Actuel<input name="current_amount" type="number" min="0" step="0.01" defaultValue="0" /></label>
-              <label>Compte de l'objectif
-                <select name="account_id">
-                  <option value="">Aucun (compteur manuel)</option>
-                  {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-              </label>
-              <label>Échéance<input name="deadline" type="date" /></label>
-              <label>Couleur<input name="color" type="color" defaultValue="#4f46e5" /></label>
-              <button className="primary"><Plus size={16} /> Ajouter</button>
-            </form>
-          </Collapsible>
-      </div>
-      <Panel title="Objectifs" icon={<PiggyBank />}>
-        <DataTable empty={goals.length === 0 ? 'Aucun objectif.' : null}>
-          <thead><tr><th>Objectif</th><th>Compte</th><th className="amount-cell">Actuel</th><th className="amount-cell">Cible</th><th>Progression</th><th>Échéance</th><th className="actions-cell">Actions</th></tr></thead>
-          <tbody>
-            {goals.map((g) => {
-              const pct = Math.min(100, (g.current_amount / g.target_amount) * 100);
-              const account = g.account_id != null ? accountById.get(g.account_id) : null;
-              return (
-                <tr key={g.id}>
-                  <td><span className="dot inline" style={{ background: g.color }} /><strong title={g.name}>{g.name}</strong></td>
-                  <td>{account ? <span className="goal-account"><Link2 size={12} /> {account.name}</span> : <span className="muted">Manuel</span>}</td>
-                  <td className="amount-cell">{money(g.current_amount)}</td>
-                  <td className="amount-cell">{money(g.target_amount)}</td>
-                  <td><div className="bar"><span style={{ width: `${pct}%`, background: g.color }} /></div><span>{Math.round(pct)} %</span></td>
-                  <td>{g.deadline ? new Date(g.deadline).toLocaleDateString('fr-FR') : '-'}</td>
-                  <td className="actions-cell">
-                    <IconButton label="Verser" tone="accent" icon={<Coins size={16} />} onClick={() => setContributing(g)} />
-                    <IconButton label="Retirer" tone="neutral" icon={<HandCoins size={16} />} onClick={() => setWithdrawing(g)} disabled={g.current_amount <= 0} />
-                    <IconButton label="Historique des versements" tone="neutral" icon={<History size={16} />} onClick={() => setHistoryGoal(g)} />
-                    <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(g)} />
-                    <IconButton label="Supprimer" confirm="Supprimer cet objectif ?" onClick={() => void run(() => api.deleteGoal(userId, g.id), 'Objectif supprimé')} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </DataTable>
-      </Panel>
+    <section className="pg-stack">
+      <header className="acc-hero">
+        <div className="acc-hero-main">
+          <span className="acc-kicker">Épargné pour tes objectifs</span>
+          <strong className="acc-hero-value num">{money(saved)}</strong>
+          {goals.length > 0 && (
+            <span className="acc-hero-sub">
+              <span>sur <b className="num">{money(target)}</b></span>
+              <span>{Math.round(pctAll)} % atteint</span>
+              <span>{goals.length} objectif{goals.length > 1 ? 's' : ''}</span>
+            </span>
+          )}
+        </div>
+        <div className="acc-hero-actions">
+          <button type="button" className="primary accent" onClick={() => setForm('new')}><Plus size={16} /> Ajouter un objectif</button>
+        </div>
+      </header>
 
-      {editing && (
-        <Modal title={`Modifier "${editing.name}"`} onClose={() => setEditing(null)}>
-          <form className="form" onSubmit={submitEdit}>
-            <label>Nom<input name="name" defaultValue={editing.name} required /></label>
-            <label>Cible<input name="target_amount" type="number" min="0.01" step="0.01" defaultValue={editing.target_amount} required /></label>
-            <label>Actuel<input name="current_amount" type="number" min="0" step="0.01" defaultValue={editing.current_amount} /></label>
-            <label>Compte de l'objectif
-              <select name="account_id" defaultValue={editing.account_id ?? ''}>
-                <option value="">Aucun (compteur manuel)</option>
-                {pickableAccounts(accounts, editing.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-            </label>
-            <label>Échéance<input name="deadline" type="date" defaultValue={editing.deadline ? editing.deadline.slice(0, 10) : ''} /></label>
-            <label>Couleur<input name="color" type="color" defaultValue={editing.color} /></label>
-            <button className="primary">Enregistrer</button>
-            <button type="button" className="secondary" onClick={() => setEditing(null)}>Annuler</button>
-          </form>
-        </Modal>
+      {goals.length === 0 ? (
+        <div className="acc-empty">
+          <p>Aucun objectif.</p>
+          <p className="acc-muted">Un voyage, un apport, un fonds d'urgence : fixe une cible et suis ta progression.</p>
+        </div>
+      ) : (
+        <div className="cards">
+          {goals.map((g) => {
+            const pct = g.target_amount > 0 ? Math.min(100, (g.current_amount / g.target_amount) * 100) : 0;
+            const account = g.account_id != null ? accountById.get(g.account_id) : null;
+            return (
+              <article className="goal-card" key={g.id}>
+                <header className="goal-head">
+                  <span className="goal-dot" style={{ background: g.color }} />
+                  <h2 title={g.name}>{g.name}</h2>
+                  <RowMenu label={`Plus d'actions pour ${g.name}`} items={[
+                    { label: 'Retirer', icon: <HandCoins size={16} />, disabled: g.current_amount <= 0, onClick: () => setMoving({ goal: g, kind: 'out' }) },
+                    { label: 'Historique', icon: <History size={16} />, onClick: () => setHistoryGoal(g.id) },
+                    { label: 'Modifier', icon: <Pencil size={16} />, onClick: () => setForm(g) },
+                    { label: 'Supprimer', icon: <Trash2 size={16} />, danger: true, onClick: () => remove(g) },
+                  ]} />
+                </header>
+                <p className="goal-amount"><span className="num">{money(g.current_amount)}</span> <small className="num">/ {money(g.target_amount)}</small></p>
+                <div className="goal-bar" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
+                  <i style={{ width: `${pct}%`, background: g.color }} />
+                </div>
+                <div className="goal-meta">
+                  <span>{Math.round(pct)} %</span>
+                  <span>{account ? <><Link2 size={12} /> {account.name}</> : 'Compteur manuel'}</span>
+                  <span>{g.deadline ? `Échéance ${formatDateFr(g.deadline)}` : 'Sans échéance'}</span>
+                </div>
+                <button type="button" className="secondary goal-cta" onClick={() => setMoving({ goal: g, kind: 'in' })}><Coins size={16} /> Verser</button>
+              </article>
+            );
+          })}
+        </div>
       )}
 
-      {historyGoal && (
-        <GoalHistoryModal
-          userId={userId}
-          goal={goals.find((g) => g.id === historyGoal.id) ?? historyGoal}
-          run={run}
-          onClose={() => setHistoryGoal(null)}
-        />
-      )}
-
-      {contributing && (
-        <Modal title={`Verser sur "${contributing.name}"`} onClose={() => setContributing(null)}>
-          <form className="form" onSubmit={submitContribution}>
-            <p className="panel-note">
-              {contributing.account_id
-                ? 'Choisis un compte source : un transfert est créé du compte source vers le compte de l\'objectif.'
-                : 'Cet objectif n\'a pas de compte lié — la contribution incrémente uniquement le compteur.'}
-            </p>
-            <label>Montant<input name="amount" type="number" min="0.01" step="0.01" required /></label>
-            <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
-            {contributing.account_id != null && (
-              <label>Depuis le compte
-                <select name="source_account_id">
-                  <option value="">Aucun (juste compteur)</option>
-                  {pickableAccounts(accounts).filter((a) => a.id !== contributing.account_id).map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <label className="full">Libellé (optionnel)<input name="description" placeholder="Ex: Versement mensuel" /></label>
-            <button className="primary"><Coins size={16} /> Enregistrer le versement</button>
-            <button type="button" className="secondary" onClick={() => setContributing(null)}>Annuler</button>
-          </form>
-        </Modal>
-      )}
-
-      {withdrawing && (
-        <Modal title={`Retirer de "${withdrawing.name}"`} onClose={() => setWithdrawing(null)}>
-          <form className="form" onSubmit={submitWithdrawal}>
-            <p className="panel-note">
-              {withdrawing.account_id
-                ? 'Choisis un compte destination : un transfert est créé du compte de l\'objectif vers ce compte. La progression est décrémentée.'
-                : 'Cet objectif n\'a pas de compte lié — le retrait décrémente uniquement le compteur.'}
-              {' '}Épargné : {money(withdrawing.current_amount)}.
-            </p>
-            <label>Montant<input name="amount" type="number" min="0.01" step="0.01" max={withdrawing.current_amount} required /></label>
-            <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
-            {withdrawing.account_id != null && (
-              <label>Vers le compte
-                <select name="destination_account_id">
-                  <option value="">Aucun (juste compteur)</option>
-                  {pickableAccounts(accounts).filter((a) => a.id !== withdrawing.account_id).map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <label className="full">Libellé (optionnel)<input name="description" placeholder="Ex: Achat prévu" /></label>
-            <button className="primary"><HandCoins size={16} /> Enregistrer le retrait</button>
-            <button type="button" className="secondary" onClick={() => setWithdrawing(null)}>Annuler</button>
-          </form>
-        </Modal>
+      {form && <GoalFormModal userId={userId} goal={form === 'new' ? null : form} accounts={accounts} run={run} onClose={() => setForm(null)} />}
+      {moving && <MoveModal userId={userId} goal={moving.goal} kind={moving.kind} accounts={accounts} run={run} onClose={() => setMoving(null)} />}
+      {historyGoal != null && goals.some((g) => g.id === historyGoal) && (
+        <GoalHistoryModal userId={userId} goal={goals.find((g) => g.id === historyGoal)!} run={run} onClose={() => setHistoryGoal(null)} />
       )}
     </section>
   );
 }
 
-// Timeline des versements d'un objectif. La liste est rechargée localement
-// après une annulation (le reload global de `run` ne couvre pas cette donnée,
-// chargée à la demande).
-function GoalHistoryModal({ userId, goal, run, onClose }: {
-  userId: number;
-  goal: SavingsGoal;
-  run: Run;
-  onClose: () => void;
-}) {
-  const [contributions, setContributions] = useState<GoalContribution[] | null>(null);
-  const [version, setVersion] = useState(0);
-  const historyLimit = useListLimit(10);
+function GoalFormModal({ userId, goal, accounts, run, onClose }: { userId: number; goal: SavingsGoal | null; accounts: Account[]; run: Run; onClose: () => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const target_amount = parseDecimal(data.get('target_amount'));
+    const current_amount = parseDecimal(data.get('current_amount') || '0');
+    if (!(target_amount > 0)) { setError('Cible invalide.'); return; }
+    if (!(current_amount >= 0)) { setError('Montant actuel invalide.'); return; }
+    const body = {
+      name: String(data.get('name')).trim(),
+      target_amount,
+      current_amount,
+      deadline: String(data.get('deadline') || '') || null,
+      color: String(data.get('color')),
+      account_id: numberOrNull(data.get('account_id')),
+    };
+    void run(() => (goal ? api.updateGoal(userId, goal.id, body) : api.createGoal(userId, body)), goal ? 'Objectif modifié' : 'Objectif ajouté')
+      .then((ok) => { if (ok) onClose(); });
+  };
+  return (
+    <Modal title={goal ? `Modifier « ${goal.name} »` : 'Ajouter un objectif'} onClose={onClose}>
+      <form className="form acc-form sheet-ok" onSubmit={submit}>
+        <label className="full">Nom<input name="name" defaultValue={goal?.name ?? ''} required autoFocus={!goal} /></label>
+        <label>Cible<input name="target_amount" inputMode="decimal" autoComplete="off" defaultValue={goal ? String(goal.target_amount).replace('.', ',') : ''} required /></label>
+        <label>Déjà épargné<input name="current_amount" inputMode="decimal" autoComplete="off" defaultValue={goal ? String(goal.current_amount).replace('.', ',') : '0'} /></label>
+        <label className="full">Compte de l'objectif
+          <select name="account_id" defaultValue={goal?.account_id ?? ''}>
+            <option value="">Aucun (compteur manuel)</option>
+            {pickableAccounts(accounts, goal?.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </label>
+        <label>Échéance<input name="deadline" type="date" defaultValue={goal?.deadline?.slice(0, 10) ?? ''} /></label>
+        <label>Couleur<input name="color" type="color" defaultValue={goal?.color ?? '#4a6a00'} /></label>
+        {error && <p className="acc-error full" role="alert">{error}</p>}
+        <div className="acc-form-actions full">
+          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+          <button className="primary">{goal ? 'Enregistrer' : 'Ajouter'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
+function MoveModal({ userId, goal, kind, accounts, run, onClose }: { userId: number; goal: SavingsGoal; kind: 'in' | 'out'; accounts: Account[]; run: Run; onClose: () => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const others = pickableAccounts(accounts).filter((a) => a.id !== goal.account_id);
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const amount = parseDecimal(data.get('amount'));
+    if (!(amount > 0)) { setError('Montant invalide.'); return; }
+    if (kind === 'out' && amount > goal.current_amount) { setError(`Au plus ${money(goal.current_amount)}.`); return; }
+    const date = String(data.get('date'));
+    const description = String(data.get('description') || '') || null;
+    const other = numberOrNull(data.get('other_account_id'));
+    void run(
+      () => (kind === 'in'
+        ? api.contributeGoal(userId, goal.id, { amount, date, source_account_id: other, description })
+        : api.withdrawGoal(userId, goal.id, { amount, date, destination_account_id: other, description })),
+      kind === 'in' ? 'Versement enregistré' : 'Retrait enregistré',
+    ).then((ok) => { if (ok) onClose(); });
+  };
+  return (
+    <Modal title={`${kind === 'in' ? 'Verser sur' : 'Retirer de'} « ${goal.name} »`} onClose={onClose}>
+      <form className="form acc-form sheet-ok" onSubmit={submit}>
+        <label>Montant<input name="amount" inputMode="decimal" autoComplete="off" required autoFocus placeholder="0,00" /></label>
+        <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
+        {goal.account_id != null && (
+          <label className="full">{kind === 'in' ? 'Depuis le compte' : 'Vers le compte'}
+            <select name="other_account_id">
+              <option value="">Aucun (compteur seul)</option>
+              {others.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </label>
+        )}
+        <label className="full">Libellé<input name="description" placeholder={kind === 'in' ? 'Versement mensuel' : 'Achat prévu'} /></label>
+        <p className="acc-muted full">
+          {goal.account_id != null
+            ? `Avec un compte choisi, un virement est créé ${kind === 'in' ? 'vers' : 'depuis'} le compte de l'objectif.`
+            : 'Objectif sans compte : seul le compteur bouge.'}
+          {kind === 'out' && ` Épargné : ${money(goal.current_amount)}.`}
+        </p>
+        {error && <p className="acc-error full" role="alert">{error}</p>}
+        <div className="acc-form-actions full">
+          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+          <button className="primary">{kind === 'in' ? 'Verser' : 'Retirer'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function GoalHistoryModal({ userId, goal, run, onClose }: { userId: number; goal: SavingsGoal; run: Run; onClose: () => void }) {
+  const [rows, setRows] = useState<GoalContribution[] | null>(null);
+  const [version, setVersion] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    api.goalContributions(userId, goal.id)
-      .then((rows) => { if (!cancelled) setContributions(rows); })
-      .catch(() => { if (!cancelled) setContributions([]); });
+    api.goalContributions(userId, goal.id).then((r) => { if (!cancelled) setRows(r); }).catch(() => { if (!cancelled) setRows([]); });
     return () => { cancelled = true; };
   }, [userId, goal.id, version]);
-
-  const removeContribution = (contribution: GoalContribution) => {
-    void run(
-      () => api.deleteGoalContribution(userId, goal.id, contribution.id),
-      'Versement annulé',
-    ).then((ok) => { if (ok) setVersion((v) => v + 1); });
-  };
-
-  const total = (contributions ?? []).reduce((sum, c) => sum + c.amount, 0);
-
+  const total = (rows ?? []).reduce((s, c) => s + c.amount, 0);
   return (
-    <Modal title={`Versements sur "${goal.name}"`} onClose={onClose}>
-      {contributions == null ? (
-        <p className="empty"><Loader2 className="spin-icon" size={16} /> Chargement…</p>
-      ) : (
-        <>
-          <p className="panel-note">
-            {contributions.length > 0
-              ? `${contributions.length} versement${contributions.length > 1 ? 's' : ''} · ${money(Math.round(total * 100) / 100)} au total. Annuler un versement retire la ligne et décrémente la progression (le transfert lié, lui, reste dans les transactions).`
-              : 'Aucun versement enregistré — les versements faits via « Verser » apparaîtront ici.'}
-          </p>
-          <LimitPicker limit={historyLimit.limit} onChange={historyLimit.setLimit} total={contributions.length} />
-          <DataTable scroll empty={contributions.length === 0 ? 'Aucun versement.' : null}>
-            <thead><tr><th>Date</th><th>Libellé</th><th className="amount-cell">Montant</th><th className="actions-cell">Actions</th></tr></thead>
-            <tbody>
-              {historyLimit.clamp(contributions).map((c) => {
-                const isWithdrawal = c.amount < 0;
-                return (
-                <tr key={c.id}>
-                  <td data-label="Date">{new Date(c.date).toLocaleDateString('fr-FR')}</td>
-                  <td data-label="Libellé">
-                    {c.description ?? <span className="muted">{isWithdrawal ? 'Retrait' : '—'}</span>}
-                    {c.transaction_id != null && (
-                      <span className="badge-recurring" title="Un transfert a été créé pour ce mouvement"><ArrowLeftRight size={11} /> transfert</span>
-                    )}
-                  </td>
-                  <td className={`amount-cell ${isWithdrawal ? 'expense' : 'income'}`} data-label="Montant">
-                    {isWithdrawal ? '-' : '+'}{money(Math.abs(c.amount))}
-                  </td>
-                  <td className="actions-cell">
-                    <IconButton label={isWithdrawal ? 'Annuler ce retrait' : 'Annuler ce versement'} confirm={isWithdrawal ? 'Annuler ce retrait ? La progression sera recréditée.' : 'Annuler ce versement ? La progression de l\'objectif sera décrémentée.'} onClick={() => removeContribution(c)} />
-                  </td>
-                </tr>
-                );
-              })}
-            </tbody>
-          </DataTable>
-        </>
-      )}
-      <button type="button" className="secondary" onClick={onClose}>Fermer</button>
+    <Modal title={`Historique · ${goal.name}`} onClose={onClose}>
+      <div className="sheet-ok">
+        {rows == null ? <p className="acc-muted"><Loader2 className="spin-icon" size={14} /> Chargement…</p>
+          : rows.length === 0 ? <p className="acc-muted">Aucun versement enregistré.</p>
+            : (
+              <>
+                <p className="acc-muted">{rows.length} mouvement{rows.length > 1 ? 's' : ''} · total <b className="num">{money(Math.round(total * 100) / 100)}</b>. Annuler un versement décrémente la progression ; le virement lié reste dans les opérations.</p>
+                <ul className="goal-history">
+                  {rows.map((c) => (
+                    <li key={c.id}>
+                      <div className="goal-history-main">
+                        <span>{c.description ?? (c.amount < 0 ? 'Retrait' : 'Versement')}{c.transaction_id != null && <ArrowLeftRight size={12} className="goal-tx" aria-label="virement lié" />}</span>
+                        <small>{formatDateFr(c.date)}</small>
+                      </div>
+                      <span className={`num ${c.amount < 0 ? 'expense' : 'income'}`}>{c.amount < 0 ? '−' : '+'}{money(Math.abs(c.amount))}</span>
+                      <button
+                        type="button"
+                        className="row-btn"
+                        aria-label={c.amount < 0 ? 'Annuler ce retrait' : 'Annuler ce versement'}
+                        title="Annuler"
+                        onClick={() => void run(() => api.deleteGoalContribution(userId, goal.id, c.id), 'Mouvement annulé').then((ok) => { if (ok) setVersion((v) => v + 1); })}
+                      ><Trash2 size={16} /></button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+        <div className="acc-form-actions"><button type="button" className="secondary" onClick={onClose}>Fermer</button></div>
+      </div>
     </Modal>
   );
 }

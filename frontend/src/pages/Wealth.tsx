@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ArrowDownCircle, ArrowUpCircle, Banknote, Wallet } from 'lucide-react';
 import {
   Area,
-  Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
@@ -33,16 +30,15 @@ import {
   money as moneyFmt,
   moneyCompact as moneyCompactFmt,
   todayIso,
-  truncate,
 } from '../lib/format';
 import { localeTag } from '../i18n';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { fitDomain, symlogConstant, symlogInverse, toBase100, toSymlog, type ChartScaleMode } from '../lib/chartScale';
-import { DashboardSection } from '../components/DashboardSection';
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
-import { Stat } from '../components/Stat';
+import '../styles/pages/accounts.css';
+import '../styles/pages/wealth.css';
 
 // 12-color palette used when the wealth chart is broken down per account.
 // Repeats after 12 accounts (highly unusual for personal finance), with
@@ -70,7 +66,6 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
   const moneyCompact = (value: number) => moneyCompactFmt(value, displayCurrency);
   const chartTheme = useChartTheme();
   const chartGrid = chartTheme.grid;
-  const netColor = chartTheme.net;
 
   const [wealthRange, setWealthRange] = usePersistedState('wealth_range', '12m');
   const [wealthGranularity, setWealthGranularity] = usePersistedState('wealth_granularity', 'month');
@@ -173,7 +168,6 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
   const accountBalances = summary?.account_balances ?? [];
   const cashBalance = (summary?.balance_by_group ?? []).find((row) => row.group === 'cash')?.amount ?? 0;
 
-  const navigate = useNavigate();
   // Sort accounts by signed balance descending so the largest positive
   // balances sit on top and liabilities settle at the bottom. Names are
   // truncated by the tickFormatter to avoid the chart overlapping.
@@ -274,17 +268,24 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
   const netWorth = summary?.net_worth ?? summary?.balance ?? null;
 
   return (
-    <DashboardSection title={t('État actuel')} subtitle={t('Photographie du patrimoine — indépendant du mois sélectionné')}>
-      <section className="stats">
-        <Stat icon={<Wallet />} label={t('Patrimoine net')} value={money(netWorth ?? 0)} signed={netWorth} />
-        <Stat icon={<ArrowUpCircle />} label={t('Actifs')} value={money(summary?.balance_assets ?? 0)} positive />
-        <Stat icon={<ArrowDownCircle />} label={t('Passifs')} value={money(summary?.balance_liabilities ?? 0)} negative />
-        <Stat icon={<Banknote />} label={t('Liquidités')} value={money(cashBalance)} />
-      </section>
+    <section className="pg-stack wl">
+      <header className="acc-hero">
+        <div className="acc-hero-main">
+          <span className="acc-kicker">{t('Patrimoine net')}</span>
+          <strong className={`acc-hero-value num${(netWorth ?? 0) < 0 ? ' expense' : ''}`}>{money(netWorth ?? 0)}</strong>
+          <span className="acc-hero-sub"><span>{t('Photographie à date, indépendante du mois sélectionné')}</span></span>
+        </div>
+      </header>
+      <div className="kpis wl-kpis">
+        <div className="kpi"><span>{t('Actifs')}</span><strong>{money(summary?.balance_assets ?? 0)}</strong></div>
+        <div className="kpi"><span>{t('Passifs')}</span><strong className={(summary?.balance_liabilities ?? 0) > 0 ? 'expense' : ''}>{money(summary?.balance_liabilities ?? 0)}</strong></div>
+        <div className="kpi"><span>{t('Liquidités')}</span><strong>{money(cashBalance)}</strong></div>
+        <div className="kpi"><span>{t('Comptes')}</span><strong>{accountRows.length}</strong></div>
+      </div>
 
       <section className="chart-full">
         <Panel title={t('Évolution du patrimoine')}>
-          <div className="panel-toolbar">
+          <div className="panel-toolbar wl-toolbar">
             <select value={wealthRange} onChange={(e) => setWealthRange(e.target.value)}>
               <option value="1m">{t('1 mois')}</option>
               <option value="6m">{t('6 mois')}</option>
@@ -338,7 +339,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
           {effectiveWealthScaleMode === 'base100' && (
             <p className="panel-note">{t('Base 100 : chaque série démarre à 100 depuis son premier solde non nul. Le tooltip conserve le montant réel.')}</p>
           )}
-          <div className="series-toggles">
+          <div className="series-toggles wl-toggles">
             {wealthSeriesConfig.map(({ key, label }) => (
               <label key={key}><input type="checkbox" checked={wealthSeries[key] ?? false} onChange={() => toggleWealthSeries(key)} /> {label}</label>
             ))}
@@ -420,39 +421,21 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
 
       <section className="charts-grid">
         <Panel title={t('Soldes par compte')}>
-          <div className="chart-area small">
-            {accountsHasData ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={accountRows} layout="vertical" margin={{ top: 8, right: 8, left: 16, bottom: 0 }}>
-                  <CartesianGrid stroke={chartGrid} horizontal={false} />
-                  <XAxis type="number" tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    width={140}
-                    tickFormatter={(value) => truncate(String(value), 18)}
-                  />
-                  <Tooltip formatter={(value) => money(Number(value))} />
-                  <Bar
-                    dataKey="value"
-                    name={t('Solde')}
-                    fill={netColor}
-                    radius={[0, 4, 4, 0]}
-                    isAnimationActive={false}
-                    style={{ cursor: 'pointer' }}
-                    onClick={(entry) => {
-                      const id = (entry as { payload?: { id?: number } })?.payload?.id;
-                      if (id != null) navigate(`/accounts/${id}`);
-                    }}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyChart message={t('Aucun compte à afficher.')} />
-            )}
-          </div>
+          {accountsHasData ? (
+            <ul className="wl-accounts">
+              {accountRows.map((row) => (
+                <li key={row.id}>
+                  <Link to={`/accounts/${row.id}`}>
+                    <span className="wl-acc-name">{row.name}<small>{row.group}</small></span>
+                    <span className={`num${row.value < 0 ? ' expense' : ''}`}>{money(row.value)}</span>
+                    <span className="wl-acc-bar"><i style={{ width: `${(Math.abs(row.value) / Math.max(1, ...accountRows.map((r) => Math.abs(r.value)))) * 100}%` }} className={row.value < 0 ? 'neg' : ''} /></span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyChart message={t('Aucun compte à afficher.')} />
+          )}
         </Panel>
         <Panel title={t('Alertes comptes')}>
           <div className="alert-list">
@@ -471,7 +454,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
           </div>
         </Panel>
       </section>
-    </DashboardSection>
+    </section>
   );
 }
 

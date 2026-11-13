@@ -1,0 +1,37 @@
+/* Patrimoine (/wealth). */
+
+.wl .chart-full, .wl .charts-grid { margin: 0; }
+.wl-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.wl-toolbar select, .wl-toolbar input { min-width: 0; }
+.wl-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.wl-toggles label {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface-raised);
+  font-size: 13px; font-weight: 550; color: var(--text); cursor: pointer;
+}
+.wl-toggles label:has(input:checked) { border-color: var(--text); }
+.wl-toggles input { width: 14px; height: 14px; min-height: 0; margin: 0; accent-color: var(--text); }
+
+.wl-accounts { list-style: none; margin: 0; padding: 0; display: grid; }
+.wl-accounts li + li { border-top: 1px solid var(--border); }
+.wl-accounts a {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: 6px 12px;
+  padding: 10px 2px; color: inherit; text-decoration: none; min-height: 44px;
+}
+.wl-accounts a:hover .wl-acc-name { text-decoration: underline; text-underline-offset: 3px; }
+.wl-acc-name { display: grid; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wl-acc-name small { color: var(--muted); font-weight: 450; font-size: 12px; }
+.wl-accounts .num { align-self: center; font-weight: 550; }
+.wl-acc-bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--surface-muted); overflow: hidden; }
+.wl-acc-bar i { display: block; height: 100%; background: var(--text); opacity: 0.6; }
+.wl-acc-bar i.neg { background: var(--expense); }
+
+@media (max-width: 640px) {
+  .wl-toolbar { display: grid; grid-template-columns: 1fr 1fr; }
+  .wl-toolbar select, .wl-toolbar input { width: 100%; }
+  .wl-toolbar .range-sep { display: none; }
+  .wl-toggles { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .wl-toggles label { flex: 0 0 auto; min-height: 40px; }
+  .wl .chart-split { grid-template-columns: 1fr; }
+  .wl .charts-grid { grid-template-columns: 1fr; }
+}
