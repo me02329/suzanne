@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { asyncHandler } from '../middleware/errors.js';
+import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { getAiConfig, updateAiSettings } from '../lib/settingsStore.js';
 
 export const settingsRouter = Router();
@@ -29,6 +29,15 @@ const aiUpdateSchema = z.object({
 
 settingsRouter.put('/settings/ai', asyncHandler(async (req, res) => {
   const body = aiUpdateSchema.parse(req.body);
+  // Sécurité : rediriger une clé déjà enregistrée vers une autre URL l'enverrait
+  // à ce serveur au prochain appel. Changer d'URL impose de ressaisir la clé.
+  if (body.base_url !== undefined) {
+    const current = await getAiConfig();
+    const changed = (body.base_url ?? '') !== (current.baseUrl ?? '');
+    if (changed && current.apiKey && (body.api_key === undefined || body.api_key === null || body.api_key === '')) {
+      throw new HttpError(400, "Ressaisis la clé API quand tu changes l'URL du fournisseur");
+    }
+  }
   await updateAiSettings({
     apiKey: body.api_key,
     model: body.model,

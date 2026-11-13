@@ -17,7 +17,14 @@ export function createApp() {
   // gzip every response: the dashboard ships the full transaction set and
   // wealth-history many points — JSON compresses ~85%, cutting transfer time.
   app.use(compression());
-  app.use(cors());
+  // Le front est servi par l'app elle-même (même origine) : pas de CORS
+  // ouvert, sinon n'importe quel site visité pourrait appeler l'API locale.
+  // CORS_ORIGIN (liste séparée par des virgules) pour un front servi ailleurs.
+  const corsOrigins = process.env.CORS_ORIGIN?.split(',').map((o) => o.trim()).filter(Boolean);
+  if (corsOrigins && corsOrigins.length > 0) app.use(cors({ origin: corsOrigins }));
+  if (process.env.NODE_ENV === 'production' && !process.env.APP_TOKEN?.trim()) {
+    console.warn("[suzanne] APP_TOKEN non défini : l'API est accessible sans authentification.");
+  }
   // La restauration d'une sauvegarde JSON embarque les pièces jointes (base64) :
   // limite relevée pour cette seule route, 25 Mo partout ailleurs.
   const jsonDefault = express.json({ limit: '25mb' });
