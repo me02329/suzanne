@@ -18,7 +18,7 @@ const synced = new Map<string, Array<{ from: string; to: string }>>();
 const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const utcMs = (day: string) => Date.parse(`${day}T00:00:00.000Z`);
 
-async function fetchYahooRange(symbol: string, from: string, to: string): Promise<{ closes: Array<{ date: string; price: number }>; currency: string | null }> {
+export async function fetchYahooRange(symbol: string, from: string, to: string): Promise<{ closes: Array<{ date: string; price: number }>; currency: string | null }> {
   const url = new URL(`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`);
   url.searchParams.set('interval', '1d');
   // Une semaine de marge avant `from` : le premier jour reprend la clôture précédente.

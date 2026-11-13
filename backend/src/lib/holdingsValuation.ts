@@ -1,6 +1,7 @@
 import { fetchExchangeRate, normalizeCurrency, peekExchangeRate } from './fx.js';
 import { getRateAt } from './fxStore.js';
 import { getLatestQuotes, getQuoteAt } from './marketData.js';
+import { getPriceHistory } from './priceHistory.js';
 import { positionStats, valuePosition, type OrderLike, type PositionValue } from './holdings.js';
 
 // Valorisation des positions = colle entre la logique pure (holdings.ts), le
@@ -116,6 +117,17 @@ export async function securitiesByAccountByDate(
   const ccyByAccount = new Map(accounts.map((a) => [a.id, a.currency]));
   const result = new Map<number, number[]>();
   if (holdings.length === 0) return result;
+
+  // Préchauffe le cache de cours en UN appel Yahoo par titre pour toute la
+  // période (au lieu d'un appel par date manquante : ~8 s au premier affichage
+  // d'un historique hebdomadaire de plusieurs années).
+  const past = dates.filter((d) => d.toISOString().slice(0, 10) < new Date().toISOString().slice(0, 10));
+  if (past.length > 0) {
+    const from = past[0]!.toISOString().slice(0, 10);
+    const to = past[past.length - 1]!.toISOString().slice(0, 10);
+    const symbols = Array.from(new Set(holdings.filter((h) => h.orders.length > 0).map((h) => h.symbol)));
+    await Promise.all(symbols.map((symbol) => getPriceHistory(symbol, from, to).catch(() => null)));
+  }
 
   await Promise.all(dates.map(async (date, di) => {
     const key = date.toISOString().slice(0, 10);
