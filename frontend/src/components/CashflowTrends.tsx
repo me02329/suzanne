@@ -5,6 +5,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -12,9 +13,10 @@ import {
 } from 'recharts';
 import type { CashflowMonth, CashflowYear } from '@suzanne/shared';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt } from '../lib/format';
-import { useChartTheme } from '../lib/chartTheme';
+import { useChartTheme, useIsNarrow } from '../lib/chartTheme';
 import { EmptyChart } from '../components/EmptyChart';
-import { Panel } from '../components/Panel';
+import '../styles/pages/plan.css';
+import '../styles/pages/statistics.css';
 
 type CashflowTrendsSummary = {
   currency: string;
@@ -23,12 +25,13 @@ type CashflowTrendsSummary = {
 };
 
 // Tendances revenus/dépenses/épargne sur la plage déjà fournie par l'appelant.
+// Légendes sous les graphiques, axes compacts sur mobile.
 export function CashflowTrends({ summary, reportCurrency }: {
   summary: CashflowTrendsSummary | null;
   reportCurrency: string;
 }) {
   const chartTheme = useChartTheme();
-  const chartGrid = chartTheme.grid;
+  const narrow = useIsNarrow();
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, displayCurrency);
   const moneyCompact = (value: number) => moneyCompactFmt(value, displayCurrency);
@@ -45,71 +48,93 @@ export function CashflowTrends({ summary, reportCurrency }: {
   const yearHasData = yearRows.some((row) => row.income !== 0 || row.expenses !== 0);
   const rateHasData = monthRows.some((row) => row.savingRate !== null);
 
+  const axis = {
+    tickLine: false,
+    axisLine: false,
+    tick: chartTheme.tick,
+  } as const;
+  const yWidth = narrow ? 58 : 66;
+  const tooltip = {
+    contentStyle: chartTheme.tooltip.contentStyle,
+    labelStyle: chartTheme.tooltip.labelStyle,
+    itemStyle: chartTheme.tooltip.itemStyle,
+  };
+  const legend = <Legend verticalAlign="bottom" iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12.5, paddingTop: 8, color: chartTheme.axis }} />;
+
   return (
-    <>
-      <section className="chart-full">
-        <Panel title="Cashflow par mois">
-          <div className="chart-area">
+    <div className="st-trends">
+      <div className="pg-card">
+        <div className="pg-card-head"><h2>Revenus et dépenses par mois</h2></div>
+        <div className="pg-card-body">
+          <div className="pg-chart">
             {cashflowHasData ? (
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={monthRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke={chartGrid} vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                  <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
-                  <Tooltip formatter={(value) => money(Number(value))} />
-                  <Legend />
-                  <Bar dataKey="income" name="Revenus" fill={chartTheme.income} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                  <Bar dataKey="expenses_signed" name="Dépenses" fill={chartTheme.expense} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="cumulativeNet" name="Cumul net" stroke={chartTheme.net} strokeWidth={3} dot={{ r: 3 }} isAnimationActive={false} />
+                <ComposedChart data={monthRows} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={chartTheme.grid} vertical={false} />
+                  <XAxis dataKey="label" {...axis} minTickGap={narrow ? 8 : 4} />
+                  <YAxis tickFormatter={(value) => moneyCompact(Number(value))} {...axis} width={yWidth} />
+                  <Tooltip formatter={(value) => money(Number(value))} {...tooltip} cursor={chartTheme.tooltip.cursor} />
+                  <ReferenceLine y={0} stroke={chartTheme.axis} strokeOpacity={0.5} />
+                  {legend}
+                  <Bar dataKey="income" name="Revenus" fill={chartTheme.income} radius={[3, 3, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+                  <Bar dataKey="expenses_signed" name="Dépenses" fill={chartTheme.expense} radius={[3, 3, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="cumulativeNet" name="Cumul net" stroke={chartTheme.total} strokeWidth={2} dot={false} isAnimationActive={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
               <EmptyChart message="Pas encore de cashflow à afficher." />
             )}
           </div>
-        </Panel>
-      </section>
+        </div>
+      </div>
 
-      <section className="charts-grid">
-        <Panel title="Tendance annuelle">
-          <div className="chart-area small">
-            {yearHasData ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={yearRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke={chartGrid} vertical={false} />
-                  <XAxis dataKey="year" tickLine={false} axisLine={false} />
-                  <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
-                  <Tooltip formatter={(value) => money(Number(value))} />
-                  <Legend />
-                  <Line type="monotone" dataKey="income" name="Revenus" stroke={chartTheme.income} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="expenses" name="Dépenses" stroke={chartTheme.expense} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="net" name="Net" stroke={chartTheme.net} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyChart message="Pas encore d'historique annuel." />
-            )}
+      <div className="st-trends-row">
+        <div className="pg-card">
+          <div className="pg-card-head"><h2>Taux d’épargne</h2></div>
+          <div className="pg-card-body">
+            <div className="pg-chart small">
+              {rateHasData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthRows} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke={chartTheme.grid} vertical={false} />
+                    <XAxis dataKey="label" {...axis} minTickGap={20} />
+                    <YAxis tickFormatter={(v) => `${Math.round(Number(v) * 100)}%`} {...axis} width={44} />
+                    <Tooltip formatter={(v) => `${Math.round(Number(v) * 100)} %`} {...tooltip} cursor={{ stroke: chartTheme.axis, strokeDasharray: '3 3' }} />
+                    <ReferenceLine y={0} stroke={chartTheme.axis} strokeOpacity={0.5} />
+                    <Line type="monotone" dataKey="savingRate" name="Taux d'épargne" stroke={chartTheme.net} strokeWidth={2} dot={{ r: 2.5, fill: chartTheme.net }} connectNulls isAnimationActive={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyChart message="Pas encore assez d'historique de revenus." />
+              )}
+            </div>
           </div>
-        </Panel>
+        </div>
 
-        <Panel title="Taux d'épargne">
-          <div className="chart-area small">
-            {rateHasData ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke={chartGrid} vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={20} />
-                  <YAxis tickFormatter={(v) => `${Math.round(Number(v) * 100)}%`} tickLine={false} axisLine={false} width={48} />
-                  <Tooltip formatter={(v) => `${Math.round(Number(v) * 100)} %`} />
-                  <Line type="monotone" dataKey="savingRate" name="Taux d'épargne" stroke={chartTheme.net} strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyChart message="Pas encore assez d'historique de revenus." />
-            )}
+        <div className="pg-card">
+          <div className="pg-card-head"><h2>Par année</h2></div>
+          <div className="pg-card-body">
+            <div className="pg-chart small">
+              {yearHasData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={yearRows} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke={chartTheme.grid} vertical={false} />
+                    <XAxis dataKey="year" {...axis} />
+                    <YAxis tickFormatter={(value) => moneyCompact(Number(value))} {...axis} width={yWidth} />
+                    <Tooltip formatter={(value) => money(Number(value))} {...tooltip} cursor={{ stroke: chartTheme.axis, strokeDasharray: '3 3' }} />
+                    {legend}
+                    <Line type="monotone" dataKey="income" name="Revenus" stroke={chartTheme.income} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+                    <Line type="monotone" dataKey="expenses" name="Dépenses" stroke={chartTheme.expense} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+                    <Line type="monotone" dataKey="net" name="Net" stroke={chartTheme.total} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyChart message="Pas encore d'historique annuel." />
+              )}
+            </div>
           </div>
-        </Panel>
-      </section>
-    </>
+        </div>
+      </div>
+    </div>
   );
 }

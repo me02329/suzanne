@@ -5,27 +5,24 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import { CalendarDays, Gauge, Tags, TrendingDown } from 'lucide-react';
 import type { Account, StatisticsSummary, Transaction } from '@suzanne/shared';
 import { api } from '../lib/api';
-import { useChartTheme } from '../lib/chartTheme';
+import { seriesColor, useChartTheme, useIsNarrow } from '../lib/chartTheme';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, truncate } from '../lib/format';
 import { usePersistedState } from '../lib/storage';
 import { CashflowTrends } from '../components/CashflowTrends';
-import { DashboardSection } from '../components/DashboardSection';
 import { DrilldownPopover } from '../components/DrilldownPopover';
 import { EmptyChart } from '../components/EmptyChart';
-import { Panel } from '../components/Panel';
-import { Stat } from '../components/Stat';
+import '../styles/pages/plan.css';
+import '../styles/pages/statistics.css';
 
 // État du popover de drill-down : où il est ancré, ce qu'on a cliqué, et les
 // transactions correspondantes une fois chargées.
@@ -59,7 +56,7 @@ export function Statistics({ userId, reportCurrency, accountById }: {
   const customReady = !isCustom || (Boolean(customFrom) && Boolean(customTo));
   const chartTheme = useChartTheme();
   const chartGrid = chartTheme.grid;
-  const expenseColor = chartTheme.expense;
+  const narrow = useIsNarrow();
 
   useEffect(() => {
     if (!customReady) return;
@@ -80,7 +77,7 @@ export function Statistics({ userId, reportCurrency, accountById }: {
   const byCategory = data?.by_category ?? [];
   const byMerchant = data?.by_merchant ?? [];
   const monthly = (data?.monthly ?? []).map((row) => ({ ...row, label: formatMonth(row.month) }));
-  const merchantRows = byMerchant.slice(0, 10).map((row) => ({ ...row, label: truncate(row.description, 28) }));
+  const merchantRows = byMerchant.slice(0, 8).map((row) => ({ ...row, label: truncate(row.description, 40) }));
   const cashflowSummary = data ? {
     currency: data.currency,
     monthly_cashflow: data.cashflow.monthly,
@@ -138,11 +135,25 @@ export function Statistics({ userId, reportCurrency, accountById }: {
     };
   };
 
+  const rangeDays = data ? Math.max(1, Math.round((new Date(data.to).getTime() - new Date(data.from).getTime()) / 86_400_000)) : 0;
+  const pieRows = byCategory.filter((row) => row.amount > 0);
+  const pieTotal = pieRows.reduce((sum, row) => sum + row.amount, 0);
+  const visibleCategories = pieRows.slice(0, 7);
+  const otherCategories = pieRows.slice(7);
+  const otherAmount = otherCategories.reduce((sum, row) => sum + row.amount, 0);
+  const donutRows = otherAmount > 0
+    ? [...visibleCategories, { category_id: null, name: 'Autres', color: '', amount: otherAmount, transactions_count: 0 }]
+    : visibleCategories;
+  const maxMerchant = merchantRows[0]?.amount ?? 0;
+  const dateFr = (iso: string) => {
+    const [y, m, d] = iso.slice(0, 10).split('-');
+    return `${d}/${m}/${y}`;
+  };
+
   return (
-    <section className="stack">
-      <DashboardSection title="Dépenses" subtitle="Analyse des dépenses sur la plage choisie ci-dessous">
-      <div className="stats-controls">
-        <select value={range} onChange={(e) => setRange(e.target.value)}>
+    <section className="pg stats-page">
+      <div className="st-controls">
+        <select value={range} onChange={(e) => setRange(e.target.value)} aria-label="Période">
           <option value="3m">3 mois</option>
           <option value="6m">6 mois</option>
           <option value="1y">12 mois</option>
@@ -152,49 +163,53 @@ export function Statistics({ userId, reportCurrency, accountById }: {
         </select>
         {isCustom && (
           <>
-            <label className="inline-date">Du <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /></label>
-            <label className="inline-date">Au <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></label>
+            <label className="st-date">Du <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /></label>
+            <label className="st-date">Au <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></label>
           </>
         )}
-        <label className="series-toggles inline">
-          <input type="checkbox" checked={excludeUncategorized} onChange={(e) => setExcludeUncategorized(e.target.checked)} /> Exclure non-catégorisé
+        <label className="st-check">
+          <input type="checkbox" checked={excludeUncategorized} onChange={(e) => setExcludeUncategorized(e.target.checked)} /> Exclure le non-catégorisé
         </label>
-        <span className="stats-controls-note">
-          {isCustom && !customReady
-            ? 'Choisis une date de début et de fin.'
-            : data
-              ? `${data.transactions_count} transactions · ${new Date(data.from).toLocaleDateString('fr-FR')} → ${new Date(data.to).toLocaleDateString('fr-FR')}`
-              : loading
-                ? 'Chargement…'
-                : '—'}
-          {data && excludeUncategorized && data.total_uncategorized > 0 && (
-            <> · <strong>{money(data.total_uncategorized)}</strong> exclus</>
-          )}
-        </span>
       </div>
-      {error && <div className="error">{error}</div>}
+      {error && <div className="pg-alert" role="alert">{error}</div>}
 
-      <section className="stats">
-        <Stat icon={<TrendingDown />} label="Dépenses sur la plage" value={money(totalDisplayed)} negative />
-        <Stat icon={<Gauge />} label="Moyenne mensuelle" value={money(averagePerMonth)} />
-        <Stat icon={<Tags />} label="Catégories actives" value={String(byCategory.length)} />
-        <Stat icon={<CalendarDays />} label="Mois couverts" value={String(monthsCount)} />
-      </section>
+      <div className="pg-hero">
+        <div>
+          <span className="pg-kicker">
+            Dépenses · {isCustom && !customReady ? 'choisis une période' : data ? `${dateFr(data.from)} → ${dateFr(data.to)}` : loading ? 'chargement…' : '—'}
+          </span>
+          <strong className="pg-hero-value">{money(totalDisplayed)}</strong>
+          <p className="pg-hero-sub">
+            <strong>{money(averagePerMonth)}</strong> par mois en moyenne
+            {data && excludeUncategorized && data.total_uncategorized > 0 && <> · {money(data.total_uncategorized)} non catégorisés exclus</>}
+          </p>
+        </div>
+      </div>
 
-      <section className="charts-grid">
-        <Panel title="Répartition par catégorie">
-          <div className="chart-split">
-            <div className="donut-area">
-              {byCategory.length > 0 ? (
+      <div className="pg-stats">
+        <div className="pg-stat"><span>Transactions</span><strong>{data?.transactions_count ?? 0}</strong></div>
+        <div className="pg-stat"><span>Catégories</span><strong>{byCategory.length}</strong></div>
+        <div className="pg-stat"><span>Mois couverts</span><strong>{monthsCount}</strong></div>
+        <div className="pg-stat"><span>Par jour</span><strong>{money(rangeDays > 0 ? totalDisplayed / rangeDays : 0)}</strong></div>
+      </div>
+
+      <div className="st-grid">
+        <div className="pg-card">
+          <div className="pg-card-head"><h2>Par catégorie</h2></div>
+          <div className="st-split">
+            <div className="st-donut">
+              {donutRows.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={byCategory}
+                      data={donutRows}
                       dataKey="amount"
                       nameKey="name"
-                      innerRadius="58%"
-                      outerRadius="86%"
-                      paddingAngle={2}
+                      innerRadius="62%"
+                      outerRadius="92%"
+                      paddingAngle={1.5}
+                      stroke={chartTheme.tooltip.contentStyle.background as string}
+                      strokeWidth={2}
                       isAnimationActive={false}
                       style={{ cursor: 'pointer' }}
                       onClick={(entry, _index, event) => {
@@ -204,98 +219,88 @@ export function Statistics({ userId, reportCurrency, accountById }: {
                         }
                       }}
                     >
-                      {byCategory.map((row) => <Cell key={row.category_id ?? row.name} fill={row.color} />)}
+                      {donutRows.map((row, index) => <Cell key={row.category_id ?? row.name} fill={row.category_id == null && row.name === 'Autres' ? chartTheme.grid : seriesColor(chartTheme, index)} />)}
                     </Pie>
-                    <Tooltip formatter={(value) => money(Number(value))} />
+                    <Tooltip formatter={(value) => money(Number(value))} contentStyle={chartTheme.tooltip.contentStyle} labelStyle={chartTheme.tooltip.labelStyle} itemStyle={chartTheme.tooltip.itemStyle} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <EmptyChart message="Aucune dépense sur cette plage." />
+                <EmptyChart message="Aucune dépense sur cette période." />
               )}
             </div>
-            <div className="category-list compact">
-              {byCategory.slice(0, 12).map((row) => row.category_id != null ? (
-                <button
-                  type="button"
-                  className="category-row category-link"
-                  key={row.category_id}
-                  onClick={(e) => openDrilldown(e, row.name, { category: row.category_id! })}
-                >
-                  <span className="dot" style={{ background: row.color }} />
-                  <span title={row.name}>{row.name}</span>
-                  <strong>{money(row.amount)}</strong>
-                </button>
-              ) : (
-                <div className="category-row" key={row.name}>
-                  <span className="dot" style={{ background: row.color }} />
-                  <span title={row.name}>{row.name}</span>
-                  <strong>{money(row.amount)}</strong>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Panel>
-
-        <Panel title="Top marchands">
-          <div className="chart-area">
-            {merchantRows.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={merchantRows} layout="vertical" margin={{ top: 8, right: 8, left: 16, bottom: 0 }}>
-                  <CartesianGrid stroke={chartGrid} horizontal={false} />
-                  <XAxis type="number" tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="label"
-                    tickLine={false}
-                    axisLine={false}
-                    width={170}
-                  />
-                  <Tooltip formatter={(value) => money(Number(value))} />
-                  <Bar
-                    dataKey="amount"
-                    name="Cumul"
-                    fill={expenseColor}
-                    radius={[0, 4, 4, 0]}
-                    isAnimationActive={false}
-                    style={{ cursor: 'pointer' }}
-                    onClick={(entry, _index, event) => {
-                      const description = (entry as { payload?: { description?: string } })?.payload?.description;
-                      if (description) openDrilldown(clickPoint(event), description, { q: description });
-                    }}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyChart message="Aucun marchand identifiable. Ajoute des descriptions à tes transactions." />
+            {donutRows.length > 0 && (
+              <ul className="st-legend">
+                {donutRows.map((row, index) => {
+                  const isOther = row.category_id == null && row.name === 'Autres' && otherAmount > 0;
+                  const color = isOther ? chartTheme.grid : seriesColor(chartTheme, index);
+                  const share = pieTotal > 0 ? Math.round((row.amount / pieTotal) * 100) : 0;
+                  const inner = (
+                    <>
+                      <span className="st-swatch" style={{ background: color }} />
+                      <span className="st-legend-name" title={row.name}>{isOther ? `Autres (${otherCategories.length})` : row.name}</span>
+                      <span className="st-legend-share">{share} %</span>
+                      <strong>{money(row.amount)}</strong>
+                    </>
+                  );
+                  return (
+                    <li key={`${row.category_id ?? row.name}-${index}`}>
+                      {row.category_id != null ? (
+                        <button type="button" className="st-legend-row" onClick={(e) => openDrilldown(e, row.name, { category: row.category_id! })}>{inner}</button>
+                      ) : <div className="st-legend-row">{inner}</div>}
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
-        </Panel>
-      </section>
+        </div>
 
-      <section className="charts-grid">
-        <Panel title="Évolution mensuelle des dépenses — toutes catégories">
-          <div className="chart-area">
+        <div className="pg-card">
+          <div className="pg-card-head"><h2>Top marchands</h2></div>
+          {merchantRows.length > 0 ? (
+            <ul className="st-bars">
+              {merchantRows.map((row) => (
+                <li key={row.description}>
+                  <button type="button" className="st-bar-row" onClick={(e) => openDrilldown(e, row.description, { q: row.description })}>
+                    <span className="st-bar-label" title={row.description}>{row.label}</span>
+                    <strong>{money(row.amount)}</strong>
+                    <span className="st-bar"><span style={{ width: `${maxMerchant > 0 ? (row.amount / maxMerchant) * 100 : 0}%` }} /></span>
+                    <small>{row.transactions_count} opération{row.transactions_count > 1 ? 's' : ''}</small>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="pg-empty">Aucun marchand identifiable. Ajoute des libellés à tes transactions.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="pg-card">
+        <div className="pg-card-head"><h2>Dépenses par mois</h2></div>
+        <div className="pg-card-body">
+          <div className="pg-chart">
             {monthly.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <BarChart data={monthly} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={chartGrid} vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                  <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
-                  <Tooltip formatter={(value) => money(Number(value))} />
-                  <Line type="monotone" dataKey="amount" name="Dépenses" stroke={expenseColor} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
-                </LineChart>
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={chartTheme.tick} minTickGap={narrow ? 8 : 4} interval="preserveStartEnd" />
+                  <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={narrow ? 50 : 66} tick={chartTheme.tick} />
+                  <Tooltip formatter={(value) => money(Number(value))} contentStyle={chartTheme.tooltip.contentStyle} labelStyle={chartTheme.tooltip.labelStyle} itemStyle={chartTheme.tooltip.itemStyle} cursor={chartTheme.tooltip.cursor} />
+                  {averagePerMonth > 0 && <ReferenceLine y={averagePerMonth} stroke={chartTheme.axis} strokeDasharray="4 4" />}
+                  <Bar dataKey="amount" name="Dépenses" fill={chartTheme.total} radius={[4, 4, 0, 0]} maxBarSize={36} isAnimationActive={false} />
+                </BarChart>
               </ResponsiveContainer>
             ) : (
               <EmptyChart message="Pas encore d'historique mensuel." />
             )}
           </div>
-        </Panel>
-      </section>
-      </DashboardSection>
+          {averagePerMonth > 0 && <p className="pg-note">Pointillés : moyenne mensuelle ({money(averagePerMonth)}).</p>}
+        </div>
+      </div>
 
-      <DashboardSection title="Cashflow & épargne" subtitle="Revenus, dépenses et épargne sur la même plage">
-        <CashflowTrends summary={cashflowSummary} reportCurrency={reportCurrency} />
-      </DashboardSection>
+      <h2 className="st-section">Cashflow &amp; épargne</h2>
+      <CashflowTrends summary={cashflowSummary} reportCurrency={reportCurrency} />
 
       {drill && (
         <DrilldownPopover

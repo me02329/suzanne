@@ -1,42 +1,42 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronUp, Link2, Pencil, Plus, Power, ReceiptText, Search, X } from 'lucide-react';
-import type { Account, Bill, BillStatusEntry, BillsStatusSummary, Category, Transaction } from '@suzanne/shared';
+import { Link2, Pencil, Plus, Power, Search, Trash2, X } from 'lucide-react';
+import type { Account, Bill, BillStatusEntry, BillsStatusSummary, Category, CreateBillBody, Transaction } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { formatMonthLong, money } from '../lib/format';
 import { numberOrNull } from '../lib/forms';
-import { usePersistedState } from '../lib/storage';
-import { DataTable } from '../components/DataTable';
-import { IconButton } from '../components/IconButton';
 import { Modal } from '../components/Modal';
-import { Panel } from '../components/Panel';
-import { Collapsible } from '../components/Collapsible';
-import { Stat } from '../components/Stat';
-
+import { RowMenu } from '../components/ui/RowMenu';
+import { amountInputValue, positiveAmount } from '../components/home/amount';
 import type { Run } from '../lib/run';
+import '../styles/pages/plan.css';
 
-const FREQUENCY_OPTIONS = [
-  { value: 'monthly', label: 'Mensuelle' },
-  { value: 'yearly', label: 'Annuelle' },
-] as const;
+// jj/mm/aaaa à partir d'une date ISO (sans passer par Date : pas de décalage de fuseau).
+const dayLabel = (iso: string | null | undefined, withYear = false) => {
+  if (!iso) return '—';
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return withYear ? `${d}/${m}/${y}` : `${d}/${m}`;
+};
 
 function frequencyLabel(bill: Bill): string {
   const base = bill.frequency === 'yearly' ? 'an' : 'mois';
   return bill.interval > 1 ? `Tous les ${bill.interval} ${base}` : bill.frequency === 'yearly' ? 'Annuelle' : 'Mensuelle';
 }
 
-// Libellé + classe de pastille par statut. `not_due` couvre aussi les
-// factures inactives (le backend ne les déclare jamais dues).
-function statusBadge(entry: BillStatusEntry): { label: string; className: string } {
-  if (!entry.bill.active) return { label: 'Inactive', className: 'pill' };
+// Libellé + ton de l'étiquette de statut. `not_due` couvre aussi les factures
+// inactives (le backend ne les déclare jamais dues).
+function statusTag(entry: BillStatusEntry): { label: string; tone: string } {
+  if (!entry.bill.active) return { label: 'Inactive', tone: 'tag' };
   switch (entry.status) {
-    case 'paid': return { label: '✓ Payée', className: 'pill income' };
-    case 'paid_out_of_range': return { label: 'Payée hors fourchette', className: 'pill expense' };
-    case 'late': return { label: 'En retard', className: 'pill expense' };
-    case 'pending': return { label: 'À venir', className: 'pill transfer' };
-    case 'not_due': return { label: 'Hors cadence ce mois', className: 'pill' };
+    case 'paid': return { label: 'Payée', tone: 'tag ok' };
+    case 'paid_out_of_range': return { label: 'Hors fourchette', tone: 'tag bad' };
+    case 'late': return { label: 'En retard', tone: 'tag bad' };
+    case 'pending': return { label: 'À venir', tone: 'tag ink' };
+    case 'not_due': return { label: 'Pas ce mois', tone: 'tag' };
   }
 }
+
+const STATUS_ORDER: Record<string, number> = { late: 0, pending: 1, paid_out_of_range: 2, paid: 3, not_due: 4 };
 
 export function Bills({ userId, month, billsStatus, accounts, categories, accountById, run }: {
   userId: number;
@@ -47,158 +47,146 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
   accountById: Map<number, Account>;
   run: Run;
 }) {
-  const [editing, setEditing] = useState<Bill | null>(null);
+  const [form, setForm] = useState<'new' | Bill | null>(null);
   const [linking, setLinking] = useState<BillStatusEntry | null>(null);
-  const entries = billsStatus?.bills ?? [];
-  const [addOpen, setAddOpen] = usePersistedState<boolean>('bills_add_open', entries.length === 0);
-  const expenseCategories = categories.filter((c) => c.type === 'expense');
+  const entries = [...(billsStatus?.bills ?? [])].sort((a, b) =>
+    Number(!a.bill.active) - Number(!b.bill.active)
+    || (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9)
+    || (a.expected_date ?? '').localeCompare(b.expected_date ?? ''));
+  const currencyOf = (bill: Bill) => (bill.account_id != null ? accountById.get(bill.account_id)?.currency ?? 'EUR' : 'EUR');
 
-  const billPayload = (data: FormData) => ({
-    name: String(data.get('name')),
-    amount_min: Number(data.get('amount_min')),
-    amount_max: Number(data.get('amount_max')),
-    start_date: String(data.get('start_date')),
-    frequency: String(data.get('frequency')) as Bill['frequency'],
-    interval: Number(data.get('interval') || 1),
-    pattern: String(data.get('pattern') || '') || null,
-    account_id: numberOrNull(data.get('account_id')),
-    category_id: numberOrNull(data.get('category_id')),
-  });
-
-  const submitAdd = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    void run(() => api.createBill(userId, billPayload(new FormData(form))), 'Facture attendue ajoutée')
-      .then((ok) => { if (ok) form.reset(); });
+  const remove = (entry: BillStatusEntry) => {
+    const bill = entry.bill;
+    const manual = entry.matched_transactions.some((t) => t.manual);
+    // Recréer la facture rétablit le rapprochement automatique, pas les liens
+    // manuels : dans ce cas, pas d'annulation (le menu demande confirmation).
+    if (manual) {
+      void run(() => api.deleteBill(userId, bill.id), 'Facture supprimée');
+      return;
+    }
+    const body: CreateBillBody = {
+      name: bill.name,
+      amount_min: bill.amount_min,
+      amount_max: bill.amount_max,
+      start_date: bill.start_date.slice(0, 10),
+      frequency: bill.frequency,
+      interval: bill.interval,
+      pattern: bill.pattern,
+      account_id: bill.account_id,
+      category_id: bill.category_id,
+      active: bill.active,
+    };
+    void run(() => api.deleteBill(userId, bill.id), 'Facture supprimée', { undo: () => api.createBill(userId, body) });
   };
 
-  const submitEdit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editing) return;
-    void run(() => api.updateBill(userId, editing.id, billPayload(new FormData(event.currentTarget))), 'Facture modifiée');
-    setEditing(null);
-  };
-
-  const billFields = (bill?: Bill) => (
-    <>
-      <label className="grow">Nom<input name="name" defaultValue={bill?.name ?? ''} placeholder="Ex: Électricité" required /></label>
-      <label>Montant min<input name="amount_min" type="number" min="0.01" step="0.01" defaultValue={bill?.amount_min ?? ''} required /></label>
-      <label>Montant max<input name="amount_max" type="number" min="0.01" step="0.01" defaultValue={bill?.amount_max ?? ''} required /></label>
-      <label>Première échéance<input name="start_date" type="date" defaultValue={bill?.start_date?.slice(0, 10) ?? `${month}-01`} required /></label>
-      <label>Fréquence
-        <select name="frequency" defaultValue={bill?.frequency ?? 'monthly'}>
-          {FREQUENCY_OPTIONS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-        </select>
-      </label>
-      <label>Intervalle<input name="interval" type="number" min="1" max="24" defaultValue={bill?.interval ?? 1} title="2 = tous les 2 mois/ans, 3 = trimestrielle…" /></label>
-      <label className="grow">Motif de rapprochement<input name="pattern" defaultValue={bill?.pattern ?? ''} placeholder="Ex: EDF (vide = le nom)" /></label>
-      <label>Compte
-        <select name="account_id" defaultValue={bill?.account_id ?? ''}>
-          <option value="">Tous</option>
-          {pickableAccounts(accounts, bill?.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
-      </label>
-      <label>Catégorie
-        <select name="category_id" defaultValue={bill?.category_id ?? ''}>
-          <option value="">Toutes</option>
-          {expenseCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </label>
-    </>
-  );
+  const due = billsStatus?.due_count ?? 0;
+  const paid = billsStatus?.paid_count ?? 0;
+  const remaining = Math.max(0, (billsStatus?.expected_total ?? 0) - (billsStatus?.paid_total ?? 0));
 
   return (
-    <section className="stack">
-      {billsStatus && entries.length > 0 && (
-        <section className="stats">
-          <Stat icon={<ReceiptText />} label={`Attendues en ${formatMonthLong(billsStatus.month)}`} value={`${billsStatus.due_count}`} />
-          <Stat icon={<CheckCircle2 />} label="Payées" value={`${billsStatus.paid_count} / ${billsStatus.due_count}`} positive={billsStatus.paid_count >= billsStatus.due_count} />
-          <Stat icon={<ReceiptText />} label="Payé / attendu (milieu de fourchette)" value={`${money(billsStatus.paid_total)} / ${money(billsStatus.expected_total)}`} />
-        </section>
-      )}
-
-      <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
-        <button type="button" className="collapsible-header" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
-          <span className="collapsible-title"><Plus size={16} /> Nouvelle facture attendue</span>
-          {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-        <Collapsible open={addOpen} className="collapsible-body">
-            <p className="panel-note">
-              Une dépense récurrente attendue avec une fourchette (ex: électricité 80–130 €). Chaque mois dû,
-              elle est rapprochée des dépenses dont la description contient le motif : payée ? dans la fourchette ? en retard ?
-            </p>
-            <form className="form form-inline" onSubmit={submitAdd}>
-              {billFields()}
-              <button className="primary"><Plus size={16} /> Ajouter</button>
-            </form>
-          </Collapsible>
+    <section className="pg bills-page">
+      <div className="pg-hero">
+        <div>
+          <span className="pg-kicker">Factures · {formatMonthLong(month)}</span>
+          {due > 0 ? (
+            <>
+              <strong className="pg-hero-value">{paid} <small>/ {due} payée{due > 1 ? 's' : ''}</small></strong>
+              <p className="pg-hero-sub">
+                Payé <strong>{money(billsStatus?.paid_total ?? 0)}</strong> sur ~{money(billsStatus?.expected_total ?? 0)} attendus
+                {remaining > 0 && <> · reste ~<strong>{money(remaining)}</strong></>}
+              </p>
+            </>
+          ) : (
+            <p className="pg-hero-sub">Aucune facture attendue ce mois-ci.</p>
+          )}
+        </div>
+        <div className="pg-toolbar-actions">
+          <button type="button" className="primary accent" onClick={() => setForm('new')}>
+            <Plus size={16} /> Nouvelle facture
+          </button>
+        </div>
+        {due > 0 && (
+          <div className="pg-hero-meter">
+            <div className="meter big"><span style={{ width: `${Math.min(100, (paid / due) * 100)}%` }} /></div>
+          </div>
+        )}
       </div>
 
-      <Panel title={`Factures de ${formatMonthLong(month)}`} icon={<ReceiptText />}>
-        <DataTable empty={entries.length === 0 ? 'Aucune facture attendue. Ajoute tes charges récurrentes variables (électricité, eau…) pour suivre leur paiement mois par mois.' : null}>
-          <thead>
-            <tr>
-              <th>Facture</th>
-              <th>Fourchette</th>
-              <th>Cadence</th>
-              <th>Échéance</th>
-              <th>Statut</th>
-              <th className="amount-cell">Payé</th>
-              <th className="actions-cell">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="pg-card">
+        <div className="pg-card-head"><h2>Échéancier</h2></div>
+        {entries.length === 0 ? (
+          <p className="pg-empty">
+            <strong>Aucune facture attendue</strong>
+            Ajoute tes charges variables (électricité, eau…) avec une fourchette : on vérifie chaque mois qu’elles sont payées.
+          </p>
+        ) : (
+          <ul className="lrows">
             {entries.map((entry) => {
               const bill = entry.bill;
-              const badge = statusBadge(entry);
-              const currency = bill.account_id != null ? accountById.get(bill.account_id)?.currency ?? 'EUR' : 'EUR';
+              const tag = statusTag(entry);
+              const currency = currencyOf(bill);
               const muted = !bill.active || entry.status === 'not_due';
               return (
-                <tr key={bill.id} style={muted ? { opacity: 0.55 } : undefined}>
-                  <td data-label="Facture">
-                    <strong title={bill.name}>{bill.name}</strong>
-                    {bill.pattern && <span className="muted"> · motif « {bill.pattern} »</span>}
-                  </td>
-                  <td data-label="Fourchette">{money(bill.amount_min, currency)} – {money(bill.amount_max, currency)}</td>
-                  <td data-label="Cadence">{frequencyLabel(bill)}</td>
-                  <td data-label="Échéance">{entry.expected_date ? new Date(entry.expected_date).toLocaleDateString('fr-FR') : '—'}</td>
-                  <td data-label="Statut"><span className={badge.className}>{badge.label}</span></td>
-                  <td className="amount-cell" data-label="Payé">
+                <li key={bill.id} className={muted ? 'lrow muted' : 'lrow'}>
+                  <div className="lrow-main">
+                    <div className="lrow-title">
+                      <span title={bill.name}>{bill.name}</span>
+                      <span className={tag.tone}>{tag.label}</span>
+                    </div>
+                    <span className="lrow-sub">
+                      {entry.expected_date ? `Le ${dayLabel(entry.expected_date)}` : frequencyLabel(bill)}
+                      {' · '}{money(bill.amount_min, currency)} – {money(bill.amount_max, currency)}
+                      {entry.expected_date && <> · {frequencyLabel(bill)}</>}
+                    </span>
+                  </div>
+                  <div className="lrow-amount">
                     {entry.paid_amount > 0 ? (
-                      <span title={entry.matched_transactions.map((t) => `${new Date(t.date).toLocaleDateString('fr-FR')} · ${t.description ?? `#${t.id}`} · ${money(t.amount, currency)}`).join('\n')}>
+                      <span title={entry.matched_transactions.map((t) => `${dayLabel(t.date, true)} · ${t.description ?? `#${t.id}`} · ${money(t.amount, currency)}`).join('\n')}>
                         {money(entry.paid_amount, currency)}
-                        {entry.matched_transactions.length > 1 && <span className="muted"> ({entry.matched_transactions.length} tx)</span>}
                       </span>
                     ) : <span className="muted">—</span>}
-                  </td>
-                  <td className="actions-cell">
+                    <small>{entry.matched_transactions.length > 1 ? `${entry.matched_transactions.length} paiements` : entry.paid_amount > 0 ? 'payé' : 'non payé'}</small>
+                  </div>
+                  <div className="lrow-actions">
                     {entry.due && (
-                      <IconButton label="Lier une dépense (rapprochement manuel)" tone="neutral" icon={<Link2 size={16} />} onClick={() => setLinking(entry)} />
+                      <button type="button" className="icon-button neutral" title="Lier une dépense" aria-label={`Lier une dépense à ${bill.name}`} onClick={() => setLinking(entry)}>
+                        <Link2 size={17} />
+                      </button>
                     )}
-                    <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(bill)} />
-                    <IconButton
-                      label={bill.active ? 'Désactiver (plus jamais due)' : 'Réactiver'}
-                      tone={bill.active ? 'accent' : 'neutral'}
-                      icon={<Power size={16} />}
-                      onClick={() => void run(() => api.updateBill(userId, bill.id, { active: !bill.active }), bill.active ? 'Facture désactivée' : 'Facture réactivée')}
+                    <button type="button" className="icon-button neutral" title="Modifier" aria-label={`Modifier ${bill.name}`} onClick={() => setForm(bill)}>
+                      <Pencil size={17} />
+                    </button>
+                    <RowMenu
+                      items={[
+                        {
+                          label: bill.active ? 'Désactiver' : 'Réactiver',
+                          icon: <Power />,
+                          onSelect: () => void run(() => api.updateBill(userId, bill.id, { active: !bill.active }), bill.active ? 'Facture désactivée' : 'Facture réactivée'),
+                        },
+                        {
+                          label: 'Supprimer', icon: <Trash2 />, danger: true, onSelect: () => remove(entry),
+                          confirm: entry.matched_transactions.some((t) => t.manual) ? `Supprimer « ${bill.name} » ? Les dépenses liées manuellement seront déliées.` : undefined,
+                        },
+                      ]}
                     />
-                    <IconButton label="Supprimer" confirm="Supprimer cette facture attendue ?" onClick={() => void run(() => api.deleteBill(userId, bill.id), 'Facture supprimée')} />
-                  </td>
-                </tr>
+                  </div>
+                </li>
               );
             })}
-          </tbody>
-        </DataTable>
-      </Panel>
+          </ul>
+        )}
+      </div>
 
-      {editing && (
-        <Modal title={`Modifier "${editing.name}"`} onClose={() => setEditing(null)}>
-          <form className="form" onSubmit={submitEdit}>
-            {billFields(editing)}
-            <button className="primary">Enregistrer</button>
-            <button type="button" className="secondary" onClick={() => setEditing(null)}>Annuler</button>
-          </form>
-        </Modal>
+      {form && (
+        <BillFormModal
+          userId={userId}
+          month={month}
+          editing={form === 'new' ? null : form}
+          accounts={accounts}
+          categories={categories}
+          run={run}
+          onClose={() => setForm(null)}
+        />
       )}
 
       {linking && (
@@ -211,6 +199,80 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
         />
       )}
     </section>
+  );
+}
+
+function BillFormModal({ userId, month, editing, accounts, categories, run, onClose }: {
+  userId: number;
+  month: string;
+  editing: Bill | null;
+  accounts: Account[];
+  categories: Category[];
+  run: Run;
+  onClose: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const expenseCategories = categories.filter((c) => c.type === 'expense');
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const min = positiveAmount(data.get('amount_min'));
+    const max = positiveAmount(data.get('amount_max'));
+    if (min == null || max == null) { setError('Indique une fourchette de montants positifs.'); return; }
+    if (max < min) { setError('Le montant max doit être supérieur ou égal au min.'); return; }
+    const body = {
+      name: String(data.get('name')).trim(),
+      amount_min: min,
+      amount_max: max,
+      start_date: String(data.get('start_date')),
+      frequency: String(data.get('frequency')) as Bill['frequency'],
+      interval: Number(data.get('interval') || 1),
+      pattern: String(data.get('pattern') || '').trim() || null,
+      account_id: numberOrNull(data.get('account_id')),
+      category_id: numberOrNull(data.get('category_id')),
+    };
+    const op = editing
+      ? run(() => api.updateBill(userId, editing.id, body), 'Facture modifiée')
+      : run(() => api.createBill(userId, body), 'Facture attendue ajoutée');
+    void op.then((ok) => { if (ok) onClose(); });
+  };
+
+  return (
+    <Modal title={editing ? `Modifier « ${editing.name} »` : 'Nouvelle facture attendue'} onClose={onClose}>
+      <form className="pg-form" onSubmit={submit} onInput={() => setError(null)}>
+        <label className="full">Nom<input name="name" defaultValue={editing?.name ?? ''} placeholder="ex. Électricité" required autoFocus /></label>
+        <label>Montant min<input name="amount_min" inputMode="decimal" autoComplete="off" defaultValue={amountInputValue(editing?.amount_min)} required /></label>
+        <label>Montant max<input name="amount_max" inputMode="decimal" autoComplete="off" defaultValue={amountInputValue(editing?.amount_max)} required /></label>
+        <label>Première échéance<input name="start_date" type="date" defaultValue={editing?.start_date?.slice(0, 10) ?? `${month}-01`} required /></label>
+        <label>Fréquence
+          <select name="frequency" defaultValue={editing?.frequency ?? 'monthly'}>
+            <option value="monthly">Mensuelle</option>
+            <option value="yearly">Annuelle</option>
+          </select>
+        </label>
+        <label>Intervalle<input name="interval" type="number" inputMode="numeric" min="1" max="24" defaultValue={editing?.interval ?? 1} /></label>
+        <label>Motif de rapprochement<input name="pattern" defaultValue={editing?.pattern ?? ''} placeholder="vide = le nom" /></label>
+        <label>Compte
+          <select name="account_id" defaultValue={editing?.account_id ?? ''}>
+            <option value="">Tous</option>
+            {pickableAccounts(accounts, editing?.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </label>
+        <label>Catégorie
+          <select name="category_id" defaultValue={editing?.category_id ?? ''}>
+            <option value="">Toutes</option>
+            {expenseCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+        <p className="hint full">Intervalle 3 = trimestrielle. Le paiement est repéré dans les dépenses dont le libellé contient le motif.</p>
+        {error && <p className="hint full expense" role="alert">{error}</p>}
+        <div className="pg-form-actions">
+          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+          <button type="submit" className="primary">{editing ? 'Enregistrer' : 'Ajouter'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -252,15 +314,12 @@ function BillLinkModal({ userId, entry, accountById, run, onClose }: {
 
   return (
     <Modal title={`Lier une dépense à « ${bill.name} »`} onClose={onClose}>
-      <p className="panel-note">
-        Quand le rapprochement automatique par motif ne trouve pas le paiement (espèces, libellé variable),
-        lie ici la dépense réelle : elle comptera comme paiement de la facture sur son mois.
-      </p>
+      <p className="pg-note">Le paiement n’a pas été repéré (espèces, libellé variable) ? Lie la dépense : elle comptera pour son mois.</p>
       {manualMatches.length > 0 && (
         <div className="full refund-selected-list">
           {manualMatches.map((t) => (
             <span key={t.id}>
-              {new Date(t.date).toLocaleDateString('fr-FR')} · {t.description ?? `#${t.id}`} · {money(t.amount, currency)}
+              {dayLabel(t.date, true)} · {t.description ?? `#${t.id}`} · {money(t.amount, currency)}
               <button type="button" className="ghost-button" onClick={() => unlink(t.id)} aria-label="Retirer le lien"><X size={13} /></button>
             </span>
           ))}
@@ -277,7 +336,7 @@ function BillLinkModal({ userId, entry, accountById, run, onClose }: {
           const alreadyLinked = manualMatches.some((m) => m.id === t.id);
           return (
             <div key={t.id} className="refund-candidate">
-              <span>{new Date(t.date).toLocaleDateString('fr-FR')} · {t.description ?? `#${t.id}`} · {money(t.amount, txCurrency)}</span>
+              <span>{dayLabel(t.date, true)} · {t.description ?? `#${t.id}`} · {money(t.amount, txCurrency)}</span>
               <button type="button" className="secondary" disabled={alreadyLinked} onClick={() => link(t.id)}>
                 {alreadyLinked ? 'Déjà lié' : 'Lier'}
               </button>

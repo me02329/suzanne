@@ -1,12 +1,13 @@
 import { Dispatch, KeyboardEvent, MutableRefObject, SetStateAction, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, Loader2, RotateCcw, Send, Sparkles, Wand2, Wrench, X } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { AiPendingAction } from '@suzanne/shared';
 import { api, type AiChatHistoryMessage, type AiHealthStatus } from '../lib/api';
 import type { Run } from '../lib/run';
 import { Modal } from '../components/Modal';
 import { WELCOME, type ChatMessage, type ToolEvent } from '../lib/assistantState';
+import '../styles/pages/assistant.css';
 
 // Catalogue lisible des capacités de l'assistant, affiché dans la modale
 // « Que puis-je demander ? ». Reflète les tools de backend/src/ai/tools.ts.
@@ -95,6 +96,11 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
     const el = chatRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
+    // Mobile / tablette : le fil n'a pas de défilement propre (la page défile,
+    // le champ de saisie reste collé en bas) → on amène le dernier message.
+    if (window.matchMedia?.('(max-width: 1023px)').matches && messages.length > 1) {
+      el.lastElementChild?.scrollIntoView({ block: 'end' });
+    }
   }, [messages]);
 
   // Autosize the composer textarea up to a sensible max height.
@@ -241,134 +247,135 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
     }
   };
 
+  const healthTone = health?.ok ? 'ok' : health?.configured === false ? 'warn' : health?.ok === false ? 'err' : '';
+
   return (
-    <section className="assistant-layout">
-      <div className="panel assistant-panel">
-        <div className="panel-header">
-          <div>
-            <h2>Assistant IA</h2>
-            <p className="panel-note">Lecture des données en direct. Écriture uniquement après confirmation.</p>
-          </div>
-          <div className="assistant-header-actions">
-            <span className="assistant-context">{month} · {currency}</span>
-            <button type="button" className="ghost-button" onClick={() => setCapsOpen(true)} title="Que puis-je demander ?">
-              <Wand2 size={14} /> Que puis-je demander ?
-            </button>
-            <button type="button" className="ghost-button" onClick={resetConversation} title="Nouvelle conversation">
-              <RotateCcw size={14} /> Nouvelle conversation
-            </button>
-          </div>
+    <section className="ai">
+      <header className="ai-head">
+        <div className="ai-head-text">
+          <p>
+            <span className={`ai-dot ${healthTone}`} aria-hidden="true" />
+            {health
+              ? health.configured
+                ? health.ok ? `${health.model} · prêt` : `${health.model} · indisponible`
+                : 'Clé IA absente'
+              : 'Vérification…'}
+            <span className="ai-context"> · {month} · {currency}</span>
+          </p>
         </div>
+        <div className="ai-head-actions">
+          <button type="button" className="secondary" onClick={() => setCapsOpen(true)}>
+            <Wand2 size={15} /> <span>Exemples</span>
+          </button>
+          <button type="button" className="secondary" onClick={resetConversation} aria-label="Nouvelle conversation" title="Nouvelle conversation">
+            <RotateCcw size={15} /> <span className="ai-hide-sm">Nouvelle</span>
+          </button>
+        </div>
+      </header>
 
-        <div className={`assistant-health ${health?.ok ? 'ok' : health?.configured === false ? 'warn' : health?.ok === false ? 'err' : ''}`}>
-          {health ? (
-            <>
-              <span><strong>Modèle :</strong> {health.model} · <strong>endpoint :</strong> {health.baseUrl}</span>
-              <span>
-                {!health.configured && <>Clé absente — définir <code>AI_API_KEY</code> côté backend ou via Paramètres.</>}
-                {health.configured && health.ok && <>Connexion OK.</>}
-                {health.configured && health.ok === false && health.error && (
-                  <>
-                    <AlertTriangle size={14} /> {health.error.message} <em>({health.error.kind})</em>
-                    {health.error.kind === 'insufficient_quota' && (
-                      <> — <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noreferrer">ouvrir la facturation OpenAI</a></>
-                    )}
-                  </>
+      {health && !health.ok && (
+        <div className={`ai-health ${healthTone}`} role="status">
+          <AlertTriangle size={15} />
+          <span>
+            {!health.configured && <>Définis <code>AI_API_KEY</code> côté serveur ou dans Préférences.</>}
+            {health.configured && health.error && (
+              <>
+                {health.error.message} <em>({health.error.kind})</em>
+                {health.error.kind === 'insufficient_quota' && (
+                  <> — <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noopener noreferrer nofollow">facturation OpenAI</a></>
                 )}
-              </span>
-              <button type="button" className="ghost-button" onClick={refreshHealth} disabled={testing}>
-                {testing ? <Loader2 className="spin-icon" size={14} /> : null} Tester la clé
-              </button>
-            </>
-          ) : (
-            <span>Vérification de la configuration IA…</span>
-          )}
+              </>
+            )}
+            <span className="ai-endpoint"> · {health.baseUrl}</span>
+          </span>
+          <button type="button" className="ghost-button" onClick={refreshHealth} disabled={testing}>
+            {testing ? <Loader2 className="spin-icon" size={14} /> : null} Réessayer
+          </button>
         </div>
+      )}
 
-        <div className="assistant-chat" ref={chatRef} aria-live="polite">
-          {messages.map((message) => (
-            <article className={`assistant-message ${message.role}`} key={message.id}>
-              <div className="assistant-avatar" aria-hidden="true">
-                {message.role === 'assistant' ? <Sparkles size={16} /> : null}
-              </div>
-              <div className="assistant-bubble">
-                {message.tools && message.tools.length > 0 && (
-                  <div className="assistant-tools">
-                    {message.tools.map((tool) => (
-                      <div className={`assistant-tool ${tool.status}`} key={tool.id}>
-                        {tool.status === 'running'
-                          ? <Loader2 className="spin-icon" size={12} />
-                          : tool.status === 'ok'
-                            ? <Check size={12} />
-                            : <AlertTriangle size={12} />}
-                        <span className="assistant-tool-name">{toolLabel(tool.name)}</span>
-                        {tool.preview && <span className="assistant-tool-preview">{tool.preview}</span>}
+      <div className="ai-chat" ref={chatRef} aria-live="polite">
+        {messages.map((message) => (
+          <article className={`ai-msg ${message.role}`} key={message.id}>
+            {message.role === 'assistant' && (
+              <div className="ai-avatar" aria-hidden="true"><Sparkles size={15} /></div>
+            )}
+            <div className="ai-bubble">
+              {message.tools && message.tools.length > 0 && (
+                <div className="ai-tools">
+                  {message.tools.map((tool) => (
+                    <div className={`ai-tool ${tool.status}`} key={tool.id}>
+                      {tool.status === 'running'
+                        ? <Loader2 className="spin-icon" size={12} />
+                        : tool.status === 'ok'
+                          ? <Check size={12} />
+                          : <AlertTriangle size={12} />}
+                      <span className="ai-tool-name">{toolLabel(tool.name)}</span>
+                      {tool.preview && <span className="ai-tool-preview">{tool.preview}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {message.role === 'assistant' ? (
+                <div className="ai-md">
+                  {message.content
+                    ? <SafeMarkdown>{message.content}</SafeMarkdown>
+                    : message.streaming
+                      ? <span className="ai-thinking"><Loader2 className="spin-icon" size={14} /> Réflexion…</span>
+                      : null}
+                  {message.streaming && message.content && <span className="ai-cursor">▍</span>}
+                </div>
+              ) : (
+                <p>{message.content}</p>
+              )}
+              {message.actions && message.actions.length > 0 && (
+                <div className="ai-actions">
+                  {message.actions.map((action, index) => (
+                    <div className="ai-action" key={`${action.type}-${index}`}>
+                      <strong>{action.label}</strong>
+                      <div>
+                        <button className="primary" type="button" onClick={() => confirmAction(message.id, index, action)}>
+                          <Check size={16} /> Confirmer
+                        </button>
+                        <button className="secondary" type="button" onClick={() => dismissAction(message.id, index)}>
+                          <X size={16} /> Ignorer
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
-                {message.role === 'assistant' ? (
-                  <div className="assistant-markdown">
-                    {message.content
-                      ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-                      : message.streaming
-                        ? <span className="assistant-thinking"><Loader2 className="spin-icon" size={14} /> Analyse en cours…</span>
-                        : null}
-                    {message.streaming && message.content && <span className="assistant-cursor">▍</span>}
-                  </div>
-                ) : (
-                  <p>{message.content}</p>
-                )}
-                {message.actions && message.actions.length > 0 && (
-                  <div className="assistant-actions">
-                    {message.actions.map((action, index) => (
-                      <div className="assistant-action" key={`${action.type}-${index}`}>
-                        <strong>{action.label}</strong>
-                        <div>
-                          <button className="secondary" type="button" onClick={() => confirmAction(message.id, index, action)}>
-                            <Check size={16} /> Confirmer
-                          </button>
-                          <button className="ghost-button" type="button" onClick={() => dismissAction(message.id, index)}>
-                            <X size={16} /> Ignorer
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-
-        <form className="assistant-composer" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-          <textarea
-            ref={textareaRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Ex: Combien j'ai dépensé ce mois-ci en courses ? (Cmd/Ctrl+Entrée pour envoyer)"
-            rows={2}
-          />
-          {streaming ? (
-            <button type="button" className="secondary" onClick={cancel}>
-              <X size={16} /> Stopper
-            </button>
-          ) : (
-            <button className="primary" type="submit" disabled={!draft.trim()}>
-              <Send size={16} /> Envoyer
-            </button>
-          )}
-        </form>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </article>
+        ))}
       </div>
 
+      <form className="ai-composer" onSubmit={(e) => { e.preventDefault(); void send(); }}>
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="Combien j’ai dépensé en courses ce mois-ci ?"
+          aria-label="Ta question"
+          rows={1}
+        />
+        {streaming ? (
+          <button type="button" className="secondary ai-send" onClick={cancel} aria-label="Stopper">
+            <X size={18} /> <span className="ai-hide-sm">Stopper</span>
+          </button>
+        ) : (
+          <button className="primary accent ai-send" type="submit" disabled={!draft.trim()} aria-label="Envoyer">
+            <Send size={17} /> <span className="ai-hide-sm">Envoyer</span>
+          </button>
+        )}
+      </form>
+      <p className="ai-hint">Lecture en direct · toute modification demande ta confirmation · Ctrl+Entrée pour envoyer</p>
+
       {capsOpen && (
-        <Modal title="Que puis-je demander à l’assistant ?" onClose={() => setCapsOpen(false)} wide>
+        <Modal title="Que puis-je demander ?" onClose={() => setCapsOpen(false)} wide>
           <div className="assistant-caps">
-            <p className="panel-note">
-              L’assistant lit tes données en direct et peut préparer des modifications.
-              Toute écriture passe par un bouton « Confirmer ». Clique un exemple pour le lancer.
-            </p>
+            <p className="panel-note">Clique un exemple pour le lancer. Toute écriture passe par un bouton « Confirmer ».</p>
             {CAPABILITIES.map((group) => (
               <div className="assistant-caps-group" key={group.title}>
                 <h3>{group.title}</h3>
@@ -389,6 +396,45 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
         </Modal>
       )}
     </section>
+  );
+}
+
+// ---- Rendu Markdown sûr ---------------------------------------------------
+// Le texte vient d'un modèle (donc potentiellement d'une injection de prompt
+// via les libellés de transactions) : pas d'images (pas de requêtes sortantes
+// ni de pixels espions), pas de HTML brut, et seuls les liens http(s) sont
+// cliquables — ouverts dans un nouvel onglet, sans referrer ni suivi.
+export function safeHref(href: string | undefined | null): string | null {
+  if (!href) return null;
+  const trimmed = href.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+const MARKDOWN_COMPONENTS: Components = {
+  a: ({ href, children }) => {
+    const safe = safeHref(href);
+    if (!safe) return <span className="ai-link-text">{children}</span>;
+    return <a href={safe} target="_blank" rel="noopener noreferrer nofollow">{children}</a>;
+  },
+  img: () => null,
+};
+
+function SafeMarkdown({ children }: { children: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={MARKDOWN_COMPONENTS}
+      disallowedElements={['img', 'image']}
+      skipHtml
+    >
+      {children}
+    </ReactMarkdown>
   );
 }
 

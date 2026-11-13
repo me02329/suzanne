@@ -171,3 +171,12 @@ describe('groupForecastEvents', () => {
     expect(groupForecastEvents([], 'week')).toEqual([]);
   });
 });
+
+describe('buildForecast — jour local', () => {
+  it("ancre « aujourd'hui » sur la date civile locale, pas UTC", () => {
+    // 00:30 heure locale le 2 janvier : en UTC+1/+2 c'est encore le 1er.
+    const f = buildForecast({ horizonDays: 10, startingBalance: 0, recurring: [], goals: [], rateFor: () => 1, now: new Date(2026, 0, 2, 0, 30) });
+    expect(f.from).toBe('2026-01-02');
+    expect(f.to).toBe('2026-01-12');
+  });
+});

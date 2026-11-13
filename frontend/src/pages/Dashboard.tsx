@@ -1,46 +1,31 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
+import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
 import {
-  ArrowDownCircle,
-  ArrowUpCircle,
-  BarChart3,
-  Banknote,
-  CreditCard,
-  Euro,
-} from 'lucide-react';
-import {
-  Area,
-  AreaChart,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from 'recharts';
-import type {
-  Account,
-  BillsStatusSummary,
-  Budget,
-  Category,
-  DashboardSummary,
-  RecurringTransaction,
-  Transaction,
+  nextRecurringOccurrence,
+  type Account,
+  type BillsStatusSummary,
+  type Budget,
+  type BudgetStatus,
+  type Category,
+  type DashboardSummary,
+  type RecurringTransaction,
+  type Transaction,
 } from '@suzanne/shared';
 import { useTranslation } from 'react-i18next';
-import { formatMonth, formatMonthLong, money as moneyFmt } from '../lib/format';
-import { localeTag } from '../i18n';
-import { useChartTheme } from '../lib/chartTheme';
+import { currentMonthIso, formatMonth, formatMonthLong, formatRelativeDate, money as moneyFmt } from '../lib/format';
+import { seriesColor, useChartTheme } from '../lib/chartTheme';
 import { CADENCE_META, cadenceAmount, cadenceOf, cadenceTotals } from '../lib/subscriptions';
-import { DashboardSection } from '../components/DashboardSection';
-import { EmptyChart } from '../components/EmptyChart';
-import { Panel } from '../components/Panel';
-import { Stat } from '../components/Stat';
-import { SummaryCard } from '../components/SummaryCard';
+import { useBudgetStatus } from '../components/home/useBudgetStatus';
 import { TransactionList } from '../components/TransactionList';
+import '../styles/pages/plan.css';
+import '../styles/pages/home.css';
 
-// La Vue générale ne couvre que le mois sélectionné. Chaque donnée transverse
-// (budgets, factures, patrimoine, abonnements) n'apparaît qu'en résumé via une
-// SummaryCard pointant vers sa page de référence — c'est là qu'on agit.
-export function Dashboard({ summary, transactions, budgets, recurring, billsStatus, reportCurrency, categoryById, accountById }: {
+const UPCOMING_DAYS = 14;
+
+// « Aperçu » : la synthèse du mois sélectionné. Chaque bloc renvoie vers sa
+// page de référence (budgets, factures, récurrents…) — c'est là qu'on agit.
+export function Dashboard({ summary, transactions, budgets, recurring, billsStatus, reportCurrency, categoryById, accountById, userId, budgetStatus }: {
   summary: DashboardSummary | null;
   transactions: Transaction[];
   budgets: Budget[];
@@ -49,387 +34,343 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
   reportCurrency: string;
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
+  /** Optionnels : sans eux, le statut des budgets est chargé ici. */
+  userId?: number | null;
+  budgetStatus?: BudgetStatus[] | null;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const chartTheme = useChartTheme();
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, displayCurrency);
-  const chartTheme = useChartTheme();
-  const expenseColor = chartTheme.expense;
-  const navigate = useNavigate();
-  // Drill-down : une part de donut ou une ligne de catégorie mène aux
-  // transactions du mois filtrées sur cette catégorie.
-  const openCategory = (categoryId: number | null | undefined) => {
-    if (categoryId != null) navigate(`/transactions?category=${categoryId}`);
-  };
+  const signedMoney = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${money(Math.abs(value))}`;
+
+  // « Budget consommé » : uniquement les catégories budgétées, dans la devise
+  // de rapport, report d'enveloppe compris → statut calculé par l'API.
+  const budgetRows = useBudgetStatus({
+    userId: userId ?? budgets[0]?.user_id ?? null,
+    month: summary?.month,
+    currency: displayCurrency,
+    provided: budgetStatus,
+    refreshKey: summary,
+  });
 
   const monthRows = (summary?.monthly_cashflow ?? []).map((row) => ({ ...row, label: formatMonth(row.month) }));
-  const categoryRows = summary?.expenses_by_category ?? [];
-  const savingRate = summary && summary.income > 0 ? Math.round((summary.net / summary.income) * 100) : 0;
-  const recurringRate = (accountId: number | null) => {
-    const accountCurrency = (accountId != null ? accountById.get(accountId)?.currency : null) ?? 'EUR';
-    return (summary?.exchange_rates ?? {})[accountCurrency] ?? 1;
-  };
-  // Active subscriptions bucketed by cadence — never smeared across months, so a
-  // yearly charge stays yearly. Same logic as the Récurrents and Santé pages.
-  const activeExpenseRecurring = recurring.filter((r) => r.active && r.type === 'expense');
-  const subTotals = cadenceTotals(activeExpenseRecurring, recurringRate);
-  const topRecurring = activeExpenseRecurring
-    .map((r) => ({ r, unit: CADENCE_META[cadenceOf(r)].unit, report: cadenceAmount(r) * recurringRate(r.account_id) }))
-    .sort((a, b) => b.report - a.report)
-    .slice(0, 3);
-  const transactionCount = transactions.length;
-  const expenseTransactions = transactions.filter((t) => t.type === 'expense');
-  const averageExpense = expenseTransactions.length > 0
-    ? expenseTransactions.reduce((sum, t) => sum + t.amount, 0) / expenseTransactions.length
-    : 0;
-  const budgetLimit = budgets.reduce((sum, b) => sum + b.amount_limit, 0);
-  const budgetUsed = summary?.expenses ?? 0;
-  const budgetPct = budgetLimit > 0 ? Math.min(100, (budgetUsed / budgetLimit) * 100) : 0;
-
-  // Budgets en alerte : catégories à >80% de leur plafond, triées par % décroissant.
-  // Pour le mois courant on extrapole linéairement la date de dépassement à
-  // partir du rythme de dépense observé depuis le début du mois.
-  const budgetAlerts = (() => {
-    if (budgets.length === 0) return [];
-    const spentByCategory = new Map<number, number>();
-    for (const row of categoryRows) {
-      if (row.category_id != null) spentByCategory.set(row.category_id, row.amount);
-    }
-    const now = new Date();
-    const selectedMonth = summary?.month ?? '';
-    const isCurrentMonth = selectedMonth === now.toISOString().slice(0, 10).slice(0, 7);
-    const [yearStr, monthStr] = selectedMonth.split('-');
-    const year = Number(yearStr);
-    const monthIdx = Number(monthStr) - 1;
-    const daysInSelectedMonth = year && monthStr ? new Date(year, monthIdx + 1, 0).getDate() : 30;
-    const dayOfMonth = isCurrentMonth ? now.getDate() : daysInSelectedMonth;
-
-    return budgets
-      .map((b) => {
-        const spent = spentByCategory.get(b.category_id) ?? 0;
-        const pct = b.amount_limit > 0 ? (spent / b.amount_limit) * 100 : 0;
-        const category = categoryById.get(b.category_id);
-        // Projection de dépassement (mois courant, pas encore dépassé).
-        let forecast: string | null = null;
-        if (isCurrentMonth && pct < 100 && spent > 0 && dayOfMonth > 0) {
-          const dailyRate = spent / dayOfMonth;
-          const daysToLimit = (b.amount_limit - spent) / dailyRate;
-          const overshootDay = dayOfMonth + Math.ceil(daysToLimit);
-          if (overshootDay <= daysInSelectedMonth) {
-            const date = new Date(Date.UTC(year, monthIdx, overshootDay));
-            forecast = t('dépassement prévu le {{date}}', { date: `${date.toISOString().slice(8, 10)}/${monthStr}` });
-          }
-        }
-        return { id: b.id, category_id: b.category_id, name: category?.name ?? t('Catégorie'), color: category?.color ?? '#94a3b8', spent, limit: b.amount_limit, pct, forecast };
-      })
-      .filter((row) => row.pct >= 80)
-      .sort((a, b) => b.pct - a.pct);
-  })();
-  const visibleBudgetAlerts = budgetAlerts.slice(0, 3);
-  const hiddenBudgetAlerts = budgetAlerts.length - visibleBudgetAlerts.length;
-
-  const topExpenses = transactions
-    .filter((t) => t.type === 'expense')
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 5);
-
-  // Prochaines factures du mois pas encore réglées (en retard d'abord).
-  const upcomingBills = (billsStatus?.bills ?? [])
-    .filter((entry) => entry.due && (entry.status === 'pending' || entry.status === 'late'))
-    .sort((a, b) => (a.expected_date ?? '').localeCompare(b.expected_date ?? ''))
-    .slice(0, 3);
-
-  const categoryHasData = categoryRows.length > 0;
-  const netWorth = summary?.net_worth ?? summary?.balance ?? null;
-  const netMonthly = summary?.net ?? null;
+  const monthIdx = monthRows.findIndex((row) => row.month === summary?.month);
+  const prevMonthRow = monthIdx > 0 ? monthRows[monthIdx - 1]! : null;
+  const savingRate = summary && summary.income > 0 ? Math.round((summary.net / summary.income) * 100) : null;
+  const prevSavingRate = prevMonthRow && prevMonthRow.income > 0 ? Math.round((prevMonthRow.net / prevMonthRow.income) * 100) : null;
+  const netWorth = summary?.net_worth ?? summary?.balance ?? 0;
+  const netMonthly = summary?.net ?? 0;
   const monthLabel = summary?.month ? formatMonthLong(summary.month) : t('Mois sélectionné');
+  const prevLabel = prevMonthRow ? formatMonth(prevMonthRow.month) : '';
 
-  // En-tête « produit » façon Binance : valeur nette en gros chiffre + sparkline
-  // de la trajectoire cumulée (cumulative_net) déjà présente dans la série 12 mois.
-  const sparkData = monthRows.filter((row) => Number.isFinite(row.cumulative_net));
-  const sparkTrendUp = sparkData.length > 1
-    ? (sparkData[sparkData.length - 1]!.cumulative_net >= sparkData[0]!.cumulative_net)
-    : true;
-  const sparkColor = sparkTrendUp ? chartTheme.income : chartTheme.expense;
-  const heroValue = netWorth ?? (sparkData.length > 0 ? sparkData[sparkData.length - 1]!.cumulative_net : 0);
-
-  // Comparaison N vs N-1 : 100% côté front à partir des 12 mois déjà présents
-  // dans summary.monthly_cashflow. La ligne du mois précédent est celle juste
-  // avant le mois sélectionné dans la série.
-  const prevMonthRow = (() => {
-    const idx = monthRows.findIndex((row) => row.month === summary?.month);
-    return idx > 0 ? monthRows[idx - 1] : null;
-  })();
-  const prevSavingRate = prevMonthRow && prevMonthRow.income > 0
-    ? Math.round((prevMonthRow.net / prevMonthRow.income) * 100)
-    : null;
-
-  // Petit libellé de variation coloré (vert = évolution favorable). `goodWhen`
-  // dit quel sens est positif : 'up' pour revenus/net, 'down' pour dépenses.
-  const moneyDelta = (current: number, previous: number | null | undefined, goodWhen: 'up' | 'down') => {
+  // Variation vs mois précédent, colorée selon le sens favorable.
+  const delta = (current: number, previous: number | null | undefined, goodWhen: 'up' | 'down') => {
     if (previous == null || !prevMonthRow) return null;
     const diff = current - previous;
-    if (Math.abs(previous) < 0.005 && Math.abs(diff) < 0.005) return null;
-    const pct = Math.abs(previous) >= 0.005 ? Math.round((diff / Math.abs(previous)) * 100) : null;
-    const arrow = diff === 0 ? '→' : diff > 0 ? '↑' : '↓';
-    const tone = diff === 0 ? '' : (diff > 0) === (goodWhen === 'up') ? 'income' : 'expense';
-    const pctText = pct == null ? '' : `${Math.abs(pct)}% `;
-    return <span className={tone}>{arrow} {pctText}{t('vs')} {formatMonth(prevMonthRow.month)} ({money(previous)})</span>;
+    if (Math.abs(diff) < 0.005) return <>= {prevLabel}</>;
+    const tone = (diff > 0) === (goodWhen === 'up') ? 'income' : 'expense';
+    const pct = Math.abs(previous) >= 0.005 ? `${Math.abs(Math.round((diff / Math.abs(previous)) * 100))} %` : signedMoney(diff);
+    return <><span className={tone}>{diff > 0 ? '↑' : '↓'} {pct}</span> vs {prevLabel}</>;
   };
-  const savingRateDelta = (() => {
-    if (prevSavingRate == null || !prevMonthRow) return null;
-    const diff = savingRate - prevSavingRate;
-    const arrow = diff === 0 ? '→' : diff > 0 ? '↑' : '↓';
-    const tone = diff === 0 ? '' : diff > 0 ? 'income' : 'expense';
-    return <span className={tone}>{arrow} {Math.abs(diff)} {t('pts vs')} {formatMonth(prevMonthRow.month)} ({prevSavingRate}%)</span>;
-  })();
+
+  const sparkData = monthRows.filter((row) => Number.isFinite(row.cumulative_net));
+
+  // ---- Budgets -----------------------------------------------------------
+  const budgetLimit = (budgetRows ?? []).reduce((sum, b) => sum + Math.max(0, b.effective_limit), 0);
+  const budgetSpent = (budgetRows ?? []).reduce((sum, b) => sum + b.spent, 0);
+  const budgetRatio = budgetLimit > 0 ? budgetSpent / budgetLimit : null;
+  const isCurrentMonth = summary?.month === currentMonthIso();
+  const budgetAlerts = (budgetRows ?? [])
+    .map((b) => {
+      const ratio = b.effective_limit > 0 ? b.spent / b.effective_limit : b.spent > 0 ? Infinity : 0;
+      return { b, ratio, forecast: isCurrentMonth ? overshootDay(b.spent, b.effective_limit, summary!.month) : null };
+    })
+    .filter((row) => row.ratio >= 0.8)
+    .sort((a, b) => b.ratio - a.ratio);
+
+  // ---- À venir : factures dues non réglées + récurrents des 14 prochains jours
+  const rateFor = (accountId: number | null) => {
+    const currency = (accountId != null ? accountById.get(accountId)?.currency : null) ?? 'EUR';
+    return (summary?.exchange_rates ?? {})[currency] ?? 1;
+  };
+  const upcoming = [
+    ...(billsStatus?.bills ?? [])
+      .filter((e) => e.due && e.bill.active && (e.status === 'pending' || e.status === 'late') && e.expected_date)
+      .map((e) => ({
+        key: `b${e.bill.id}`,
+        date: e.expected_date!.slice(0, 10),
+        label: e.bill.name,
+        sub: e.status === 'late' ? t('Facture en retard') : t('Facture'),
+        amount: -((e.bill.amount_min + e.bill.amount_max) / 2),
+        approx: true,
+        currency: e.bill.account_id != null ? accountById.get(e.bill.account_id)?.currency ?? 'EUR' : 'EUR',
+        late: e.status === 'late',
+        to: '/bills',
+      })),
+    ...recurring
+      .filter((r) => r.active)
+      .map((r) => ({ r, date: nextRecurringOccurrence(r) }))
+      .filter((x): x is { r: RecurringTransaction; date: string } => {
+        const days = formatRelativeDate(x.date).days;
+        return days != null && days >= 0 && days <= UPCOMING_DAYS;
+      })
+      .map(({ r, date }) => ({
+        key: `r${r.id}`,
+        date,
+        label: r.description,
+        sub: formatRelativeDate(date).label.replace(/^.*\((.*)\)$/, '$1'),
+        amount: r.type === 'income' ? r.amount : -r.amount,
+        approx: false,
+        currency: accountById.get(r.account_id ?? -1)?.currency ?? 'EUR',
+        late: false,
+        to: '/recurring',
+      })),
+  ].sort((a, b) => Number(b.late) - Number(a.late) || a.date.localeCompare(b.date));
+  const visibleUpcoming = upcoming.slice(0, 6);
+
+  const activeExpenseRecurring = recurring.filter((r) => r.active && r.type === 'expense');
+  const subTotals = cadenceTotals(activeExpenseRecurring, rateFor);
+  const biggestSub = activeExpenseRecurring
+    .map((r) => ({ r, unit: CADENCE_META[cadenceOf(r)].unit, report: cadenceAmount(r) * rateFor(r.account_id) }))
+    .sort((a, b) => b.report - a.report)[0];
+
+  // ---- Catégories & grosses dépenses ------------------------------------
+  const categoryRows = (summary?.expenses_by_category ?? []).filter((row) => row.amount > 0).sort((a, b) => b.amount - a.amount);
+  const topCategories = categoryRows.slice(0, 6);
+  const maxCategory = topCategories[0]?.amount ?? 0;
+  const otherCategories = categoryRows.slice(6).reduce((sum, row) => sum + row.amount, 0);
+  const topExpenses = transactions.filter((tx) => tx.type === 'expense').sort((a, b) => b.amount - a.amount).slice(0, 5);
 
   return (
-    <DashboardSection title={monthLabel} subtitle={t('Change le mois via le sélecteur en haut à droite')}>
-      <section className="balance-hero">
-        <div className="balance-hero-main">
-          <span className="balance-hero-label">{t('Valeur nette')}</span>
-          <strong className="balance-hero-value">{money(heroValue)}</strong>
-          {moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up') && (
-            <span className="balance-hero-delta">{t('Net du mois')}&nbsp;: {moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up')}</span>
-          )}
+    <section className="pg home">
+      <div className="home-hero">
+        <div className="home-hero-main">
+          <span className="pg-kicker">{t('Valeur nette')}</span>
+          <strong className="home-hero-value">{money(netWorth)}</strong>
+          <div className="home-hero-split">
+            <span>{t('Actifs')} <b>{money(summary?.balance_assets ?? 0)}</b></span>
+            <span>{t('Passifs')} <b>{money(summary?.balance_liabilities ?? 0)}</b></span>
+          </div>
+          <div className="home-hero-net">
+            <span>{t('Flux net')} · {monthLabel}</span>
+            <strong className={netMonthly > 0 ? 'income' : netMonthly < 0 ? 'expense' : undefined}>{signedMoney(netMonthly)}</strong>
+            {prevMonthRow && <small>{delta(netMonthly, prevMonthRow.net, 'up')}</small>}
+          </div>
         </div>
         {sparkData.length > 1 && (
-          <div className="balance-hero-spark">
+          <div className="home-hero-spark" aria-hidden="true">
+            <span>{t('Flux nets cumulés')} · {sparkData.length} {t('mois')}</span>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkData} margin={{ top: 6, right: 0, bottom: 0, left: 0 }}>
+              <AreaChart data={sparkData} margin={{ top: 6, right: 2, bottom: 2, left: 2 }}>
                 <defs>
-                  <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={sparkColor} stopOpacity={0.35} />
-                    <stop offset="100%" stopColor={sparkColor} stopOpacity={0} />
+                  <linearGradient id="homeSpark" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={chartTheme.total} stopOpacity={0.16} />
+                    <stop offset="100%" stopColor={chartTheme.total} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <Tooltip
                   formatter={(value) => money(Number(value))}
-                  labelFormatter={(label) => String(label)}
-                  contentStyle={{ fontSize: 12 }}
+                  labelFormatter={(_label, payload) => String(payload?.[0]?.payload?.label ?? '')}
+                  contentStyle={chartTheme.tooltip.contentStyle}
+                  labelStyle={chartTheme.tooltip.labelStyle}
+                  itemStyle={chartTheme.tooltip.itemStyle}
+                  cursor={{ stroke: chartTheme.axis, strokeDasharray: '3 3' }}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="cumulative_net"
-                  name={t('Cumul')}
-                  stroke={sparkColor}
-                  strokeWidth={2}
-                  fill="url(#sparkFill)"
-                  dot={false}
-                  isAnimationActive={false}
-                />
+                <Area type="monotone" dataKey="cumulative_net" name={t('Cumul')} stroke={chartTheme.total} strokeWidth={1.75} fill="url(#homeSpark)" dot={false} isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
-      </section>
+      </div>
 
-      <section className="stats">
-        <Stat icon={<ArrowUpCircle />} label={t('Revenus')} value={money(summary?.income ?? 0)} positive delta={moneyDelta(summary?.income ?? 0, prevMonthRow?.income, 'up')} to="/transactions?type=income" />
-        <Stat icon={<ArrowDownCircle />} label={t('Dépenses')} value={money(summary?.expenses ?? 0)} negative delta={moneyDelta(summary?.expenses ?? 0, prevMonthRow?.expenses, 'down')} to="/transactions?type=expense" />
-        <Stat icon={<Euro />} label={t('Net mensuel')} value={money(netMonthly ?? 0)} signed={netMonthly} delta={moneyDelta(netMonthly ?? 0, prevMonthRow?.net, 'up')} />
-        <Stat icon={<BarChart3 />} label={t('Taux d\'épargne')} value={`${savingRate}%`} delta={savingRateDelta} />
-        <Stat icon={<CreditCard />} label={t('Transactions')} value={String(transactionCount)} to="/transactions" />
-        <Stat icon={<Banknote />} label={t('Dépense moyenne')} value={money(averageExpense)} />
-      </section>
-
-      <section className="charts-grid">
-        <Panel title={t('Répartition des dépenses du mois')}>
-          <div className="chart-split">
-            <div className="donut-area">
-              {categoryHasData ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categoryRows}
-                      dataKey="amount"
-                      nameKey="name"
-                      innerRadius="58%"
-                      outerRadius="86%"
-                      paddingAngle={2}
-                      isAnimationActive={false}
-                      style={{ cursor: 'pointer' }}
-                      onClick={(entry) => openCategory((entry as { payload?: { category_id?: number | null } })?.payload?.category_id)}
-                    >
-                      {categoryRows.map((row) => <Cell key={row.category_id ?? row.name} fill={row.color} />)}
-                    </Pie>
-                    <Tooltip formatter={(value) => money(Number(value))} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <EmptyChart message={t('Aucune dépense ce mois-ci.')} />
-              )}
-            </div>
-            <div className="category-list compact">
-              {categoryRows.map((row) => row.category_id != null ? (
-                <Link className="category-row category-link" key={row.category_id} to={`/transactions?category=${row.category_id}`}>
-                  <span className="dot" style={{ background: row.color }} />
-                  <span title={row.name}>{row.name}</span>
-                  <strong>{money(row.amount)}</strong>
-                </Link>
-              ) : (
-                <div className="category-row" key="none">
-                  <span className="dot" style={{ background: row.color }} />
-                  <span title={row.name}>{row.name}</span>
-                  <strong>{money(row.amount)}</strong>
-                </div>
-              ))}
-              {!categoryHasData && <p className="empty">{t('Aucune dépense ce mois-ci.')}</p>}
-            </div>
-          </div>
-        </Panel>
-
-        <SummaryCard title={t('Budgets')} to="/budgets">
-          <div className="dashboard-metric">
-            <div>
-              <span>{t('Dépenses suivies')}</span>
-              <strong>{money(budgetUsed)}</strong>
-            </div>
-            <div>
-              <span>{t('Limites posées')}</span>
-              <strong>{budgetLimit > 0 ? money(budgetLimit) : t('Aucun budget')}</strong>
-            </div>
-          </div>
-          <div className="bar big"><span style={{ width: `${budgetPct}%`, background: budgetPct >= 100 ? 'var(--expense)' : 'var(--accent)' }} /></div>
-          <p className="panel-note">{budgetLimit > 0 ? t('{{pct}} % consommé', { pct: Math.round(budgetPct) }) : t('Ajoute des budgets pour suivre la consommation du mois.')}</p>
-          {visibleBudgetAlerts.length > 0 && (
-            <div className="category-list compact">
-              {visibleBudgetAlerts.map((row) => (
-                <button
-                  type="button"
-                  className="category-row budget-alert-row category-link"
-                  key={row.id}
-                  title={t('Voir les transactions de cette catégorie')}
-                  onClick={() => openCategory(row.category_id)}
-                >
-                  <span className="dot inline" style={{ background: row.color }} />
-                  <div className="budget-alert-info">
-                    <span className="budget-alert-name" title={row.name}>{row.name}</span>
-                    <span className={`budget-alert-note ${row.pct >= 100 ? 'over' : ''}`}>
-                      {money(row.spent)} / {money(row.limit)}
-                      {row.pct >= 100
-                        ? ` · ${t('dépassé de {{amount}}', { amount: money(row.spent - row.limit) })}`
-                        : row.forecast ? ` · ${row.forecast}` : ''}
-                    </span>
-                  </div>
-                  <strong className={row.pct >= 100 ? 'expense' : undefined}>{Math.round(row.pct)} %</strong>
-                </button>
-              ))}
-              {hiddenBudgetAlerts > 0 && (
-                <p className="panel-note">{t(hiddenBudgetAlerts > 1 ? '+{{n}} autres budgets en alerte' : '+{{n}} autre budget en alerte', { n: hiddenBudgetAlerts })}</p>
-              )}
-            </div>
+      <div className="pg-stats">
+        <Link className="pg-stat" to="/transactions?type=income">
+          <span>{t('Revenus')}</span>
+          <strong className="income">{money(summary?.income ?? 0)}</strong>
+          {prevMonthRow && <small>{delta(summary?.income ?? 0, prevMonthRow.income, 'up')}</small>}
+        </Link>
+        <Link className="pg-stat" to="/transactions?type=expense">
+          <span>{t('Dépenses')}</span>
+          <strong className="expense">{money(summary?.expenses ?? 0)}</strong>
+          {prevMonthRow && <small>{delta(summary?.expenses ?? 0, prevMonthRow.expenses, 'down')}</small>}
+        </Link>
+        <div className="pg-stat">
+          <span>{t('Taux d\'épargne')}</span>
+          <strong>{savingRate == null ? '—' : `${savingRate} %`}</strong>
+          {savingRate != null && prevSavingRate != null && (
+            <small>
+              <span className={savingRate >= prevSavingRate ? 'income' : 'expense'}>
+                {savingRate === prevSavingRate ? '=' : savingRate > prevSavingRate ? '↑' : '↓'} {Math.abs(savingRate - prevSavingRate)} pts
+              </span> vs {prevLabel}
+            </small>
           )}
-        </SummaryCard>
-      </section>
+        </div>
+        <Link className="pg-stat" to="/transactions">
+          <span>{t('Transactions')}</span>
+          <strong>{transactions.length}</strong>
+          <small>{monthLabel}</small>
+        </Link>
+      </div>
 
-      <section className="charts-grid">
-        <SummaryCard title={t('Plus grosses dépenses du mois')} to="/transactions">
-          <TransactionList
-            transactions={topExpenses}
-            categoryById={categoryById}
-            accountById={accountById}
-            onPick={(t) => navigate(`/transactions?tx=${t.id}`)}
-          />
-        </SummaryCard>
-
-        <SummaryCard title={t('Factures du mois')} to="/bills">
-          {billsStatus && billsStatus.due_count > 0 ? (
-            <>
-              <div className="dashboard-metric">
-                <div>
-                  <span>{t('Payées')}</span>
-                  <strong>{billsStatus.paid_count} / {billsStatus.due_count}</strong>
-                </div>
-                <div>
-                  <span>{t('Payé / attendu')}</span>
-                  <strong>{moneyFmt(billsStatus.paid_total)} / {moneyFmt(billsStatus.expected_total)}</strong>
-                </div>
-              </div>
-              {upcomingBills.length > 0 ? (
-                <div className="category-list compact">
-                  {upcomingBills.map((entry) => {
-                    const currency = entry.bill.account_id != null ? accountById.get(entry.bill.account_id)?.currency ?? 'EUR' : 'EUR';
-                    const mid = (entry.bill.amount_min + entry.bill.amount_max) / 2;
-                    return (
-                      <div className="category-row" key={entry.bill.id}>
-                        <span className="dot" style={{ background: entry.status === 'late' ? 'var(--expense)' : 'var(--muted)' }} />
-                        <span title={entry.bill.name}>
-                          {entry.bill.name}
-                          {entry.expected_date ? ` · ${new Date(entry.expected_date).toLocaleDateString(localeTag(), { day: '2-digit', month: '2-digit' })}` : ''}
-                          {entry.status === 'late' ? ` · ${t('en retard')}` : ''}
+      <div className="home-grid">
+        <div className="home-col">
+          <div className="pg-card">
+            <div className="pg-card-head">
+              <h2>{t('Budgets')}</h2>
+              <Link className="home-link" to="/budgets">{t('Voir')} <ArrowRight size={14} /></Link>
+            </div>
+            <div className="pg-card-body">
+              {budgetRows == null ? (
+                <p className="pg-note">{t('Chargement…')}</p>
+              ) : budgetRows.length === 0 ? (
+                <p className="pg-note">{t('Aucun budget ce mois-ci.')} <Link to="/budgets">{t('Fixer des limites')}</Link></p>
+              ) : (
+                <>
+                  <div className="home-budget-figure">
+                    <strong>{money(budgetSpent)} <small>/ {money(budgetLimit)}</small></strong>
+                    <span>{budgetRatio == null ? '—' : `${Math.round(budgetRatio * 100)} % ${t('consommé')}`}</span>
+                  </div>
+                  <div className={`meter big${budgetRatio != null && budgetRatio >= 1 ? ' over' : budgetRatio != null && budgetRatio >= 0.8 ? ' warn' : ''}`}>
+                    <span style={{ width: `${Math.max(0, Math.min(100, (budgetRatio ?? 0) * 100))}%` }} />
+                  </div>
+                </>
+              )}
+            </div>
+            {budgetAlerts.length > 0 && (
+              <ul className="home-list">
+                {budgetAlerts.slice(0, 3).map(({ b, ratio, forecast }) => {
+                  const name = categoryById.get(b.category_id)?.name ?? t('Catégorie');
+                  const over = ratio >= 1;
+                  return (
+                    <li key={b.id}>
+                      <button type="button" className="home-item" onClick={() => navigate(`/transactions?category=${b.category_id}`)}>
+                        <span className="home-swatch" style={{ background: over ? 'var(--expense)' : '#c0922a' }} />
+                        <span className="home-item-label">
+                          <span title={name}>{name}</span>
+                          <small>
+                            {money(b.spent)} / {money(b.effective_limit)}
+                            {over ? ` · ${t('dépassé de {{amount}}', { amount: money(b.spent - b.effective_limit) })}` : forecast ? ` · ${t('dépassement prévu le {{date}}', { date: forecast })}` : ''}
+                          </small>
                         </span>
-                        <strong className={entry.status === 'late' ? 'expense' : undefined}>~{moneyFmt(mid, currency)}</strong>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="panel-note">{t('Toutes les factures attendues du mois sont réglées.')}</p>
-              )}
-            </>
-          ) : (
-            <p className="empty">{t('Aucune facture attendue ce mois-ci.')}</p>
-          )}
-        </SummaryCard>
-      </section>
+                        <strong className={over ? 'expense' : undefined}>{ratio === Infinity ? '∞' : `${Math.round(ratio * 100)} %`}</strong>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {budgetAlerts.length > 3 && <p className="home-foot">+{budgetAlerts.length - 3} {t('autres budgets en alerte')}</p>}
+          </div>
 
-      <section className="charts-grid">
-        <SummaryCard title={t('Patrimoine')} to="/wealth">
-          <div className="dashboard-metric">
-            <div>
-              <span>{t('Patrimoine net')}</span>
-              <strong className={netWorth != null && netWorth < 0 ? 'expense' : 'income'}>{money(netWorth ?? 0)}</strong>
+          <div className="pg-card">
+            <div className="pg-card-head">
+              <h2>{t('À venir')}</h2>
+              <Link className="home-link" to="/bills">{t('Factures')} <ArrowRight size={14} /></Link>
             </div>
-            <div>
-              <span>{t('Actifs')}</span>
-              <strong>{money(summary?.balance_assets ?? 0)}</strong>
+            {visibleUpcoming.length === 0 ? (
+              <p className="pg-empty">{t('Rien d’attendu dans les 14 prochains jours.')}</p>
+            ) : (
+              <ul className="home-list">
+                {visibleUpcoming.map((item) => {
+                  const [, m, d] = item.date.split('-');
+                  return (
+                    <li key={item.key}>
+                      <Link className="home-item" to={item.to}>
+                        <span className={item.late ? 'home-date late' : 'home-date'}>{d}<small>{monthShort(Number(m))}</small></span>
+                        <span className="home-item-label">
+                          <span title={item.label}>{item.label}</span>
+                          <small>{item.sub}</small>
+                        </span>
+                        <strong className={item.amount >= 0 ? 'income' : item.late ? 'expense' : undefined}>
+                          {item.approx ? '≈ ' : item.amount >= 0 ? '+' : '−'}{moneyFmt(Math.abs(item.amount), item.currency)}
+                        </strong>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {activeExpenseRecurring.length > 0 && (
+              <p className="home-foot">
+                {t('Abonnements')} <strong>{money(subTotals.monthly)}</strong> / {t('mois')}
+                {subTotals.periodic > 0 && <> · <strong>{money(subTotals.periodic)}</strong> / {t('an')}</>}
+                {biggestSub && <> · {t('le plus cher')} : {biggestSub.r.description} ({money(biggestSub.report)}{biggestSub.unit})</>}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="home-col">
+          <div className="pg-card">
+            <div className="pg-card-head">
+              <h2>{t('Où part l’argent')}</h2>
+              <Link className="home-link" to="/statistics">{t('Analyse')} <ArrowRight size={14} /></Link>
             </div>
-            <div>
-              <span>{t('Passifs')}</span>
-              <strong>{money(summary?.balance_liabilities ?? 0)}</strong>
+            {topCategories.length === 0 ? (
+              <p className="pg-empty">{t('Aucune dépense ce mois-ci.')}</p>
+            ) : (
+              <ul className="home-list">
+                {topCategories.map((row, index) => {
+                  const color = seriesColor(chartTheme, index);
+                  const content = (
+                    <>
+                      <span className="home-swatch" style={{ background: color }} />
+                      <span className="home-item-label"><span title={row.name}>{row.name}</span></span>
+                      <strong>{money(row.amount)}</strong>
+                      <span className="meter"><span style={{ width: `${maxCategory > 0 ? (row.amount / maxCategory) * 100 : 0}%`, background: color }} /></span>
+                    </>
+                  );
+                  return (
+                    <li key={row.category_id ?? row.name}>
+                      {row.category_id != null
+                        ? <Link className="home-item" to={`/transactions?category=${row.category_id}`}>{content}</Link>
+                        : <div className="home-item">{content}</div>}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {otherCategories > 0 && <p className="home-foot">+ {money(otherCategories)} {t('dans')} {categoryRows.length - 6} {t('autres catégories')}</p>}
+          </div>
+
+          <div className="pg-card">
+            <div className="pg-card-head">
+              <h2>{t('Plus grosses dépenses')}</h2>
+              <Link className="home-link" to="/transactions">{t('Journal')} <ArrowRight size={14} /></Link>
+            </div>
+            <div className="pg-card-body">
+              {topExpenses.length === 0 ? (
+                <p className="pg-note">{t('Aucune dépense ce mois-ci.')}</p>
+              ) : (
+                <TransactionList
+                  transactions={topExpenses}
+                  categoryById={categoryById}
+                  accountById={accountById}
+                  onPick={(tx) => navigate(`/transactions?tx=${tx.id}`)}
+                />
+              )}
             </div>
           </div>
-          <p className="panel-note">{t('Évolution, répartition et alertes sur la page Patrimoine.')}</p>
-        </SummaryCard>
-
-        <SummaryCard title={t('Abonnements')} to="/recurring">
-          {activeExpenseRecurring.length > 0 ? (
-            <>
-              <div className="dashboard-metric">
-                <div>
-                  <span>{t('Mensuels')}</span>
-                  <strong className="expense">{money(subTotals.monthly)}<small className="cadence-unit">{t('/mois')}</small></strong>
-                </div>
-                {subTotals.periodic > 0 && (
-                  <div>
-                    <span>{t('Périodiques')}</span>
-                    <strong className="expense">{money(subTotals.periodic)}<small className="cadence-unit">{t('/an')}</small></strong>
-                  </div>
-                )}
-                {subTotals.weekly > 0 && (
-                  <div>
-                    <span>{t('Hebdo')}</span>
-                    <strong className="expense">{money(subTotals.weekly)}<small className="cadence-unit">{t('/sem')}</small></strong>
-                  </div>
-                )}
-              </div>
-              <div className="category-list compact">
-                {topRecurring.map(({ r, report, unit }) => (
-                  <div className="category-row" key={r.id}>
-                    <span className="dot" style={{ background: expenseColor }} />
-                    <span title={r.description}>{r.description}</span>
-                    <strong className="expense">-{money(report)}<small className="cadence-unit">{unit}</small></strong>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="empty">{t('Aucun abonnement actif.')}</p>
-          )}
-        </SummaryCard>
-      </section>
-    </DashboardSection>
+        </div>
+      </div>
+    </section>
   );
+}
+
+const MONTHS_SHORT = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+const monthShort = (m: number) => MONTHS_SHORT[m - 1] ?? '';
+
+// Projection linéaire du jour de dépassement d'un budget pour le mois en cours,
+// à partir du rythme observé (dates LOCALES). Renvoie « jj/mm » ou null.
+export function overshootDay(spent: number, limit: number, month: string, now: Date = new Date()): string | null {
+  if (limit <= 0 || spent <= 0 || spent >= limit) return null;
+  const [year, mon] = month.split('-').map(Number) as [number, number];
+  if (now.getFullYear() !== year || now.getMonth() + 1 !== mon) return null;
+  const daysInMonth = new Date(year, mon, 0).getDate();
+  const today = now.getDate();
+  const day = today + Math.ceil((limit - spent) / (spent / today));
+  if (day > daysInMonth) return null;
+  return `${String(day).padStart(2, '0')}/${String(mon).padStart(2, '0')}`;
 }

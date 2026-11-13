@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { PiggyBank, Repeat, ShieldCheck, Target } from 'lucide-react';
 import type { Account, Budget, Category, DashboardSummary, RecurringTransaction } from '@suzanne/shared';
 import { money as moneyFmt } from '../lib/format';
 import { liquidBalance } from '../lib/balances';
 import { computeHealth, type HealthRating } from '../lib/health';
-import { Panel } from '../components/Panel';
+import '../styles/pages/plan.css';
+import '../styles/pages/home.css';
 
 const RATING_LABEL: Record<HealthRating, string> = {
   good: 'Sain',
@@ -59,16 +59,25 @@ export function Health({ summary, recurring, budgets, reportCurrency, categoryBy
   const monthlyExpenseTotal = fixedVsVariable.fixed + fixedVsVariable.variable;
   const fixedPct = monthlyExpenseTotal > 0 ? (fixedVsVariable.fixed / monthlyExpenseTotal) * 100 : 0;
 
-  return (
-    <section className="stack">
-      <p className="panel-note">
-        Des indicateurs de <strong>santé financière</strong> — des ratios, complémentaires aux montants bruts de la vue générale et des statistiques.
-        Calculés sur tes 12 derniers mois et l'état courant. Chaque carte mène à la page où consulter le détail et agir.
-      </p>
+  const ratings = [savingsRate.rating, emergencyFund.rating, recurringLoad.rating, budgetRating].filter((r) => r !== 'unknown');
+  const goodCount = ratings.filter((r) => r === 'good').length;
+  const verdict = ratings.length === 0 ? 'Pas encore assez de données'
+    : ratings.includes('bad') ? 'Des points à risque'
+      : ratings.includes('warn') ? 'Quelques points à surveiller'
+        : 'Tout est au vert';
 
-      <section className="health-grid">
+  return (
+    <section className="pg home-sub">
+      <div className="pg-hero">
+        <div>
+          <span className="pg-kicker">Santé financière · 12 derniers mois</span>
+          <strong className="pg-hero-value">{goodCount} <small>/ {ratings.length || 4} indicateurs sains</small></strong>
+          <p className="pg-hero-sub">{verdict}</p>
+        </div>
+      </div>
+
+      <div className="health2-grid">
         <HealthCard
-          icon={<PiggyBank />}
           label="Taux d'épargne"
           value={pct(savingsRate.current)}
           sub={`Moyenne 12 mois : ${pct(savingsRate.average)}`}
@@ -76,57 +85,53 @@ export function Health({ summary, recurring, budgets, reportCurrency, categoryBy
           to="/statistics"
         />
         <HealthCard
-          icon={<ShieldCheck />}
           label="Fonds d'urgence"
-          value={emergencyFund.monthsCovered === null ? '—' : `${emergencyFund.monthsCovered.toFixed(1)} mois`}
+          value={emergencyFund.monthsCovered === null ? '—' : `${emergencyFund.monthsCovered.toFixed(1).replace('.', ',')} mois`}
           sub={`Dépenses ≈ ${money(emergencyFund.avgMonthlyExpenses)}/mois`}
           rating={emergencyFund.rating}
           to="/accounts"
         />
         <HealthCard
-          icon={<Repeat />}
-          label="Charge des récurrents"
+          label="Charges fixes"
           value={pct(recurringLoad.share)}
-          sub={`${money(recurringLoad.monthlyFixed)}/mois de charges fixes`}
+          sub={`${money(recurringLoad.monthlyFixed)}/mois de récurrents`}
           rating={recurringLoad.rating}
           to="/recurring"
         />
         <HealthCard
-          icon={<Target />}
-          label="Adhérence budgets"
+          label="Budgets tenus"
           value={budgetAdherence === null ? '—' : `${budgetAdherence.withinCount}/${budgetAdherence.items.length}`}
           sub={budgetAdherence === null ? 'Aucun budget défini' : `${budgetAdherence.overCount} dépassé${budgetAdherence.overCount > 1 ? 's' : ''} ce mois`}
           rating={budgetRating}
           to="/budgets"
         />
-      </section>
+      </div>
 
-      <section className="charts-grid">
-        <Panel title="Charges fixes vs variables" icon={<Repeat />}>
+      <div className="pg-card">
+        <div className="pg-card-head"><h2>Fixes ou variables ?</h2></div>
+        <div className="pg-card-body">
           {monthlyExpenseTotal > 0 ? (
-            <div className="health-split">
-              <div className="health-split-bar">
+            <>
+              <div className="health2-split" role="img" aria-label={`${Math.round(fixedPct)} % de charges fixes`}>
                 <span className="fixed" style={{ width: `${fixedPct}%` }} />
                 <span className="variable" style={{ width: `${100 - fixedPct}%` }} />
               </div>
-              <div className="health-split-legend">
-                <div><span className="dot fixed" /> Fixes (récurrents) <strong>{money(fixedVsVariable.fixed)}</strong></div>
-                <div><span className="dot variable" /> Variables <strong>{money(fixedVsVariable.variable)}</strong></div>
+              <div className="health2-legend">
+                <div><span className="home-swatch fixed" /> Fixes <strong>{money(fixedVsVariable.fixed)}</strong> <span className="pg-note">{Math.round(fixedPct)} %</span></div>
+                <div><span className="home-swatch variable" /> Variables <strong>{money(fixedVsVariable.variable)}</strong></div>
               </div>
-              <p className="panel-note">Sur une dépense mensuelle moyenne de {money(monthlyExpenseTotal)}. Les charges fixes proviennent des récurrents actifs.</p>
-            </div>
+              <p className="pg-note" style={{ marginTop: 12 }}>Sur une dépense mensuelle moyenne de {money(monthlyExpenseTotal)}. Les charges fixes viennent des récurrents actifs.</p>
+            </>
           ) : (
-            <p className="empty">Pas encore de dépenses à répartir.</p>
+            <p className="pg-note">Pas encore de dépenses à répartir.</p>
           )}
-        </Panel>
-      </section>
-
+        </div>
+      </div>
     </section>
   );
 }
 
-function HealthCard({ icon, label, value, sub, rating, to }: {
-  icon: React.ReactNode;
+function HealthCard({ label, value, sub, rating, to }: {
   label: string;
   value: string;
   sub: string;
@@ -135,14 +140,13 @@ function HealthCard({ icon, label, value, sub, rating, to }: {
   to: string;
 }) {
   return (
-    <Link className="health-card" to={to}>
-      <div className="health-card-head">
-        <span className="health-icon">{icon}</span>
-        <span className={`health-badge ${rating}`}>{RATING_LABEL[rating]}</span>
+    <Link className="health2-card" to={to}>
+      <div className="health2-card-head">
+        <span>{label}</span>
+        <span className={`health2-badge ${rating}`}>{RATING_LABEL[rating]}</span>
       </div>
-      <span className="health-label">{label}</span>
-      <strong className="health-value">{value}</strong>
-      <span className="health-sub">{sub}</span>
+      <strong className="health2-value">{value}</strong>
+      <span className="health2-sub">{sub}</span>
     </Link>
   );
 }

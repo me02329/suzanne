@@ -1,0 +1,172 @@
+/* =========================================================================
+   Planifier (Budgets, Récurrents, Factures, Prévisions) + listes partagées
+   avec Accueil (Alertes). Toutes les règles sont préfixées .pg- / .row-
+   pour ne rien changer aux autres pages.
+   ========================================================================= */
+
+.pg { display: grid; gap: 18px; min-width: 0; }
+
+/* ---- Barre d'outils : résumé à gauche, actions à droite ---------------- */
+.pg-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap;
+}
+.pg-toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.pg-toolbar-actions .primary,
+.pg-toolbar-actions .secondary { display: inline-flex; align-items: center; gap: 8px; }
+.pg-toolbar select { min-height: 40px; padding: 0 12px; font-weight: 600; }
+.pg-note { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+/* ---- Héros : un chiffre principal en grand ------------------------------ */
+.pg-hero {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 14px 24px;
+  padding: 22px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.pg-kicker { display: block; color: var(--muted); font-size: 11.5px; font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; }
+.pg-hero-value {
+  display: block; margin-top: 6px;
+  font-family: var(--num-font); font-variant-numeric: tabular-nums; font-weight: 600;
+  font-size: clamp(30px, 4.2vw, 42px); letter-spacing: -0.04em; line-height: 1.05; overflow-wrap: anywhere;
+}
+.pg-hero-value small { font-size: 0.5em; color: var(--muted); letter-spacing: -0.02em; font-weight: 500; }
+.pg-hero-sub { margin: 8px 0 0; color: var(--muted); font-size: 13.5px; }
+.pg-hero-sub strong { color: var(--text); font-family: var(--num-font); font-weight: 600; }
+.pg-hero-meter { grid-column: 1 / -1; }
+
+/* ---- Grille de stats : 4 / 2 colonnes ------------------------------------ */
+.pg-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.pg-stat {
+  display: grid; align-content: start; gap: 4px; min-width: 0;
+  padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  color: inherit; text-decoration: none;
+}
+a.pg-stat:hover { border-color: var(--border-strong); }
+.pg-stat > span { color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; }
+.pg-stat > strong {
+  font-family: var(--num-font); font-variant-numeric: tabular-nums; font-weight: 600;
+  font-size: clamp(17px, 1.8vw, 22px); letter-spacing: -0.03em; overflow-wrap: anywhere;
+}
+.pg-stat > small { color: var(--muted); font-size: 12px; font-weight: 550; }
+.pg-stat .income, .pg-stat .expense { font-weight: inherit; }
+
+/* ---- Jauge ---------------------------------------------------------------- */
+.meter { position: relative; height: 8px; border-radius: 999px; background: var(--surface-muted); overflow: hidden; }
+.meter > span { display: block; height: 100%; border-radius: inherit; background: var(--text); transition: width 0.3s ease; }
+.meter.warn > span { background: #b8862b; }
+.meter.over > span { background: var(--expense); }
+.meter.big { height: 12px; }
+
+/* ---- Carte de section ----------------------------------------------------- */
+.pg-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); min-width: 0; }
+.pg-card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 20px 10px;
+}
+.pg-card-head h2 { margin: 0; font-size: 18px; }
+.pg-card-head .pg-card-meta { color: var(--muted); font-size: 13px; font-family: var(--num-font); }
+.pg-card-body { padding: 4px 20px 18px; }
+.pg-empty { margin: 0; padding: 22px 20px 26px; color: var(--muted); }
+.pg-empty strong { display: block; color: var(--text); font-family: var(--font-display); font-size: 17px; font-weight: 560; margin-bottom: 4px; }
+
+/* ---- Liste de lignes (remplace les tableaux larges) ---------------------- */
+.lrows { list-style: none; margin: 0; padding: 0 8px 8px; }
+.lrow {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px 16px;
+  padding: 12px 12px; border-top: 1px solid var(--border);
+}
+.lrows > .lrow:first-child { border-top: 0; }
+.lrow.muted { opacity: 0.58; }
+.lrow-main { min-width: 0; display: grid; gap: 3px; }
+.lrow-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 650; }
+.lrow-title > span:first-child, .lrow-title > strong:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lrow-sub { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.lrow-sub .soon { color: var(--text); font-weight: 650; }
+.lrow-amount { text-align: right; font-family: var(--num-font); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.lrow-amount small { display: block; color: var(--muted); font-size: 11.5px; font-weight: 500; font-family: var(--font-sans); }
+.lrow-actions { display: flex; align-items: center; gap: 2px; }
+.lrow-extra { grid-column: 1 / -1; }
+
+.tag {
+  display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface-muted); color: var(--muted); font-size: 11.5px; font-weight: 650; white-space: nowrap;
+}
+.tag.ok { color: var(--income); border-color: var(--income-border); background: var(--income-soft); }
+.tag.bad { color: var(--expense); border-color: var(--expense-border); background: var(--expense-soft); }
+.tag.ink { color: var(--text); border-color: var(--border-strong); background: transparent; }
+
+/* ---- Actions de ligne (menu ⋯ : components/ui/RowMenu, styles dans theme.css) */
+.lrow-actions .icon-button { width: 40px; height: 40px; }
+.lrow-actions .icon-button[aria-pressed="true"] { color: var(--text); }
+
+/* ---- Groupes repliables (cadences, semaines) ----------------------------- */
+.pg-group + .pg-group { border-top: 1px solid var(--border); }
+.pg-group-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+  min-height: 48px; padding: 8px 20px; border: 0; background: none; color: var(--text); cursor: pointer; font: inherit; text-align: left;
+}
+.pg-group-head:hover { background: var(--surface-muted); }
+.pg-group-title { display: flex; align-items: center; gap: 8px; font-weight: 650; }
+.pg-group-title small { color: var(--muted); font-weight: 500; }
+.pg-group-head > strong { font-family: var(--num-font); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.pg-group-head > strong small { color: var(--muted); font-weight: 500; font-size: 0.82em; }
+
+/* ---- Formulaires en modale ---------------------------------------------- */
+.pg-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 14px; }
+.pg-form label { display: grid; gap: 6px; color: var(--muted); font-size: 12.5px; font-weight: 650; min-width: 0; }
+.pg-form label.full, .pg-form .full { grid-column: 1 / -1; }
+.pg-form input, .pg-form select { width: 100%; min-width: 0; }
+.pg-form .hint { color: var(--muted); font-size: 12.5px; font-weight: 500; line-height: 1.45; margin: 0; }
+.pg-form .check {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-muted);
+  color: var(--text); font-size: 14px; font-weight: 550; cursor: pointer;
+}
+.pg-form .check input { width: 18px; height: 18px; min-height: 0; accent-color: var(--text); }
+.pg-form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+.pg-alert {
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
+  border: 1px solid var(--expense-border); border-radius: var(--radius-sm); background: var(--expense-soft); color: var(--text); font-size: 14px;
+}
+.pg-alert svg { color: var(--expense); flex: 0 0 auto; margin-top: 2px; }
+
+/* ---- Graphique ------------------------------------------------------------ */
+.pg-chart { width: 100%; height: 300px; min-width: 0; }
+
+/* ---- Lignes à deux colonnes (pas d'actions) ---------------------------- */
+.lrow.two { grid-template-columns: minmax(0, 1fr) auto; }
+.lrow a.lrow-link { color: inherit; text-decoration: none; }
+.lrow a.lrow-link:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+/* ---- Tablette ------------------------------------------------------------- */
+@media (max-width: 1023px) {
+  .pg-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---- Mobile --------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .pg { gap: 14px; }
+  .pg-hero { grid-template-columns: 1fr; padding: 18px 16px; }
+  .pg-stats { gap: 10px; }
+  .pg-stat { padding: 12px 14px; }
+  .pg-toolbar-actions { width: 100%; margin-left: 0; }
+  .pg-hero > .pg-toolbar-actions { order: 3; }
+  .pg-toolbar-actions > * { flex: 1 1 auto; justify-content: center; }
+  .pg-card-head { padding: 14px 16px 8px; }
+  .pg-card-body { padding: 4px 16px 16px; }
+  .lrows { padding: 0 4px 6px; }
+  .lrow { grid-template-columns: minmax(0, 1fr) auto; padding: 12px 10px; }
+  .lrow-actions { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+  .lrow .lrow-amount { grid-column: 1; text-align: left; }
+  .lrow .lrow-amount small { display: inline; margin-left: 6px; }
+  .lrow-actions .icon-button { width: 44px; height: 44px; }
+  .pg-group-head { padding: 8px 14px; }
+  .pg-form { grid-template-columns: 1fr; }
+  .pg-form-actions { flex-direction: column-reverse; }
+  .pg-form-actions > * { width: 100%; }
+  .pg-chart { height: 240px; }
+  .lrow.two .lrow-amount { grid-column: 2; text-align: right; }
+  .lrow.two .lrow-amount small { display: block; margin-left: 0; }
+}
+
+.pg-toolbar-actions a.secondary { color: var(--text); text-decoration: none; }

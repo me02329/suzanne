@@ -1,15 +1,32 @@
 import { FormEvent, useState } from 'react';
-import { Check, ChevronDown, ChevronUp, Pencil, Plus, Repeat, RotateCcw, Target, X } from 'lucide-react';
+import { Pencil, Plus, Repeat, RotateCcw, Trash2 } from 'lucide-react';
 import type { BudgetStatus, Category } from '@suzanne/shared';
 import { api } from '../lib/api';
-import { money } from '../lib/format';
-import { usePersistedState } from '../lib/storage';
-import { DataTable } from '../components/DataTable';
-import { IconButton } from '../components/IconButton';
-import { Panel } from '../components/Panel';
-import { Collapsible } from '../components/Collapsible';
-
+import { formatMonthLong, money } from '../lib/format';
+import { Modal } from '../components/Modal';
+import { RowMenu } from '../components/ui/RowMenu';
+import { amountInputValue, positiveAmount } from '../components/home/amount';
 import type { Run } from '../lib/run';
+import '../styles/pages/plan.css';
+
+// Budgets du mois. Structure volontairement découpée (résumé / ligne /
+// formulaire) pour accueillir plus tard : budget global, projection de rythme,
+// suggestions, enveloppes d'épargne.
+
+/** Part consommée d'un budget (non plafonnée) ; null si limite nulle et rien dépensé. */
+export function budgetUsage(b: Pick<BudgetStatus, 'spent' | 'effective_limit'>): number | null {
+  if (b.effective_limit > 0) return b.spent / b.effective_limit;
+  return b.spent > 0 ? Infinity : null;
+}
+
+function meterTone(ratio: number | null): string {
+  if (ratio == null) return 'meter';
+  if (ratio >= 1) return 'meter over';
+  if (ratio >= 0.8) return 'meter warn';
+  return 'meter';
+}
+
+const pctLabel = (ratio: number | null) => (ratio == null ? '—' : ratio === Infinity ? '∞' : `${Math.round(ratio * 100)} %`);
 
 export function Budgets({ userId, month, categories, budgets, run }: {
   userId: number;
@@ -18,155 +35,224 @@ export function Budgets({ userId, month, categories, budgets, run }: {
   budgets: BudgetStatus[];
   run: Run;
 }) {
-  const expenseCategories = categories.filter((c) => c.type === 'expense');
-  const [addOpen, setAddOpen] = usePersistedState<boolean>('budgets_add_open', budgets.length === 0);
-  // Édition inline de la limite : l'upsert du backend conserve les flags
-  // (recurring/rollover) quand on les omet, donc on ne renvoie que le montant.
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const saveLimit = (budget: BudgetStatus) => {
-    const amount = Number(editValue);
-    if (!Number.isFinite(amount) || amount <= 0) return;
+  // null = fermé ; 'new' = création ; sinon édition du budget donné.
+  const [form, setForm] = useState<'new' | BudgetStatus | null>(null);
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
+
+  const totalLimit = budgets.reduce((sum, b) => sum + Math.max(0, b.effective_limit), 0);
+  const totalSpent = budgets.reduce((sum, b) => sum + b.spent, 0);
+  const totalRatio = totalLimit > 0 ? totalSpent / totalLimit : null;
+  const overCount = budgets.filter((b) => (budgetUsage(b) ?? 0) >= 1).length;
+  const sorted = [...budgets].sort((a, b) => (budgetUsage(b) ?? -1) - (budgetUsage(a) ?? -1));
+
+  const toggle = (budget: BudgetStatus, key: 'recurring' | 'rollover') => {
+    const on = !budget[key];
+    const message = key === 'recurring'
+      ? (on ? 'Budget reconduit chaque mois' : 'Reconduction arrêtée')
+      : (on ? 'Report d’enveloppe activé' : 'Report d’enveloppe désactivé');
     void run(() => api.setBudget(userId, {
       category_id: budget.category_id,
       month: budget.month,
-      amount_limit: amount,
-    }), 'Limite mise à jour').then((ok) => { if (ok) setEditingId(null); });
+      amount_limit: budget.amount_limit,
+      [key]: on,
+    }), message);
   };
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    void run(() => api.setBudget(userId, {
-      category_id: Number(data.get('category_id')),
-      month,
-      amount_limit: Number(data.get('amount_limit')),
-      ...(data.get('recurring') === 'on' ? { recurring: true } : {}),
-      ...(data.get('rollover') === 'on' ? { rollover: true } : {}),
-    }), 'Budget enregistré').then((ok) => {
-      if (ok) form.reset();
+
+  // Suppression annulable : l'upsert recrée le budget à l'identique.
+  const remove = (budget: BudgetStatus) => {
+    void run(() => api.deleteBudget(userId, budget.id), 'Budget supprimé', {
+      undo: () => api.setBudget(userId, {
+        category_id: budget.category_id,
+        month: budget.month,
+        amount_limit: budget.amount_limit,
+        recurring: budget.recurring,
+        rollover: budget.rollover,
+      }),
     });
   };
-  const toggleRecurring = (budget: BudgetStatus) => {
-    void run(() => api.setBudget(userId, {
-      category_id: budget.category_id,
-      month: budget.month,
-      amount_limit: budget.amount_limit,
-      recurring: !budget.recurring,
-    }), budget.recurring ? 'Reconduction arrêtée' : 'Budget reconduit chaque mois');
-  };
-  const toggleRollover = (budget: BudgetStatus) => {
-    void run(() => api.setBudget(userId, {
-      category_id: budget.category_id,
-      month: budget.month,
-      amount_limit: budget.amount_limit,
-      rollover: !budget.rollover,
-    }), budget.rollover ? 'Report d\'enveloppe désactivé' : 'Report d\'enveloppe activé');
-  };
+
   return (
-    <section className="stack">
-      <div className={`collapsible-panel ${addOpen ? 'open' : ''}`}>
-        <button type="button" className="collapsible-header" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
-          <span className="collapsible-title"><Plus size={16} /> Nouveau budget · {month}</span>
-          {addOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-        <Collapsible open={addOpen} className="collapsible-body">
-            <p className="panel-note">
-              Limite mensuelle de dépense par catégorie. Ne bloque rien — sert de garde-fou visuel.
-              Le <strong>report d'enveloppe</strong> reporte le solde (non dépensé ou dépassement) sur le mois suivant.
-            </p>
-            <form className="form form-inline" onSubmit={submit}>
-              <label className="grow">Catégorie<select name="category_id" required>{expenseCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-              <label>Limite<input name="amount_limit" type="number" min="0.01" step="0.01" required /></label>
-              <label className="checkbox-row inline-checkbox"><input name="recurring" type="checkbox" /> Reconduire chaque mois</label>
-              <label className="checkbox-row inline-checkbox"><input name="rollover" type="checkbox" /> Report d'enveloppe</label>
-              <button className="primary"><Plus size={16} /> Enregistrer</button>
-            </form>
-          </Collapsible>
+    <section className="pg budgets-page">
+      <div className="pg-hero">
+        <div>
+          <span className="pg-kicker">Budgets · {formatMonthLong(month)}</span>
+          {budgets.length > 0 ? (
+            <>
+              <strong className="pg-hero-value">
+                {money(totalSpent)} <small>/ {money(totalLimit)}</small>
+              </strong>
+              <p className="pg-hero-sub">
+                {totalLimit - totalSpent >= 0
+                  ? <>Reste <strong>{money(totalLimit - totalSpent)}</strong> sur {budgets.length} budget{budgets.length > 1 ? 's' : ''}</>
+                  : <>Dépassement global de <strong className="expense">{money(totalSpent - totalLimit)}</strong></>}
+                {overCount > 0 && <> · {overCount} dépassé{overCount > 1 ? 's' : ''}</>}
+              </p>
+            </>
+          ) : (
+            <p className="pg-hero-sub">Aucun budget ce mois-ci.</p>
+          )}
+        </div>
+        <div className="pg-toolbar-actions">
+          <button type="button" className="primary accent" onClick={() => setForm('new')}>
+            <Plus size={16} /> Nouveau budget
+          </button>
+        </div>
+        {budgets.length > 0 && (
+          <div className="pg-hero-meter">
+            <div className={`${meterTone(totalRatio)} big`}><span style={{ width: `${Math.max(0, Math.min(100, (totalRatio ?? 0) * 100))}%` }} /></div>
+          </div>
+        )}
       </div>
-      <Panel title="Suivi" icon={<Target />}>
-        <DataTable empty={budgets.length === 0 ? 'Aucun budget pour ce mois.' : null}>
-          <thead><tr><th>Catégorie</th><th className="amount-cell">Dépensé</th><th className="amount-cell">Limite</th><th>Progression</th><th className="actions-cell">Actions</th></tr></thead>
-          <tbody>
-            {budgets.map((b) => {
-              const category = categories.find((c) => c.id === b.category_id);
-              const limit = b.effective_limit;
-              const pct = limit > 0 ? Math.min(100, (b.spent / limit) * 100) : 0;
-              return (
-                <tr key={b.id}>
-                  <td>
-                    <strong title={category?.name ?? 'Catégorie'}>{category?.name ?? 'Catégorie'}</strong>
-                    {b.recurring && <span className="badge-recurring">Reconduit</span>}
-                    {b.rollover && <span className="badge-recurring" title="Report d'enveloppe activé"><RotateCcw size={11} /> Report</span>}
-                  </td>
-                  <td className="amount-cell expense">{money(b.spent)}</td>
-                  <td className="amount-cell">
-                    {editingId === b.id ? (
-                      <input
-                        className="inline-amount-input"
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={editValue}
-                        autoFocus
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') saveLimit(b); if (e.key === 'Escape') setEditingId(null); }}
-                      />
-                    ) : (
-                      <>
-                        {money(limit)}
-                        {b.rollover && b.carried_over !== 0 && (
-                          <span className="muted" style={{ display: 'block', fontSize: '0.78em' }}>
-                            {money(b.amount_limit)} {b.carried_over >= 0 ? '+' : '−'} {money(Math.abs(b.carried_over))} report
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </td>
-                  <td>
-                    <div className="bar"><span style={{ width: `${pct}%`, background: pct >= 100 ? 'var(--expense)' : 'var(--accent)' }} /></div>
-                    <span>{Math.round(pct)} %</span>
-                  </td>
-                  <td className="actions-cell">
-                    {editingId === b.id ? (
-                      <>
-                        <IconButton label="Valider la limite" tone="accent" icon={<Check size={16} />} onClick={() => saveLimit(b)} />
-                        <IconButton label="Annuler" tone="neutral" icon={<X size={16} />} onClick={() => setEditingId(null)} />
-                      </>
-                    ) : (
-                      <>
-                        <IconButton
-                          label="Modifier la limite"
-                          tone="neutral"
-                          icon={<Pencil size={16} />}
-                          onClick={() => { setEditingId(b.id); setEditValue(String(b.amount_limit)); }}
-                        />
-                        <IconButton
-                          label={b.rollover ? 'Désactiver le report d\'enveloppe' : 'Activer le report d\'enveloppe'}
-                          tone={b.rollover ? 'accent' : 'neutral'}
-                          icon={<RotateCcw size={16} />}
-                          onClick={() => toggleRollover(b)}
-                        />
-                        <IconButton
-                          label={b.recurring ? 'Arrêter la reconduction mensuelle' : 'Reconduire chaque mois'}
-                          tone={b.recurring ? 'accent' : 'neutral'}
-                          icon={<Repeat size={16} />}
-                          onClick={() => toggleRecurring(b)}
-                        />
-                        <IconButton
-                          label="Supprimer"
-                          confirm={b.recurring ? 'Supprimer ce budget ? La reconduction mensuelle sera arrêtée.' : 'Supprimer ce budget ?'}
-                          onClick={() => void run(() => api.deleteBudget(userId, b.id), 'Budget supprimé')}
-                        />
-                      </>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </DataTable>
-      </Panel>
+
+      <div className="pg-card">
+        <div className="pg-card-head">
+          <h2>Par catégorie</h2>
+          {budgets.length > 0 && <span className="pg-card-meta">{pctLabel(totalRatio)}</span>}
+        </div>
+        {budgets.length === 0 ? (
+          <p className="pg-empty">
+            <strong>Pas encore de budget</strong>
+            Fixe une limite mensuelle par catégorie : rien n’est bloqué, c’est un garde-fou.
+          </p>
+        ) : (
+          <ul className="lrows">
+            {sorted.map((b) => (
+              <BudgetRow
+                key={b.id}
+                budget={b}
+                category={categoryById.get(b.category_id)}
+                onEdit={() => setForm(b)}
+                onToggle={(key) => toggle(b, key)}
+                onDelete={() => remove(b)}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {form && (
+        <BudgetFormModal
+          userId={userId}
+          month={month}
+          categories={categories}
+          budgets={budgets}
+          editing={form === 'new' ? null : form}
+          run={run}
+          onClose={() => setForm(null)}
+        />
+      )}
     </section>
+  );
+}
+
+function BudgetRow({ budget: b, category, onEdit, onToggle, onDelete }: {
+  budget: BudgetStatus;
+  category: Category | undefined;
+  onEdit: () => void;
+  onToggle: (key: 'recurring' | 'rollover') => void;
+  onDelete: () => void;
+}) {
+  const ratio = budgetUsage(b);
+  const remaining = b.effective_limit - b.spent;
+  const name = category?.name ?? 'Catégorie';
+  return (
+    <li className="lrow">
+      <div className="lrow-main">
+        <div className="lrow-title">
+          <span title={name}>{name}</span>
+          {b.recurring && <span className="tag" title="Reconduit chaque mois"><Repeat size={11} /> Mensuel</span>}
+          {b.rollover && <span className="tag" title="Report d’enveloppe"><RotateCcw size={11} /> Report</span>}
+        </div>
+        <span className="lrow-sub">
+          {remaining >= 0 ? `Reste ${money(remaining)}` : <span className="expense">Dépassé de {money(-remaining)}</span>}
+          {b.rollover && b.carried_over !== 0 && ` · ${money(b.amount_limit)} ${b.carried_over >= 0 ? '+' : '−'} ${money(Math.abs(b.carried_over))} reporté`}
+        </span>
+      </div>
+      <div className="lrow-amount">
+        <span className={ratio != null && ratio >= 1 ? 'expense' : undefined}>{money(b.spent)}</span>
+        <small>sur {money(b.effective_limit)} · {pctLabel(ratio)}</small>
+      </div>
+      <div className="lrow-actions">
+        <button type="button" className="icon-button neutral" aria-label={`Modifier le budget ${name}`} title="Modifier" onClick={onEdit}>
+          <Pencil size={17} />
+        </button>
+        <RowMenu
+          items={[
+            { label: b.recurring ? 'Arrêter la reconduction' : 'Reconduire chaque mois', icon: <Repeat />, onSelect: () => onToggle('recurring') },
+            { label: b.rollover ? 'Désactiver le report' : 'Activer le report d’enveloppe', icon: <RotateCcw />, onSelect: () => onToggle('rollover') },
+            { label: 'Supprimer', icon: <Trash2 />, danger: true, onSelect: onDelete },
+          ]}
+        />
+      </div>
+      <div className="lrow-extra">
+        <div className={meterTone(ratio)}><span style={{ width: `${Math.max(0, Math.min(100, (ratio ?? 0) * 100))}%` }} /></div>
+      </div>
+    </li>
+  );
+}
+
+function BudgetFormModal({ userId, month, categories, budgets, editing, run, onClose }: {
+  userId: number;
+  month: string;
+  categories: Category[];
+  budgets: BudgetStatus[];
+  editing: BudgetStatus | null;
+  run: Run;
+  onClose: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const taken = new Set(budgets.map((b) => b.category_id));
+  // En création, on ne propose que les catégories pas encore budgétées ce mois
+  // (l'API ferait un upsert silencieux sur la limite existante).
+  const options = categories.filter((c) => c.type === 'expense' && (editing ? c.id === editing.category_id : !taken.has(c.id)));
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const amount = positiveAmount(data.get('amount_limit'));
+    if (amount == null) { setError('Indique une limite supérieure à 0.'); return; }
+    const categoryId = editing ? editing.category_id : Number(data.get('category_id'));
+    void run(() => api.setBudget(userId, {
+      category_id: categoryId,
+      month: editing?.month ?? month,
+      amount_limit: amount,
+      recurring: data.get('recurring') === 'on',
+      rollover: data.get('rollover') === 'on',
+    }), editing ? 'Budget mis à jour' : 'Budget enregistré').then((ok) => { if (ok) onClose(); });
+  };
+
+  return (
+    <Modal title={editing ? 'Modifier le budget' : `Nouveau budget · ${formatMonthLong(month)}`} onClose={onClose}>
+      {!editing && options.length === 0 ? (
+        <p className="pg-note">Toutes tes catégories de dépense ont déjà un budget ce mois-ci.</p>
+      ) : (
+        <form className="pg-form" onSubmit={submit}>
+          <label className="full">Catégorie
+            <select name="category_id" defaultValue={editing?.category_id ?? options[0]?.id} disabled={Boolean(editing)} required>
+              {options.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
+          <label className="full">Limite mensuelle
+            <input
+              name="amount_limit"
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="ex. 300"
+              defaultValue={amountInputValue(editing?.amount_limit)}
+              autoFocus
+              required
+              onInput={() => setError(null)}
+            />
+          </label>
+          <label className="check full"><input name="recurring" type="checkbox" defaultChecked={editing?.recurring ?? true} /> Reconduire chaque mois</label>
+          <label className="check full"><input name="rollover" type="checkbox" defaultChecked={editing?.rollover ?? false} /> Reporter le reste (ou le dépassement) sur le mois suivant</label>
+          {error && <p className="hint full expense" role="alert">{error}</p>}
+          <div className="pg-form-actions">
+            <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+            <button type="submit" className="primary">{editing ? 'Enregistrer' : 'Créer le budget'}</button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }

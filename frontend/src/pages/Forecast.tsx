@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Area,
@@ -10,17 +10,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { AlertTriangle, ArrowDownCircle, ArrowRight, ArrowUpCircle, CalendarClock, ChevronDown, ChevronRight, Target, TrendingDown, Wallet } from 'lucide-react';
+import { AlertTriangle, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Account, Category, DashboardSummary, RecurringTransaction, SavingsGoal } from '@suzanne/shared';
 import { money as moneyFmt, moneyCompact as moneyCompactFmt, formatRelativeDate } from '../lib/format';
-import { useChartTheme } from '../lib/chartTheme';
+import { useChartTheme, useIsNarrow } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { isLiquidRecurring, liquidBalance } from '../lib/balances';
 import { buildForecast, groupForecastEvents } from '../lib/forecast';
 import { EmptyChart } from '../components/EmptyChart';
-import { DataTable } from '../components/DataTable';
-import { Panel } from '../components/Panel';
-import { Stat } from '../components/Stat';
+import '../styles/pages/plan.css';
 
 const HORIZONS: Array<{ value: string; label: string }> = [
   { value: '30', label: '30 jours' },
@@ -46,6 +44,7 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
 }) {
   const [horizon, setHorizon] = usePersistedState('forecast_horizon', '90');
   const chartTheme = useChartTheme();
+  const narrow = useIsNarrow();
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, displayCurrency);
   const moneyCompact = (value: number) => moneyCompactFmt(value, displayCurrency);
@@ -98,171 +97,156 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
   const toggleAll = () =>
     setExpandedOverride(Object.fromEntries(eventGroups.map((g) => [g.key, !allExpanded])));
 
+  const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${money(Math.abs(value))}`;
+
   return (
-    <section className="stack">
-      <div className="stats-controls">
-        <select value={horizon} onChange={(e) => setHorizon(e.target.value)} aria-label="Horizon de projection">
-          {HORIZONS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
-        </select>
-        <span className="stats-controls-note">
-          {new Date(`${forecast.from}T00:00:00`).toLocaleDateString('fr-FR')} → {new Date(`${forecast.to}T00:00:00`).toLocaleDateString('fr-FR')}
-          {' · '}{forecast.events.length} échéance{forecast.events.length > 1 ? 's' : ''} à venir
-        </span>
-        <Link className="panel-link" to="/recurring">Gérer les récurrents <ArrowRight size={14} /></Link>
+    <section className="pg forecast-page">
+      <div className="pg-hero">
+        <div>
+          <span className="pg-kicker">Solde liquide dans {HORIZONS.find((h) => h.value === horizon)?.label ?? `${horizon} jours`}</span>
+          <strong className={`pg-hero-value ${forecast.endingBalance < 0 ? 'expense' : ''}`}>{money(forecast.endingBalance)}</strong>
+          <p className="pg-hero-sub">
+            Aujourd’hui <strong>{money(forecast.startingBalance)}</strong> · flux net <strong className={netFlow < 0 ? 'expense' : 'income'}>{signed(netFlow)}</strong>
+          </p>
+        </div>
+        <div className="pg-toolbar-actions">
+          <select value={horizon} onChange={(e) => setHorizon(e.target.value)} aria-label="Horizon de projection">
+            {HORIZONS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
+          </select>
+          <Link className="secondary pg-link-btn" to="/recurring">Récurrents <ArrowRight size={14} /></Link>
+        </div>
       </div>
 
-      <section className="stats">
-        <Stat icon={<Wallet />} label="Solde liquide de départ" value={money(forecast.startingBalance)} signed={forecast.startingBalance} />
-        <Stat icon={<TrendingDown />} label="Solde projeté (fin)" value={money(forecast.endingBalance)} signed={forecast.endingBalance} />
-        <Stat
-          icon={<AlertTriangle />}
-          label="Point bas projeté"
-          value={money(forecast.lowestBalance)}
-          negative={goesNegative}
-          delta={forecast.lowestDate ? formatRelativeDate(forecast.lowestDate).label : 'Aucune baisse sous le départ'}
-        />
-        <Stat icon={netFlow >= 0 ? <ArrowUpCircle /> : <ArrowDownCircle />} label="Flux net sur la période" value={money(netFlow)} signed={netFlow} />
-      </section>
+      <div className="pg-stats">
+        <div className="pg-stat">
+          <span>Point bas</span>
+          <strong className={goesNegative ? 'expense' : undefined}>{money(forecast.lowestBalance)}</strong>
+          <small>{forecast.lowestDate ? formatRelativeDate(forecast.lowestDate).label : 'Jamais sous le départ'}</small>
+        </div>
+        <div className="pg-stat">
+          <span>Entrées</span>
+          <strong className={forecast.totalIncome > 0 ? 'income' : undefined}>{forecast.totalIncome > 0 ? '+' : ''}{money(forecast.totalIncome)}</strong>
+        </div>
+        <div className="pg-stat">
+          <span>Sorties</span>
+          <strong className={forecast.totalExpenses > 0 ? 'expense' : undefined}>{forecast.totalExpenses > 0 ? '−' : ''}{money(forecast.totalExpenses)}</strong>
+        </div>
+        <div className="pg-stat">
+          <span>Échéances</span>
+          <strong>{forecast.events.length}</strong>
+          <small>{shortDate(forecast.from)} → {shortDate(forecast.to)}</small>
+        </div>
+      </div>
 
       {goesNegative && forecast.lowestDate && (
-        <div className="error">
-          <AlertTriangle size={16} /> Le solde liquide projeté passe sous zéro le {formatRelativeDate(forecast.lowestDate).label} ({money(forecast.lowestBalance)}).
+        <div className="pg-alert" role="status">
+          <AlertTriangle size={16} />
+          <span>Ton solde liquide passerait sous zéro le {formatRelativeDate(forecast.lowestDate).label} ({money(forecast.lowestBalance)}).</span>
         </div>
       )}
 
-      <section className="chart-full">
-        <Panel title="Solde liquide projeté" icon={<Wallet />}>
-          <div className="chart-area">
+      <div className="pg-card">
+        <div className="pg-card-head"><h2>Trajectoire</h2></div>
+        <div className="pg-card-body">
+          <div className="pg-chart">
             {forecast.series.length > 1 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="forecastFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={chartTheme.net} stopOpacity={0.35} />
+                      <stop offset="5%" stopColor={chartTheme.net} stopOpacity={0.28} />
                       <stop offset="95%" stopColor={chartTheme.net} stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
-                  <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={70} />
-                  <Tooltip formatter={(value) => money(Number(value))} labelFormatter={(label) => `Le ${label}`} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={narrow ? 36 : 24} tick={chartTheme.tick} />
+                  <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={narrow ? 52 : 70} tick={chartTheme.tick} />
+                  <Tooltip formatter={(value) => money(Number(value))} labelFormatter={(label) => `Le ${label}`} contentStyle={chartTheme.tooltip.contentStyle} labelStyle={chartTheme.tooltip.labelStyle} itemStyle={chartTheme.tooltip.itemStyle} cursor={{ stroke: chartTheme.axis, strokeDasharray: '3 3' }} />
                   <ReferenceLine y={0} stroke={chartTheme.expense} strokeDasharray="4 4" />
                   <Area type="stepAfter" dataKey="balance" name="Solde projeté" stroke={chartTheme.net} strokeWidth={2} fill="url(#forecastFill)" dot={false} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyChart message="Aucun récurrent actif à projeter. Ajoute des transactions récurrentes pour alimenter la prévision." />
+              <EmptyChart message="Aucun récurrent actif à projeter." />
             )}
           </div>
-          <p className="panel-note">
-            Projection à partir des <strong>récurrents actifs</strong>, sur le solde liquide (comptes courants + épargne réglementée).
-            N'inclut pas les dépenses variables ni les versements ponctuels.
-          </p>
-        </Panel>
-      </section>
+          <p className="pg-note">Projection des récurrents actifs sur tes comptes courants et d’épargne réglementée — hors dépenses variables.</p>
+        </div>
+      </div>
 
-      <section className="chart-full">
-        <Panel
-          title="Échéances à venir"
-          icon={<CalendarClock />}
-          action={eventGroups.length > 1 ? (
+      <div className="pg-card">
+        <div className="pg-card-head">
+          <h2>Échéances à venir</h2>
+          {eventGroups.length > 1 && (
             <button type="button" className="ghost-button" onClick={toggleAll}>
               {allExpanded ? 'Tout replier' : 'Tout déplier'}
             </button>
-          ) : undefined}
-        >
-          <DataTable empty={forecast.events.length === 0 ? 'Aucune échéance récurrente sur cette période.' : null}>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Libellé</th>
-                <th>Compte</th>
-                <th>Catégorie</th>
-                <th className="amount-cell">Montant</th>
-                <th className="amount-cell">Solde projeté</th>
-              </tr>
-            </thead>
-            <tbody>
-              {eventGroups.map((group, groupIndex) => {
-                const open = isExpanded(group.key, groupIndex);
-                return (
-                  <Fragment key={group.key}>
-                    <tr
-                      className="forecast-group-row"
-                      onClick={() => toggleGroup(group.key, groupIndex)}
-                      aria-expanded={open}
-                    >
-                      <td colSpan={4} data-label="Période">
-                        <span className="forecast-group-label">
-                          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                          <strong>{group.label}</strong>
-                          <span className="muted">· {group.events.length} échéance{group.events.length > 1 ? 's' : ''}</span>
-                        </span>
-                      </td>
-                      <td className={`amount-cell ${group.net < 0 ? 'expense' : 'income'}`} data-label="Net">
-                        {group.net >= 0 ? '+' : ''}{money(group.net)}
-                      </td>
-                      <td className={`amount-cell ${group.endBalance < 0 ? 'expense' : ''}`} data-label="Solde fin de période">
-                        {money(group.endBalance)}
-                      </td>
-                    </tr>
-                    {open && group.events.map((event, index) => {
-                      const account = event.accountId != null ? accountById.get(event.accountId) : null;
-                      const category = event.categoryId != null ? categoryById.get(event.categoryId) : null;
-                      return (
-                        <tr key={`${event.recurringId}-${event.date}-${index}`}>
-                          <td data-label="Date">{formatRelativeDate(event.date).label}</td>
-                          <td data-label="Libellé">
-                            <Link className="forecast-event-link" to="/recurring" title="Gérer ce récurrent">
-                              <strong>{event.description}</strong>
-                            </Link>
-                          </td>
-                          <td data-label="Compte">{account?.name ?? <span className="muted">—</span>}</td>
-                          <td data-label="Catégorie">{category?.name ?? <span className="muted">—</span>}</td>
-                          <td className={`amount-cell ${event.type === 'income' ? 'income' : 'expense'}`} data-label="Montant">
-                            {event.type === 'income' ? '+' : '-'}{money(event.amount)}
-                          </td>
-                          <td className={`amount-cell ${event.runningBalance < 0 ? 'expense' : ''}`} data-label="Solde projeté">
-                            {money(event.runningBalance)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </DataTable>
-        </Panel>
-      </section>
+          )}
+        </div>
+        {forecast.events.length === 0 ? (
+          <p className="pg-empty">Aucune échéance récurrente sur cette période.</p>
+        ) : eventGroups.map((group, groupIndex) => {
+          const open = isExpanded(group.key, groupIndex);
+          return (
+            <div className="pg-group" key={group.key}>
+              <button type="button" className="pg-group-head" onClick={() => toggleGroup(group.key, groupIndex)} aria-expanded={open}>
+                <span className="pg-group-title">
+                  {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  {group.label} <small>{group.events.length}</small>
+                </span>
+                <strong className={group.endBalance < 0 ? 'expense' : undefined}>
+                  {money(group.endBalance)} <small className={group.net < 0 ? 'expense' : 'income'}>{signed(group.net)}</small>
+                </strong>
+              </button>
+              {open && (
+                <ul className="lrows">
+                  {group.events.map((event, index) => {
+                    const account = event.accountId != null ? accountById.get(event.accountId) : null;
+                    const category = event.categoryId != null ? categoryById.get(event.categoryId) : null;
+                    const meta = [account?.name, category?.name].filter(Boolean).join(' · ');
+                    return (
+                      <li className="lrow two" key={`${event.recurringId}-${event.date}-${index}`}>
+                        <div className="lrow-main">
+                          <div className="lrow-title">
+                            <Link className="lrow-link" to="/recurring" title="Gérer ce récurrent">{event.description}</Link>
+                          </div>
+                          <span className="lrow-sub">{formatRelativeDate(event.date).label}{meta && ` · ${meta}`}</span>
+                        </div>
+                        <div className="lrow-amount">
+                          <span className={event.type === 'income' ? 'income' : 'expense'}>{event.type === 'income' ? '+' : '−'}{money(event.amount)}</span>
+                          <small className={event.runningBalance < 0 ? 'expense' : undefined}>solde {money(event.runningBalance)}</small>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {forecast.goalDeadlines.length > 0 && (
-        <section className="chart-full">
-          <Panel
-            title="Objectifs arrivant à échéance"
-            icon={<Target />}
-            action={<Link className="panel-link" to="/goals">Voir <ArrowRight size={14} /></Link>}
-          >
-            <DataTable empty={null}>
-              <thead>
-                <tr>
-                  <th>Objectif</th>
-                  <th>Échéance</th>
-                  <th className="amount-cell">Restant à épargner</th>
-                </tr>
-              </thead>
-              <tbody>
-                {forecast.goalDeadlines.map((goal) => (
-                  <tr key={goal.goalId}>
-                    <td data-label="Objectif"><span className="dot inline" style={{ background: goal.color }} /><strong>{goal.name}</strong></td>
-                    <td data-label="Échéance">{formatRelativeDate(goal.deadline).label}</td>
-                    <td className="amount-cell" data-label="Restant à épargner">{goal.remaining > 0 ? money(goal.remaining) : <span className="income">Atteint</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </DataTable>
-          </Panel>
-        </section>
+        <div className="pg-card">
+          <div className="pg-card-head">
+            <h2>Objectifs à échéance</h2>
+            <Link className="panel-link" to="/goals">Voir <ArrowRight size={14} /></Link>
+          </div>
+          <ul className="lrows">
+            {forecast.goalDeadlines.map((goal) => (
+              <li className="lrow two" key={goal.goalId}>
+                <div className="lrow-main">
+                  <div className="lrow-title"><span>{goal.name}</span></div>
+                  <span className="lrow-sub">{formatRelativeDate(goal.deadline).label}</span>
+                </div>
+                <div className="lrow-amount">
+                  {goal.remaining > 0 ? money(goal.remaining) : <span className="income">Atteint</span>}
+                  {goal.remaining > 0 && <small>à épargner</small>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );

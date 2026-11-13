@@ -68,8 +68,13 @@ export interface ForecastInput {
 
 const DAY_MS = 86_400_000;
 const round2 = (value: number) => Math.round(value * 100) / 100;
-const isoDay = (date: Date) => date.toISOString().slice(0, 10);
-const startOfUtcDay = (date: Date) => new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+// Les dates internes sont des minuits UTC qui *représentent* un jour civil :
+// on les formate via les composantes UTC (jamais toISOString sur une date
+// « locale », qui renverrait la veille entre minuit et 1-2 h en France).
+const pad = (n: number) => String(n).padStart(2, '0');
+const isoDay = (date: Date) => `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+// « Aujourd'hui » = le jour civil LOCAL de l'utilisateur, encodé en minuit UTC.
+const localDayAsUtc = (date: Date) => new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 
 // Every occurrence of a recurring strictly after today and up to horizonEnd.
 // nextRecurringOccurrence only yields the *next* date from a reference, and a
@@ -138,7 +143,7 @@ export function buildForecast({
   rateFor,
   now = new Date(),
 }: ForecastInput): Forecast {
-  const today = startOfUtcDay(now);
+  const today = localDayAsUtc(now);
   const horizonEnd = new Date(today.getTime() + horizonDays * DAY_MS);
   const from = isoDay(today);
   const to = isoDay(horizonEnd);

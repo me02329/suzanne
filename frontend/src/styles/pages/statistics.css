@@ -1,0 +1,69 @@
+/* Analyse › Statistiques — préfixe .st- (primitives .pg-* dans plan.css). */
+
+.st-controls { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; }
+.st-controls select { min-height: 40px; padding: 0 12px; font-weight: 600; }
+.st-date { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 650; }
+.st-check {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
+  font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+.st-check input { width: 16px; height: 16px; min-height: 0; accent-color: var(--text); }
+
+.st-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+
+/* Donut + légende : côte à côte sur desktop, légende dessous sur mobile. */
+.st-split { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr); gap: 8px 20px; align-items: center; padding: 0 20px 18px; }
+.st-donut { width: 100%; aspect-ratio: 1; min-width: 0; }
+.st-legend { list-style: none; margin: 0; padding: 0; display: grid; min-width: 0; }
+.st-legend-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
+  width: 100%; min-height: 40px; padding: 4px 8px; border: 0; border-radius: 8px; background: none;
+  color: var(--text); font: inherit; font-size: 14px; text-align: left;
+}
+button.st-legend-row { cursor: pointer; }
+button.st-legend-row:hover { background: var(--surface-muted); }
+.st-swatch { width: 10px; height: 10px; border-radius: 3px; }
+.st-legend-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-legend-share { color: var(--muted); font-family: var(--num-font); font-size: 12px; }
+.st-legend-row strong { font-family: var(--num-font); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+
+/* Top marchands : barres HTML (lisibles et cliquables sur mobile). */
+.st-bars { list-style: none; margin: 0; padding: 0 10px 12px; display: grid; }
+.st-bar-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; align-items: center;
+  width: 100%; padding: 9px 10px; border: 0; border-radius: 10px; background: none; color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.st-bar-row:hover { background: var(--surface-muted); }
+.st-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 14px; }
+.st-bar-row > strong { font-family: var(--num-font); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; white-space: nowrap; }
+.st-bar { display: block; height: 6px; border-radius: 999px; background: var(--surface-muted); overflow: hidden; }
+.st-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--text); }
+.st-bar-row > small { color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+.st-section { margin: 10px 0 -4px; font-size: 22px; }
+
+/* CashflowTrends */
+.st-trends { display: grid; gap: 18px; }
+.st-trends-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.st-trends .pg-chart.small { height: 240px; }
+
+@media (max-width: 1023px) {
+  .st-grid, .st-trends-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .st-controls > select { flex: 1 1 auto; }
+  .st-check { flex: 1 1 100%; justify-content: center; min-height: 44px; }
+  .st-date { flex: 1 1 calc(50% - 5px); }
+  .st-date input { flex: 1 1 auto; min-width: 0; }
+  .st-split { grid-template-columns: 1fr; padding: 0 12px 14px; justify-items: center; }
+  .st-donut { max-width: 220px; }
+  .st-legend { width: 100%; }
+  .st-legend-row { min-height: 44px; }
+  .st-bars { padding: 0 4px 8px; }
+  .st-bar-row { min-height: 44px; }
+  .st-grid, .st-trends, .st-trends-row { gap: 14px; }
+  .st-trends .pg-chart.small { height: 220px; }
+}
