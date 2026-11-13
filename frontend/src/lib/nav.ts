@@ -1,77 +1,90 @@
 import React from 'react';
 import {
-  Activity,
-  BarChart3,
-  Bell,
-  CalendarClock,
-  CandlestickChart,
-  CreditCard,
+  ArrowLeftRight,
+  CalendarRange,
+  House,
   Landmark,
-  LayoutDashboard,
-  MessageSquareText,
   PieChart,
-  ReceiptText,
-  Repeat,
-  ScanLine,
-  Settings2,
-  Tag as TagIcon,
-  Tags,
-  Target,
-  TrendingUp,
-  Upload,
-  Users,
+  Settings,
+  Sparkles,
 } from 'lucide-react';
 import type { SearchResult } from '@suzanne/shared';
 
 export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'bills' | 'goals' | 'investments' | 'alerts' | 'anomalies' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health';
 
-export interface NavItem {
-  tab: Tab;
-  label: string;
-  icon: React.ReactNode;
-}
-
+// Navigation à deux niveaux : 7 sections (barre latérale / barre du bas), et
+// des onglets à l'intérieur de chaque section. Chaque onglet garde sa propre
+// URL (/budgets, /bills…) : les liens existants restent valides.
 export interface NavSection {
   id: string;
   label: string;
-  items: NavItem[];
+  /** Libellé court pour la barre d'onglets mobile. */
+  short: string;
+  icon: React.ReactNode;
+  tabs: Array<{ tab: Tab; label: string }>;
 }
 
-export const navItems: NavItem[] = [
-  { tab: 'dashboard', label: 'Vue générale', icon: React.createElement(LayoutDashboard, { size: 18 }) },
-  { tab: 'wealth', label: 'Patrimoine', icon: React.createElement(TrendingUp, { size: 18 }) },
-  { tab: 'statistics', label: 'Statistiques', icon: React.createElement(PieChart, { size: 18 }) },
-  { tab: 'forecast', label: 'Prévisionnel', icon: React.createElement(CalendarClock, { size: 18 }) },
-  { tab: 'health', label: 'Santé financière', icon: React.createElement(Activity, { size: 18 }) },
-  { tab: 'alerts', label: 'Alertes', icon: React.createElement(Bell, { size: 18 }) },
-  { tab: 'transactions', label: 'Transactions', icon: React.createElement(CreditCard, { size: 18 }) },
-  { tab: 'accounts', label: 'Comptes', icon: React.createElement(Landmark, { size: 18 }) },
-  { tab: 'budgets', label: 'Budgets', icon: React.createElement(BarChart3, { size: 18 }) },
-  { tab: 'bills', label: 'Factures', icon: React.createElement(ReceiptText, { size: 18 }) },
-  { tab: 'recurring', label: 'Récurrents', icon: React.createElement(Repeat, { size: 18 }) },
-  { tab: 'goals', label: 'Objectifs', icon: React.createElement(Target, { size: 18 }) },
-  { tab: 'investments', label: 'Investissements', icon: React.createElement(CandlestickChart, { size: 18 }) },
-  { tab: 'categories', label: 'Catégories', icon: React.createElement(Tags, { size: 18 }) },
-  { tab: 'tags', label: 'Tags', icon: React.createElement(TagIcon, { size: 18 }) },
-  { tab: 'rules', label: 'Règles', icon: React.createElement(Settings2, { size: 18 }) },
-  { tab: 'anomalies', label: 'Anomalies', icon: React.createElement(ScanLine, { size: 18 }) },
-  { tab: 'tools', label: 'Import/Export', icon: React.createElement(Upload, { size: 18 }) },
-  { tab: 'users', label: 'Utilisateurs', icon: React.createElement(Users, { size: 18 }) },
-  { tab: 'settings', label: 'Paramètres', icon: React.createElement(Settings2, { size: 18 }) },
-  { tab: 'assistant', label: 'Assistant IA', icon: React.createElement(MessageSquareText, { size: 18 }) },
-];
+const icon = (C: typeof House) => React.createElement(C, { size: 20, strokeWidth: 1.75 });
 
-// Pilotage = visualisation pure ; Données = saisie/gestion des flux ;
-// Structure = référentiel ; Administration = outillage + IA.
 export const navSections: NavSection[] = [
-  { id: 'pilotage', label: 'Pilotage', items: navItems.filter((item) => ['dashboard', 'wealth', 'statistics', 'forecast', 'health', 'alerts'].includes(item.tab)) },
-  { id: 'donnees', label: 'Données', items: navItems.filter((item) => ['transactions', 'accounts', 'budgets', 'bills', 'recurring', 'goals', 'investments'].includes(item.tab)) },
-  { id: 'structure', label: 'Structure', items: navItems.filter((item) => ['categories', 'tags', 'rules'].includes(item.tab)) },
-  { id: 'admin', label: 'Administration', items: navItems.filter((item) => ['anomalies', 'tools', 'users', 'settings', 'assistant'].includes(item.tab)) },
+  {
+    id: 'home', label: 'Accueil', short: 'Accueil', icon: icon(House),
+    tabs: [{ tab: 'dashboard', label: 'Aperçu' }, { tab: 'health', label: 'Santé' }, { tab: 'alerts', label: 'Alertes' }],
+  },
+  {
+    id: 'ops', label: 'Opérations', short: 'Opérations', icon: icon(ArrowLeftRight),
+    tabs: [{ tab: 'transactions', label: 'Journal' }, { tab: 'anomalies', label: 'À vérifier' }],
+  },
+  {
+    id: 'accounts', label: 'Patrimoine', short: 'Comptes', icon: icon(Landmark),
+    tabs: [
+      { tab: 'accounts', label: 'Comptes' },
+      { tab: 'wealth', label: 'Patrimoine' },
+      { tab: 'investments', label: 'Placements' },
+      { tab: 'goals', label: 'Objectifs' },
+    ],
+  },
+  {
+    id: 'plan', label: 'Planifier', short: 'Planifier', icon: icon(CalendarRange),
+    tabs: [
+      { tab: 'budgets', label: 'Budgets' },
+      { tab: 'recurring', label: 'Récurrents' },
+      { tab: 'bills', label: 'Factures' },
+      { tab: 'forecast', label: 'Prévisions' },
+    ],
+  },
+  { id: 'analysis', label: 'Analyse', short: 'Analyse', icon: icon(PieChart), tabs: [{ tab: 'statistics', label: 'Statistiques' }] },
+  { id: 'assistant', label: 'Assistant', short: 'Assistant', icon: icon(Sparkles), tabs: [{ tab: 'assistant', label: 'Assistant' }] },
+  {
+    id: 'settings', label: 'Réglages', short: 'Réglages', icon: icon(Settings),
+    tabs: [
+      { tab: 'categories', label: 'Catégories' },
+      { tab: 'tags', label: 'Tags' },
+      { tab: 'rules', label: 'Règles' },
+      { tab: 'tools', label: 'Import / Export' },
+      { tab: 'users', label: 'Profils' },
+      { tab: 'settings', label: 'Préférences' },
+    ],
+  },
 ];
 
-// Maps a search result type to the tab where the user should land when they
-// click the result. Keep in sync with the SearchResult union.
+/** Sections de la barre d'onglets mobile (les autres vont dans « Plus »). */
+export const MOBILE_PRIMARY = ['home', 'ops', 'accounts'] as const;
+
+/** Pages dont le contenu dépend du mois sélectionné (sélecteur affiché). */
+export const MONTH_TABS = new Set<Tab>(['dashboard', 'health', 'alerts', 'transactions', 'budgets', 'bills', 'assistant']);
+
+export const navItems = navSections.flatMap((section) => section.tabs.map((t) => ({ ...t, section })));
+
+export function sectionForTab(tab: Tab): NavSection {
+  return navSections.find((s) => s.tabs.some((t) => t.tab === tab)) ?? navSections[0]!;
+}
+
+export function tabLabel(tab: Tab): string {
+  return navItems.find((i) => i.tab === tab)?.label ?? 'Aperçu';
+}
+
+// Maps a search result type to the tab where the user should land.
 export function tabForSearchResult(type: SearchResult['type']): Tab {
   switch (type) {
     case 'transaction': return 'transactions';
@@ -94,8 +107,7 @@ export function tabFromPath(pathname: string): Tab {
   return TAB_SET.has(segment) ? (segment as Tab) : 'dashboard';
 }
 
-// Guards a tab value read from localStorage: a stale/corrupted value would
-// otherwise make the "/" and "*" redirects point at an unknown path.
+// Guards a tab value read from localStorage.
 export function normalizeTab(value: string): Tab {
   return TAB_SET.has(value) ? (value as Tab) : 'dashboard';
 }

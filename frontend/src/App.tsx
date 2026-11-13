@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight, Menu, X } from 'lucide-react';
+import { MoreHorizontal, Plus, Search, X } from 'lucide-react';
 import {
   REPORT_CURRENCIES,
   type Account,
@@ -24,12 +24,10 @@ import {
 } from '@suzanne/shared';
 import { api } from './lib/api';
 import { currentMonthIso } from './lib/format';
-import { navItems, navSections, normalizeTab, pathForTab, tabFromPath, type Tab } from './lib/nav';
+import { MOBILE_PRIMARY, MONTH_TABS, navSections, normalizeTab, pathForTab, sectionForTab, tabFromPath, tabLabel, type Tab } from './lib/nav';
 import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
 import { useGlobalShortcuts } from './lib/useGlobalShortcuts';
-import { useSwipeMenu } from './lib/useSwipeMenu';
-import { useSmoothScroll } from './lib/smoothScroll';
 import { Modal } from './components/Modal';
 import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
@@ -81,13 +79,6 @@ export default function App() {
   const tab = tabFromPath(location.pathname);
   const [lastTab, setLastTab] = usePersistedState<Tab>('active_tab', 'dashboard');
   const [theme, setTheme] = useTheme();
-  useSmoothScroll();
-  const [openSections, setOpenSections] = usePersistedState<Record<string, boolean>>('nav_sections', {
-    pilotage: true,
-    donnees: true,
-    structure: true,
-    admin: true,
-  });
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -104,7 +95,6 @@ export default function App() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [triggeredAlerts, setTriggeredAlerts] = useState<TriggeredAlert[]>([]);
-  const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<number>>(new Set());
   const [tags, setTags] = useState<Tag[]>([]);
   const [snapshots, setSnapshots] = useState<AccountSnapshot[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -112,9 +102,10 @@ export default function App() {
   // suppression) — voir run() et l'option `undo`.
   const [notice, setNotice] = useState<{ message: string; action?: { label: string; onClick: () => void } } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Mobile : swipe depuis le bord gauche pour ouvrir le menu, vers la gauche pour le fermer.
-  useSwipeMenu(sidebarOpen, setSidebarOpen);
+  // Mobile : feuille « Plus » (sections hors barre d'onglets + réglages rapides).
+  const [moreOpen, setMoreOpen] = useState(false);
+  // Mobile : la recherche est repliée derrière une icône.
+  const [searchOpen, setSearchOpen] = useState(false);
   const [transactionIssueFilter, setTransactionIssueFilter] = useState<'unassigned_account' | null>(null);
   const [tokenPromptOpen, setTokenPromptOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -153,6 +144,9 @@ export default function App() {
   // Cheaper than passing a `pending` flag to every page/form.
   const runInFlight = useRef(false);
 
+  const ctxRef = useRef({ userId, month, reportCurrency });
+  ctxRef.current = { userId, month, reportCurrency };
+
   const reloadUsers = async () => {
     const rows = await api.users();
     setUsers(rows);
@@ -163,6 +157,7 @@ export default function App() {
   // mutation), never on month navigation. Bumps dataVersion because accounts /
   // snapshots changing means the wealth-history chart must refetch.
   const reloadStatic = async () => {
+    const { userId } = ctxRef.current;
     if (!userId) return;
     const version = ++staticVersion.current;
     const [unassignedTxs, accs, insts, cats, recs, rls, gls, hlds, alrts, snaps, tgs] = await Promise.all([
@@ -197,6 +192,7 @@ export default function App() {
   // loading spinner. Deliberately does NOT bump dataVersion, so the (expensive,
   // month-independent) wealth-history chart isn't re-fetched on month nav.
   const reloadMonth = async () => {
+    const { userId, month, reportCurrency } = ctxRef.current;
     if (!userId) return;
     const version = ++monthVersion.current;
     setLoading(true);
@@ -309,22 +305,28 @@ export default function App() {
       return false;
     }
     runInFlight.current = true;
+    let result: unknown;
     try {
       setError(null);
-      const result = await fn();
-      await reload();
-      const undo = options?.undo;
-      setNotice({
-        message: resolveMessage(message, result),
-        action: undo ? { label: 'Annuler', onClick: () => { void run(undo, 'Action annulée'); } } : undefined,
-      });
-      return true;
+      result = await fn();
     } catch (e) {
       setError((e as Error).message);
+      runInFlight.current = false;
       return false;
+    }
+    try {
+      await reload();
+    } catch {
+      setError('Enregistré, mais l\'actualisation a échoué : recharge la page.');
     } finally {
       runInFlight.current = false;
     }
+    const undo = options?.undo;
+    setNotice({
+      message: resolveMessage(message, result),
+      action: undo ? { label: 'Annuler', onClick: () => { void run(undo, 'Action annulée'); } } : undefined,
+    });
+    return true;
   };
 
   const runUsers: Run = async (fn, message) => {
@@ -347,7 +349,7 @@ export default function App() {
     }
   };
 
-  const activeNav = navItems.find((item) => item.tab === tab);
+  const section = sectionForTab(tab);
   // Remember the current page so a fresh "/" reopens where the user left off.
   // Skip "/" itself (it only redirects) so it can't overwrite the saved tab.
   // Also drop the transaction issue filter on any route change away from
@@ -359,79 +361,94 @@ export default function App() {
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
   const setActiveTab = (nextTab: Tab) => {
     navigate(pathForTab(nextTab));
-    setSidebarOpen(false);
+    setMoreOpen(false);
   };
   const openUnassignedTransactions = () => {
     setTransactionIssueFilter('unassigned_account');
     setActiveTab('transactions');
   };
-  const toggleSection = (id: string) => {
-    setOpenSections({ ...openSections, [id]: !(openSections[id] ?? true) });
-  };
 
-  return (
-    <div className="app-shell">
-      {sidebarOpen && <button className="sidebar-backdrop" aria-label="Fermer le menu" onClick={() => setSidebarOpen(false)} />}
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="brand">
-          <div>
-            <strong>Suzanne</strong>
-            <span>Finance quotidienne</span>
-          </div>
-          <button className="sidebar-close" type="button" aria-label="Fermer le menu" onClick={() => setSidebarOpen(false)}>
-            <X size={18} />
-          </button>
-        </div>
-        <nav className="nav-list" aria-label="Navigation principale">
-          {navSections.map((section) => {
-            const open = openSections[section.id] ?? true;
-            return (
-              <div className="nav-section" key={section.id}>
-                <button
-                  className="nav-section-toggle"
-                  type="button"
-                  onClick={() => toggleSection(section.id)}
-                  aria-expanded={open}
-                >
-                  <span>{t(section.label)}</span>
-                  {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </button>
-                {open && section.items.map((item) => (
-                  <TabButton key={item.tab} tab={item.tab} current={tab} setTab={setActiveTab} label={t(item.label)} icon={item.icon} />
-                ))}
-              </div>
-            );
-          })}
-        </nav>
-      </aside>
-
-      <main className="content">
-        <div className="page-head">
-          <button className="menu-toggle" type="button" aria-label="Ouvrir le menu" onClick={() => setSidebarOpen(true)}>
-            <Menu size={22} />
-          </button>
-          <div>
-            <p className="eyebrow">{t(activeNav?.label ?? 'Vue générale')}</p>
-            <h1>{t(activeNav?.label ?? 'Vue générale')}</h1>
-          </div>
-          {loading && <span className="spinner" aria-label="Chargement" />}
-        </div>
-
-        {/* Controls live in a compact pill pinned top-right; it floats over the
-            content and stays put on scroll, so it no longer eats a full bar on
-            every page. On small screens it drops back into the flow. */}
-        <div className="floating-controls">
-          {userId && <SearchBox userId={userId} onNavigate={setActiveTab} />}
-          <select value={userId ?? ''} onChange={(e) => setUserId(Number(e.target.value))} aria-label="Utilisateur">
+  const controls = (
+    <>
+      {MONTH_TABS.has(tab) && <MonthPicker value={month} onChange={setMonth} />}
+    </>
+  );
+  const settingsControls = (
+    <>
+      {users.length > 1 && (
+        <label className="field-inline">
+          <span>Profil</span>
+          <select value={userId ?? ''} onChange={(e) => setUserId(Number(e.target.value))}>
             {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
-          <select value={reportCurrency} onChange={(e) => setReportCurrency(e.target.value)} aria-label="Devise d'affichage">
-            {REPORT_CURRENCIES.map((option) => <option key={option.value} value={option.value}>{option.value}</option>)}
-          </select>
-          <MonthPicker value={month} onChange={setMonth} />
-          <ThemeToggle theme={theme} onChange={setTheme} />
-        </div>
+        </label>
+      )}
+      <label className="field-inline">
+        <span>Devise</span>
+        <select value={reportCurrency} onChange={(e) => setReportCurrency(e.target.value)}>
+          {REPORT_CURRENCIES.map((option) => <option key={option.value} value={option.value}>{option.value}</option>)}
+        </select>
+      </label>
+      <ThemeToggle theme={theme} onChange={setTheme} />
+    </>
+  );
 
+  return (
+    <div className="shell">
+      <aside className="rail" aria-label="Navigation principale">
+        <div className="rail-brand">
+          <span className="rail-mark" aria-hidden>S</span>
+          <span className="rail-name">Suzanne</span>
+        </div>
+        <nav className="rail-nav">
+          {navSections.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={s.id === section.id ? 'rail-link active' : 'rail-link'}
+              aria-current={s.id === section.id ? 'page' : undefined}
+              onClick={() => setActiveTab(s.tabs[0]!.tab)}
+            >
+              {s.icon}
+              <span>{t(s.label)}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="rail-foot">{settingsControls}</div>
+      </aside>
+
+      <div className="main">
+        <header className="topbar">
+          <div className="topbar-title">
+            <span className="topbar-kicker">{t(section.label)}</span>
+            <h1>{t(tabLabel(tab))}</h1>
+          </div>
+          <div className={searchOpen ? 'topbar-tools search-open' : 'topbar-tools'}>
+            <button type="button" className="icon-ghost topbar-search-toggle" aria-label="Rechercher" aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)}>
+              {searchOpen ? <X size={18} /> : <Search size={18} />}
+            </button>
+            {userId && <SearchBox userId={userId} onNavigate={(next) => { setSearchOpen(false); setActiveTab(next); }} />}
+            {controls}
+            {loading && <span className="spinner" aria-label="Chargement" />}
+          </div>
+        </header>
+        {section.tabs.length > 1 && (
+          <nav className="subnav" aria-label={t(section.label)}>
+            {section.tabs.map((item) => (
+              <button
+                key={item.tab}
+                type="button"
+                className={item.tab === tab ? 'subnav-tab active' : 'subnav-tab'}
+                aria-current={item.tab === tab ? 'page' : undefined}
+                onClick={() => setActiveTab(item.tab)}
+              >
+                {t(item.label)}
+              </button>
+            ))}
+          </nav>
+        )}
+
+        <main className="content">
         <Suspense fallback={<div className="page-loading">Chargement…</div>}>
         {/* Keyed by pathname so the wrapper remounts on every navigation and
             replays the fade — whatever element the page uses as its root. */}
@@ -514,7 +531,46 @@ export default function App() {
         </Routes>
         </div>
         </Suspense>
-      </main>
+        </main>
+      </div>
+
+      <nav className="tabbar" aria-label="Navigation">
+        {navSections.filter((s) => (MOBILE_PRIMARY as readonly string[]).includes(s.id)).slice(0, 2).map((s) => (
+          <button key={s.id} type="button" className={s.id === section.id ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setActiveTab(s.tabs[0]!.tab)}>
+            {s.icon}<span>{t(s.short)}</span>
+          </button>
+        ))}
+        <button type="button" className="tabbar-add" aria-label="Nouvelle opération" onClick={() => navigate('/transactions?focus=quick')}>
+          <Plus size={24} strokeWidth={2.25} />
+        </button>
+        {navSections.filter((s) => s.id === 'accounts').map((s) => (
+          <button key={s.id} type="button" className={s.id === section.id ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setActiveTab(s.tabs[0]!.tab)}>
+            {s.icon}<span>{t(s.short)}</span>
+          </button>
+        ))}
+        <button type="button" className={moreOpen || !(MOBILE_PRIMARY as readonly string[]).includes(section.id) ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setMoreOpen(true)}>
+          <MoreHorizontal size={20} strokeWidth={1.75} /><span>Plus</span>
+        </button>
+      </nav>
+
+      {moreOpen && (
+        <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
+          <div className="sheet" role="dialog" aria-modal="true" aria-label="Plus" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head">
+              <strong>Plus</strong>
+              <button type="button" className="icon-ghost" aria-label="Fermer" onClick={() => setMoreOpen(false)}><X size={18} /></button>
+            </div>
+            <div className="sheet-grid">
+              {navSections.filter((s) => !(MOBILE_PRIMARY as readonly string[]).includes(s.id)).map((s) => (
+                <button key={s.id} type="button" className={s.id === section.id ? 'sheet-link active' : 'sheet-link'} onClick={() => setActiveTab(s.tabs[0]!.tab)}>
+                  {s.icon}<span>{t(s.label)}</span>
+                </button>
+              ))}
+            </div>
+            <div className="sheet-settings">{settingsControls}</div>
+          </div>
+        </div>
+      )}
 
       {shortcutsOpen && (
         <Modal title="Raccourcis clavier" onClose={() => setShortcutsOpen(false)}>
@@ -555,6 +611,3 @@ export default function App() {
   );
 }
 
-function TabButton({ tab, current, setTab, label, icon }: { tab: Tab; current: Tab; setTab: (tab: Tab) => void; label: string; icon: React.ReactNode }) {
-  return <button className={current === tab ? 'active' : ''} onClick={() => setTab(tab)}>{icon}<span>{label}</span></button>;
-}
