@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import type { SearchResult } from '@suzanne/shared';
 
-export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'bills' | 'goals' | 'investments' | 'alerts' | 'anomalies' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health';
+export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'bills' | 'goals' | 'investments' | 'alerts' | 'anomalies' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health' | 'simulator';
 
 // Navigation à deux niveaux : 7 sections (barre latérale / barre du bas), et
 // des onglets à l'intérieur de chaque section. Chaque onglet garde sa propre
@@ -42,6 +42,7 @@ export const navSections: NavSection[] = [
       { tab: 'wealth', label: 'Patrimoine' },
       { tab: 'investments', label: 'Placements' },
       { tab: 'goals', label: 'Objectifs' },
+      { tab: 'simulator', label: 'Simulateur' },
     ],
   },
   {

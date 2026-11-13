@@ -21,10 +21,17 @@ import { accountCash, accountPositions, envelopeFlows, formatDateFr, parseDecima
 import { EmptyChart } from '../components/EmptyChart';
 import { Modal } from '../components/Modal';
 import { PeaView, type PeaData } from '../components/pea/PeaView';
+import { PEA_TABS, type InsightProps, type PeaTab } from '../components/pea/insightTypes';
+import { envelopeIncomes, useEnvelopeHistory } from '../components/pea/useEnvelopeHistory';
+import { PeaTracking } from '../components/pea/PeaTracking';
+import { PeaPerformance } from '../components/pea/PeaPerformance';
+import { PeaOrders } from '../components/pea/PeaOrders';
+import { PeaRecap } from '../components/pea/PeaRecap';
 import { AccountFormModal } from '../components/accounts/AccountFormModal';
 import type { Run } from '../lib/run';
 import '../styles/pages/accounts.css';
 import '../styles/pages/account-detail.css';
+import '../styles/pages/pea-insights.css';
 
 const RANGES: Array<{ value: string; label: string }> = [
   { value: '6m', label: '6 mois' },
@@ -33,7 +40,7 @@ const RANGES: Array<{ value: string; label: string }> = [
   { value: 'all', label: 'Tout' },
 ];
 
-const ENVELOPE_TYPES: ReadonlyArray<Account['type']> = ['pea', 'securities'];
+const ENVELOPE_TYPES: ReadonlyArray<Account['type']> = ['pea', 'securities', 'crypto'];
 
 export function AccountDetail({ userId, accounts, summary, snapshots, categoryById, reportCurrency, run }: {
   userId: number;
@@ -58,6 +65,10 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const [snapshotOpen, setSnapshotOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const chartTheme = useChartTheme();
+  const [storedTab, setPeaTab] = usePersistedState<string>('account_detail_pea_tab', 'overview');
+  const peaTab: PeaTab = PEA_TABS.some((t) => t.id === storedTab) ? (storedTab as PeaTab) : 'overview';
+  const [historyWanted, setHistoryWanted] = useState(false);
+  useEffect(() => { if (peaTab !== 'overview') setHistoryWanted(true); }, [peaTab]);
 
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (v: number) => moneyFmt(v, displayCurrency);
@@ -97,11 +108,22 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
     Promise.all([accountsApi.transactions(userId, account.id), valuation])
       .then(([txs, val]) => {
         if (cancelled) return;
-        setEnvelope({ ...val, cash: accountCash(account, txs, snapshots), flows: envelopeFlows(txs, account.id) });
+        setEnvelope({ ...val, cash: accountCash(account, txs, snapshots), flows: envelopeFlows(txs, account.id), incomes: envelopeIncomes(txs, account.id) });
       })
       .catch(() => { if (!cancelled) setEnvelope(null); });
     return () => { cancelled = true; };
   }, [userId, account, isEnvelope, snapshots, summary]);
+
+  const envelopeTotal = envelope ? envelope.cash + envelope.positions.reduce((s, p) => s + p.market_value, 0) : null;
+  const envelopeHistory = useEnvelopeHistory(
+    userId,
+    (account ?? { id: 0, currency: reportCurrency }) as AccountWithInvestment,
+    envelope?.flows ?? [],
+    isEnvelope && historyWanted && envelope != null,
+    summary,
+    envelopeTotal,
+    asOf,
+  );
 
   const recent = useMemo(
     () => (account && activity ? activity.recent.map((tx) => ({ tx, signed: accountSignedAmount(tx, account.id) })) : []),
@@ -118,7 +140,12 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   }
 
   const balanceRow = summary?.account_balances.find((a) => a.account_id === account.id);
-  const envelopeValue = envelope ? envelope.cash + envelope.positions.reduce((s, p) => s + p.market_value, 0) : null;
+  const envelopeValue = envelopeTotal;
+  const overview = !isEnvelope || peaTab === 'overview';
+  const insight: InsightProps | null = isEnvelope && envelope && envelopeValue != null ? {
+    userId, account, flows: envelope.flows, incomes: envelope.incomes ?? [], history: envelopeHistory,
+    currentValue: envelopeValue, asOf, ccy: account.currency, fmt: nativeMoney,
+  } : null;
   const heroValue = isEnvelope && envelopeValue != null ? envelopeValue : (balanceRow?.signed_balance ?? account.initial_balance);
   const heroMoney = isEnvelope && envelopeValue != null ? nativeMoney : money;
   const ceiling = livretCeiling(account, reportCurrency);
@@ -180,10 +207,22 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
         );
       })()}
 
-      {isEnvelope && (envelope
-        ? <PeaView account={account} data={envelope} asOf={asOf} />
-        : <p className="acc-muted"><Loader2 className="spin-icon" size={14} /> Chargement des positions…</p>)}
+      {isEnvelope && (
+        <nav className="pi-tabs" role="tablist" aria-label="Vues du compte">
+          {PEA_TABS.map((t) => (
+            <button key={t.id} type="button" role="tab" aria-selected={peaTab === t.id} onClick={() => setPeaTab(t.id)}>{t.label}</button>
+          ))}
+        </nav>
+      )}
 
+      {isEnvelope && !envelope && <p className="acc-muted"><Loader2 className="spin-icon" size={14} /> Chargement des positions…</p>}
+      {isEnvelope && envelope && peaTab === 'overview' && <PeaView account={account} data={envelope} asOf={asOf} />}
+      {insight && peaTab === 'tracking' && <PeaTracking {...insight} />}
+      {insight && peaTab === 'performance' && <PeaPerformance {...insight} />}
+      {insight && peaTab === 'orders' && <PeaOrders {...insight} />}
+      {insight && peaTab === 'recap' && <PeaRecap {...insight} />}
+
+      {overview && <>
       <section className="pg-section">
         <div className="pg-section-head">
           <h2>Évolution</h2>
@@ -297,6 +336,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
           </ul>
         )}
       </details>
+      </>}
 
       {snapshotOpen && (
         <Modal title={`Relevé · ${account.name}`} onClose={() => setSnapshotOpen(false)}>

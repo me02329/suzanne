@@ -12,6 +12,7 @@ import {
 import { money } from '../../lib/format';
 import { formatDateFr, formatPct, formatQuantity, parseDecimal, type EnvelopeFlow } from '../../lib/pea';
 import type { AccountWithInvestment } from '../../lib/api-accounts';
+import { CompositionChart } from './CompositionChart';
 import '../../styles/pages/pea.css';
 
 export interface PeaData {
@@ -20,6 +21,8 @@ export interface PeaData {
   degraded: 'none' | 'partial' | 'offline';
   cash: number;
   flows: EnvelopeFlow[];
+  /** Revenus encaissés (dividendes, coupons…). */
+  incomes?: EnvelopeFlow[];
 }
 
 function ageLabel(fromIso: string, toIso: string): string {
@@ -118,6 +121,13 @@ export function PeaView({ account, data, asOf }: { account: AccountWithInvestmen
           </div>
         )}
       </section>
+
+      {positions.length > 0 && (
+        <section className="pg-section">
+          <div className="pg-section-head"><h2>Composition</h2></div>
+          <CompositionChart positions={positions} cash={cash} fmt={fmt} />
+        </section>
+      )}
 
       {isPea && (
         <div className="pea-grid">

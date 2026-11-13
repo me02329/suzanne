@@ -62,6 +62,7 @@ const Rules = lazy(() => import('./pages/Rules').then((m) => ({ default: m.Rules
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Tags = lazy(() => import('./pages/Tags').then((m) => ({ default: m.Tags })));
 const Tools = lazy(() => import('./pages/Tools').then((m) => ({ default: m.Tools })));
+const Simulator = lazy(() => import('./pages/Simulator').then((m) => ({ default: m.Simulator })));
 const UsersPage = lazy(() => import('./pages/Users').then((m) => ({ default: m.UsersPage })));
 
 export default function App() {
@@ -530,6 +531,7 @@ export default function App() {
           <Route path="/rules" element={userId ? <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} run={run} /> : null} />
           <Route path="/tools" element={userId ? <Tools userId={userId} accounts={accounts} run={run} /> : null} />
           <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} />} />
+          <Route path="/simulator" element={userId ? <Simulator summary={summary} reportCurrency={reportCurrency} /> : null} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to={pathForTab(normalizeTab(lastTab))} replace />} />
         </Routes>

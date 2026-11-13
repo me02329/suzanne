@@ -22,6 +22,7 @@ import { statisticsRouter } from './statistics.js';
 import { aiRouter } from './ai.js';
 import { settingsRouter } from './settings.js';
 import { tagsRouter } from './tags.js';
+import { pricesRouter } from './prices.js';
 
 export const apiRouter = Router();
 apiRouter.use(usersRouter);
@@ -47,3 +48,4 @@ apiRouter.use(statisticsRouter);
 apiRouter.use(aiRouter);
 apiRouter.use(settingsRouter);
 apiRouter.use(tagsRouter);
+apiRouter.use(pricesRouter);

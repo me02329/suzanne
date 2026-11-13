@@ -1,0 +1,144 @@
+/* Onglets d'un compte d'investissement : Suivi, Performance, Ordres, Récap
+   (+ composition dans la vue d'ensemble). Primitives (.kpis, .acc-seg,
+   .pg-section) dans accounts.css, tables/cartes PEA dans pea.css. */
+
+.pi { display: grid; gap: 22px; min-width: 0; }
+.pi-muted { color: var(--muted); }
+
+/* ---- Onglets (encre, pas d'accent : le surligneur reste à la navigation) */
+.pi-tabs {
+  display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid var(--border);
+}
+.pi-tabs::-webkit-scrollbar { display: none; }
+.pi-tabs button {
+  flex: 0 0 auto; min-height: 44px; padding: 0 14px; margin-bottom: -1px;
+  border: 0; border-bottom: 2px solid transparent; background: transparent;
+  color: var(--muted); font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.pi-tabs button:hover { color: var(--text); }
+.pi-tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }
+
+/* ---- Chiffre héros -------------------------------------------------- */
+.pi-hero { display: grid; gap: 4px; }
+.pi-hero-value { font-family: var(--num-font); font-size: clamp(32px, 4vw, 44px); font-weight: 600; letter-spacing: -0.04em; line-height: 1.1; }
+
+/* ---- Graphiques ----------------------------------------------------- */
+.pi-chart { height: 260px; padding: 14px 10px 6px 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+
+/* ---- Composition ---------------------------------------------------- */
+.pi-compo {
+  display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: center;
+  padding: 16px 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+}
+.pi-compo-chart { height: 180px; }
+.pi-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; min-width: 0; }
+.pi-legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; align-items: center; gap: 10px; min-height: 40px; border-bottom: 1px dashed var(--border); }
+.pi-legend li:last-child { border-bottom: 0; }
+.pi-legend i { width: 12px; height: 12px; border-radius: 3px; }
+.pi-legend-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pi-legend .num { text-align: right; }
+.pi-legend .num:not(.pi-muted) { font-weight: 600; min-width: 64px; }
+
+/* ---- Heatmap -------------------------------------------------------- */
+.pi-heat { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.pi-heat-row { display: grid; grid-template-columns: 52px repeat(12, minmax(0, 1fr)) 92px; gap: 4px; align-items: stretch; }
+.pi-heat-head span { color: var(--muted); font-size: 11px; font-weight: 650; text-align: center; letter-spacing: 0.06em; }
+.pi-heat-head span:last-child { text-align: right; }
+.pi-heat-year { align-self: center; font-family: var(--num-font); font-weight: 600; font-size: 13.5px; }
+.pi-heat-cell {
+  display: grid; place-items: center; min-height: 36px; border-radius: 6px;
+  background: var(--surface-muted); font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.pi-heat-cell small { display: none; }
+.pi-heat-total { align-self: center; text-align: right; font-weight: 650; font-size: 13.5px; }
+.pi-heat-total small { color: var(--muted); font-weight: 500; font-size: 11px; }
+
+/* ---- Benchmark ------------------------------------------------------ */
+.pi-bench-form { display: flex; gap: 8px; }
+.pi-bench-form input { width: 130px; font-family: var(--num-font); text-transform: uppercase; }
+.pi-bench-lead { margin: 0; line-height: 1.5; }
+.pi-bench { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.pi-bench-side { padding: 8px 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.pi-bench-side small { color: inherit; opacity: 0.8; font-size: 12px; }
+
+/* ---- Ordres --------------------------------------------------------- */
+.pi-filters { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pi-select { display: grid; gap: 6px; color: var(--muted); font-size: 12.5px; font-weight: 650; }
+.pi-select select { min-height: 40px; min-width: 220px; }
+.pi-orders { list-style: none; margin: 0; padding: 4px 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.pi-orders li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 56px; padding: 6px 18px; }
+.pi-orders li + li { border-top: 1px solid var(--border); }
+.pi-recap .pi-orders li { grid-template-columns: minmax(0, 1fr) auto; }
+.pi-side {
+  min-width: 58px; padding: 3px 8px; border: 1px solid var(--border-strong); border-radius: 999px;
+  font-size: 11.5px; font-weight: 650; text-align: center; color: var(--muted);
+}
+.pi-side.sell { border-color: var(--text); color: var(--text); }
+.pi-order-main { display: grid; gap: 2px; min-width: 0; }
+.pi-order-title { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pi-order-meta { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pi-order-amounts { display: grid; justify-items: end; gap: 2px; white-space: nowrap; }
+.pi-order-amounts > .num { font-weight: 550; }
+.pi-order-amounts small { font-size: 12px; }
+
+/* ---- Récap ---------------------------------------------------------- */
+.pi-recap-sheet { display: grid; gap: 22px; min-width: 0; }
+
+@media (max-width: 900px) {
+  .pi-heat-row { grid-template-columns: 44px repeat(12, minmax(0, 1fr)) 72px; gap: 3px; }
+  .pi-heat-cell { font-size: 10.5px; }
+}
+
+@media (max-width: 640px) {
+  .pi { gap: 18px; }
+  .pi-tabs { margin: 0; padding: 0; }
+  .pi-tabs button { padding: 0 10px; font-size: 14px; }
+  .pi .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pi-chart { height: 220px; }
+  .pi-compo { grid-template-columns: 1fr; padding: 14px; }
+  .pi-compo-chart { height: 170px; }
+  .pi-legend li { grid-template-columns: 12px minmax(0, 1fr) auto; }
+  .pi-legend .pi-muted { display: none; }
+
+  /* Heatmap : une carte par année, mois en grille 6 × 2. */
+  .pi-heat { padding: 0; border: 0; background: none; gap: 10px; }
+  .pi-heat-head { display: none; }
+  .pi-heat-row {
+    grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px;
+    padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+  }
+  .pi-heat-year { grid-column: 1 / 4; grid-row: 1; font-size: 15px; }
+  .pi-heat-total { grid-column: 4 / -1; grid-row: 1; margin-bottom: 4px; }
+  .pi-heat-cell { min-height: 44px; font-size: 12px; align-content: center; gap: 0; }
+  .pi-heat-cell small { display: block; color: var(--muted); font-size: 10px; line-height: 1.1; }
+
+  .pi-bench { grid-template-columns: 1fr; }
+  .pi-bench-side { padding: 6px 14px; }
+  .pi-bench-form { width: 100%; }
+  .pi-bench-form input { flex: 1; width: auto; min-width: 0; min-height: 44px; font-size: 16px; }
+  .pi-bench-form button { min-height: 44px; }
+
+  .pi-filters { align-items: stretch; }
+  .pi-select, .pi-filters .acc-seg { width: 100%; }
+  .pi-select select { min-width: 0; width: 100%; min-height: 44px; font-size: 16px; }
+  .pi-filters .acc-seg { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .pi-filters .acc-seg button { min-height: 40px; }
+  .pi-years.acc-seg { grid-template-columns: repeat(auto-fit, minmax(56px, 1fr)); }
+  .pi-filters > .secondary { min-height: 44px; }
+  .pi-orders li { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 14px; }
+  .pi-orders .pi-side { grid-column: 1; grid-row: 1; justify-self: start; min-width: 0; padding: 1px 8px; font-size: 11px; }
+  .pi-orders .pi-order-main { grid-column: 1; }
+  .pi-orders .pi-order-amounts { grid-column: 2; grid-row: 1 / span 2; }
+  .pi-recap .pi-orders .pi-order-amounts { grid-row: 1; }
+  .pi-hero-value { font-size: 34px; }
+}
+
+/* Impression du récap : la fiche seule, à l'encre. */
+@media print {
+  body * { visibility: hidden !important; }
+  .pi-recap-sheet, .pi-recap-sheet * { visibility: visible !important; }
+  .pi-recap-sheet { position: absolute; inset: 0 auto auto 0; width: 100%; padding: 0; color: #000; }
+  .pi-recap-sheet .kpi, .pi-recap-sheet .pea-card, .pi-recap-sheet .pi-orders { break-inside: avoid; border-color: #bbb; background: #fff; }
+  .pi-noprint { display: none !important; }
+}
