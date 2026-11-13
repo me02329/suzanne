@@ -128,3 +128,88 @@ snapshotsRouter.delete('/users/:user_id/account-snapshots/:id', asyncHandler(asy
   }
   res.json({ deleted: true });
 }));
+
+// ---------------------------------------------------------------------------
+// Rapprochement : entre deux ancres successives (solde initial = ouverture du
+// jour, relevé = fin du jour), la somme des opérations doit égaler l'écart de
+// solde. Le relevé faisant foi pour le solde, un écart serait sinon absorbé en
+// silence (solde juste, statistiques fausses).
+// ---------------------------------------------------------------------------
+
+type Anchor = { date: Date; order: 0 | 2; kind: 'initial' | 'snapshot'; value: number; id: number | null };
+
+snapshotsRouter.get('/users/:user_id/accounts/:account_id/reconciliation', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const account_id = idParam.parse(req.params.account_id);
+  const account = await prisma.account.findFirst({ where: { id: account_id, user_id } });
+  if (!account) throw new HttpError(404, 'Compte introuvable');
+  const [snaps, lines] = await Promise.all([
+    prisma.accountSnapshot.findMany({ where: { account_id }, orderBy: { date: 'asc' } }),
+    prisma.transactionLine.findMany({
+      where: { account_id, transaction: { deleted_at: null } },
+      select: { amount: true, transaction: { select: { date: true, kind: true } } },
+    }),
+  ]);
+  const anchors: Anchor[] = [
+    { date: account.initial_balance_date, order: 0, kind: 'initial', value: account.initial_balance, id: null } as Anchor,
+    ...snaps.map((s) => ({ date: s.date, order: 2 as const, kind: 'snapshot' as const, value: s.balance, id: s.id })),
+  ].sort((a, b) => a.date.getTime() - b.date.getTime() || a.order - b.order);
+  // Position d'un mouvement : (date, 1) — après l'ouverture, avant le relevé du jour.
+  const pos = (d: Date, order: number) => d.getTime() * 4 + order;
+  const moves = lines.map((l) => ({ p: pos(l.transaction.date, 1), amount: l.amount, adjustment: l.transaction.kind === 'adjustment' }));
+  const between = (from: number, to: number) => moves.filter((m) => m.p > from && m.p <= to);
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  const periods = [];
+  for (let i = 0; i + 1 < anchors.length; i += 1) {
+    const a = anchors[i]!; const b = anchors[i + 1]!;
+    const inside = between(pos(a.date, a.order), pos(b.date, b.order));
+    const movements = round2(inside.reduce((s, m) => s + m.amount, 0));
+    const expected = round2(b.value - a.value);
+    periods.push({
+      from: { date: day(a.date), kind: a.kind, value: a.value },
+      to: { date: day(b.date), kind: b.kind, value: b.value, snapshot_id: b.id },
+      expected,
+      movements,
+      gap: round2(expected - movements),
+      count: inside.length,
+      adjustments: round2(inside.filter((m) => m.adjustment).reduce((s, m) => s + m.amount, 0)),
+    });
+  }
+  const last = anchors[anchors.length - 1]!;
+  const open = between(pos(last.date, last.order), Number.MAX_SAFE_INTEGER);
+  res.json({
+    account_id,
+    currency: account.currency,
+    periods,
+    open: { from: { date: day(last.date), kind: last.kind, value: last.value }, movements: round2(open.reduce((s, m) => s + m.amount, 0)), count: open.length },
+    unreconciled: periods.filter((p) => Math.abs(p.gap) >= 0.01).length,
+    total_gap: round2(periods.reduce((s, p) => s + Math.abs(p.gap), 0)),
+  });
+}));
+
+// Ajustement explicite : comble un écart sans être ni une dépense ni un revenu.
+const adjustmentSchema = z.object({
+  date: dateString,
+  amount: z.coerce.number().refine((n) => Number.isFinite(n) && Math.abs(n) >= 0.01, 'Montant non nul requis').transform(round2),
+  description: z.string().trim().max(200).optional(),
+});
+
+snapshotsRouter.post('/users/:user_id/accounts/:account_id/adjustments', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const account_id = idParam.parse(req.params.account_id);
+  const body = adjustmentSchema.parse(req.body);
+  const account = await prisma.account.findFirst({ where: { id: account_id, user_id }, select: { id: true } });
+  if (!account) throw new HttpError(404, 'Compte introuvable');
+  const row = await prisma.transaction.create({
+    data: {
+      user_id,
+      kind: 'adjustment',
+      date: new Date(body.date),
+      description: body.description || 'Ajustement de rapprochement',
+      cleared: true,
+      lines: { create: [{ user_id, account_id, amount: body.amount }] },
+    },
+    select: { id: true },
+  });
+  res.status(201).json(row);
+}));

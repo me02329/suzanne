@@ -147,6 +147,9 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
     return;
   }
   if (existing.kind === 'trade') throw new HttpError(400, 'Ce mouvement provient d\'un ordre de bourse : modifie l\'ordre');
+  if (existing.kind === 'adjustment' && patchTouchesLines(body as Partial<LegacyInput>)) {
+    throw new HttpError(400, 'Un ajustement ne se modifie pas : supprime-le et crée-en un nouveau depuis le rapprochement');
+  }
   const patch = body as Partial<LegacyInput>;
   // Les lignes ne sont reconstruites que si la modification touche aux
   // montants : un changement de libellé ou de pointage les laisse intactes.
