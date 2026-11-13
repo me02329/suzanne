@@ -307,7 +307,8 @@ export interface CreateAlertBody {
 
 export interface TriggeredAlert {
   id: number;
-  type: AlertType;
+  // 'budget' : alerte automatique de budget (id négatif, non configurable).
+  type: AlertType | 'budget';
   severity: 'warning' | 'info';
   message: string;
 }
@@ -397,7 +398,7 @@ export interface BackupImportCounter { created: number; reused: number; skipped:
 export type BackupImportSummary = Record<
   'institutions' | 'accounts' | 'categories' | 'rules' | 'tags' | 'recurring' | 'transactions' | 'budgets'
   | 'goals' | 'goal_contributions' | 'bills' | 'bill_matches' | 'snapshots' | 'holdings' | 'holding_orders'
-  | 'alerts' | 'import_mappings' | 'attachments',
+  | 'alerts' | 'import_mappings' | 'attachments' | 'global_budgets' | 'sinking_funds',
   BackupImportCounter
 >;
 
@@ -862,3 +863,5 @@ export function recurringMonthlyEquivalent(
     : 1 / step;
   return Math.round(recurring.amount * perMonth * 100) / 100;
 }
+
+export * from './finance/index.js';

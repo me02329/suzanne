@@ -103,6 +103,8 @@ model User {
   alerts                  Alert[]
   attachments             Attachment[]
   import_mappings         ImportMapping[]
+  global_budgets          GlobalBudget[]
+  sinking_funds           SinkingFund[]
 
   @@map("users")
 }
@@ -174,6 +176,7 @@ model Category {
   recurring_transactions RecurringTransaction[]
   category_rules          CategoryRule[]
   bills                   Bill[]
+  sinking_funds           SinkingFund[]
 
   @@unique([user_id, name, type])
   @@index([user_id, type])
@@ -325,6 +328,45 @@ model Budget {
   @@unique([user_id, category_id, month])
   @@index([user_id, month])
   @@map("budgets")
+}
+
+// Budget global du mois (toutes dépenses confondues) : le « reste à vivre ».
+// Reconduction identique aux budgets par catégorie.
+model GlobalBudget {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  month        String
+  amount_limit Float
+  recurring    Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, month])
+  @@map("global_budgets")
+}
+
+// Provision pour dépense irrégulière (vacances, assurance annuelle…) : un
+// objectif à réunir tous les `period_months` mois, lissé en mensualités. Les
+// dépenses de la catégorie liée sur le cycle viennent en déduction. Enveloppe
+// virtuelle : aucun argent n'est déplacé.
+model SinkingFund {
+  id            Int      @id @default(autoincrement())
+  user_id       Int
+  name          String
+  category_id   Int?
+  target_amount Float
+  period_months Int      @default(12)
+  start_month   String
+  color         String   @default("#4a6a00")
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+
+  @@unique([user_id, name])
+  @@index([user_id])
+  @@map("sinking_funds")
 }
 
 model RecurringTransaction {

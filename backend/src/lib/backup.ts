@@ -41,6 +41,8 @@ export const EXPORT_ENTITIES = [
   'alerts',
   'import_mappings',
   'attachments',
+  'global_budgets',
+  'sinking_funds',
 ] as const;
 export type ExportEntity = (typeof EXPORT_ENTITIES)[number];
 
@@ -65,6 +67,8 @@ export const backupPayloadSchema = z.object({
   alerts: looseArray,
   import_mappings: looseArray,
   attachments: looseArray,
+  global_budgets: looseArray,
+  sinking_funds: looseArray,
 }).passthrough();
 export type BackupPayload = z.infer<typeof backupPayloadSchema>;
 
@@ -89,6 +93,10 @@ export async function buildExportPayload(user_id: number, entities: readonly Exp
   // Les comptes et catégories sont toujours lus (même non exportés) pour
   // embarquer leurs noms dans les références : un export partiel reste ainsi
   // ré-importable sur un autre profil.
+  const [globalBudgets, sinkingFunds] = await Promise.all([
+    want.has('global_budgets') ? prisma.globalBudget.findMany({ where: { user_id, ...(monthRange ? { month: monthRange } : {}) }, orderBy: { month: 'asc' } }) : Promise.resolve([]),
+    want.has('sinking_funds') ? prisma.sinkingFund.findMany({ where: { user_id }, orderBy: { id: 'asc' } }) : Promise.resolve([]),
+  ]);
   const [user, accountsAll, categoriesAll, institutions, rules, transactions, budgets, recurring, goals, goalContributions, bills, snapshots, tags, holdings, alerts, importMappings] = await Promise.all([
     prisma.user.findUnique({ where: { id: user_id }, select: { id: true, name: true, created_at: true } }),
     prisma.account.findMany({ where: { user_id }, orderBy: { id: 'asc' } }),
@@ -179,6 +187,8 @@ export async function buildExportPayload(user_id: number, entities: readonly Exp
     alerts: alerts.map((a) => ({ ...a, account_name: refAccount(a.account_id) })),
     import_mappings: importMappings,
     attachments: attachments.map(({ data, ...a }) => ({ ...a, data_base64: Buffer.from(data).toString('base64') })),
+    global_budgets: globalBudgets,
+    sinking_funds: sinkingFunds.map((fund) => ({ ...fund, category_ref: refCategory(fund.category_id) })),
   };
 }
 
@@ -208,6 +218,8 @@ export interface ImportSummary {
   alerts: Counter;
   import_mappings: Counter;
   attachments: Counter;
+  global_budgets: Counter & { updated: number };
+  sinking_funds: Counter;
 }
 
 const ACCOUNT_TYPES = new Set<string>(Object.values(AccountType));
@@ -264,6 +276,7 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
     recurring: counter(), transactions: counter(), budgets: { ...counter(), updated: 0 }, goals: counter(),
     goal_contributions: counter(), bills: counter(), bill_matches: counter(), snapshots: { ...counter(), updated: 0 },
     holdings: counter(), holding_orders: counter(), alerts: counter(), import_mappings: counter(), attachments: counter(),
+    global_budgets: { ...counter(), updated: 0 }, sinking_funds: counter(),
   };
   // Ré-import sur le profil d'origine : un id non remappé (entité absente de
   // l'export partiel) désigne directement une ligne existante de ce profil.
@@ -794,6 +807,42 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
     const date_format = DATE_FORMATS.has(String(raw.date_format)) ? String(raw.date_format) : 'auto';
     await db.importMapping.create({ data: { user_id, name: n, date_format, columns } });
     summary.import_mappings.created += 1;
+  }
+
+  // --- Budget global et provisions -------------------------------------------
+  for (const raw of payload.global_budgets ?? []) {
+    const month = String(raw.month ?? '');
+    const amount_limit = round2(num(raw.amount_limit));
+    if (!/^\d{4}-\d{2}$/.test(month) || !(amount_limit > 0)) { summary.global_budgets.skipped += 1; continue; }
+    const existing = await db.globalBudget.findUnique({ where: { user_id_month: { user_id, month } } });
+    if (existing) {
+      await db.globalBudget.update({ where: { id: existing.id }, data: { amount_limit, recurring: Boolean(raw.recurring ?? existing.recurring) } });
+      summary.global_budgets.updated += 1;
+    } else {
+      await db.globalBudget.create({ data: { user_id, month, amount_limit, recurring: Boolean(raw.recurring ?? true) } });
+      summary.global_budgets.created += 1;
+    }
+  }
+  const fundsByName = new Set((await db.sinkingFund.findMany({ where: { user_id }, select: { name: true } })).map((x) => x.name));
+  for (const raw of payload.sinking_funds ?? []) {
+    const n = name(raw.name);
+    const start_month = String(raw.start_month ?? '');
+    const target_amount = round2(num(raw.target_amount));
+    if (!n || !/^\d{4}-\d{2}$/.test(start_month) || !(target_amount > 0)) { summary.sinking_funds.skipped += 1; continue; }
+    if (fundsByName.has(n)) { summary.sinking_funds.reused += 1; continue; }
+    await db.sinkingFund.create({
+      data: {
+        user_id,
+        name: n,
+        category_id: resolveCategory(raw.category_id, raw.category_ref),
+        target_amount,
+        period_months: Math.min(120, Math.max(1, Math.trunc(num(raw.period_months, 12)))),
+        start_month,
+        color: str(raw.color, 20) ?? '#4a6a00',
+      },
+    });
+    fundsByName.add(n);
+    summary.sinking_funds.created += 1;
   }
 
   // --- Pièces jointes -------------------------------------------------------

@@ -1,7 +1,8 @@
 import { Router } from 'express';
+import { budgetAlerts } from './budgets.js';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { createAlertSchema, currencyQuery, idParam, updateAlertSchema } from '../lib/validation.js';
+import { createAlertSchema, currencyQuery, idParam, updateAlertSchema, monthString } from '../lib/validation.js';
 import { securitiesByAccountNow } from '../lib/holdingsValuation.js';
 import { computeAccountBalances } from './dashboard.js';
 import { evaluateAlerts, type AlertConfig } from '../lib/alerts.js';
@@ -20,13 +21,16 @@ alertsRouter.get('/users/:user_id/alerts', asyncHandler(async (req, res) => {
 alertsRouter.get('/users/:user_id/alerts/triggered', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const reportCurrency = currencyQuery.parse(req.query.currency ?? 'EUR');
-  const month = String(req.query.month ?? new Date().toISOString().slice(0, 7));
+  const month = monthString.parse(req.query.month ?? new Date().toISOString().slice(0, 7));
   const start = new Date(`${month}-01T00:00:00.000Z`);
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
 
-  const alerts = await prisma.alert.findMany({ where: { user_id, active: true } });
+  const [alerts, budgetTriggered] = await Promise.all([
+    prisma.alert.findMany({ where: { user_id, active: true } }),
+    budgetAlerts(user_id, month, reportCurrency).catch(() => []),
+  ]);
   if (alerts.length === 0) {
-    res.json([]);
+    res.json(budgetTriggered);
     return;
   }
 
@@ -70,7 +74,7 @@ alertsRouter.get('/users/:user_id/alerts/triggered', asyncHandler(async (req, re
     today: new Date(),
     currency: reportCurrency,
   });
-  res.json(triggered);
+  res.json([...triggered, ...budgetTriggered]);
 }));
 
 alertsRouter.post('/users/:user_id/alerts', asyncHandler(async (req, res) => {
