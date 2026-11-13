@@ -18,7 +18,11 @@ export function createApp() {
   // wealth-history many points — JSON compresses ~85%, cutting transfer time.
   app.use(compression());
   app.use(cors());
-  app.use(express.json({ limit: '25mb' }));
+  // La restauration d'une sauvegarde JSON embarque les pièces jointes (base64) :
+  // limite relevée pour cette seule route, 25 Mo partout ailleurs.
+  const jsonDefault = express.json({ limit: '25mb' });
+  const jsonBackup = express.json({ limit: '250mb' });
+  app.use((req, res, next) => (req.path.endsWith('/import.json') ? jsonBackup : jsonDefault)(req, res, next));
   app.use(healthRouter);
   app.use('/api', appTokenAuth());
   app.use('/api', auditLog());

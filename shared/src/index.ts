@@ -374,6 +374,16 @@ export interface ImportResult {
   duplicates: Array<{ line: number; date: string; amount: number; description: string; reason: 'existing' | 'file' }>;
 }
 
+// Résumé d'un import JSON / d'une restauration de sauvegarde (idempotent :
+// `reused` = lignes déjà présentes reconnues, donc non dupliquées).
+export interface BackupImportCounter { created: number; reused: number; skipped: number; updated?: number }
+export type BackupImportSummary = Record<
+  'institutions' | 'accounts' | 'categories' | 'rules' | 'tags' | 'recurring' | 'transactions' | 'budgets'
+  | 'goals' | 'goal_contributions' | 'bills' | 'bill_matches' | 'snapshots' | 'holdings' | 'holding_orders'
+  | 'alerts' | 'import_mappings' | 'attachments',
+  BackupImportCounter
+>;
+
 // Entrée du journal d'audit (qui/quoi/quand).
 export interface AuditLogEntry {
   id: number;

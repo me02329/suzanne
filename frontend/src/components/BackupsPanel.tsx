@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Clock, DatabaseBackup, Download, Loader2, Plus, RotateCcw } from 'lucide-react';
-import type { BackupMeta } from '@suzanne/shared';
+import type { BackupImportSummary, BackupMeta } from '@suzanne/shared';
 import { api } from '../lib/api';
+import { saveBlob, summarizeBackupImport } from '../lib/download';
 import { DataTable } from './DataTable';
 import { IconButton } from './IconButton';
 import { Panel } from './Panel';
@@ -36,14 +37,13 @@ export function BackupsPanel({ userId, run }: { userId: number; run: Run }) {
   };
   const download = async (b: BackupMeta) => {
     try {
-      const url = await api.backupBlobUrl(userId, b.id);
-      const a = document.createElement('a');
-      a.href = url; a.download = `suzanne-backup-${b.id}.json`; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch { /* silencieux */ }
+      saveBlob(await api.backupBlob(userId, b.id), `suzanne-backup-${b.created_at.slice(0, 10)}-${b.id}.json`);
+    } catch (e) {
+      window.alert(`Téléchargement impossible : ${(e as Error).message}`);
+    }
   };
   const restore = (b: BackupMeta) => {
-    void run(() => api.restoreBackup(userId, b.id), 'Sauvegarde restaurée (entités existantes réutilisées)');
+    void run(() => api.restoreBackup(userId, b.id), (result) => `Sauvegarde restaurée. ${summarizeBackupImport(result as BackupImportSummary)}`);
   };
   const remove = (b: BackupMeta) => {
     void run(() => api.deleteBackup(userId, b.id), 'Sauvegarde supprimée').then((ok) => { if (ok) setVersion((v) => v + 1); });
@@ -70,7 +70,7 @@ export function BackupsPanel({ userId, run }: { userId: number; run: Run }) {
                 <td data-label="Date">{new Date(b.created_at).toLocaleString('fr-FR')}</td>
                 <td className="actions-cell">
                   <IconButton label="Télécharger" tone="neutral" icon={<Download size={16} />} onClick={() => void download(b)} />
-                  <IconButton label="Restaurer" tone="accent" confirm="Restaurer cette sauvegarde ? Les entités existantes sont réutilisées, les manquantes recréées." icon={<RotateCcw size={16} />} onClick={() => restore(b)} />
+                  <IconButton label="Restaurer" tone="accent" confirm="Restaurer cette sauvegarde ? Rien n'est écrasé ni dupliqué : seules les données absentes sont recréées." icon={<RotateCcw size={16} />} onClick={() => restore(b)} />
                   <IconButton label="Supprimer" confirm="Supprimer cette sauvegarde ?" onClick={() => remove(b)} />
                 </td>
               </tr>

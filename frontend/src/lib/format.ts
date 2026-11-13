@@ -42,12 +42,21 @@ export function truncate(label: string, max = 18): string {
 
 // today()/currentMonth() are functions (not constants) so a long-running tab
 // stays correct across midnight rollovers.
+// Date LOCALE (pas UTC) : toISOString() renverrait la veille entre minuit et
+// 1-2 h du matin en France, et le mois précédent le 1er du mois à 0h30.
+export function localIsoDate(date: Date = new Date()): string {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localIsoDate();
 }
 
 export function currentMonthIso(): string {
-  return new Date().toISOString().slice(0, 7);
+  return localIsoDate().slice(0, 7);
 }
 
 // Last day of the previous month — used as the default snapshot date so a

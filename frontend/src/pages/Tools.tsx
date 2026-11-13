@@ -1,10 +1,12 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, CheckSquare, DatabaseBackup, Download, FileJson, FileUp, Landmark, RotateCcw, Table2, Upload, WalletCards } from 'lucide-react';
-import type { Account, ImportDateFormat, ImportMapping } from '@suzanne/shared';
+import type { Account, BackupImportSummary, ImportDateFormat, ImportMapping } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { numberOrNull } from '../lib/forms';
+import { todayIso } from '../lib/format';
 import { guessColumn, parseCsvPreview } from '../lib/csv';
+import { saveBlob, summarizeBackupImport } from '../lib/download';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 import { StatementImportModal } from '../components/StatementImportModal';
@@ -26,16 +28,16 @@ const EXPORT_ENTITIES = [
   { key: 'goal_contributions', label: 'Versements d\'objectifs' },
   { key: 'bills', label: 'Factures attendues' },
   { key: 'snapshots', label: 'Snapshots de solde' },
+  { key: 'holdings', label: 'Positions et ordres de bourse' },
+  { key: 'alerts', label: 'Alertes' },
+  { key: 'import_mappings', label: "Profils d'import CSV" },
+  { key: 'attachments', label: 'Pièces jointes (justificatifs)' },
 ] as const;
 
 const PLACEHOLDER_CSV = `dateOp\tdateVal\tlabel\tamount\n2026-05-24\t2026-05-24\tCourses\t-12,50`;
 const ALL_EXPORT_KEYS = EXPORT_ENTITIES.map((e) => e.key);
-const FINANCE_EXPORT_KEYS = ['transactions', 'accounts', 'categories', 'budgets', 'recurring', 'goals', 'goal_contributions', 'bills', 'snapshots'];
-const STRUCTURE_EXPORT_KEYS = ['accounts', 'institutions', 'categories', 'category_rules', 'tags'];
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
+const FINANCE_EXPORT_KEYS = ['transactions', 'accounts', 'categories', 'budgets', 'recurring', 'goals', 'goal_contributions', 'bills', 'snapshots', 'holdings'];
+const STRUCTURE_EXPORT_KEYS = ['accounts', 'institutions', 'categories', 'category_rules', 'tags', 'import_mappings', 'alerts'];
 
 function currentYearRange() {
   const year = new Date().getFullYear();
@@ -86,27 +88,33 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     });
   };
 
+  // `options.from/to` explicitement à null = « sans filtre » : ne pas retomber
+  // sur la plage restée saisie dans la modale (un `??` le faisait, et une
+  // « sauvegarde complète » pouvait être silencieusement filtrée).
   const runExport = async (options?: { entities?: string[]; from?: string | null; to?: string | null; closeModal?: boolean }) => {
     const entities = options?.entities ?? Array.from(exportEntities);
     if (entities.length === 0) return;
+    const from = options && 'from' in options ? options.from ?? null : exportFrom || null;
+    const to = options && 'to' in options ? options.to ?? null : exportTo || null;
     setExporting(true);
     try {
-      const blob = await api.exportSelection(userId, {
-        entities,
-        from: options?.from ?? (exportFrom || null),
-        to: options?.to ?? (exportTo || null),
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `suzanne-export-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      const blob = await api.exportSelection(userId, { entities, from, to });
+      const suffix = from || to ? `${from ?? 'debut'}_${to ?? 'fin'}` : todayIso();
+      saveBlob(blob, `suzanne-export-${suffix}.json`);
       if (options?.closeModal ?? true) setExportOpen(false);
     } catch (e) {
-      window.alert(`Export échoué: ${(e as Error).message}`);
+      window.alert(`Export échoué : ${(e as Error).message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const runCsvExport = async () => {
+    setExporting(true);
+    try {
+      saveBlob(await api.exportCsv(userId), `suzanne-transactions-${todayIso()}.csv`);
+    } catch (e) {
+      window.alert(`Export CSV échoué : ${(e as Error).message}`);
     } finally {
       setExporting(false);
     }
@@ -114,17 +122,22 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
 
   const runRestore = async () => {
     if (!restorePayload.trim()) return;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(restorePayload);
+    } catch {
+      window.alert("Ce fichier n'est pas un JSON valide.");
+      return;
+    }
     setRestoring(true);
     try {
-      const parsed = JSON.parse(restorePayload);
-      await run(async () => api.importJson(userId, parsed), (result) => {
-        const r = result as Awaited<ReturnType<typeof api.importJson>>;
-        return `Import : ${r.accounts.created} comptes, ${r.categories.created} catégories, ${r.transactions.created} transactions, ${r.snapshots.created + r.snapshots.updated} snapshots`;
-      });
-      setRestoreOpen(false);
-      setRestorePayload('');
-    } catch (e) {
-      window.alert(`Import échoué: ${(e as Error).message}`);
+      const ok = await run(() => api.importJson(userId, parsed), (result) => summarizeBackupImport(result as BackupImportSummary));
+      // La modale ne se ferme qu'en cas de succès : sur erreur, le fichier reste chargé.
+      if (ok) {
+        setRestoreOpen(false);
+        setRestorePayload('');
+        setRestoreFileName(null);
+      }
     } finally {
       setRestoring(false);
     }
@@ -252,9 +265,9 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
           <button className="primary" type="button" onClick={() => void runExport({ entities: ALL_EXPORT_KEYS, from: null, to: null, closeModal: false })} disabled={exporting}>
             <DatabaseBackup size={16} /> Sauvegarde complète
           </button>
-          <a className="secondary link-button" href={api.exportCsvUrl(userId)}>
+          <button className="secondary" type="button" onClick={() => void runCsvExport()} disabled={exporting}>
             <Table2 size={16} /> CSV transactions
-          </a>
+          </button>
         </div>
       </section>
 
@@ -292,17 +305,17 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
               <CalendarDays size={16} />
               <span><strong>Année en cours</strong><small>Transactions, budgets, récurrents, objectifs, snapshots</small></span>
             </button>
-            <a href={api.exportCsvUrl(userId)}>
+            <button type="button" onClick={() => void runCsvExport()} disabled={exporting}>
               <Table2 size={16} />
-              <span><strong>CSV transactions</strong><small>Fichier plat pour tableur ou rapprochement</small></span>
-            </a>
+              <span><strong>CSV transactions</strong><small>Pour Excel / LibreOffice (séparateur ;), réimportable</small></span>
+            </button>
           </div>
         </Panel>
 
         <Panel title="Bonnes pratiques" icon={<WalletCards />}>
           <div className="tools-checklist">
             <div><CheckSquare size={16} /> Faire un backup complet avant un gros import.</div>
-            <div><CheckSquare size={16} /> Restaurer un JSON sur un profil vide si tu veux éviter les transactions doublonnées.</div>
+            <div><CheckSquare size={16} /> Restaurer est sans risque : ce qui existe déjà est reconnu et n'est pas dupliqué.</div>
             <div><CheckSquare size={16} /> Pour un CSV bancaire, choisir le compte source avant d'importer.</div>
           </div>
         </Panel>
@@ -465,8 +478,8 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
         <Modal title="Restaurer une sauvegarde" onClose={() => setRestoreOpen(false)}>
           <div className="form tools-modal-form">
             <p className="panel-note">
-              Importe un export JSON Suzanne. Les entités existantes (mêmes noms / mêmes clés) sont réutilisées, pas dupliquées.
-              Les transactions sont créées même si elles ressemblent à des doublons — restaure sur un compte vide pour éviter les surprises.
+              Importe un export JSON Suzanne. Rien n'est écrasé : les éléments déjà présents (mêmes noms, ou transaction identique —
+              même compte, date, montant et libellé) sont reconnus et non dupliqués. L'import est tout ou rien : en cas d'erreur, rien n'est écrit.
             </p>
             <div
               className={`csv-drop${restoreDragActive ? ' active' : ''}`}

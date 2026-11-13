@@ -25,6 +25,7 @@ import type {
   AnomalyReport,
   Attachment,
   AuditLogEntry,
+  BackupImportSummary,
   BackupMeta,
   CreateAlertBody,
   CreateAttachmentBody,
@@ -71,6 +72,17 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(message);
   }
   return await res.json() as T;
+}
+
+async function httpBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers: { ...authHeaders(), ...(init?.headers ?? {}) } });
+  if (!res.ok) {
+    if (res.status === 401) notifyUnauthorized();
+    let message = `HTTP ${res.status}`;
+    try { const data = await res.json() as { error?: string }; if (data?.error) message = data.error; } catch { /* keep */ }
+    throw new Error(message);
+  }
+  return await res.blob();
 }
 
 export interface AiHealthStatus {
@@ -275,33 +287,23 @@ export const api = {
   createBackup: (userId: number, label?: string) =>
     http<BackupMeta>(`/users/${userId}/backups`, { method: 'POST', body: JSON.stringify(label ? { label } : {}) }),
   restoreBackup: (userId: number, id: number) =>
-    http<{ transactions: { created: number; skipped: number } }>(`/users/${userId}/backups/${id}/restore`, { method: 'POST' }),
+    http<BackupImportSummary>(`/users/${userId}/backups/${id}/restore`, { method: 'POST' }),
   deleteBackup: (userId: number, id: number) =>
     http<{ deleted: boolean }>(`/users/${userId}/backups/${id}`, { method: 'DELETE' }),
-  backupBlobUrl: async (userId: number, id: number): Promise<string> => {
-    const res = await fetch(`${API_BASE}/users/${userId}/backups/${id}/download`, { headers: { ...authHeaders() } });
-    if (!res.ok) throw new Error(`Téléchargement impossible (${res.status})`);
-    return URL.createObjectURL(await res.blob());
+  // Téléchargements : passent par fetch (et non un simple <a href>) pour porter
+  // l'en-tête Authorization quand APP_TOKEN est activé.
+  backupBlob: (userId: number, id: number) => httpBlob(`/users/${userId}/backups/${id}/download`),
+  exportCsv: (userId: number, range?: { from?: string | null; to?: string | null }) => {
+    const params = new URLSearchParams();
+    if (range?.from) params.set('from', range.from);
+    if (range?.to) params.set('to', range.to);
+    const qs = params.toString();
+    return httpBlob(`/users/${userId}/transactions.csv${qs ? `?${qs}` : ''}`);
   },
-  exportJsonUrl: (userId: number) => `${API_BASE}/users/${userId}/export.json`,
-  exportCsvUrl: (userId: number) => `${API_BASE}/users/${userId}/transactions.csv`,
-  exportSelection: async (userId: number, body: { entities: string[]; from?: string | null; to?: string | null }) => {
-    const res = await fetch(`${API_BASE}/users/${userId}/export`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      if (res.status === 401) notifyUnauthorized();
-      let message = `HTTP ${res.status}`;
-      try { const data = await res.json() as { error?: string }; if (data?.error) message = data.error; } catch { /* keep */ }
-      throw new Error(message);
-    }
-    return await res.blob();
-  },
+  exportSelection: (userId: number, body: { entities: string[]; from?: string | null; to?: string | null }) =>
+    httpBlob(`/users/${userId}/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   importJson: (userId: number, payload: unknown) =>
-    http<{ institutions: { created: number; reused: number }; accounts: { created: number; reused: number }; categories: { created: number; reused: number }; rules: { created: number; reused: number }; transactions: { created: number; skipped: number }; budgets: { created: number; updated: number }; recurring: { created: number; skipped: number }; goals: { created: number; reused: number }; goal_contributions: { created: number; skipped: number }; bills: { created: number; reused: number }; snapshots: { created: number; updated: number } }>(
-      `/users/${userId}/import.json`, { method: 'POST', body: JSON.stringify({ payload }) }),
+    http<BackupImportSummary>(`/users/${userId}/import.json`, { method: 'POST', body: JSON.stringify({ payload }) }),
   search: (userId: number, q: string) => http<SearchResult[]>(`/users/${userId}/search?q=${encodeURIComponent(q)}`),
   statistics: (userId: number, range: string, currency: string, excludeUncategorized: boolean, from?: string | null, to?: string | null) => {
     const params = new URLSearchParams({ range, currency, exclude_uncategorized: String(excludeUncategorized) });
