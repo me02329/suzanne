@@ -264,12 +264,7 @@ export const api = {
     http<{ saved: number; created: number; updated: number }>(`/users/${userId}/account-snapshots/batch`, { method: 'POST', body: JSON.stringify(body) }),
   deleteSnapshot: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/account-snapshots/${id}`, { method: 'DELETE' }),
   importCsv: (userId: number, body: { csv: string; account_id?: number | null; date_format?: string; mapping?: { date: string; amount: string; description?: string | null; type?: string | null } }) =>
-    http<{
-      imported: number;
-      skipped: number;
-      duplicates_count: number;
-      duplicates: Array<{ line: number; date: string; amount: number; description: string; reason: 'existing' | 'file' }>;
-    }>(`/users/${userId}/import.csv`, { method: 'POST', body: JSON.stringify(body) }),
+    http<ImportResult>(`/users/${userId}/import.csv`, { method: 'POST', body: JSON.stringify(body) }),
   importStatement: (userId: number, body: StatementImportBody) =>
     http<ImportResult>(`/users/${userId}/import.statement`, { method: 'POST', body: JSON.stringify(body) }),
   importMappings: (userId: number) => http<ImportMapping[]>(`/users/${userId}/import-mappings`),

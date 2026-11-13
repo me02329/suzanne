@@ -372,6 +372,10 @@ export interface ImportResult {
   skipped: number;
   duplicates_count: number;
   duplicates: Array<{ line: number; date: string; amount: number; description: string; reason: 'existing' | 'file' }>;
+  // Lignes datées avant le premier solde connu du compte (`reference_date`) :
+  // elles reconstruisent l'historique mais ne modifient pas le solde actuel.
+  before_reference?: number;
+  reference_date?: string | null;
 }
 
 // Résumé d'un import JSON / d'une restauration de sauvegarde (idempotent :

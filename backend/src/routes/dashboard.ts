@@ -328,15 +328,50 @@ export function computeAccountBalancesAt(
 ) {
   const snapshotsUntil = snapshots.filter((s) => s.date <= at);
   const transactionsUntil = transactions.filter((t) => t.date <= at);
-  // An account is eligible at `at` if either its initial balance is dated
-  // before `at`, or — crucially — a snapshot earlier than `at` exists for
-  // it. The latter lets users created in May 2026 still anchor their
-  // April balance via a back-dated snapshot.
+  // Éligible « en avant » : solde initial daté ≤ at, ou relevé ≤ at (un compte
+  // créé en mai peut ancrer avril via un relevé antidaté).
   const accountsWithEarlierSnap = new Set(snapshotsUntil.map((s) => s.account_id));
-  const eligibleAccounts = accounts.filter((a) =>
-    a.initial_balance_date <= at || accountsWithEarlierSnap.has(a.id),
+  const forward = new Set(accounts.filter((a) => a.initial_balance_date <= at || accountsWithEarlierSnap.has(a.id)).map((a) => a.id));
+  const forwardRows = new Map(
+    computeAccountBalances(accounts.filter((a) => forward.has(a.id)), transactionsUntil, snapshotsUntil, fx)
+      .map((row) => [row.account_id, row]),
   );
-  return computeAccountBalances(eligibleAccounts, transactionsUntil, snapshotsUntil, fx);
+  // Avant toute ancre : reconstruction à rebours depuis la première ancre, si le
+  // compte a déjà au moins un mouvement à cette date.
+  const touches = (t: BalanceTx, id: number) => t.account_id === id || (t.type === 'transfer' && t.to_account_id === id);
+  const delta = (t: BalanceTx, id: number) => (t.account_id === id ? sourceDelta(t) : 0)
+    + (t.type === 'transfer' && t.to_account_id === id ? t.to_amount ?? t.amount : 0);
+  return accounts.flatMap((account) => {
+    const row = forwardRows.get(account.id);
+    if (row) return [row];
+    if (!transactionsUntil.some((t) => touches(t, account.id))) return [];
+    const firstSnap = snapshots.filter((s) => s.account_id === account.id).sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+    const anchorIsInit = !firstSnap || account.initial_balance_date <= firstSnap.date;
+    const anchorDate = anchorIsInit ? account.initial_balance_date : firstSnap!.date;
+    const anchorValue = anchorIsInit ? account.initial_balance : firstSnap!.balance;
+    const between = transactions
+      .filter((t) => touches(t, account.id) && t.date > at && (anchorIsInit ? t.date < anchorDate : t.date <= anchorDate))
+      .reduce((sum, t) => sum + delta(t, account.id), 0);
+    return [balanceRow(account, anchorValue - between, fx)];
+  });
+}
+
+function balanceRow(account: AccountRow, raw: number, fx: Map<string, number>): AccountBalanceRow {
+  const rawBalance = raw * (fx.get(account.currency) ?? 1);
+  const isLiability = isLiabilityAccount(account.type);
+  const balance = isLiability ? Math.abs(rawBalance) : rawBalance;
+  return {
+    account_id: account.id,
+    name: account.name,
+    type: account.type,
+    currency: account.currency,
+    type_label: accountTypeLabel(account.type as AccountType),
+    group: accountTypeGroup(account.type as AccountType),
+    group_label: accountGroupLabel(accountTypeGroup(account.type as AccountType)),
+    balance,
+    signed_balance: isLiability ? -balance : balance,
+    is_liability: isLiability,
+  };
 }
 
 type AccountBalanceRow = ReturnType<typeof computeAccountBalances>[number];
@@ -428,14 +463,19 @@ export function computeWealthSeries(
   });
 }
 
-// Replay one account's events over ascending `dates`, returning its raw
-// own-currency balance at each date (null until the account becomes eligible).
-// Order within a day: opening (0) < transactions (1) < snapshot (2). So a
-// same-day transaction is added then discarded by a same-day snapshot
-// (snapshots are authoritative and count only strictly-later transactions),
-// while the opening balance counts same-day transactions (>= its date). A
-// snapshot also supersedes the opening balance, so once any snapshot has been
-// seen the opening event no longer resets the running balance.
+// Solde brut (devise du compte) d'un compte à chaque date de `dates` (fin de
+// journée), ou null tant que le compte n'existe pas encore.
+//
+// Modèle « ancres » : le solde initial (ouverture du jour D, avant les
+// mouvements de D) et chaque relevé de solde (fin du jour S) sont des soldes
+// CONNUS. À une date t :
+// - s'il existe une ancre ≤ t, on part de la plus récente (un relevé l'emporte
+//   toujours sur le solde initial) et on avance avec les mouvements postérieurs ;
+// - sinon (t avant toute ancre — ex. historique importé après coup, antérieur
+//   au solde saisi), on RECULE depuis la première ancre : solde connu moins les
+//   mouvements situés entre t et l'ancre. Le compte apparaît dès son premier
+//   mouvement. Importer des opérations passées ne modifie donc jamais le solde
+//   actuel ni les soldes saisis : ça ne fait que remplir l'historique.
 function sweepAccount(
   account: AccountRow,
   sourceTxns: BalanceTx[],
@@ -443,29 +483,50 @@ function sweepAccount(
   snaps: Array<{ date: Date; balance: number }>,
   dates: Date[],
 ): Array<number | null> {
-  type Ev = { t: number; order: 0 | 1 | 2; kind: 'init' | 'tx' | 'snap'; v: number };
-  const events: Ev[] = [
-    { t: account.initial_balance_date.getTime(), order: 0, kind: 'init', v: account.initial_balance },
-  ];
-  for (const x of sourceTxns) events.push({ t: x.date.getTime(), order: 1, kind: 'tx', v: sourceDelta(x) });
-  for (const x of transferIns) events.push({ t: x.date.getTime(), order: 1, kind: 'tx', v: x.to_amount ?? x.amount });
-  for (const s of snaps) events.push({ t: s.date.getTime(), order: 2, kind: 'snap', v: s.balance });
-  events.sort((a, b) => a.t - b.t || a.order - b.order);
+  const moves = [
+    ...sourceTxns.map((x) => ({ t: x.date.getTime(), v: sourceDelta(x) })),
+    ...transferIns.map((x) => ({ t: x.date.getTime(), v: x.to_amount ?? x.amount })),
+  ].sort((a, b) => a.t - b.t);
+  const prefix = [0];
+  for (const m of moves) prefix.push(prefix[prefix.length - 1]! + m.v);
+  // Somme des mouvements de date dans ]lo, hi] (hiInclusive) ou ]lo, hi[.
+  const upperIndex = (t: number, inclusive: boolean) => {
+    let lo = 0; let hi = moves.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (inclusive ? moves[mid]!.t <= t : moves[mid]!.t < t) lo = mid + 1; else hi = mid; }
+    return lo;
+  };
+  const sumBetween = (afterT: number, untilT: number, untilInclusive: boolean) =>
+    prefix[upperIndex(untilT, untilInclusive)]! - prefix[upperIndex(afterT, true)]!;
+
+  const init = { t: account.initial_balance_date.getTime(), v: account.initial_balance };
+  const sortedSnaps = snaps.map((x) => ({ t: x.date.getTime(), v: x.balance })).sort((a, b) => a.t - b.t);
+  const firstSnap = sortedSnaps[0];
+  // Première ancre chronologique (à égalité de jour, l'ouverture précède le relevé).
+  const firstAnchor = !firstSnap || init.t <= firstSnap.t
+    ? { kind: 'init' as const, ...init }
+    : { kind: 'snap' as const, ...firstSnap };
+  const firstMove = moves[0]?.t ?? Infinity;
+  const existsFrom = Math.min(firstAnchor.t, firstMove);
 
   const out: Array<number | null> = [];
-  let balance = 0;
-  let started = false;
-  let snapped = false;
-  let ei = 0;
+  let si = -1; // index du dernier relevé ≤ date courante
   for (const date of dates) {
     const dt = date.getTime();
-    while (ei < events.length && events[ei]!.t <= dt) {
-      const e = events[ei++]!;
-      if (e.kind === 'init') { if (!snapped) balance = e.v; started = true; }
-      else if (e.kind === 'snap') { balance = e.v; snapped = true; started = true; }
-      else if (started) balance += e.v;
+    while (si + 1 < sortedSnaps.length && sortedSnaps[si + 1]!.t <= dt) si += 1;
+    if (dt < existsFrom) { out.push(null); continue; }
+    if (si >= 0) {
+      const snap = sortedSnaps[si]!;
+      out.push(snap.v + sumBetween(snap.t, dt, true));
+    } else if (init.t <= dt) {
+      // Ouverture : les mouvements du jour D comptent (>= D).
+      out.push(init.v + sumBetween(init.t - 1, dt, true));
+    } else if (firstAnchor.kind === 'init') {
+      // Avant l'ouverture : solde d'ouverture moins les mouvements de ]t, D[.
+      out.push(firstAnchor.v - sumBetween(dt, firstAnchor.t, false));
+    } else {
+      // Avant le premier relevé : relevé moins les mouvements de ]t, S].
+      out.push(firstAnchor.v - sumBetween(dt, firstAnchor.t, true));
     }
-    out.push(started ? balance : null);
   }
   return out;
 }

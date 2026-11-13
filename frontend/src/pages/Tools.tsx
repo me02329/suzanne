@@ -330,6 +330,12 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
           <div className="import-summary">
             <strong>{lastCsvImport.imported} transactions importées</strong>
             <span>{lastCsvImport.skipped} lignes ignorées, dont {lastCsvImport.duplicates_count} doublons.</span>
+            {(lastCsvImport.before_reference ?? 0) > 0 && (
+              <span>
+                {lastCsvImport.before_reference} opération(s) antérieure(s) au solde de référence du compte ({lastCsvImport.reference_date}) :
+                elles complètent l'historique sans modifier le solde actuel.
+              </span>
+            )}
             {lastCsvImport.duplicates.length > 0 && (
               <div className="duplicate-list">
                 {lastCsvImport.duplicates.slice(0, 12).map((duplicate) => (

@@ -194,7 +194,23 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
   // Une seule insertion batch (au lieu d'un INSERT par ligne) : import atomique
   // et beaucoup plus rapide sur les gros relevés.
   if (toCreate.length > 0) await prisma.transaction.createMany({ data: toCreate });
-  return { imported: toCreate.length, skipped: baseSkipped + duplicates.length, duplicates_count: duplicates.length, duplicates };
+  // Lignes antérieures au premier solde connu du compte (solde initial ou
+  // relevé) : elles complètent l'historique sans changer le solde actuel.
+  let before_reference = 0;
+  let reference_date: string | null = null;
+  if (account_id != null && toCreate.length > 0) {
+    const [account, firstSnap] = await Promise.all([
+      prisma.account.findUnique({ where: { id: account_id }, select: { initial_balance_date: true } }),
+      prisma.accountSnapshot.findFirst({ where: { account_id }, orderBy: { date: 'asc' }, select: { date: true } }),
+    ]);
+    const candidates = [account?.initial_balance_date, firstSnap?.date].filter((d): d is Date => d != null);
+    const ref = candidates.sort((a, b) => a.getTime() - b.getTime())[0];
+    if (ref) {
+      reference_date = ref.toISOString().slice(0, 10);
+      before_reference = toCreate.filter((row) => row.date < ref).length;
+    }
+  }
+  return { imported: toCreate.length, skipped: baseSkipped + duplicates.length, duplicates_count: duplicates.length, duplicates, before_reference, reference_date };
 }
 
 // Mappings CSV sauvegardés (« profils de banque »).
