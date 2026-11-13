@@ -1,0 +1,2749 @@
+{
+ "dashboard 2026-01": {
+  "month": "2026-01",
+  "currency": "EUR",
+  "exchange_rates": {
+   "EUR": 1
+  },
+  "fx_degraded": [],
+  "income": 2500,
+  "expenses": 452,
+  "net": 2048,
+  "balance": 18035,
+  "balance_assets": 18125,
+  "balance_liabilities": 90,
+  "net_worth": 18035,
+  "unassigned_balance": -45,
+  "unassigned_count": 1,
+  "account_balances": [
+   {
+    "account_id": 1,
+    "name": "Compte courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 0,
+    "signed_balance": 0,
+    "is_liability": false
+   },
+   {
+    "account_id": 2,
+    "name": "G Courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 12305,
+    "signed_balance": 12305,
+    "is_liability": false
+   },
+   {
+    "account_id": 3,
+    "name": "G Livret",
+    "type": "savings",
+    "currency": "EUR",
+    "type_label": "Épargne",
+    "group": "regulated_savings",
+    "group_label": "Livrets",
+    "balance": 5600,
+    "signed_balance": 5600,
+    "is_liability": false
+   },
+   {
+    "account_id": 4,
+    "name": "G Carte",
+    "type": "credit",
+    "currency": "EUR",
+    "type_label": "Carte / crédit",
+    "group": "liabilities",
+    "group_label": "Passifs",
+    "balance": 90,
+    "signed_balance": -90,
+    "is_liability": true
+   },
+   {
+    "account_id": 5,
+    "name": "G Espèces",
+    "type": "cash",
+    "currency": "EUR",
+    "type_label": "Espèces",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 265,
+    "signed_balance": 265,
+    "is_liability": false
+   }
+  ],
+  "balance_by_group": [
+   {
+    "group": "cash",
+    "label": "Liquidités",
+    "amount": 12525,
+    "signed_amount": 12525,
+    "is_liability": false
+   },
+   {
+    "group": "regulated_savings",
+    "label": "Livrets",
+    "amount": 5600,
+    "signed_amount": 5600,
+    "is_liability": false
+   },
+   {
+    "group": "liabilities",
+    "label": "Passifs",
+    "amount": 90,
+    "signed_amount": -90,
+    "is_liability": true
+   }
+  ],
+  "monthly_cashflow": [
+   {
+    "month": "2025-02",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-03",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-04",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-05",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-06",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-07",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-08",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-09",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-10",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-11",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-12",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2026-01",
+    "income": 2500,
+    "expenses": 452,
+    "expenses_signed": -452,
+    "net": 2048,
+    "cumulative_net": 2048
+   }
+  ],
+  "expenses_by_category": [
+   {
+    "category_id": 8,
+    "name": "G Courses",
+    "color": "#123456",
+    "amount": 270
+   },
+   {
+    "category_id": 9,
+    "name": "G Loisirs",
+    "color": "#123456",
+    "amount": 50
+   },
+   {
+    "category_id": 10,
+    "name": "G Santé",
+    "color": "#123456",
+    "amount": 132
+   }
+  ]
+ },
+ "budgets 2026-01": [
+  {
+   "id": 1,
+   "user_id": 1,
+   "category_id": 8,
+   "month": "2026-01",
+   "amount_limit": 300,
+   "recurring": true,
+   "rollover": true,
+   "spent": 270,
+   "carried_over": 0,
+   "effective_limit": 300,
+   "remaining": 30
+  }
+ ],
+ "bills 2026-01": {
+  "month": "2026-01",
+  "due_count": 1,
+  "paid_count": 1,
+  "expected_total": 52.5,
+  "paid_total": 52,
+  "bills": [
+   {
+    "bill": {
+     "id": 1,
+     "user_id": 1,
+     "account_id": 2,
+     "category_id": null,
+     "name": "G Électricité",
+     "amount_min": 40,
+     "amount_max": 65,
+     "start_date": "2026-01-10",
+     "frequency": "monthly",
+     "interval": 1,
+     "pattern": "EDF",
+     "active": true
+    },
+    "due": true,
+    "expected_date": "2026-01-10",
+    "status": "paid",
+    "paid_amount": 52,
+    "in_range": true,
+    "matched_transactions": [
+     {
+      "id": 21,
+      "amount": 52,
+      "date": "2026-01-11",
+      "description": "EDF facture",
+      "manual": false
+     }
+    ]
+   }
+  ]
+ },
+ "transactions 2026-01": [
+  {
+   "id": 8,
+   "type": "expense",
+   "amount": 80,
+   "date": "2026-01-20T00:00:00.000Z",
+   "account_id": 4,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 10,
+   "description": "Pharmacie",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 7,
+   "type": "expense",
+   "amount": 200,
+   "date": "2026-01-12T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": null,
+   "description": "Achat mixte",
+   "cleared": false,
+   "splits": [
+    {
+     "category_id": 8,
+     "amount": 150
+    },
+    {
+     "category_id": 9,
+     "amount": 50
+    }
+   ],
+   "tag_ids": [
+    1
+   ]
+  },
+  {
+   "id": 21,
+   "type": "expense",
+   "amount": 52,
+   "date": "2026-01-11T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 10,
+   "description": "EDF facture",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 6,
+   "type": "expense",
+   "amount": 120,
+   "date": "2026-01-10T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 8,
+   "description": "Supermarché",
+   "cleared": true,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 1,
+   "type": "income",
+   "amount": 2500,
+   "date": "2026-01-05T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 11,
+   "description": "Salaire",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  }
+ ],
+ "dashboard 2026-02": {
+  "month": "2026-02",
+  "currency": "EUR",
+  "exchange_rates": {
+   "EUR": 1
+  },
+  "fx_degraded": [],
+  "income": 2560,
+  "expenses": -48,
+  "net": 2608,
+  "balance": 18035,
+  "balance_assets": 18125,
+  "balance_liabilities": 90,
+  "net_worth": 18035,
+  "unassigned_balance": -45,
+  "unassigned_count": 1,
+  "account_balances": [
+   {
+    "account_id": 1,
+    "name": "Compte courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 0,
+    "signed_balance": 0,
+    "is_liability": false
+   },
+   {
+    "account_id": 2,
+    "name": "G Courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 12305,
+    "signed_balance": 12305,
+    "is_liability": false
+   },
+   {
+    "account_id": 3,
+    "name": "G Livret",
+    "type": "savings",
+    "currency": "EUR",
+    "type_label": "Épargne",
+    "group": "regulated_savings",
+    "group_label": "Livrets",
+    "balance": 5600,
+    "signed_balance": 5600,
+    "is_liability": false
+   },
+   {
+    "account_id": 4,
+    "name": "G Carte",
+    "type": "credit",
+    "currency": "EUR",
+    "type_label": "Carte / crédit",
+    "group": "liabilities",
+    "group_label": "Passifs",
+    "balance": 90,
+    "signed_balance": -90,
+    "is_liability": true
+   },
+   {
+    "account_id": 5,
+    "name": "G Espèces",
+    "type": "cash",
+    "currency": "EUR",
+    "type_label": "Espèces",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 265,
+    "signed_balance": 265,
+    "is_liability": false
+   }
+  ],
+  "balance_by_group": [
+   {
+    "group": "cash",
+    "label": "Liquidités",
+    "amount": 12525,
+    "signed_amount": 12525,
+    "is_liability": false
+   },
+   {
+    "group": "regulated_savings",
+    "label": "Livrets",
+    "amount": 5600,
+    "signed_amount": 5600,
+    "is_liability": false
+   },
+   {
+    "group": "liabilities",
+    "label": "Passifs",
+    "amount": 90,
+    "signed_amount": -90,
+    "is_liability": true
+   }
+  ],
+  "monthly_cashflow": [
+   {
+    "month": "2025-03",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-04",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-05",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-06",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-07",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-08",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-09",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-10",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-11",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-12",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2026-01",
+    "income": 2500,
+    "expenses": 452,
+    "expenses_signed": -452,
+    "net": 2048,
+    "cumulative_net": 2048
+   },
+   {
+    "month": "2026-02",
+    "income": 2560,
+    "expenses": -48,
+    "expenses_signed": 48,
+    "net": 2608,
+    "cumulative_net": 4656
+   }
+  ],
+  "expenses_by_category": [
+   {
+    "category_id": 10,
+    "name": "G Santé",
+    "color": "#123456",
+    "amount": -8
+   },
+   {
+    "category_id": 8,
+    "name": "G Courses",
+    "color": "#123456",
+    "amount": -30
+   },
+   {
+    "category_id": 9,
+    "name": "G Loisirs",
+    "color": "#123456",
+    "amount": -10
+   }
+  ]
+ },
+ "budgets 2026-02": [
+  {
+   "id": 3,
+   "user_id": 1,
+   "category_id": 8,
+   "month": "2026-02",
+   "amount_limit": 300,
+   "recurring": true,
+   "rollover": false,
+   "spent": -30,
+   "carried_over": 0,
+   "effective_limit": 300,
+   "remaining": 330
+  },
+  {
+   "id": 2,
+   "user_id": 1,
+   "category_id": 9,
+   "month": "2026-02",
+   "amount_limit": 100,
+   "recurring": false,
+   "rollover": false,
+   "spent": -10,
+   "carried_over": 0,
+   "effective_limit": 100,
+   "remaining": 110
+  }
+ ],
+ "bills 2026-02": {
+  "month": "2026-02",
+  "due_count": 1,
+  "paid_count": 1,
+  "expected_total": 52.5,
+  "paid_total": 48,
+  "bills": [
+   {
+    "bill": {
+     "id": 1,
+     "user_id": 1,
+     "account_id": 2,
+     "category_id": null,
+     "name": "G Électricité",
+     "amount_min": 40,
+     "amount_max": 65,
+     "start_date": "2026-01-10",
+     "frequency": "monthly",
+     "interval": 1,
+     "pattern": "EDF",
+     "active": true
+    },
+    "due": true,
+    "expected_date": "2026-02-10",
+    "status": "paid",
+    "paid_amount": 48,
+    "in_range": true,
+    "matched_transactions": [
+     {
+      "id": 22,
+      "amount": 48,
+      "date": "2026-02-10",
+      "description": "EDF facture",
+      "manual": false
+     }
+    ]
+   }
+  ]
+ },
+ "transactions 2026-02": [
+  {
+   "id": 22,
+   "type": "expense",
+   "amount": 48,
+   "date": "2026-02-10T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 10,
+   "description": "EDF facture",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 11,
+   "type": "transfer",
+   "amount": 500,
+   "date": "2026-02-10T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": 3,
+   "to_amount": 500,
+   "category_id": null,
+   "description": "Épargne",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 10,
+   "type": "income",
+   "amount": 100,
+   "date": "2026-02-05T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 11,
+   "description": "Prime + remboursement",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 2,
+   "type": "income",
+   "amount": 2500,
+   "date": "2026-02-05T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 11,
+   "description": "Salaire",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 9,
+   "type": "income",
+   "amount": 56,
+   "date": "2026-02-02T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": null,
+   "description": "CPAM",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  }
+ ],
+ "dashboard 2026-03": {
+  "month": "2026-03",
+  "currency": "EUR",
+  "exchange_rates": {
+   "EUR": 1
+  },
+  "fx_degraded": [],
+  "income": 2500,
+  "expenses": 136,
+  "net": 2364,
+  "balance": 18035,
+  "balance_assets": 18125,
+  "balance_liabilities": 90,
+  "net_worth": 18035,
+  "unassigned_balance": -45,
+  "unassigned_count": 1,
+  "account_balances": [
+   {
+    "account_id": 1,
+    "name": "Compte courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 0,
+    "signed_balance": 0,
+    "is_liability": false
+   },
+   {
+    "account_id": 2,
+    "name": "G Courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 12305,
+    "signed_balance": 12305,
+    "is_liability": false
+   },
+   {
+    "account_id": 3,
+    "name": "G Livret",
+    "type": "savings",
+    "currency": "EUR",
+    "type_label": "Épargne",
+    "group": "regulated_savings",
+    "group_label": "Livrets",
+    "balance": 5600,
+    "signed_balance": 5600,
+    "is_liability": false
+   },
+   {
+    "account_id": 4,
+    "name": "G Carte",
+    "type": "credit",
+    "currency": "EUR",
+    "type_label": "Carte / crédit",
+    "group": "liabilities",
+    "group_label": "Passifs",
+    "balance": 90,
+    "signed_balance": -90,
+    "is_liability": true
+   },
+   {
+    "account_id": 5,
+    "name": "G Espèces",
+    "type": "cash",
+    "currency": "EUR",
+    "type_label": "Espèces",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 265,
+    "signed_balance": 265,
+    "is_liability": false
+   }
+  ],
+  "balance_by_group": [
+   {
+    "group": "cash",
+    "label": "Liquidités",
+    "amount": 12525,
+    "signed_amount": 12525,
+    "is_liability": false
+   },
+   {
+    "group": "regulated_savings",
+    "label": "Livrets",
+    "amount": 5600,
+    "signed_amount": 5600,
+    "is_liability": false
+   },
+   {
+    "group": "liabilities",
+    "label": "Passifs",
+    "amount": 90,
+    "signed_amount": -90,
+    "is_liability": true
+   }
+  ],
+  "monthly_cashflow": [
+   {
+    "month": "2025-04",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-05",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-06",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-07",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-08",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-09",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-10",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-11",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-12",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2026-01",
+    "income": 2500,
+    "expenses": 452,
+    "expenses_signed": -452,
+    "net": 2048,
+    "cumulative_net": 2048
+   },
+   {
+    "month": "2026-02",
+    "income": 2560,
+    "expenses": -48,
+    "expenses_signed": 48,
+    "net": 2608,
+    "cumulative_net": 4656
+   },
+   {
+    "month": "2026-03",
+    "income": 2500,
+    "expenses": 136,
+    "expenses_signed": -136,
+    "net": 2364,
+    "cumulative_net": 7020
+   }
+  ],
+  "expenses_by_category": [
+   {
+    "category_id": null,
+    "name": "Sans catégorie",
+    "color": "#9ca3af",
+    "amount": 30
+   },
+   {
+    "category_id": 8,
+    "name": "G Courses",
+    "color": "#123456",
+    "amount": 45
+   },
+   {
+    "category_id": 10,
+    "name": "G Santé",
+    "color": "#123456",
+    "amount": 61
+   }
+  ]
+ },
+ "budgets 2026-03": [
+  {
+   "id": 4,
+   "user_id": 1,
+   "category_id": 8,
+   "month": "2026-03",
+   "amount_limit": 300,
+   "recurring": true,
+   "rollover": false,
+   "spent": 45,
+   "carried_over": 0,
+   "effective_limit": 300,
+   "remaining": 255
+  }
+ ],
+ "bills 2026-03": {
+  "month": "2026-03",
+  "due_count": 1,
+  "paid_count": 1,
+  "expected_total": 52.5,
+  "paid_total": 61,
+  "bills": [
+   {
+    "bill": {
+     "id": 1,
+     "user_id": 1,
+     "account_id": 2,
+     "category_id": null,
+     "name": "G Électricité",
+     "amount_min": 40,
+     "amount_max": 65,
+     "start_date": "2026-01-10",
+     "frequency": "monthly",
+     "interval": 1,
+     "pattern": "EDF",
+     "active": true
+    },
+    "due": true,
+    "expected_date": "2026-03-10",
+    "status": "paid",
+    "paid_amount": 61,
+    "in_range": true,
+    "matched_transactions": [
+     {
+      "id": 23,
+      "amount": 61,
+      "date": "2026-03-12",
+      "description": "EDF facture",
+      "manual": false
+     }
+    ]
+   }
+  ]
+ },
+ "transactions 2026-03": [
+  {
+   "id": 23,
+   "type": "expense",
+   "amount": 61,
+   "date": "2026-03-12T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 10,
+   "description": "EDF facture",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 14,
+   "type": "expense",
+   "amount": 45,
+   "date": "2026-03-07T00:00:00.000Z",
+   "account_id": null,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 8,
+   "description": "Sans compte",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 13,
+   "type": "expense",
+   "amount": 30,
+   "date": "2026-03-05T00:00:00.000Z",
+   "account_id": 5,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": null,
+   "description": "Marché",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 3,
+   "type": "income",
+   "amount": 2500,
+   "date": "2026-03-05T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 11,
+   "description": "Salaire",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 12,
+   "type": "transfer",
+   "amount": 300,
+   "date": "2026-03-02T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": 5,
+   "to_amount": 295,
+   "category_id": null,
+   "description": "Retrait DAB",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  }
+ ],
+ "dashboard 2026-04": {
+  "month": "2026-04",
+  "currency": "EUR",
+  "exchange_rates": {
+   "EUR": 1
+  },
+  "fx_degraded": [],
+  "income": 2500,
+  "expenses": -10,
+  "net": 2510,
+  "balance": 18035,
+  "balance_assets": 18125,
+  "balance_liabilities": 90,
+  "net_worth": 18035,
+  "unassigned_balance": -45,
+  "unassigned_count": 1,
+  "account_balances": [
+   {
+    "account_id": 1,
+    "name": "Compte courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 0,
+    "signed_balance": 0,
+    "is_liability": false
+   },
+   {
+    "account_id": 2,
+    "name": "G Courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 12305,
+    "signed_balance": 12305,
+    "is_liability": false
+   },
+   {
+    "account_id": 3,
+    "name": "G Livret",
+    "type": "savings",
+    "currency": "EUR",
+    "type_label": "Épargne",
+    "group": "regulated_savings",
+    "group_label": "Livrets",
+    "balance": 5600,
+    "signed_balance": 5600,
+    "is_liability": false
+   },
+   {
+    "account_id": 4,
+    "name": "G Carte",
+    "type": "credit",
+    "currency": "EUR",
+    "type_label": "Carte / crédit",
+    "group": "liabilities",
+    "group_label": "Passifs",
+    "balance": 90,
+    "signed_balance": -90,
+    "is_liability": true
+   },
+   {
+    "account_id": 5,
+    "name": "G Espèces",
+    "type": "cash",
+    "currency": "EUR",
+    "type_label": "Espèces",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 265,
+    "signed_balance": 265,
+    "is_liability": false
+   }
+  ],
+  "balance_by_group": [
+   {
+    "group": "cash",
+    "label": "Liquidités",
+    "amount": 12525,
+    "signed_amount": 12525,
+    "is_liability": false
+   },
+   {
+    "group": "regulated_savings",
+    "label": "Livrets",
+    "amount": 5600,
+    "signed_amount": 5600,
+    "is_liability": false
+   },
+   {
+    "group": "liabilities",
+    "label": "Passifs",
+    "amount": 90,
+    "signed_amount": -90,
+    "is_liability": true
+   }
+  ],
+  "monthly_cashflow": [
+   {
+    "month": "2025-05",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-06",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-07",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-08",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-09",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-10",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-11",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-12",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2026-01",
+    "income": 2500,
+    "expenses": 452,
+    "expenses_signed": -452,
+    "net": 2048,
+    "cumulative_net": 2048
+   },
+   {
+    "month": "2026-02",
+    "income": 2560,
+    "expenses": -48,
+    "expenses_signed": 48,
+    "net": 2608,
+    "cumulative_net": 4656
+   },
+   {
+    "month": "2026-03",
+    "income": 2500,
+    "expenses": 136,
+    "expenses_signed": -136,
+    "net": 2364,
+    "cumulative_net": 7020
+   },
+   {
+    "month": "2026-04",
+    "income": 2500,
+    "expenses": -10,
+    "expenses_signed": 10,
+    "net": 2510,
+    "cumulative_net": 9530
+   }
+  ],
+  "expenses_by_category": [
+   {
+    "category_id": 9,
+    "name": "G Loisirs",
+    "color": "#123456",
+    "amount": 10
+   },
+   {
+    "category_id": 8,
+    "name": "G Courses",
+    "color": "#123456",
+    "amount": -20
+   },
+   {
+    "category_id": null,
+    "name": "Sans catégorie",
+    "color": "#9ca3af",
+    "amount": 0
+   }
+  ]
+ },
+ "budgets 2026-04": [
+  {
+   "id": 5,
+   "user_id": 1,
+   "category_id": 8,
+   "month": "2026-04",
+   "amount_limit": 300,
+   "recurring": true,
+   "rollover": false,
+   "spent": -20,
+   "carried_over": 0,
+   "effective_limit": 300,
+   "remaining": 320
+  }
+ ],
+ "bills 2026-04": {
+  "month": "2026-04",
+  "due_count": 1,
+  "paid_count": 0,
+  "expected_total": 52.5,
+  "paid_total": 0,
+  "bills": [
+   {
+    "bill": {
+     "id": 1,
+     "user_id": 1,
+     "account_id": 2,
+     "category_id": null,
+     "name": "G Électricité",
+     "amount_min": 40,
+     "amount_max": 65,
+     "start_date": "2026-01-10",
+     "frequency": "monthly",
+     "interval": 1,
+     "pattern": "EDF",
+     "active": true
+    },
+    "due": true,
+    "expected_date": "2026-04-10",
+    "status": "late",
+    "paid_amount": 0,
+    "in_range": null,
+    "matched_transactions": []
+   }
+  ]
+ },
+ "transactions 2026-04": [
+  {
+   "id": 19,
+   "type": "transfer",
+   "amount": 80,
+   "date": "2026-04-25T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": 4,
+   "to_amount": 80,
+   "category_id": null,
+   "description": "Prélèvement carte",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 18,
+   "type": "income",
+   "amount": 100,
+   "date": "2026-04-20T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": null,
+   "description": "Retour commande",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 17,
+   "type": "expense",
+   "amount": 100,
+   "date": "2026-04-15T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": null,
+   "description": "Commande",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 16,
+   "type": "income",
+   "amount": 70,
+   "date": "2026-04-10T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": null,
+   "description": "Remboursements amis",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 4,
+   "type": "income",
+   "amount": 2500,
+   "date": "2026-04-05T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 11,
+   "description": "Salaire",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 15,
+   "type": "expense",
+   "amount": 60,
+   "date": "2026-04-01T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 9,
+   "description": "Concert",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  }
+ ],
+ "dashboard 2026-05": {
+  "month": "2026-05",
+  "currency": "EUR",
+  "exchange_rates": {
+   "EUR": 1
+  },
+  "fx_degraded": [],
+  "income": 2500,
+  "expenses": 90,
+  "net": 2410,
+  "balance": 18035,
+  "balance_assets": 18125,
+  "balance_liabilities": 90,
+  "net_worth": 18035,
+  "unassigned_balance": -45,
+  "unassigned_count": 1,
+  "account_balances": [
+   {
+    "account_id": 1,
+    "name": "Compte courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 0,
+    "signed_balance": 0,
+    "is_liability": false
+   },
+   {
+    "account_id": 2,
+    "name": "G Courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 12305,
+    "signed_balance": 12305,
+    "is_liability": false
+   },
+   {
+    "account_id": 3,
+    "name": "G Livret",
+    "type": "savings",
+    "currency": "EUR",
+    "type_label": "Épargne",
+    "group": "regulated_savings",
+    "group_label": "Livrets",
+    "balance": 5600,
+    "signed_balance": 5600,
+    "is_liability": false
+   },
+   {
+    "account_id": 4,
+    "name": "G Carte",
+    "type": "credit",
+    "currency": "EUR",
+    "type_label": "Carte / crédit",
+    "group": "liabilities",
+    "group_label": "Passifs",
+    "balance": 90,
+    "signed_balance": -90,
+    "is_liability": true
+   },
+   {
+    "account_id": 5,
+    "name": "G Espèces",
+    "type": "cash",
+    "currency": "EUR",
+    "type_label": "Espèces",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 265,
+    "signed_balance": 265,
+    "is_liability": false
+   }
+  ],
+  "balance_by_group": [
+   {
+    "group": "cash",
+    "label": "Liquidités",
+    "amount": 12525,
+    "signed_amount": 12525,
+    "is_liability": false
+   },
+   {
+    "group": "regulated_savings",
+    "label": "Livrets",
+    "amount": 5600,
+    "signed_amount": 5600,
+    "is_liability": false
+   },
+   {
+    "group": "liabilities",
+    "label": "Passifs",
+    "amount": 90,
+    "signed_amount": -90,
+    "is_liability": true
+   }
+  ],
+  "monthly_cashflow": [
+   {
+    "month": "2025-06",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-07",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-08",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-09",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-10",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-11",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-12",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2026-01",
+    "income": 2500,
+    "expenses": 452,
+    "expenses_signed": -452,
+    "net": 2048,
+    "cumulative_net": 2048
+   },
+   {
+    "month": "2026-02",
+    "income": 2560,
+    "expenses": -48,
+    "expenses_signed": 48,
+    "net": 2608,
+    "cumulative_net": 4656
+   },
+   {
+    "month": "2026-03",
+    "income": 2500,
+    "expenses": 136,
+    "expenses_signed": -136,
+    "net": 2364,
+    "cumulative_net": 7020
+   },
+   {
+    "month": "2026-04",
+    "income": 2500,
+    "expenses": -10,
+    "expenses_signed": 10,
+    "net": 2510,
+    "cumulative_net": 9530
+   },
+   {
+    "month": "2026-05",
+    "income": 2500,
+    "expenses": 90,
+    "expenses_signed": -90,
+    "net": 2410,
+    "cumulative_net": 11940
+   }
+  ],
+  "expenses_by_category": [
+   {
+    "category_id": 8,
+    "name": "G Courses",
+    "color": "#123456",
+    "amount": 30
+   },
+   {
+    "category_id": 9,
+    "name": "G Loisirs",
+    "color": "#123456",
+    "amount": 30
+   },
+   {
+    "category_id": 10,
+    "name": "G Santé",
+    "color": "#123456",
+    "amount": 30
+   }
+  ]
+ },
+ "budgets 2026-05": [
+  {
+   "id": 6,
+   "user_id": 1,
+   "category_id": 8,
+   "month": "2026-05",
+   "amount_limit": 300,
+   "recurring": true,
+   "rollover": false,
+   "spent": 30,
+   "carried_over": 0,
+   "effective_limit": 300,
+   "remaining": 270
+  }
+ ],
+ "bills 2026-05": {
+  "month": "2026-05",
+  "due_count": 1,
+  "paid_count": 0,
+  "expected_total": 52.5,
+  "paid_total": 0,
+  "bills": [
+   {
+    "bill": {
+     "id": 1,
+     "user_id": 1,
+     "account_id": 2,
+     "category_id": null,
+     "name": "G Électricité",
+     "amount_min": 40,
+     "amount_max": 65,
+     "start_date": "2026-01-10",
+     "frequency": "monthly",
+     "interval": 1,
+     "pattern": "EDF",
+     "active": true
+    },
+    "due": true,
+    "expected_date": "2026-05-10",
+    "status": "late",
+    "paid_amount": 0,
+    "in_range": null,
+    "matched_transactions": []
+   }
+  ]
+ },
+ "transactions 2026-05": [
+  {
+   "id": 5,
+   "type": "income",
+   "amount": 2500,
+   "date": "2026-05-05T00:00:00.000Z",
+   "account_id": 2,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 11,
+   "description": "Salaire",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  },
+  {
+   "id": 20,
+   "type": "expense",
+   "amount": 90,
+   "date": "2026-05-03T00:00:00.000Z",
+   "account_id": 4,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": null,
+   "description": "Ventilé en trois",
+   "cleared": false,
+   "splits": [
+    {
+     "category_id": 8,
+     "amount": 30
+    },
+    {
+     "category_id": 9,
+     "amount": 30
+    },
+    {
+     "category_id": 10,
+     "amount": 30
+    }
+   ],
+   "tag_ids": []
+  }
+ ],
+ "dashboard 2026-06": {
+  "month": "2026-06",
+  "currency": "EUR",
+  "exchange_rates": {
+   "EUR": 1
+  },
+  "fx_degraded": [],
+  "income": 0,
+  "expenses": 0,
+  "net": 0,
+  "balance": 18035,
+  "balance_assets": 18125,
+  "balance_liabilities": 90,
+  "net_worth": 18035,
+  "unassigned_balance": -45,
+  "unassigned_count": 1,
+  "account_balances": [
+   {
+    "account_id": 1,
+    "name": "Compte courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 0,
+    "signed_balance": 0,
+    "is_liability": false
+   },
+   {
+    "account_id": 2,
+    "name": "G Courant",
+    "type": "checking",
+    "currency": "EUR",
+    "type_label": "Compte courant",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 12305,
+    "signed_balance": 12305,
+    "is_liability": false
+   },
+   {
+    "account_id": 3,
+    "name": "G Livret",
+    "type": "savings",
+    "currency": "EUR",
+    "type_label": "Épargne",
+    "group": "regulated_savings",
+    "group_label": "Livrets",
+    "balance": 5600,
+    "signed_balance": 5600,
+    "is_liability": false
+   },
+   {
+    "account_id": 4,
+    "name": "G Carte",
+    "type": "credit",
+    "currency": "EUR",
+    "type_label": "Carte / crédit",
+    "group": "liabilities",
+    "group_label": "Passifs",
+    "balance": 90,
+    "signed_balance": -90,
+    "is_liability": true
+   },
+   {
+    "account_id": 5,
+    "name": "G Espèces",
+    "type": "cash",
+    "currency": "EUR",
+    "type_label": "Espèces",
+    "group": "cash",
+    "group_label": "Liquidités",
+    "balance": 265,
+    "signed_balance": 265,
+    "is_liability": false
+   }
+  ],
+  "balance_by_group": [
+   {
+    "group": "cash",
+    "label": "Liquidités",
+    "amount": 12525,
+    "signed_amount": 12525,
+    "is_liability": false
+   },
+   {
+    "group": "regulated_savings",
+    "label": "Livrets",
+    "amount": 5600,
+    "signed_amount": 5600,
+    "is_liability": false
+   },
+   {
+    "group": "liabilities",
+    "label": "Passifs",
+    "amount": 90,
+    "signed_amount": -90,
+    "is_liability": true
+   }
+  ],
+  "monthly_cashflow": [
+   {
+    "month": "2025-07",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-08",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-09",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-10",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-11",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2025-12",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 0
+   },
+   {
+    "month": "2026-01",
+    "income": 2500,
+    "expenses": 452,
+    "expenses_signed": -452,
+    "net": 2048,
+    "cumulative_net": 2048
+   },
+   {
+    "month": "2026-02",
+    "income": 2560,
+    "expenses": -48,
+    "expenses_signed": 48,
+    "net": 2608,
+    "cumulative_net": 4656
+   },
+   {
+    "month": "2026-03",
+    "income": 2500,
+    "expenses": 136,
+    "expenses_signed": -136,
+    "net": 2364,
+    "cumulative_net": 7020
+   },
+   {
+    "month": "2026-04",
+    "income": 2500,
+    "expenses": -10,
+    "expenses_signed": 10,
+    "net": 2510,
+    "cumulative_net": 9530
+   },
+   {
+    "month": "2026-05",
+    "income": 2500,
+    "expenses": 90,
+    "expenses_signed": -90,
+    "net": 2410,
+    "cumulative_net": 11940
+   },
+   {
+    "month": "2026-06",
+    "income": 0,
+    "expenses": 0,
+    "expenses_signed": 0,
+    "net": 0,
+    "cumulative_net": 11940
+   }
+  ],
+  "expenses_by_category": []
+ },
+ "budgets 2026-06": [
+  {
+   "id": 7,
+   "user_id": 1,
+   "category_id": 8,
+   "month": "2026-06",
+   "amount_limit": 300,
+   "recurring": true,
+   "rollover": false,
+   "spent": 0,
+   "carried_over": 0,
+   "effective_limit": 300,
+   "remaining": 300
+  }
+ ],
+ "bills 2026-06": {
+  "month": "2026-06",
+  "due_count": 1,
+  "paid_count": 0,
+  "expected_total": 52.5,
+  "paid_total": 0,
+  "bills": [
+   {
+    "bill": {
+     "id": 1,
+     "user_id": 1,
+     "account_id": 2,
+     "category_id": null,
+     "name": "G Électricité",
+     "amount_min": 40,
+     "amount_max": 65,
+     "start_date": "2026-01-10",
+     "frequency": "monthly",
+     "interval": 1,
+     "pattern": "EDF",
+     "active": true
+    },
+    "due": true,
+    "expected_date": "2026-06-10",
+    "status": "late",
+    "paid_amount": 0,
+    "in_range": null,
+    "matched_transactions": []
+   }
+  ]
+ },
+ "transactions 2026-06": [],
+ "statistics": {
+  "range": "custom",
+  "currency": "EUR",
+  "from": "2026-01-01",
+  "to": "2026-06-30",
+  "exclude_uncategorized": false,
+  "total_expenses": 620,
+  "total_categorized": 590,
+  "total_uncategorized": 30,
+  "transactions_count": 15,
+  "by_category": [
+   {
+    "category_id": 8,
+    "name": "G Courses",
+    "color": "#123456",
+    "amount": 295,
+    "transactions_count": 6
+   },
+   {
+    "category_id": 10,
+    "name": "G Santé",
+    "color": "#123456",
+    "amount": 215,
+    "transactions_count": 6
+   },
+   {
+    "category_id": 9,
+    "name": "G Loisirs",
+    "color": "#123456",
+    "amount": 80,
+    "transactions_count": 5
+   },
+   {
+    "category_id": null,
+    "name": "Sans catégorie",
+    "color": "#9ca3af",
+    "amount": 30,
+    "transactions_count": 3
+   }
+  ],
+  "by_merchant": [
+   {
+    "description": "EDF facture",
+    "amount": 161,
+    "transactions_count": 3
+   },
+   {
+    "description": "Achat mixte",
+    "amount": 160,
+    "transactions_count": 2
+   },
+   {
+    "description": "Supermarché",
+    "amount": 100,
+    "transactions_count": 2
+   },
+   {
+    "description": "Ventilé en trois",
+    "amount": 90,
+    "transactions_count": 1
+   },
+   {
+    "description": "Sans compte",
+    "amount": 45,
+    "transactions_count": 1
+   },
+   {
+    "description": "Marché",
+    "amount": 30,
+    "transactions_count": 1
+   },
+   {
+    "description": "Pharmacie",
+    "amount": 24,
+    "transactions_count": 2
+   },
+   {
+    "description": "Concert",
+    "amount": 10,
+    "transactions_count": 2
+   },
+   {
+    "description": "Commande",
+    "amount": 0,
+    "transactions_count": 2
+   }
+  ],
+  "monthly": [
+   {
+    "month": "2026-01",
+    "amount": 452
+   },
+   {
+    "month": "2026-02",
+    "amount": -48
+   },
+   {
+    "month": "2026-03",
+    "amount": 136
+   },
+   {
+    "month": "2026-04",
+    "amount": -10
+   },
+   {
+    "month": "2026-05",
+    "amount": 90
+   },
+   {
+    "month": "2026-06",
+    "amount": 0
+   }
+  ],
+  "cashflow": {
+   "monthly": [
+    {
+     "month": "2026-01",
+     "income": 2500,
+     "expenses": 452,
+     "expenses_signed": -452,
+     "net": 2048,
+     "cumulative_net": 2048
+    },
+    {
+     "month": "2026-02",
+     "income": 2560,
+     "expenses": -48,
+     "expenses_signed": 48,
+     "net": 2608,
+     "cumulative_net": 4656
+    },
+    {
+     "month": "2026-03",
+     "income": 2500,
+     "expenses": 136,
+     "expenses_signed": -136,
+     "net": 2364,
+     "cumulative_net": 7020
+    },
+    {
+     "month": "2026-04",
+     "income": 2500,
+     "expenses": -10,
+     "expenses_signed": 10,
+     "net": 2510,
+     "cumulative_net": 9530
+    },
+    {
+     "month": "2026-05",
+     "income": 2500,
+     "expenses": 90,
+     "expenses_signed": -90,
+     "net": 2410,
+     "cumulative_net": 11940
+    },
+    {
+     "month": "2026-06",
+     "income": 0,
+     "expenses": 0,
+     "expenses_signed": 0,
+     "net": 0,
+     "cumulative_net": 11940
+    }
+   ],
+   "yearly": [
+    {
+     "year": "2026",
+     "income": 12560,
+     "expenses": 620,
+     "net": 11940
+    }
+   ]
+  }
+ },
+ "wealth": [
+  {
+   "date": "2026-01-31",
+   "currency": "EUR",
+   "assets": 8128,
+   "liabilities": 80,
+   "net_worth": 8048,
+   "by_group": {
+    "regulated_savings": 5000,
+    "cash": 3128,
+    "liabilities": -80
+   },
+   "by_account": {
+    "1": 0,
+    "2": 3128,
+    "3": 5000,
+    "4": -80,
+    "5": 0
+   }
+  },
+  {
+   "date": "2026-02-28",
+   "currency": "EUR",
+   "assets": 10736,
+   "liabilities": 80,
+   "net_worth": 10656,
+   "by_group": {
+    "regulated_savings": 5500,
+    "cash": 5236,
+    "liabilities": -80
+   },
+   "by_account": {
+    "1": 0,
+    "2": 5236,
+    "3": 5500,
+    "4": -80,
+    "5": 0
+   }
+  },
+  {
+   "date": "2026-03-31",
+   "currency": "EUR",
+   "assets": 13195,
+   "liabilities": 80,
+   "net_worth": 13115,
+   "by_group": {
+    "cash": 7595,
+    "regulated_savings": 5600,
+    "liabilities": -80
+   },
+   "by_account": {
+    "1": 0,
+    "2": 7375,
+    "3": 5600,
+    "4": -80,
+    "5": 265
+   }
+  },
+  {
+   "date": "2026-04-30",
+   "currency": "EUR",
+   "assets": 15625,
+   "liabilities": 0,
+   "net_worth": 15625,
+   "by_group": {
+    "cash": 10025,
+    "regulated_savings": 5600,
+    "liabilities": 0
+   },
+   "by_account": {
+    "1": 0,
+    "2": 9805,
+    "3": 5600,
+    "4": 0,
+    "5": 265
+   }
+  },
+  {
+   "date": "2026-05-31",
+   "currency": "EUR",
+   "assets": 18125,
+   "liabilities": 90,
+   "net_worth": 18035,
+   "by_group": {
+    "cash": 12525,
+    "regulated_savings": 5600,
+    "liabilities": -90
+   },
+   "by_account": {
+    "1": 0,
+    "2": 12305,
+    "3": 5600,
+    "4": -90,
+    "5": 265
+   }
+  },
+  {
+   "date": "2026-06-30",
+   "currency": "EUR",
+   "assets": 18125,
+   "liabilities": 90,
+   "net_worth": 18035,
+   "by_group": {
+    "cash": 12525,
+    "regulated_savings": 5600,
+    "liabilities": -90
+   },
+   "by_account": {
+    "1": 0,
+    "2": 12305,
+    "3": 5600,
+    "4": -90,
+    "5": 265
+   }
+  }
+ ],
+ "accounts": [
+  {
+   "id": 1,
+   "user_id": 1,
+   "institution_id": null,
+   "name": "Compte courant",
+   "type": "checking",
+   "currency": "EUR",
+   "initial_balance": 0,
+   "initial_balance_date": "2026-11-13T00:00:00.000Z",
+   "archived": false
+  },
+  {
+   "id": 4,
+   "user_id": 1,
+   "institution_id": null,
+   "name": "G Carte",
+   "type": "credit",
+   "currency": "EUR",
+   "initial_balance": 0,
+   "initial_balance_date": "2026-01-01T00:00:00.000Z",
+   "archived": false
+  },
+  {
+   "id": 2,
+   "user_id": 1,
+   "institution_id": null,
+   "name": "G Courant",
+   "type": "checking",
+   "currency": "EUR",
+   "initial_balance": 1000,
+   "initial_balance_date": "2026-01-01T00:00:00.000Z",
+   "archived": false
+  },
+  {
+   "id": 5,
+   "user_id": 1,
+   "institution_id": null,
+   "name": "G Espèces",
+   "type": "cash",
+   "currency": "EUR",
+   "initial_balance": 0,
+   "initial_balance_date": "2026-03-01T00:00:00.000Z",
+   "archived": false
+  },
+  {
+   "id": 3,
+   "user_id": 1,
+   "institution_id": null,
+   "name": "G Livret",
+   "type": "savings",
+   "currency": "EUR",
+   "initial_balance": 5000,
+   "initial_balance_date": "2026-01-01T00:00:00.000Z",
+   "archived": false
+  }
+ ],
+ "activity Compte courant": {
+  "inflow": 0,
+  "outflow": 0,
+  "cleared_balance": 0,
+  "uncleared_count": 0,
+  "recent": []
+ },
+ "activity G Carte": {
+  "inflow": 80,
+  "outflow": 170,
+  "cleared_balance": 0,
+  "uncleared_count": 3,
+  "recent": [
+   {
+    "id": 20,
+    "type": "expense",
+    "amount": 90,
+    "date": "2026-05-03T00:00:00.000Z",
+    "account_id": 4,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": null,
+    "description": "Ventilé en trois",
+    "cleared": false,
+    "splits": [
+     {
+      "category_id": 8,
+      "amount": 30
+     },
+     {
+      "category_id": 9,
+      "amount": 30
+     },
+     {
+      "category_id": 10,
+      "amount": 30
+     }
+    ],
+    "tag_ids": []
+   },
+   {
+    "id": 19,
+    "type": "transfer",
+    "amount": 80,
+    "date": "2026-04-25T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": 4,
+    "to_amount": 80,
+    "category_id": null,
+    "description": "Prélèvement carte",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 8,
+    "type": "expense",
+    "amount": 80,
+    "date": "2026-01-20T00:00:00.000Z",
+    "account_id": 4,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 10,
+    "description": "Pharmacie",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   }
+  ]
+ },
+ "activity G Courant": {
+  "inflow": 12826,
+  "outflow": 1521,
+  "cleared_balance": 880,
+  "uncleared_count": 18,
+  "recent": [
+   {
+    "id": 5,
+    "type": "income",
+    "amount": 2500,
+    "date": "2026-05-05T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 11,
+    "description": "Salaire",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 19,
+    "type": "transfer",
+    "amount": 80,
+    "date": "2026-04-25T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": 4,
+    "to_amount": 80,
+    "category_id": null,
+    "description": "Prélèvement carte",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 18,
+    "type": "income",
+    "amount": 100,
+    "date": "2026-04-20T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": null,
+    "description": "Retour commande",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 17,
+    "type": "expense",
+    "amount": 100,
+    "date": "2026-04-15T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": null,
+    "description": "Commande",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 16,
+    "type": "income",
+    "amount": 70,
+    "date": "2026-04-10T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": null,
+    "description": "Remboursements amis",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 4,
+    "type": "income",
+    "amount": 2500,
+    "date": "2026-04-05T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 11,
+    "description": "Salaire",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 15,
+    "type": "expense",
+    "amount": 60,
+    "date": "2026-04-01T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 9,
+    "description": "Concert",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 23,
+    "type": "expense",
+    "amount": 61,
+    "date": "2026-03-12T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 10,
+    "description": "EDF facture",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 3,
+    "type": "income",
+    "amount": 2500,
+    "date": "2026-03-05T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 11,
+    "description": "Salaire",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 12,
+    "type": "transfer",
+    "amount": 300,
+    "date": "2026-03-02T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": 5,
+    "to_amount": 295,
+    "category_id": null,
+    "description": "Retrait DAB",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 22,
+    "type": "expense",
+    "amount": 48,
+    "date": "2026-02-10T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 10,
+    "description": "EDF facture",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 11,
+    "type": "transfer",
+    "amount": 500,
+    "date": "2026-02-10T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": 3,
+    "to_amount": 500,
+    "category_id": null,
+    "description": "Épargne",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 10,
+    "type": "income",
+    "amount": 100,
+    "date": "2026-02-05T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 11,
+    "description": "Prime + remboursement",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 2,
+    "type": "income",
+    "amount": 2500,
+    "date": "2026-02-05T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 11,
+    "description": "Salaire",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 9,
+    "type": "income",
+    "amount": 56,
+    "date": "2026-02-02T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": null,
+    "description": "CPAM",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 7,
+    "type": "expense",
+    "amount": 200,
+    "date": "2026-01-12T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": null,
+    "description": "Achat mixte",
+    "cleared": false,
+    "splits": [
+     {
+      "category_id": 8,
+      "amount": 150
+     },
+     {
+      "category_id": 9,
+      "amount": 50
+     }
+    ],
+    "tag_ids": [
+     1
+    ]
+   },
+   {
+    "id": 21,
+    "type": "expense",
+    "amount": 52,
+    "date": "2026-01-11T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 10,
+    "description": "EDF facture",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 6,
+    "type": "expense",
+    "amount": 120,
+    "date": "2026-01-10T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 8,
+    "description": "Supermarché",
+    "cleared": true,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 1,
+    "type": "income",
+    "amount": 2500,
+    "date": "2026-01-05T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": 11,
+    "description": "Salaire",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   }
+  ]
+ },
+ "activity G Espèces": {
+  "inflow": 295,
+  "outflow": 30,
+  "cleared_balance": 0,
+  "uncleared_count": 2,
+  "recent": [
+   {
+    "id": 13,
+    "type": "expense",
+    "amount": 30,
+    "date": "2026-03-05T00:00:00.000Z",
+    "account_id": 5,
+    "to_account_id": null,
+    "to_amount": null,
+    "category_id": null,
+    "description": "Marché",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   },
+   {
+    "id": 12,
+    "type": "transfer",
+    "amount": 300,
+    "date": "2026-03-02T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": 5,
+    "to_amount": 295,
+    "category_id": null,
+    "description": "Retrait DAB",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   }
+  ]
+ },
+ "activity G Livret": {
+  "inflow": 500,
+  "outflow": 0,
+  "cleared_balance": 5000,
+  "uncleared_count": 1,
+  "recent": [
+   {
+    "id": 11,
+    "type": "transfer",
+    "amount": 500,
+    "date": "2026-02-10T00:00:00.000Z",
+    "account_id": 2,
+    "to_account_id": 3,
+    "to_amount": 500,
+    "category_id": null,
+    "description": "Épargne",
+    "cleared": false,
+    "splits": [],
+    "tag_ids": []
+   }
+  ]
+ },
+ "unassigned": [
+  {
+   "id": 14,
+   "type": "expense",
+   "amount": 45,
+   "date": "2026-03-07T00:00:00.000Z",
+   "account_id": null,
+   "to_account_id": null,
+   "to_amount": null,
+   "category_id": 8,
+   "description": "Sans compte",
+   "cleared": false,
+   "splits": [],
+   "tag_ids": []
+  }
+ ]
+}

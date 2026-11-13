@@ -28,6 +28,8 @@ beforeAll(() => {
 });
 
 beforeEach(async () => {
+  // Test de migration : on compare une base restaurée, il ne faut pas la vider.
+  if (process.env.GOLDEN === 'skip-seed') return;
   await prisma.$executeRawUnsafe(
     `TRUNCATE ${TABLES.map((t) => `"${t}"`).join(', ')} RESTART IDENTITY CASCADE`,
   );
