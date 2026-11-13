@@ -1,0 +1,23 @@
+# LF partout (évite les fichiers mi-CRLF mi-LF sous Windows et les
+# avertissements « LF will be replaced by CRLF »).
+* text=auto eol=lf
+
+*.ts text
+*.tsx text
+*.js text
+*.mjs text
+*.json text
+*.css text
+*.md text
+*.sql text
+*.prisma text
+*.yml text
+*.html text
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
