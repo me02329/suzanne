@@ -28,6 +28,7 @@ import { PeaPerformance } from '../components/pea/PeaPerformance';
 import { PeaOrders } from '../components/pea/PeaOrders';
 import { PeaRecap } from '../components/pea/PeaRecap';
 import { AccountFormModal } from '../components/accounts/AccountFormModal';
+import { ReconciliationPanel } from '../components/accounts/ReconciliationPanel';
 import type { Run } from '../lib/run';
 import '../styles/pages/accounts.css';
 import '../styles/pages/account-detail.css';
@@ -295,7 +296,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
 
       {!isEnvelope && activity && (
         <details className="acc-fold">
-          <summary>Rapprochement{activity.uncleared_count > 0 && <span className="acc-count">{activity.uncleared_count} non pointé{activity.uncleared_count > 1 ? 's' : ''}</span>}</summary>
+          <summary>Pointage{activity.uncleared_count > 0 && <span className="acc-count">{activity.uncleared_count} non pointé{activity.uncleared_count > 1 ? 's' : ''}</span>}</summary>
           <div className="ad-fold-body">
             <p className="acc-muted">Solde pointé : <b className="num">{nativeMoney(activity.cleared_balance)}</b>. Saisis le solde de ton relevé : écart nul = compte rapproché.</p>
             <label className="ad-field">Solde du relevé ({account.currency})
@@ -307,6 +308,14 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
           </div>
         </details>
       )}
+
+      <ReconciliationPanel
+        userId={userId}
+        accountId={account.id}
+        currency={account.currency}
+        refreshKey={`${accountSnapshots.length}-${accountSnapshots[0]?.balance ?? ''}-${account.initial_balance}-${summary?.net_worth ?? ''}`}
+        run={run}
+      />
 
       <details className="acc-fold">
         <summary>Relevés <span className="acc-count">{accountSnapshots.length}</span></summary>

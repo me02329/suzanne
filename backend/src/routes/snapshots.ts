@@ -150,8 +150,14 @@ snapshotsRouter.get('/users/:user_id/accounts/:account_id/reconciliation', async
       select: { amount: true, transaction: { select: { date: true, kind: true } } },
     }),
   ]);
+  // Même règle que le calcul des soldes : un relevé l'emporte sur le solde
+  // initial. Le solde initial n'est une ancre que s'il précède tous les relevés
+  // (sinon, souvent la date de création du compte avec 0 €, il inventerait des
+  // écarts au milieu de la chaîne de relevés).
+  const firstSnap = snaps[0];
+  const initialIsAnchor = !firstSnap || account.initial_balance_date <= firstSnap.date;
   const anchors: Anchor[] = [
-    { date: account.initial_balance_date, order: 0, kind: 'initial', value: account.initial_balance, id: null } as Anchor,
+    ...(initialIsAnchor ? [{ date: account.initial_balance_date, order: 0, kind: 'initial', value: account.initial_balance, id: null } as Anchor] : []),
     ...snaps.map((s) => ({ date: s.date, order: 2 as const, kind: 'snapshot' as const, value: s.balance, id: s.id })),
   ].sort((a, b) => a.date.getTime() - b.date.getTime() || a.order - b.order);
   // Position d'un mouvement : (date, 1) — après l'ouverture, avant le relevé du jour.
