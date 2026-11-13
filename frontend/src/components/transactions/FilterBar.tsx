@@ -7,11 +7,13 @@ import type { ClearedFilter, TransactionFiltersState, TxSortKey } from './useTra
 
 // Recherche toujours visible ; les autres filtres en ligne sur desktop,
 // derrière un bouton « Filtres (n) » sur mobile (feuille du bas).
-export function FilterBar({ state, categories, tags, mobile }: {
+export function FilterBar({ state, categories, tags, mobile, accounts = [] }: {
   state: TransactionFiltersState;
   categories: Category[];
   tags: Tag[];
   mobile: boolean;
+  /** Comptes proposés individuellement (filtre « account:<id> »). */
+  accounts?: Array<{ id: number; name: string; archived?: boolean }>;
 }) {
   const { t } = useTranslation();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -33,7 +35,15 @@ export function FilterBar({ state, categories, tags, mobile }: {
       </select>
       <select value={filters.accountGroup} onChange={(e) => state.setAccountGroup(e.target.value)} aria-label={t('Filtre de compte')}>
         <option value="all">{t('Tous les comptes')}</option>
-        {ACCOUNT_GROUPS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        <optgroup label={t('Par type')}>
+          {ACCOUNT_GROUPS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </optgroup>
+        {accounts.length > 0 && (
+          <optgroup label={t('Par compte')}>
+            {accounts.filter((a) => !a.archived || filters.accountGroup === `account:${a.id}`)
+              .map((a) => <option key={a.id} value={`account:${a.id}`}>{a.name}</option>)}
+          </optgroup>
+        )}
       </select>
       {tags.length > 0 && (
         <select value={filters.tagId} onChange={(e) => state.setTagId(e.target.value)} aria-label={t('Filtre de tag')}>

@@ -139,7 +139,7 @@ function SingleSimulator({ fmt, ccy, peaBalance }: { fmt: (v: number) => string;
         <div className="pg-section-head"><h2>Projection</h2></div>
         <div className="sim-chart">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
               <CartesianGrid stroke={theme.grid} vertical={false} />
               <XAxis dataKey="year" tickFormatter={(y) => `${y} a`} tick={theme.tick} tickLine={false} axisLine={false} minTickGap={16} />
               <YAxis tickFormatter={(v) => moneyCompact(Number(v), ccy)} tick={theme.tick} tickLine={false} axisLine={false} width={60} />
@@ -239,7 +239,7 @@ function Scenarios({ fmt, ccy }: { fmt: (v: number) => string; ccy: string }) {
         <div className="pg-section-head"><h2>Comparaison sur {years} ans</h2></div>
         <div className="sim-chart">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <LineChart data={chart} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
               <CartesianGrid stroke={theme.grid} vertical={false} />
               <XAxis dataKey="year" tickFormatter={(y) => `${y} a`} tick={theme.tick} tickLine={false} axisLine={false} minTickGap={16} />
               <YAxis tickFormatter={(v) => moneyCompact(Number(v), ccy)} tick={theme.tick} tickLine={false} axisLine={false} width={60} />
@@ -261,7 +261,7 @@ function ScenarioResult({ result, net, fmt, best }: { result: CompoundResult; ne
     <dl className="pea-dl">
       <div className="pea-total"><dt>Capital final{best && <small>le plus haut</small>}</dt><dd className="num">{fmt(result.finalTotal)}</dd></div>
       <div><dt>Net d’impôt</dt><dd className="num">{fmt(net)}</dd></div>
-      <div><dt>Versé</dt><dd className="num">{fmt(result.finalContributed)}</dd></div>
+      <div><dt>Versé{result.ceilingReachedMonth != null && <small title="Au-delà, les versements mensuels s'arrêtent : le PEA est plein.">plafond atteint en {Math.ceil((result.ceilingReachedMonth + 1) / 12)}e année</small>}</dt><dd className="num">{fmt(result.finalContributed)}</dd></div>
       <div><dt>Intérêts</dt><dd className="num income">{fmt(result.finalInterest)}</dd></div>
     </dl>
   );

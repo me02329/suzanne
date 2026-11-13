@@ -73,7 +73,11 @@ export function useTransactionFilters(source: Transaction[], categoryById: Map<n
         && !(t.splits ?? []).some((split) => String(split.category_id) === categoryId)) return false;
       const src = accountById.get(t.account_id ?? -1);
       const dest = accountById.get(t.to_account_id ?? -1);
-      if (accountGroup !== 'all') {
+      // « account:<id> » : un compte précis (lien depuis la fiche d'un compte).
+      if (accountGroup.startsWith('account:')) {
+        const id = Number(accountGroup.slice(8));
+        if (t.account_id !== id && t.to_account_id !== id && !(t.lines ?? []).some((l) => l.account_id === id)) return false;
+      } else if (accountGroup !== 'all') {
         const groups = [src ? accountTypeGroup(src.type) : null, dest ? accountTypeGroup(dest.type) : null];
         if (!groups.includes(accountGroup as ReturnType<typeof accountTypeGroup>)) return false;
       }

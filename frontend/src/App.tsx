@@ -107,6 +107,8 @@ export default function App() {
   const [moreOpen, setMoreOpen] = useState(false);
   // Mobile : la recherche est repliée derrière une icône.
   const [searchOpen, setSearchOpen] = useState(false);
+  // Barre d'onglets défilante (mobile) : l'onglet actif est ramené à l'écran.
+  const subnavRef = useRef<HTMLElement | null>(null);
   const [transactionIssueFilter, setTransactionIssueFilter] = useState<'unassigned_account' | null>(null);
   const [tokenPromptOpen, setTokenPromptOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -352,6 +354,10 @@ export default function App() {
   };
 
   const section = sectionForTab(tab);
+  useEffect(() => {
+    const active = subnavRef.current?.querySelector<HTMLElement>('.subnav-tab.active');
+    active?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [tab]);
   // Remember the current page so a fresh "/" reopens where the user left off.
   // Skip "/" itself (it only redirects) so it can't overwrite the saved tab.
   // Also drop the transaction issue filter on any route change away from
@@ -435,7 +441,7 @@ export default function App() {
           </div>
         </header>
         {section.tabs.length > 1 && (
-          <nav className="subnav" aria-label={t(section.label)}>
+          <nav className="subnav" aria-label={t(section.label)} ref={subnavRef}>
             {section.tabs.map((item) => (
               <button
                 key={item.tab}

@@ -84,14 +84,16 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
     const txParam = searchParams.get('tx');
     const typeParam = searchParams.get('type');
     const focusParam = searchParams.get('focus');
-    if ([category, q, monthParam, txParam, typeParam, focusParam].every((v) => v === null)) return;
+    const accountParam = searchParams.get('account');
+    if ([category, q, monthParam, txParam, typeParam, focusParam, accountParam].every((v) => v === null)) return;
     if (focusParam === 'quick') {
       const input = quickAmountRef.current;
       input?.scrollIntoView({ block: 'center' });
       input?.focus();
     }
-    if (category !== null || q !== null || monthParam !== null || txParam !== null || typeParam !== null) {
+    if (category !== null || q !== null || monthParam !== null || txParam !== null || typeParam !== null || accountParam !== null) {
       filters.reset();
+      if (accountParam !== null && /^d+$/.test(accountParam)) filters.setAccountGroup(`account:${accountParam}`);
       if (typeParam === 'income' || typeParam === 'expense' || typeParam === 'transfer') filters.setType(typeParam);
       if (category !== null) filters.setCategoryId(category);
       if (q !== null) filters.setQuery(q);
@@ -204,7 +206,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
       />
 
       <div className="panel jr-panel">
-        <FilterBar state={filters} categories={categories} tags={tags} mobile={mobile} />
+        <FilterBar state={filters} categories={categories} tags={tags} mobile={mobile} accounts={accounts} />
 
         <div className="jr-summary">
           <span className="jr-summary-count"><strong>{filters.filtered.length}</strong> {t(filters.filtered.length > 1 ? 'opérations' : 'opération')}</span>
