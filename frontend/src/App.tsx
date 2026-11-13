@@ -114,11 +114,12 @@ export default function App() {
   // burns tokens for nothing. Persisted alongside the user it belongs to so we
   // never show one user's chat to another. Streaming/abort live here too so a
   // tab switch mid-stream keeps the cancel button working.
+  const [aiStreaming, setAiStreaming] = useState(false);
   const [aiChat, setAiChat] = usePersistedState<{ userId: number | null; messages: ChatMessage[] }>(
     'ai_chat',
     { userId: null, messages: initialAssistantMessages() },
+    { pause: aiStreaming },
   );
-  const [aiStreaming, setAiStreaming] = useState(false);
   const aiAbortRef = useRef<AbortController | null>(null);
   const aiMessages = aiChat.userId === userId ? aiChat.messages : initialAssistantMessages();
   const setAiMessages: Dispatch<SetStateAction<ChatMessage[]>> = (update) => {
@@ -494,6 +495,7 @@ export default function App() {
             element={userId ? (
               <Transactions
                 userId={userId}
+                month={month}
                 transactions={transactions}
                 unassignedTransactions={unassignedTransactions}
                 issueFilter={transactionIssueFilter}
