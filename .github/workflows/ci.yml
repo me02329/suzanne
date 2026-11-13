@@ -60,7 +60,7 @@ jobs:
         run: npm run build
 
       - name: Apply migrations
-        run: npm run migrate:deploy -w @suzanne-lite/backend
+        run: npm run migrate:deploy -w @suzanne/backend
 
       - name: Integration tests
         run: npm run test:integration
