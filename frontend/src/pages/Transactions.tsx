@@ -41,8 +41,8 @@ function emptySplitDraft(): SplitDraft {
 
 function splitDraftsFromTransaction(transaction: Transaction): SplitDraft[] {
   return (transaction.splits ?? []).map((split) => ({
-    key: String(split.id),
-    category_id: String(split.category_id),
+    key: `${split.category_id}-${split.amount}-${Math.random().toString(36).slice(2)}`,
+    category_id: split.category_id == null ? "" : String(split.category_id),
     amount: String(split.amount),
     note: split.note ?? '',
   }));
@@ -217,7 +217,7 @@ export function Transactions({ userId, transactions, unassignedTransactions, iss
       sourceAccount?.name,
       destinationAccount?.name,
       categoryById.get(t.category_id ?? -1)?.name,
-      ...(t.splits ?? []).map((split) => categoryById.get(split.category_id)?.name),
+      ...(t.splits ?? []).map((split) => categoryById.get(split.category_id ?? -1)?.name),
       money(t.amount, sourceAccount?.currency ?? 'EUR'),
       String(t.amount),
       new Date(t.date).toLocaleDateString('fr-FR'),

@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { asyncHandler } from '../middleware/errors.js';
+import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { contributeSavingsGoalSchema, createSavingsGoalSchema, idParam, updateSavingsGoalSchema, withdrawSavingsGoalSchema } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
+import { buildLines, linesCreateData, type BuiltLines } from '../lib/ledger.js';
 
 export const goalsRouter = Router();
 
@@ -86,22 +87,20 @@ goalsRouter.post('/users/:user_id/savings-goals/:id/contribute', asyncHandler(as
     }
     createTransfer = true;
   }
+  // Lignes du virement construites hors transaction DB (buildLines peut
+  // interroger le fournisseur de taux si les devises diffèrent).
+  const built = createTransfer
+    ? await buildLines(prisma, user_id, { type: 'transfer', amount: body.amount, account_id: body.source_account_id!, to_account_id: goal.account_id!, date: body.date })
+    : null;
 
   // Transfert + trace du versement + bump du compteur dans une même transaction
   // DB : pas de versement enregistré sans la progression correspondante (et
   // inversement). La contribution garde l'historique (timeline par objectif).
   const { updated, transactionId } = await prisma.$transaction(async (tx) => {
-    const transfer = createTransfer
+    const transfer = built
       ? await tx.transaction.create({
-          data: {
-            user_id,
-            account_id: body.source_account_id!,
-            to_account_id: goal.account_id!,
-            type: 'transfer',
-            amount: round2(body.amount),
-            date: new Date(body.date),
-            description: body.description?.trim() || `Versement objectif: ${goal.name}`,
-          },
+          data: transferData(user_id, built, body.date, body.description?.trim() || `Versement objectif: ${goal.name}`),
+          select: { id: true },
         })
       : null;
     await tx.goalContribution.create({
@@ -114,9 +113,10 @@ goalsRouter.post('/users/:user_id/savings-goals/:id/contribute', asyncHandler(as
         description: body.description?.trim() || null,
       },
     });
+    // Incrément atomique : deux versements concurrents ne s'écrasent pas.
     const updatedGoal = await tx.savingsGoal.update({
       where: { id },
-      data: { current_amount: round2(goal.current_amount + body.amount) },
+      data: { current_amount: { increment: round2(body.amount) } },
     });
     return { updated: updatedGoal, transactionId: transfer?.id ?? null };
   });
@@ -157,19 +157,23 @@ goalsRouter.post('/users/:user_id/savings-goals/:id/withdraw', asyncHandler(asyn
     }
     createTransfer = true;
   }
+  const built = createTransfer
+    ? await buildLines(prisma, user_id, { type: 'transfer', amount: body.amount, account_id: goal.account_id!, to_account_id: body.destination_account_id!, date: body.date })
+    : null;
 
   const { updated, transactionId } = await prisma.$transaction(async (tx) => {
-    const transfer = createTransfer
+    // Décrément atomique et conditionnel : refusé si un autre retrait a fait
+    // passer le solde de l'objectif sous le montant demandé entre-temps.
+    const amount = round2(body.amount);
+    const dec = await tx.savingsGoal.updateMany({
+      where: { id, user_id, current_amount: { gte: amount - 0.005 } },
+      data: { current_amount: { decrement: amount } },
+    });
+    if (dec.count === 0) throw new HttpError(400, 'Le retrait dépasse le montant épargné sur cet objectif');
+    const transfer = built
       ? await tx.transaction.create({
-          data: {
-            user_id,
-            account_id: goal.account_id!,
-            to_account_id: body.destination_account_id!,
-            type: 'transfer',
-            amount: round2(body.amount),
-            date: new Date(body.date),
-            description: body.description?.trim() || `Retrait objectif: ${goal.name}`,
-          },
+          data: transferData(user_id, built, body.date, body.description?.trim() || `Retrait objectif: ${goal.name}`),
+          select: { id: true },
         })
       : null;
     await tx.goalContribution.create({
@@ -182,10 +186,9 @@ goalsRouter.post('/users/:user_id/savings-goals/:id/withdraw', asyncHandler(asyn
         description: body.description?.trim() || null,
       },
     });
-    const updatedGoal = await tx.savingsGoal.update({
-      where: { id },
-      data: { current_amount: round2(Math.max(0, goal.current_amount - body.amount)) },
-    });
+    // Résidu d'arrondi flottant : jamais sous 0.
+    await tx.savingsGoal.updateMany({ where: { id, current_amount: { lt: 0 } }, data: { current_amount: 0 } });
+    const updatedGoal = await tx.savingsGoal.findUniqueOrThrow({ where: { id } });
     return { updated: updatedGoal, transactionId: transfer?.id ?? null };
   });
   res.json({ goal: updated, transaction_id: transactionId });
@@ -224,10 +227,10 @@ goalsRouter.delete('/users/:user_id/savings-goals/:id/contributions/:contributio
   }
   const goal = await prisma.$transaction(async (tx) => {
     await tx.goalContribution.delete({ where: { id: contribution_id } });
-    return tx.savingsGoal.update({
-      where: { id },
-      data: { current_amount: round2(Math.max(0, contribution.goal.current_amount - contribution.amount)) },
-    });
+    // Décrément atomique (incrément pour un retrait annulé), puis clamp à 0.
+    await tx.savingsGoal.update({ where: { id }, data: { current_amount: { decrement: contribution.amount } } });
+    await tx.savingsGoal.updateMany({ where: { id, current_amount: { lt: 0 } }, data: { current_amount: 0 } });
+    return tx.savingsGoal.findUniqueOrThrow({ where: { id } });
   });
   res.json({ deleted: true, goal });
 }));
@@ -242,3 +245,15 @@ goalsRouter.delete('/users/:user_id/savings-goals/:id', asyncHandler(async (req,
   }
   res.json({ deleted: true });
 }));
+
+// Données de création du virement d'un versement / retrait (lignes source et
+// destination issues de buildLines, chacune dans la devise de son compte).
+function transferData(user_id: number, built: BuiltLines, date: string, description: string) {
+  return {
+    user_id,
+    kind: built.kind,
+    date: new Date(date),
+    description,
+    lines: { create: linesCreateData(user_id, built) },
+  };
+}

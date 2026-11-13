@@ -7,69 +7,16 @@ import { round2 } from '../lib/money.js';
 import { buildFx } from '../lib/fxHelper.js';
 import { buildFxByDate } from '../lib/fxStore.js';
 import { securitiesByAccountByDate, securitiesByAccountNow } from '../lib/holdingsValuation.js';
-import { categoryAllocations, isRefund, refundAllocatedAmount, refundCategoryAllocations } from '../lib/categorySpend.js';
+import { categoryTypeLookup, LEDGER_TX_SELECT, txFlows, type LedgerTx } from '../lib/ledger.js';
 import { addMonthsUtc, dateKey, startOfUtcDay } from '../lib/dates.js';
 
 export const dashboardRouter = Router();
 
-// Champs suffisants pour les calculs de soldes (wealth-history) ; le dashboard
-// mensuel y ajoute les relations splits/remboursements pour ses agrégats.
-type BalanceTx = {
-  id: number;
-  type: string;
-  amount: number;
-  to_amount: number | null;
-  date: Date;
-  category_id: number | null;
-  account_id: number | null;
-  to_account_id: number | null;
-  refunds_transaction_id: number | null;
-};
-type Tx = BalanceTx & {
-  splits: Array<{ category_id: number; amount: number }>;
-  refund_allocations_sent: Array<{
-    amount: number;
-    expense_transaction: {
-      amount: number;
-      category_id: number | null;
-      splits: Array<{ category_id: number; amount: number }>;
-    };
-  }>;
-};
+// Opération telle que lue par les agrégations : genre + lignes signées.
+type BalanceTx = Pick<LedgerTx, 'id' | 'kind' | 'date' | 'refunds_transaction_id' | 'lines'>;
 type AccountRow = { id: number; name: string; type: string; currency: string; initial_balance: number; initial_balance_date: Date };
+type Move = { date: Date; amount: number };
 
-// Projections minimales : ces endpoints chargent l'historique complet de
-// l'utilisateur à chaque appel — on ne matérialise que les colonnes utilisées
-// par les agrégations (les descriptions représentent l'essentiel du poids).
-// wealth-history n'a PAS besoin des splits/remboursements : les soldes ne
-// dépendent que des montants — on lui épargne ces jointures.
-const BALANCE_TX_SELECT = {
-  id: true,
-  type: true,
-  amount: true,
-  to_amount: true,
-  date: true,
-  category_id: true,
-  account_id: true,
-  to_account_id: true,
-  refunds_transaction_id: true,
-} as const;
-const TX_SELECT = {
-  ...BALANCE_TX_SELECT,
-  splits: { select: { category_id: true, amount: true } },
-  refund_allocations_sent: {
-    select: {
-      amount: true,
-      expense_transaction: {
-        select: {
-          amount: true,
-          category_id: true,
-          splits: { select: { category_id: true, amount: true } },
-        },
-      },
-    },
-  },
-} as const;
 const ACCOUNT_SELECT = {
   id: true,
   name: true,
@@ -89,11 +36,23 @@ const HOLDING_SELECT = {
   orders: { select: { id: true, side: true, date: true, quantity: true, unit_price: true, fee: true } },
 } as const;
 
-// Effet d'une transaction sur le compte dont elle est la source (account_id).
-// Un transfert débite le compte source ; le crédit du compte destination est
-// ajouté séparément dans computeBalance.
-function sourceDelta(t: { type: string; amount: number }): number {
-  return t.type === 'income' ? t.amount : -t.amount;
+// Mouvements par compte (somme des lignes de chaque compte, quel que soit le
+// genre de l'opération) et mouvements « hors compte » (lignes sans compte des
+// dépenses/revenus, à affecter).
+function accountMoves(transactions: BalanceTx[]): { byAccount: Map<number, Move[]>; unassigned: Move[] } {
+  const byAccount = new Map<number, Move[]>();
+  const unassigned: Move[] = [];
+  for (const t of transactions) {
+    for (const line of t.lines) {
+      if (line.account_id != null) {
+        const list = byAccount.get(line.account_id);
+        if (list) list.push({ date: t.date, amount: line.amount }); else byAccount.set(line.account_id, [{ date: t.date, amount: line.amount }]);
+      } else if (t.kind === 'standard') {
+        unassigned.push({ date: t.date, amount: line.amount });
+      }
+    }
+  }
+  return { byAccount, unassigned };
 }
 
 dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) => {
@@ -104,54 +63,43 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
 
   const [transactions, accounts, categories, snapshots, holdings] = await Promise.all([
-    prisma.transaction.findMany({ where: { user_id }, select: TX_SELECT }),
+    prisma.transaction.findMany({ where: { user_id }, select: LEDGER_TX_SELECT }),
     prisma.account.findMany({ where: { user_id }, select: ACCOUNT_SELECT }),
-    prisma.category.findMany({ where: { user_id }, select: { id: true, name: true, color: true } }),
+    prisma.category.findMany({ where: { user_id }, select: { id: true, name: true, color: true, type: true } }),
     prisma.accountSnapshot.findMany({ where: { user_id }, select: SNAPSHOT_SELECT }),
     prisma.holding.findMany({ where: { user_id }, select: HOLDING_SELECT }),
   ]);
   const { rates: fx, degraded: fxDegraded } = await buildFx(accounts, reportCurrency);
   const securities = await securitiesByAccountNow(holdings, accounts);
   const accountById = new Map(accounts.map((account) => [account.id, account]));
-  // Pas d'arrondi par transaction : les sommes sont arrondies une fois à la
-  // sortie (round2), comme dans buildCashflow — sinon l'arrondi cumulé diverge.
-  const txValue = (t: Tx, amount = t.amount) => amount * (fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1);
+  const categoryType = categoryTypeLookup(categories);
+  // Pas d'arrondi par ligne : les sommes sont arrondies une fois à la sortie.
+  const rateOf = (accountId: number | null) => fx.get(accountById.get(accountId ?? -1)?.currency ?? 'EUR') ?? 1;
 
-  const monthTransactions = transactions.filter((t) => t.date >= start && t.date < end);
-  const income = monthTransactions
-    .filter((t) => t.type === 'income')
-    .reduce((s, t) => s + txValue(t, Math.max(0, t.amount - refundAllocatedAmount(t))), 0);
-  const refunds = monthTransactions.filter(isRefund).reduce((s, t) => s + txValue(t, refundAllocatedAmount(t)), 0);
-  const expenses = monthTransactions.filter((t) => t.type === 'expense').reduce((s, t) => s + txValue(t), 0) - refunds;
+  let income = 0;
+  let expenses = 0;
+  const byCategory = new Map<number | null, number>();
+  for (const t of transactions) {
+    if (t.date < start || t.date >= end) continue;
+    for (const flow of txFlows(t, categoryType)) {
+      const value = flow.value * rateOf(flow.account_id);
+      if (flow.side === 'income') income += value;
+      else {
+        expenses += value;
+        // Dépenses par catégorie, nettes des remboursements (lignes positives).
+        byCategory.set(flow.category_id, (byCategory.get(flow.category_id) ?? 0) + value);
+      }
+    }
+  }
 
   const accountBalances = computeAccountBalances(accounts, transactions, snapshots, fx, securities);
   const unassignedBalance = computeUnassignedBalance(transactions);
-  // Count income/expense transactions left without an account so the UI can
-  // surface them as a fixable anomaly instead of silently folding them into
-  // the cash group.
-  const unassignedCount = transactions.filter((t) => t.account_id == null && t.type !== 'transfer').length;
+  // Dépenses/revenus sans compte : signalés comme anomalie corrigeable.
+  const unassignedCount = transactions.filter((t) => t.kind === 'standard' && t.lines.some((l) => l.account_id == null)).length;
   const assets = accountBalances.filter((a) => !a.is_liability).reduce((s, a) => s + a.balance, 0) + unassignedBalance;
   const liabilities = accountBalances.filter((a) => a.is_liability).reduce((s, a) => s + a.balance, 0);
   const netWorth = assets - liabilities;
   const balanceByGroup = buildBalanceByGroup(accountBalances, unassignedBalance);
-
-  // Dépenses par catégorie, nettes des remboursements : un remboursement vient
-  // en déduction de la catégorie de la dépense qu'il rembourse (la dépense liée
-  // peut être d'un autre mois — on la résout sur l'ensemble des transactions).
-  const txById = new Map(transactions.map((t) => [t.id, t]));
-  const byCategory = new Map<number | null, number>();
-  for (const t of monthTransactions) {
-    if (t.type === 'expense') {
-      for (const allocation of categoryAllocations(t)) {
-        byCategory.set(allocation.category_id, (byCategory.get(allocation.category_id) ?? 0) + txValue(t, allocation.amount));
-      }
-    } else if (t.type === 'income' && isRefund(t)) {
-      const target = t.refunds_transaction_id != null ? txById.get(t.refunds_transaction_id) : undefined;
-      for (const allocation of refundCategoryAllocations(t, target)) {
-        byCategory.set(allocation.category_id, (byCategory.get(allocation.category_id) ?? 0) - txValue(t, allocation.amount));
-      }
-    }
-  }
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
   res.json({
@@ -170,12 +118,12 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
     unassigned_count: unassignedCount,
     account_balances: accountBalances.map((a) => ({ ...a, balance: round2(a.balance), signed_balance: round2(a.signed_balance) })),
     balance_by_group: balanceByGroup,
-    monthly_cashflow: buildCashflow(transactions, start, accountById, fx),
-    yearly_cashflow: buildYearlyCashflow(transactions, accountById, fx),
+    monthly_cashflow: buildCashflow(transactions, start, categoryType, rateOf),
+    yearly_cashflow: buildYearlyCashflow(transactions, categoryType, rateOf),
     expenses_by_category: Array.from(byCategory.entries()).map(([category_id, amount]) => {
       const category = category_id ? categoryById.get(category_id) : null;
       return { category_id, name: category?.name ?? 'Sans catégorie', color: category?.color ?? '#9ca3af', amount: round2(amount) };
-    }),
+    }).sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name)),
   });
 }));
 
@@ -186,7 +134,7 @@ dashboardRouter.get('/users/:user_id/wealth-history', asyncHandler(async (req, r
   const reportCurrency = currencyQuery.parse(req.query.currency ?? 'EUR');
 
   const [transactions, accounts, snapshots, holdings] = await Promise.all([
-    prisma.transaction.findMany({ where: { user_id }, select: BALANCE_TX_SELECT }),
+    prisma.transaction.findMany({ where: { user_id }, select: LEDGER_TX_SELECT }),
     prisma.account.findMany({ where: { user_id }, select: ACCOUNT_SELECT }),
     prisma.accountSnapshot.findMany({ where: { user_id }, select: SNAPSHOT_SELECT }),
     prisma.holding.findMany({ where: { user_id }, select: HOLDING_SELECT }),
@@ -255,65 +203,23 @@ export function computeAccountBalances(
   fx: Map<string, number>,
   // Valeur de marché des titres par compte (devise du compte), ajoutée au cash.
   securitiesByAccount?: Map<number, number>,
-): Array<{
-  account_id: number;
-  name: string;
-  type: string;
-  currency: string;
-  type_label: string;
-  group: string;
-  group_label: string;
-  balance: number;
-  signed_balance: number;
-  is_liability: boolean;
-}> {
+): AccountBalanceRow[] {
   const latestSnapshot = new Map<number, { date: Date; balance: number }>();
   for (const s of snapshots) {
     const current = latestSnapshot.get(s.account_id);
     if (!current || s.date > current.date) latestSnapshot.set(s.account_id, { date: s.date, balance: s.balance });
   }
-
-  // Index transactions by the account they touch, once, so each account reads
-  // only its own movements instead of re-scanning the whole table per account
-  // (which made wealth-history O(dates × accounts × transactions)).
-  const bySource = new Map<number, BalanceTx[]>();
-  const byDest = new Map<number, BalanceTx[]>();
-  for (const t of transactions) {
-    if (t.account_id != null) {
-      const list = bySource.get(t.account_id);
-      if (list) list.push(t); else bySource.set(t.account_id, [t]);
-    }
-    if (t.type === 'transfer' && t.to_account_id != null) {
-      const list = byDest.get(t.to_account_id);
-      if (list) list.push(t); else byDest.set(t.to_account_id, [t]);
-    }
-  }
-
+  const { byAccount } = accountMoves(transactions);
   return accounts.map((account) => {
     const snap = latestSnapshot.get(account.id);
     const base = snap ? snap.balance : account.initial_balance;
     const since = snap ? snap.date : account.initial_balance_date;
-    const matches = (txDate: Date) => (snap ? txDate > since : txDate >= since);
-    const outgoing = (bySource.get(account.id) ?? [])
-      .reduce((s, t) => (matches(t.date) ? s + sourceDelta(t) : s), 0);
-    const incoming = (byDest.get(account.id) ?? [])
-      .reduce((s, t) => (matches(t.date) ? s + (t.to_amount ?? t.amount) : s), 0);
+    // Relevé = fin de journée (mouvements strictement après) ; solde initial =
+    // ouverture de journée (mouvements du jour inclus).
+    const matches = (date: Date) => (snap ? date > since : date >= since);
+    const moved = (byAccount.get(account.id) ?? []).reduce((sum, m) => (matches(m.date) ? sum + m.amount : sum), 0);
     const securities = securitiesByAccount?.get(account.id) ?? 0;
-    const rawBalance = (base + outgoing + incoming + securities) * (fx.get(account.currency) ?? 1);
-    const isLiability = isLiabilityAccount(account.type);
-    const balance = isLiability ? Math.abs(rawBalance) : rawBalance;
-    return {
-      account_id: account.id,
-      name: account.name,
-      type: account.type,
-      currency: account.currency,
-      type_label: accountTypeLabel(account.type as AccountType),
-      group: accountTypeGroup(account.type as AccountType),
-      group_label: accountGroupLabel(accountTypeGroup(account.type as AccountType)),
-      balance,
-      signed_balance: isLiability ? -balance : balance,
-      is_liability: isLiability,
-    };
+    return balanceRow(account, base + moved + securities, fx);
   });
 }
 
@@ -338,25 +244,24 @@ export function computeAccountBalancesAt(
   );
   // Avant toute ancre : reconstruction à rebours depuis la première ancre, si le
   // compte a déjà au moins un mouvement à cette date.
-  const touches = (t: BalanceTx, id: number) => t.account_id === id || (t.type === 'transfer' && t.to_account_id === id);
-  const delta = (t: BalanceTx, id: number) => (t.account_id === id ? sourceDelta(t) : 0)
-    + (t.type === 'transfer' && t.to_account_id === id ? t.to_amount ?? t.amount : 0);
+  const { byAccount } = accountMoves(transactions);
   return accounts.flatMap((account) => {
     const row = forwardRows.get(account.id);
     if (row) return [row];
-    if (!transactionsUntil.some((t) => touches(t, account.id))) return [];
+    const moves = byAccount.get(account.id) ?? [];
+    if (!moves.some((m) => m.date <= at)) return [];
     const firstSnap = snapshots.filter((s) => s.account_id === account.id).sort((a, b) => a.date.getTime() - b.date.getTime())[0];
     const anchorIsInit = !firstSnap || account.initial_balance_date <= firstSnap.date;
     const anchorDate = anchorIsInit ? account.initial_balance_date : firstSnap!.date;
     const anchorValue = anchorIsInit ? account.initial_balance : firstSnap!.balance;
-    const between = transactions
-      .filter((t) => touches(t, account.id) && t.date > at && (anchorIsInit ? t.date < anchorDate : t.date <= anchorDate))
-      .reduce((sum, t) => sum + delta(t, account.id), 0);
+    const between = moves
+      .filter((m) => m.date > at && (anchorIsInit ? m.date < anchorDate : m.date <= anchorDate))
+      .reduce((sum, m) => sum + m.amount, 0);
     return [balanceRow(account, anchorValue - between, fx)];
   });
 }
 
-function balanceRow(account: AccountRow, raw: number, fx: Map<string, number>): AccountBalanceRow {
+function balanceRow(account: AccountRow, raw: number, fx: Map<string, number>) {
   const rawBalance = raw * (fx.get(account.currency) ?? 1);
   const isLiability = isLiabilityAccount(account.type);
   const balance = isLiability ? Math.abs(rawBalance) : rawBalance;
@@ -374,7 +279,7 @@ function balanceRow(account: AccountRow, raw: number, fx: Map<string, number>): 
   };
 }
 
-type AccountBalanceRow = ReturnType<typeof computeAccountBalances>[number];
+type AccountBalanceRow = ReturnType<typeof balanceRow>;
 
 // Per-date account balances + unassigned balance over an ascending date range,
 // computed in a single forward sweep instead of recomputing every account from
@@ -395,16 +300,7 @@ export function computeWealthSeries(
   // Valeur de marché des titres par compte et par date (devise du compte).
   securitiesByAccountByDate?: Map<number, number[]>,
 ): Array<{ accountBalances: AccountBalanceRow[]; unassignedBalance: number }> {
-  const bySource = new Map<number, BalanceTx[]>();
-  const byDest = new Map<number, BalanceTx[]>();
-  for (const t of transactions) {
-    if (t.account_id != null) {
-      const l = bySource.get(t.account_id); if (l) l.push(t); else bySource.set(t.account_id, [t]);
-    }
-    if (t.type === 'transfer' && t.to_account_id != null) {
-      const l = byDest.get(t.to_account_id); if (l) l.push(t); else byDest.set(t.to_account_id, [t]);
-    }
-  }
+  const { byAccount, unassigned } = accountMoves(transactions);
   const snapsByAccount = new Map<number, Array<{ date: Date; balance: number }>>();
   for (const s of snapshots) {
     const l = snapsByAccount.get(s.account_id); if (l) l.push(s); else snapsByAccount.set(s.account_id, [s]);
@@ -414,19 +310,12 @@ export function computeWealthSeries(
   // the account is eligible (opening date not reached and no earlier snapshot).
   const rawByAccount = new Map<number, Array<number | null>>();
   for (const account of accounts) {
-    rawByAccount.set(account.id, sweepAccount(
-      account,
-      bySource.get(account.id) ?? [],
-      byDest.get(account.id) ?? [],
-      snapsByAccount.get(account.id) ?? [],
-      dates,
-    ));
+    rawByAccount.set(account.id, sweepAccount(account, byAccount.get(account.id) ?? [], snapsByAccount.get(account.id) ?? [], dates));
   }
 
   // Account-less, non-transfer transactions: a single running sum across dates.
-  const unassignedEvents = transactions
-    .filter((t) => t.account_id == null && t.type !== 'transfer')
-    .map((t) => ({ t: t.date.getTime(), delta: sourceDelta(t) }))
+  const unassignedEvents = unassigned
+    .map((m) => ({ t: m.date.getTime(), delta: m.amount }))
     .sort((a, b) => a.t - b.t);
   const unassignedByDate: number[] = [];
   let uAcc = 0;
@@ -478,15 +367,11 @@ export function computeWealthSeries(
 //   actuel ni les soldes saisis : ça ne fait que remplir l'historique.
 function sweepAccount(
   account: AccountRow,
-  sourceTxns: BalanceTx[],
-  transferIns: BalanceTx[],
+  accountMovesList: Move[],
   snaps: Array<{ date: Date; balance: number }>,
   dates: Date[],
 ): Array<number | null> {
-  const moves = [
-    ...sourceTxns.map((x) => ({ t: x.date.getTime(), v: sourceDelta(x) })),
-    ...transferIns.map((x) => ({ t: x.date.getTime(), v: x.to_amount ?? x.amount })),
-  ].sort((a, b) => a.t - b.t);
+  const moves = accountMovesList.map((m) => ({ t: m.date.getTime(), v: m.amount })).sort((a, b) => a.t - b.t);
   const prefix = [0];
   for (const m of moves) prefix.push(prefix[prefix.length - 1]! + m.v);
   // Somme des mouvements de date dans ]lo, hi] (hiInclusive) ou ]lo, hi[.
@@ -532,10 +417,8 @@ function sweepAccount(
 }
 
 function computeUnassignedBalance(transactions: BalanceTx[]): number {
-  // Transactions sans compte : seuls revenus/dépenses comptent (un transfert sans compte n'a pas de sens).
-  return transactions
-    .filter((t) => t.account_id == null && t.type !== 'transfer')
-    .reduce((s, t) => s + sourceDelta(t), 0);
+  // Lignes sans compte des dépenses/revenus (un virement sans compte n'a pas de sens).
+  return accountMoves(transactions).unassigned.reduce((s, m) => s + m.amount, 0);
 }
 
 function buildBalanceByGroup(
@@ -639,7 +522,10 @@ function buildHistoryDates(from: Date, to: Date, granularity: string): Date[] {
   return dates;
 }
 
-function buildCashflow(transactions: Tx[], endMonth: Date, accountById: Map<number, AccountRow>, fx: Map<string, number>) {
+type RateOf = (accountId: number | null) => number;
+type CategoryTypeOf = Parameters<typeof txFlows>[1];
+
+function buildCashflow(transactions: BalanceTx[], endMonth: Date, categoryType: CategoryTypeOf, rateOf: RateOf) {
   const buckets = new Map<string, { month: string; income: number; expenses: number; net: number }>();
   for (let i = 11; i >= 0; i -= 1) {
     const start = new Date(Date.UTC(endMonth.getUTCFullYear(), endMonth.getUTCMonth() - i, 1));
@@ -649,13 +535,10 @@ function buildCashflow(transactions: Tx[], endMonth: Date, accountById: Map<numb
   for (const t of transactions) {
     const bucket = buckets.get(t.date.toISOString().slice(0, 7));
     if (!bucket) continue;
-    const rate = fx.get(accountById.get(t.account_id ?? -1)?.currency ?? 'EUR') ?? 1;
-    if (t.type === 'income') {
-      const refundAmount = refundAllocatedAmount(t);
-      if (refundAmount > 0) bucket.expenses -= refundAmount * rate;
-      if (t.amount > refundAmount) bucket.income += (t.amount - refundAmount) * rate;
+    for (const flow of txFlows(t, categoryType)) {
+      if (flow.side === 'income') bucket.income += flow.value * rateOf(flow.account_id);
+      else bucket.expenses += flow.value * rateOf(flow.account_id);
     }
-    if (t.type === 'expense') bucket.expenses += t.amount * rate;
     bucket.net = bucket.income - bucket.expenses;
   }
   let cumulativeNet = 0;
@@ -672,18 +555,15 @@ function buildCashflow(transactions: Tx[], endMonth: Date, accountById: Map<numb
   });
 }
 
-function buildYearlyCashflow(transactions: Tx[], accountById: Map<number, AccountRow>, fx: Map<string, number>) {
+function buildYearlyCashflow(transactions: BalanceTx[], categoryType: CategoryTypeOf, rateOf: RateOf) {
   const byYear = new Map<string, { year: string; income: number; expenses: number; net: number }>();
-  for (const transaction of transactions) {
-    const year = transaction.date.toISOString().slice(0, 4);
+  for (const t of transactions) {
+    const year = t.date.toISOString().slice(0, 4);
     const row = byYear.get(year) ?? { year, income: 0, expenses: 0, net: 0 };
-    const rate = fx.get(accountById.get(transaction.account_id ?? -1)?.currency ?? 'EUR') ?? 1;
-    if (transaction.type === 'income') {
-      const refundAmount = refundAllocatedAmount(transaction);
-      if (refundAmount > 0) row.expenses -= refundAmount * rate;
-      if (transaction.amount > refundAmount) row.income += (transaction.amount - refundAmount) * rate;
+    for (const flow of txFlows(t, categoryType)) {
+      if (flow.side === 'income') row.income += flow.value * rateOf(flow.account_id);
+      else row.expenses += flow.value * rateOf(flow.account_id);
     }
-    if (transaction.type === 'expense') row.expenses += transaction.amount * rate;
     row.net = row.income - row.expenses;
     byYear.set(year, row);
   }

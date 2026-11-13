@@ -3,6 +3,8 @@ import { AccountType, AlertType, AssetClass, type Prisma } from '@prisma/client'
 import { prisma, prismaBase } from '../prisma.js';
 import { HttpError } from '../middleware/errors.js';
 import { round2 } from './money.js';
+import { LINES_ORDERED } from './ledger.js';
+import { resyncAccountOrders } from './holdingCash.js';
 
 // Sauvegarde JSON : export complet (ou partiel) d'un utilisateur et import
 // idempotent. Utilisé par l'export manuel, l'import JSON et les sauvegardes
@@ -18,7 +20,9 @@ import { round2 } from './money.js';
 //   rattache aux comptes/catégories existants par nom, ou par id quand on
 //   ré-importe sur le profil d'origine.
 
-export const BACKUP_FORMAT_VERSION = 2;
+// v3 : opérations à lignes. Les formats v1/v2 (type/amount/splits/allocations)
+// restent importables.
+export const BACKUP_FORMAT_VERSION = 3;
 
 export const EXPORT_ENTITIES = [
   'accounts',
@@ -92,8 +96,10 @@ export async function buildExportPayload(user_id: number, entities: readonly Exp
     want.has('institutions') ? prisma.institution.findMany({ where: { user_id }, orderBy: { id: 'asc' } }) : none,
     want.has('category_rules') ? prisma.categoryRule.findMany({ where: { user_id }, orderBy: { id: 'asc' } }) : none,
     want.has('transactions') ? prisma.transaction.findMany({
-      where: { user_id, ...(dateRange ? { date: dateRange } : {}) },
-      include: { tags: { include: { tag: true } }, splits: true, refund_allocations_sent: true },
+      // Les mouvements d'espèces des ordres (kind=trade) sont dérivés des
+      // ordres : régénérés à l'import, pas exportés.
+      where: { user_id, kind: { not: 'trade' }, ...(dateRange ? { date: dateRange } : {}) },
+      include: { tags: { include: { tag: true } }, lines: LINES_ORDERED },
       orderBy: [{ date: 'asc' }, { id: 'asc' }],
     }) : none,
     want.has('budgets') ? prisma.budget.findMany({ where: { user_id, ...(monthRange ? { month: monthRange } : {}) }, orderBy: { id: 'asc' } }) : none,
@@ -126,18 +132,23 @@ export async function buildExportPayload(user_id: number, entities: readonly Exp
     entities: [...entities],
     range: { from, to },
     user,
-    accounts: want.has('accounts') ? accountsAll.map((a) => ({ ...a, initial_balance_date: day(a.initial_balance_date) })) : [],
+    accounts: want.has('accounts') ? accountsAll.map((a) => ({ ...a, initial_balance_date: day(a.initial_balance_date), fiscal_start_date: day(a.fiscal_start_date) })) : [],
     institutions,
     categories: want.has('categories') ? categoriesAll : [],
     rules: rules.map((r) => ({ ...r, category_ref: refCategory(r.category_id) })),
-    transactions: transactions.map(({ tags: joins, splits, refund_allocations_sent, ...tx }) => ({
+    transactions: transactions.map(({ tags: joins, lines, ...tx }) => ({
       ...tx,
       date: day(tx.date),
-      account_name: refAccount(tx.account_id),
-      to_account_name: refAccount(tx.to_account_id),
-      category_ref: refCategory(tx.category_id),
-      splits: splits.map((s) => ({ category_id: s.category_id, category_ref: refCategory(s.category_id), amount: s.amount, note: s.note })),
-      refund_allocations: refund_allocations_sent.map((a) => ({ expense_transaction_id: a.expense_transaction_id, amount: a.amount })),
+      lines: lines.map((l) => ({
+        account_id: l.account_id,
+        account_name: refAccount(l.account_id),
+        category_id: l.category_id,
+        category_ref: refCategory(l.category_id),
+        amount: l.amount,
+        refund: l.refund,
+        refund_of_id: l.refund_of_id,
+        note: l.note,
+      })),
       tag_ids: joins.map((j) => j.tag.id),
       tag_names: joins.map((j) => j.tag.name),
     })),
@@ -311,6 +322,8 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
           initial_balance: round2(num(raw.initial_balance)),
           initial_balance_date: parseDay(raw.initial_balance_date) ?? parseDay(new Date().toISOString())!,
           archived: Boolean(raw.archived ?? false),
+          orders_affect_cash: Boolean(raw.orders_affect_cash ?? false),
+          fiscal_start_date: parseDay(raw.fiscal_start_date),
         },
       })).id;
       accountsByName.set(n, id);
@@ -420,52 +433,108 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
   }
 
   // --- Transactions ---------------------------------------------------------
-  const txKey = (t: { account_id: number | null; to_account_id: number | null; type: string; date: Date; amount: number; description: string | null }) =>
-    [t.account_id ?? '-', t.to_account_id ?? '-', t.type, t.date.toISOString().slice(0, 10), round2(t.amount).toFixed(2), normText(t.description)].join('|');
+  // Clé de dédoublonnage indépendante du format : genre, date, libellé et
+  // mouvement net par compte. Une opération migrée (lignes) et la même
+  // opération réexportée en v1 (type/amount) donnent la même clé.
+  type Line = { account_id: number | null; category_id: number | null; amount: number; refund: boolean; refund_of_id?: number | null; note: string | null };
+  // v3 : ligne de remboursement → id d'origine de la dépense, remappé à la fin.
+  const pendingLineRefunds: Array<{ txId: number; position: number; oldId: number }> = [];
+  const signature = (lines: Array<{ account_id: number | null; amount: number }>) => {
+    const sums = new Map<string, number>();
+    for (const l of lines) sums.set(String(l.account_id ?? '-'), (sums.get(String(l.account_id ?? '-')) ?? 0) + l.amount);
+    return Array.from(sums.entries()).map(([a, v]) => `${a}:${round2(v).toFixed(2)}`).sort().join(',');
+  };
+  const txKey = (kind: string, date: Date, description: string | null, lines: Array<{ account_id: number | null; amount: number }>) =>
+    [kind, date.toISOString().slice(0, 10), normText(description), signature(lines)].join('|');
   const txIndex = new MultiIndex();
   const existingTx = await db.transaction.findMany({
     where: { user_id, deleted_at: null },
-    select: { id: true, account_id: true, to_account_id: true, type: true, date: true, amount: true, description: true },
+    select: { id: true, kind: true, date: true, description: true, lines: { select: { account_id: true, amount: true } } },
   });
-  for (const t of existingTx) txIndex.add(txKey(t), t.id);
+  for (const t of existingTx) txIndex.add(txKey(t.kind, t.date, t.description, t.lines), t.id);
   const ownedTx = new Set(existingTx.map((t) => t.id));
 
   const txMap = new Map<number, number>();
-  const pendingAllocations: Array<{ refundId: number; oldExpenseId: number; amount: number }> = [];
+  // Remboursements au format v1/v2 : les lignes se calculent à partir de la
+  // dépense remboursée, une fois toutes les opérations créées.
+  const pendingRefunds: Array<{ id: number; account_id: number | null; amount: number; remainderCategory: number | null; allocations: Array<{ oldExpenseId: number; amount: number }> }> = [];
   const pendingRefundLinks: Array<{ refundId: number; oldTargetId: number }> = [];
+  const KINDS = new Set(['standard', 'transfer', 'trade', 'adjustment']);
   for (const raw of payload.transactions ?? []) {
-    const type = String(raw.type ?? 'expense');
     const date = parseDay(raw.date);
-    const amount = round2(num(raw.amount));
-    if (!TX_TYPES.has(type) || !date || !(amount > 0)) { summary.transactions.skipped += 1; continue; }
-    const account_id = resolveAccount(raw.account_id, raw.account_name);
-    const to_account_id = type === 'transfer' ? resolveAccount(raw.to_account_id, raw.to_account_name) : null;
+    if (!date) { summary.transactions.skipped += 1; continue; }
     const description = raw.description == null ? null : String(raw.description).slice(0, 500);
+    let kind: string;
+    let lines: Line[];
+    let refund: (typeof pendingRefunds)[number] | null = null;
 
-    const existingId = txIndex.take(txKey({ account_id, to_account_id, type, date, amount, description }));
+    if (Array.isArray(raw.lines)) {
+      // v3 : lignes explicites.
+      kind = KINDS.has(String(raw.kind)) ? String(raw.kind) : 'standard';
+      lines = raw.lines
+        .map((l: Record<string, unknown>) => ({
+          account_id: l.account_id != null || l.account_name != null ? resolveAccount(l.account_id, l.account_name) : null,
+          category_id: resolveCategory(l.category_id, l.category_ref),
+          amount: num(l.amount, NaN),
+          refund: Boolean(l.refund),
+          note: str(l.note, 160),
+        }))
+        .filter((l: Line) => Number.isFinite(l.amount));
+      // Une ligne dont le compte n'a pas pu être résolu fausserait les soldes.
+      const unresolved = raw.lines.some((l: Record<string, unknown>, i: number) => (l.account_id != null || l.account_name != null) && lines[i]?.account_id == null);
+      if (lines.length === 0 || unresolved || (kind === 'trade')) { summary.transactions.skipped += 1; continue; }
+    } else {
+      // v1/v2 : type / amount / account_id / to_account_id / splits / remboursement.
+      const type = String(raw.type ?? 'expense');
+      const amount = round2(num(raw.amount));
+      if (!TX_TYPES.has(type) || !(amount > 0)) { summary.transactions.skipped += 1; continue; }
+      const account_id = resolveAccount(raw.account_id, raw.account_name);
+      if (type === 'transfer') {
+        kind = 'transfer';
+        const to_account_id = resolveAccount(raw.to_account_id, raw.to_account_name);
+        lines = [
+          ...(account_id != null ? [{ account_id, category_id: null, amount: -amount, refund: false, note: null }] : []),
+          ...(to_account_id != null ? [{ account_id: to_account_id, category_id: null, amount: raw.to_amount != null ? round2(num(raw.to_amount)) : amount, refund: false, note: null }] : []),
+        ];
+      } else {
+        kind = 'standard';
+        const sign = type === 'income' ? 1 : -1;
+        const splits = (Array.isArray(raw.splits) ? raw.splits : [])
+          .map((sp: { category_id?: unknown; category_ref?: unknown; amount?: unknown; note?: unknown }) => ({
+            category_id: resolveCategory(sp.category_id, sp.category_ref),
+            amount: round2(num(sp.amount)),
+            note: str(sp.note, 160),
+          }));
+        const validSplits = splits.length > 0
+          && splits.every((sp: { category_id: number | null; amount: number }) => sp.category_id != null && sp.amount > 0)
+          && Math.abs(round2(splits.reduce((acc: number, sp: { amount: number }) => acc + sp.amount, 0)) - amount) <= 0.01;
+        lines = validSplits
+          ? splits.map((sp: { category_id: number; amount: number; note: string | null }) => ({ account_id, category_id: sp.category_id, amount: sign * sp.amount, refund: false, note: sp.note }))
+          : [{ account_id, category_id: resolveCategory(raw.category_id, raw.category_ref), amount: sign * amount, refund: false, note: null }];
+        if (validSplits) {
+          const diff = round2(sign * amount - lines.reduce((acc, l) => acc + l.amount, 0));
+          if (diff !== 0) lines[0]!.amount = round2(lines[0]!.amount + diff);
+        }
+        const allocations = type !== 'income' ? [] : (Array.isArray(raw.refund_allocations) && raw.refund_allocations.length > 0
+          ? raw.refund_allocations.map((a: { expense_transaction_id?: unknown; amount?: unknown }) => ({ oldExpenseId: num(a.expense_transaction_id, -1), amount: round2(num(a.amount)) }))
+          : raw.refunds_transaction_id != null ? [{ oldExpenseId: num(raw.refunds_transaction_id, -1), amount }] : [])
+          .filter((a: { oldExpenseId: number; amount: number }) => a.oldExpenseId > 0 && a.amount > 0);
+        if (allocations.length > 0) {
+          refund = { id: 0, account_id, amount, remainderCategory: resolveCategory(raw.category_id, raw.category_ref), allocations };
+        }
+      }
+    }
+
+    const existingId = txIndex.take(txKey(kind, date, description, lines));
     if (existingId) {
       if (raw.id != null) txMap.set(num(raw.id), existingId);
       summary.transactions.reused += 1;
       continue;
     }
 
-    const splits = (Array.isArray(raw.splits) ? raw.splits : [])
-      .map((s: { category_id?: unknown; category_ref?: unknown; amount?: unknown; note?: unknown }) => ({
-        category_id: resolveCategory(s.category_id, s.category_ref),
-        amount: round2(num(s.amount)),
-        note: str(s.note, 160),
-      }))
-      .filter((s: { category_id: number | null; amount: number }): s is { category_id: number; amount: number; note: string | null } => s.category_id != null && s.amount > 0);
-    // Même tolérance (±0,01) qu'à la création, et toutes les lignes doivent
-    // avoir été résolues — sinon on retombe sur la catégorie simple.
-    const rawSplitCount = Array.isArray(raw.splits) ? raw.splits.length : 0;
-    const validSplits = splits.length > 0 && splits.length === rawSplitCount
-      && Math.abs(round2(splits.reduce((s: number, x: { amount: number }) => s + x.amount, 0)) - amount) <= 0.01;
-
     const tagIds = new Set<number>();
     for (const rawTag of raw.tag_ids ?? []) { const id = tagMap.get(num(rawTag, -1)); if (id) tagIds.add(id); }
     for (const rawName of raw.tag_names ?? []) { const id = tagsByName.get(name(rawName)); if (id) tagIds.add(id); }
-
     const recurringRaw = raw.recurring_transaction_id;
     const recurring_transaction_id = recurringRaw == null ? null
       : recurringMap.get(num(recurringRaw)) ?? (sameUser && recurringById.has(num(recurringRaw)) ? num(recurringRaw) : null);
@@ -473,47 +542,59 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
     const created = await db.transaction.create({
       data: {
         user_id,
-        account_id,
-        to_account_id,
-        category_id: validSplits || type === 'transfer' ? null : resolveCategory(raw.category_id, raw.category_ref),
+        kind: kind as 'standard' | 'transfer' | 'adjustment',
         recurring_transaction_id,
-        amount,
-        to_amount: raw.to_amount != null ? round2(num(raw.to_amount)) : null,
-        exchange_rate: raw.exchange_rate != null && Number.isFinite(Number(raw.exchange_rate)) ? Number(raw.exchange_rate) : null,
-        type: type as 'expense' | 'income' | 'transfer',
         date,
         description,
         cleared: Boolean(raw.cleared ?? false),
+        lines: { create: lines.map((l, position) => ({ user_id, ...l, position })) },
         tags: tagIds.size > 0 ? { create: Array.from(tagIds).map((tag_id) => ({ tag_id })) } : undefined,
-        splits: validSplits ? { create: splits.map((s: { category_id: number; amount: number; note: string | null }) => ({ user_id, ...s })) } : undefined,
       },
     });
     if (raw.id != null) txMap.set(num(raw.id), created.id);
-    if (type === 'income') {
-      const allocations = Array.isArray(raw.refund_allocations) ? raw.refund_allocations : [];
-      for (const a of allocations) {
-        const oldExpenseId = num(a.expense_transaction_id, -1);
-        const allocAmount = round2(num(a.amount));
-        if (oldExpenseId > 0 && allocAmount > 0) pendingAllocations.push({ refundId: created.id, oldExpenseId, amount: allocAmount });
-      }
-      if (raw.refunds_transaction_id != null) {
-        pendingRefundLinks.push({ refundId: created.id, oldTargetId: num(raw.refunds_transaction_id) });
-        // Ancien format (v1 sans allocations) : le lien vaut allocation totale.
-        if (allocations.length === 0) pendingAllocations.push({ refundId: created.id, oldExpenseId: num(raw.refunds_transaction_id), amount });
-      }
+    if (refund) pendingRefunds.push({ ...refund, id: created.id });
+    if (Array.isArray(raw.lines)) {
+      raw.lines.forEach((l: Record<string, unknown>, position: number) => {
+        if (l.refund_of_id != null) pendingLineRefunds.push({ txId: created.id, position, oldId: num(l.refund_of_id, -1) });
+      });
     }
+    else if (raw.refunds_transaction_id != null) pendingRefundLinks.push({ refundId: created.id, oldTargetId: num(raw.refunds_transaction_id) });
     summary.transactions.created += 1;
   }
   const resolveTx = (oldId: number) => txMap.get(oldId) ?? (sameUser && ownedTx.has(oldId) ? oldId : undefined);
+  // v3 : simple lien d'affichage.
   for (const link of pendingRefundLinks) {
     const target = resolveTx(link.oldTargetId);
     if (target) await db.transaction.update({ where: { id: link.refundId }, data: { refunds_transaction_id: target } });
   }
-  const allocationRows = pendingAllocations.flatMap((a) => {
-    const target = resolveTx(a.oldExpenseId);
-    return target ? [{ user_id, refund_transaction_id: a.refundId, expense_transaction_id: target, amount: a.amount }] : [];
-  });
-  if (allocationRows.length > 0) await db.refundAllocation.createMany({ data: allocationRows, skipDuplicates: true });
+  for (const p of pendingLineRefunds) {
+    const target = resolveTx(p.oldId);
+    if (target) await db.transactionLine.updateMany({ where: { transaction_id: p.txId, position: p.position }, data: { refund_of_id: target } });
+  }
+  // v1/v2 : lignes de remboursement au prorata des catégories de la dépense.
+  for (const r of pendingRefunds) {
+    const newLines: Line[] = [];
+    let allocated = 0;
+    let firstTarget: number | null = null;
+    for (const a of r.allocations) {
+      const targetId = resolveTx(a.oldExpenseId);
+      const target = targetId ? await db.transaction.findUnique({ where: { id: targetId }, select: { kind: true, lines: { select: { category_id: true, amount: true } } } }) : null;
+      const parts = target?.kind === 'standard' ? target.lines.filter((l) => l.amount < 0) : [];
+      const spent = -parts.reduce((acc, l) => acc + l.amount, 0);
+      firstTarget ??= targetId ?? null;
+      allocated += a.amount;
+      if (spent > 0) {
+        for (const p of parts) newLines.push({ account_id: r.account_id, category_id: p.category_id, amount: a.amount * (-p.amount / spent), refund: true, refund_of_id: targetId ?? null, note: null });
+      } else {
+        newLines.push({ account_id: r.account_id, category_id: null, amount: a.amount, refund: true, refund_of_id: targetId ?? null, note: null });
+      }
+    }
+    const rest = round2(r.amount - allocated);
+    if (rest > 0) newLines.push({ account_id: r.account_id, category_id: r.remainderCategory, amount: rest, refund: false, note: null });
+    await db.transactionLine.deleteMany({ where: { transaction_id: r.id } });
+    await db.transactionLine.createMany({ data: newLines.map((l, position) => ({ user_id, transaction_id: r.id, ...l, position })) });
+    if (firstTarget && r.allocations.length === 1) await db.transaction.update({ where: { id: r.id }, data: { refunds_transaction_id: firstTarget } });
+  }
 
   // --- Budgets --------------------------------------------------------------
   for (const raw of payload.budgets ?? []) {
@@ -678,6 +759,10 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
     if (newOrders.length > 0) await db.holdingOrder.createMany({ data: newOrders });
     summary.holding_orders.created += newOrders.length;
   }
+
+  // Mouvements d'espèces des ordres pour les comptes qui les suivent.
+  const cashAccounts = await db.account.findMany({ where: { user_id, orders_affect_cash: true }, select: { id: true } });
+  for (const a of cashAccounts) await resyncAccountOrders(db, a.id);
 
   // --- Alertes --------------------------------------------------------------
   const alertKey = (a: { type: string; account_id: number | null; goal_id: number | null; operator: string | null; threshold: number | null }) =>

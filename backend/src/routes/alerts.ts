@@ -2,10 +2,10 @@ import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { createAlertSchema, currencyQuery, idParam, updateAlertSchema } from '../lib/validation.js';
-import { buildFx } from '../lib/fxHelper.js';
 import { securitiesByAccountNow } from '../lib/holdingsValuation.js';
 import { computeAccountBalances } from './dashboard.js';
 import { evaluateAlerts, type AlertConfig } from '../lib/alerts.js';
+import { LEDGER_TX_SELECT, legacyView, LINE_SELECT, LINES_ORDERED } from '../lib/ledger.js';
 
 export const alertsRouter = Router();
 
@@ -33,7 +33,7 @@ alertsRouter.get('/users/:user_id/alerts/triggered', asyncHandler(async (req, re
   const [transactions, accounts, snapshots, holdings, goals] = await Promise.all([
     prisma.transaction.findMany({
       where: { user_id },
-      select: { id: true, type: true, amount: true, to_amount: true, date: true, category_id: true, account_id: true, to_account_id: true, refunds_transaction_id: true, description: true },
+      select: { ...LEDGER_TX_SELECT, description: true, lines: { select: LINE_SELECT, ...LINES_ORDERED } },
     }),
     prisma.account.findMany({ where: { user_id }, select: { id: true, name: true, type: true, currency: true, initial_balance: true, initial_balance_date: true } }),
     prisma.accountSnapshot.findMany({ where: { user_id }, select: { account_id: true, date: true, balance: true } }),
@@ -41,11 +41,12 @@ alertsRouter.get('/users/:user_id/alerts/triggered', asyncHandler(async (req, re
     prisma.savingsGoal.findMany({ where: { user_id }, select: { id: true, name: true, current_amount: true, target_amount: true, deadline: true } }),
   ]);
 
-  const { rates: fx } = await buildFx(accounts, reportCurrency);
   const securities = await securitiesByAccountNow(holdings, accounts);
-  const balances = computeAccountBalances(accounts, transactions, snapshots, fx, securities);
-
-  const balanceByAccount = new Map(balances.map((b) => [b.account_id, b.signed_balance]));
+  // Seuils de solde comparés dans la devise du compte (taux neutre : pas de
+  // conversion) et en valeur absolue pour un passif — `balance` de
+  // computeAccountBalances est déjà |solde| pour un passif. Cf. lib/alerts.ts.
+  const balances = computeAccountBalances(accounts, transactions, snapshots, new Map(), securities);
+  const balanceByAccount = new Map(balances.map((b) => [b.account_id, b.balance]));
   const latestSnapshotByAccount = new Map<number, Date>();
   for (const s of snapshots) {
     const cur = latestSnapshotByAccount.get(s.account_id);
@@ -53,10 +54,15 @@ alertsRouter.get('/users/:user_id/alerts/triggered', asyncHandler(async (req, re
   }
   const monthTransactions = transactions
     .filter((t) => t.date >= start && t.date < end)
-    .map((t) => ({ amount: t.amount, type: t.type, account_id: t.account_id, description: t.description ?? '' }));
+    .map((t) => {
+      const view = legacyView(t);
+      // trade / adjustment : le genre sert de type (exclus des flux).
+      const type = t.kind === 'standard' || t.kind === 'transfer' ? view.type : t.kind;
+      return { amount: view.amount, type, account_id: view.account_id, description: t.description ?? '' };
+    });
 
   const triggered = evaluateAlerts(alerts as AlertConfig[], {
-    accounts: accounts.map((a) => ({ id: a.id, name: a.name })),
+    accounts: accounts.map((a) => ({ id: a.id, name: a.name, currency: a.currency })),
     balanceByAccount,
     monthTransactions,
     goals: goals.map((g) => ({ ...g, deadline: g.deadline ? g.deadline.toISOString().slice(0, 10) : null })),

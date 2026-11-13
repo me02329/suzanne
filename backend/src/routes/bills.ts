@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { prisma } from '../prisma.js';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { createBillSchema, idParam, monthString, updateBillSchema } from '../lib/validation.js';
-import { assertTransactionReferences } from '../lib/transactionHelpers.js';
-import { billStatusForMonth } from '../lib/bills.js';
+import { assertAccountOwned, assertCategoryOwned } from '../lib/transactionHelpers.js';
+import { billStatusForMonth, type BillCandidateTx } from '../lib/bills.js';
+import { LEDGER_TX_SELECT, legacyView } from '../lib/ledger.js';
 import { round2 } from '../lib/money.js';
 
 export const billsRouter = Router();
@@ -26,10 +27,10 @@ billsRouter.get('/users/:user_id/bills/status', asyncHandler(async (req, res) =>
     prisma.transaction.findMany({
       where: {
         user_id,
-        type: 'expense',
+        kind: 'standard',
         date: { gte: new Date(`${month}-01T00:00:00.000Z`), lt: nextMonthStart(month) },
       },
-      select: { id: true, type: true, amount: true, date: true, description: true, account_id: true, category_id: true },
+      select: { ...LEDGER_TX_SELECT, description: true },
     }),
     prisma.billMatch.findMany({ where: { user_id }, select: { bill_id: true, transaction_id: true } }),
   ]);
@@ -41,10 +42,25 @@ billsRouter.get('/users/:user_id/bills/status', asyncHandler(async (req, res) =>
     set.add(match.transaction_id);
     manualByBill.set(match.bill_id, set);
   }
+  // Candidates : vue historique dérivée des lignes (seules les dépenses
+  // matchent), avec toutes les catégories d'une dépense ventilée.
+  const candidates: BillCandidateTx[] = transactions.map((t) => {
+    const view = legacyView(t);
+    return {
+      id: t.id,
+      type: view.type,
+      amount: view.amount,
+      date: t.date,
+      description: t.description,
+      account_id: view.account_id,
+      category_id: view.category_id,
+      category_ids: t.lines.map((l) => l.category_id).filter((c): c is number => c != null),
+    };
+  });
   const today = new Date();
   const entries = bills.map((bill) => ({
     bill: { ...bill, start_date: bill.start_date.toISOString().slice(0, 10) },
-    ...billStatusForMonth(bill, transactions, month, today, manualByBill.get(bill.id) ?? new Set()),
+    ...billStatusForMonth(bill, candidates, month, today, manualByBill.get(bill.id) ?? new Set()),
   }));
   const due = entries.filter((entry) => entry.due);
   res.json({
@@ -60,7 +76,7 @@ billsRouter.get('/users/:user_id/bills/status', asyncHandler(async (req, res) =>
 billsRouter.post('/users/:user_id/bills', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = createBillSchema.parse(req.body);
-  await assertTransactionReferences(user_id, body);
+  await assertBillReferences(user_id, body);
   const row = await prisma.bill.create({
     data: {
       user_id,
@@ -88,7 +104,7 @@ billsRouter.patch('/users/:user_id/bills/:id', asyncHandler(async (req, res) => 
     res.status(404).json({ error: 'Not found' });
     return;
   }
-  await assertTransactionReferences(user_id, body);
+  await assertBillReferences(user_id, body);
   // La fourchette est validée champ à champ par le schéma ; on re-vérifie sur
   // l'état fusionné pour qu'un PATCH partiel ne puisse pas l'inverser.
   const nextMin = body.amount_min ?? existing.amount_min;
@@ -122,11 +138,11 @@ billsRouter.post('/users/:user_id/bills/:id/matches', asyncHandler(async (req, r
   const { transaction_id } = z.object({ transaction_id: z.coerce.number().int().positive() }).parse(req.body);
   const [bill, tx] = await Promise.all([
     prisma.bill.findFirst({ where: { id: bill_id, user_id }, select: { id: true } }),
-    prisma.transaction.findFirst({ where: { id: transaction_id, user_id }, select: { id: true, type: true } }),
+    prisma.transaction.findFirst({ where: { id: transaction_id, user_id }, select: LEDGER_TX_SELECT }),
   ]);
   if (!bill) throw new HttpError(404, 'Facture introuvable');
   if (!tx) throw new HttpError(400, 'Transaction introuvable');
-  if (tx.type !== 'expense') throw new HttpError(400, 'Seule une dépense peut être liée à une facture');
+  if (tx.kind !== 'standard' || legacyView(tx).type !== 'expense') throw new HttpError(400, 'Seule une dépense peut être liée à une facture');
   const row = await prisma.billMatch.upsert({
     where: { bill_id_transaction_id: { bill_id, transaction_id } },
     create: { user_id, bill_id, transaction_id },
@@ -161,4 +177,9 @@ billsRouter.delete('/users/:user_id/bills/:id', asyncHandler(async (req, res) =>
 function nextMonthStart(month: string): Date {
   const [yearRaw, monthRaw] = month.split('-');
   return new Date(Date.UTC(Number(yearRaw), Number(monthRaw), 1));
+}
+
+async function assertBillReferences(user_id: number, body: { account_id?: number | null; category_id?: number | null }): Promise<void> {
+  if (body.account_id != null) await assertAccountOwned(user_id, body.account_id);
+  if (body.category_id != null) await assertCategoryOwned(user_id, body.category_id);
 }

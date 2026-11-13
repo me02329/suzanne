@@ -1,4 +1,19 @@
 export type TransactionType = 'expense' | 'income' | 'transfer';
+// Genre d'opération (modèle à lignes, cf. docs/ARCHITECTURE-ledger.md).
+export type TransactionKind = 'standard' | 'transfer' | 'trade' | 'adjustment';
+
+// Ligne d'opération : montant signé (devise du compte) sur un compte, avec
+// catégorie optionnelle.
+export interface TransactionLine {
+  id?: number;
+  account_id: number | null;
+  category_id: number | null;
+  amount: number;
+  refund: boolean;
+  // Ligne de remboursement : dépense remboursée par cette ligne.
+  refund_of_id?: number | null;
+  note: string | null;
+}
 export type AccountType =
   | 'checking'
   | 'savings'
@@ -68,9 +83,15 @@ export interface CreateTagBody {
   color?: string;
 }
 
+// Opération. Les champs « historiques » (type, amount, account_id,
+// to_account_id, to_amount, category_id, splits) sont dérivés des lignes.
 export interface Transaction {
   id: number;
   user_id: number;
+  kind: TransactionKind;
+  lines: TransactionLine[];
+  // Montant remboursé porté par l'opération (lignes de remboursement).
+  refund_amount: number;
   account_id: number | null;
   to_account_id: number | null;
   category_id: number | null;
@@ -96,23 +117,15 @@ export interface Transaction {
 }
 
 export interface RefundAllocation {
-  id: number;
-  user_id: number;
-  refund_transaction_id: number;
   expense_transaction_id: number;
   amount: number;
-  created_at: string;
   expense_transaction?: { id: number; amount: number; date: string; description: string | null } | null;
 }
 
 export interface TransactionSplit {
-  id: number;
-  user_id: number;
-  transaction_id: number;
-  category_id: number;
+  category_id: number | null;
   amount: number;
   note: string | null;
-  created_at: string;
 }
 
 export interface Budget {

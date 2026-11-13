@@ -26,6 +26,9 @@ export interface BillCandidateTx {
   description: string | null;
   account_id: number | null;
   category_id: number | null;
+  // Toutes les catégories des lignes (dépense ventilée) : la facture matche si
+  // l'une d'elles est la sienne.
+  category_ids?: number[];
 }
 
 export interface BillMonthResult {
@@ -72,7 +75,7 @@ export function billMatchesTransaction(
 ): boolean {
   if (tx.type !== 'expense') return false;
   if (bill.account_id != null && tx.account_id !== bill.account_id) return false;
-  if (bill.category_id != null && tx.category_id !== bill.category_id) return false;
+  if (bill.category_id != null && tx.category_id !== bill.category_id && !(tx.category_ids ?? []).includes(bill.category_id)) return false;
   const needle = (bill.pattern?.trim() || bill.name).toLowerCase();
   return (tx.description ?? '').toLowerCase().includes(needle);
 }

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { prisma } from '../prisma.js';
+import type { Prisma } from '@prisma/client';
+import { prisma, prismaBase } from '../prisma.js';
 import {
   contributeSavingsGoalSchema,
   createBudgetSchema,
@@ -17,18 +18,22 @@ import {
   updateTransactionSchema,
 } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
-import { applyRulesToUncategorized, bucketByRule } from '../lib/categoryRules.js';
+import { bucketByRule } from '../lib/categoryRules.js';
 import { HttpError } from '../middleware/errors.js';
+import { assertAccountOwned, assertCategoryOwned, resolveTagIds } from '../lib/transactionHelpers.js';
 import {
-  assertAccountOwned,
-  assertCategoryOwned,
-  assertRefundTarget,
-  assertTransactionReferences,
-  assertTransactionSplits,
-  resolveRefundAllocations,
-  resolveTagIds,
-  transferAmounts,
-} from '../lib/transactionHelpers.js';
+  buildLines,
+  categoryTypeLookup,
+  LEDGER_TX_SELECT,
+  legacyView,
+  LINES_ORDERED,
+  linesCreateData,
+  mergeLegacy,
+  patchTouchesLines,
+  txFlows,
+  type LegacyInput,
+} from '../lib/ledger.js';
+import { serializeTransaction, transactionInclude } from '../routes/transactions.js';
 import { nextRecurringOccurrence, recurringMonthlyEquivalent } from '@suzanne/shared';
 
 // The AI proposes a write action; the user confirms it from the chat UI.
@@ -307,102 +312,35 @@ export async function executeAiTool(userId: number, name: string, rawArgs: unkno
 export async function confirmAiAction(userId: number, action: PendingAiAction) {
   switch (action.type) {
     case 'create_transaction': {
-      const body = createTransactionSchema.parse(action.payload);
-      await assertTransactionReferences(userId, body);
-      if (body.refunds_transaction_id != null) await assertRefundTarget(userId, body.refunds_transaction_id);
-      await assertTransactionSplits(userId, body.type, body.splits, body.amount);
-      const refundAllocations = body.type === 'income'
-        ? await resolveRefundAllocations(
-            userId,
-            null,
-            body.type,
-            body.amount,
-            body.refund_allocations ?? (body.refunds_transaction_id != null
-              ? [{ expense_transaction_id: body.refunds_transaction_id, amount: body.amount }]
-              : undefined),
-          )
-        : [];
-      const transfer = await transferAmounts(userId, body);
-      const splits = body.type === 'transfer' ? [] : body.splits ?? [];
-      return await prisma.transaction.create({
-        data: {
-          user_id: userId,
-          account_id: body.account_id ?? null,
-          to_account_id: body.type === 'transfer' ? body.to_account_id ?? null : null,
-          // Une transaction ventilée ne porte pas de catégorie propre (miroir
-          // de la route REST) : les splits font foi pour les agrégations.
-          category_id: splits.length > 0 || body.type === 'transfer' ? null : body.category_id ?? null,
-          refunds_transaction_id: body.type === 'income' ? body.refunds_transaction_id ?? null : null,
-          amount: body.amount,
-          to_amount: transfer.toAmount,
-          exchange_rate: transfer.exchangeRate,
-          type: body.type,
-          date: new Date(body.date),
-          description: body.description ?? null,
-          tags: body.tag_ids && body.tag_ids.length > 0
-            ? { create: await resolveTagIds(userId, body.tag_ids).then((ids) => ids.map((tag_id) => ({ tag_id }))) }
-            : undefined,
-          splits: splits.length > 0
-            ? { create: splits.map((split) => ({
-                user_id: userId,
-                category_id: split.category_id,
-                amount: split.amount,
-                note: split.note ?? null,
-              })) }
-            : undefined,
-          refund_allocations_sent: refundAllocations.length > 0
-            ? { create: refundAllocations.map((allocation) => ({
-                user_id: userId,
-                expense_transaction_id: allocation.expense_transaction_id,
-                amount: allocation.amount,
-              })) }
-            : undefined,
-        },
-      });
+      const body = createTransactionSchema.parse(normalizeModelBooleans(action.payload));
+      return serializeTransaction(await createTransactionFromLegacy(userId, body));
     }
     case 'update_transaction_category': {
       const body = z.object({
         transaction_id: z.coerce.number().int().positive(),
         category_id: z.coerce.number().int().positive().nullable(),
       }).parse(action.payload);
-      const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
-      if (!existing) throw new Error('Transaction introuvable');
-      return await prisma.transaction.update({ where: { id: body.transaction_id }, data: { category_id: body.category_id } });
+      // La catégorie doit appartenir à l'utilisateur (buildLines le revérifie).
+      if (body.category_id != null) await assertCategoryOwned(userId, body.category_id);
+      return serializeTransaction(await updateTransactionFromLegacy(userId, body.transaction_id, { category_id: body.category_id }));
     }
     case 'update_transaction': {
       const body = z.object({ transaction_id: z.coerce.number().int().positive() })
         .and(updateTransactionSchema)
-        .parse(action.payload);
-      const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
-      if (!existing) throw new Error('Transaction introuvable');
-      await assertTransactionReferences(userId, body);
-      // La modification de ventilation / d'allocations de remboursement passe
-      // par l'UI : refus explicite plutôt que de les ignorer silencieusement
-      // (le modèle croirait l'action faite).
-      if (body.splits !== undefined || body.refund_allocations !== undefined) {
-        throw new HttpError(400, 'La ventilation et les allocations de remboursement ne sont pas modifiables via l\'assistant');
-      }
-      if (body.tag_ids !== undefined) {
-        const tagIds = await resolveTagIds(userId, body.tag_ids);
-        await prisma.transactionTag.deleteMany({ where: { transaction_id: body.transaction_id } });
-        if (tagIds.length > 0) await prisma.transactionTag.createMany({ data: tagIds.map((tag_id) => ({ transaction_id: body.transaction_id, tag_id })) });
-      }
-      return await prisma.transaction.update({
-        where: { id: body.transaction_id },
-        data: {
-          ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
-          ...(body.to_account_id !== undefined ? { to_account_id: body.to_account_id ?? null } : {}),
-          ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
-          ...(body.amount != null ? { amount: body.amount } : {}),
-          ...(body.type != null ? { type: body.type } : {}),
-          ...(body.date != null ? { date: new Date(body.date) } : {}),
-          ...(body.description !== undefined ? { description: body.description ?? null } : {}),
-        },
-      });
+        .parse(normalizeModelBooleans(action.payload));
+      const { transaction_id, ...patch } = body;
+      return serializeTransaction(await updateTransactionFromLegacy(userId, transaction_id, patch));
     }
     case 'delete_transaction': {
       const id = idOnly('transaction_id').parse(action.payload);
-      return await prisma.transaction.deleteMany({ where: { id, user_id: userId } });
+      // Soft-delete (corbeille restaurable), comme la route REST. Un mouvement
+      // issu d'un ordre de bourse se supprime via l'ordre.
+      const result = await prismaBase.transaction.updateMany({
+        where: { id, user_id: userId, deleted_at: null, kind: { not: 'trade' } },
+        data: { deleted_at: new Date() },
+      });
+      if (result.count === 0) throw new HttpError(404, 'Transaction introuvable');
+      return { deleted: true, count: result.count };
     }
 
     case 'create_category': {
@@ -490,35 +428,54 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
       const goal = await prisma.savingsGoal.findFirst({ where: { id: body.goal_id, user_id: userId } });
       if (!goal) throw new Error('Objectif introuvable');
       if (body.source_account_id) await assertAccountOwned(userId, body.source_account_id, 'Compte source');
-      // Transfert + bump du compteur dans une même transaction DB.
-      const createTransfer = body.source_account_id && goal.account_id;
-      const ops = [
-        ...(createTransfer
-          ? [prisma.transaction.create({
+      // Miroir de POST /savings-goals/:id/contribute : virement optionnel
+      // (source → compte de l'objectif, lignes via buildLines qui vérifie les
+      // comptes et refuse source = destination), trace GoalContribution et
+      // bump du compteur dans une même transaction DB.
+      const description = body.description?.trim() || null;
+      const built = body.source_account_id && goal.account_id
+        ? await buildLines(prisma, userId, {
+            type: 'transfer',
+            amount: body.amount,
+            account_id: body.source_account_id,
+            to_account_id: goal.account_id,
+            date: body.date,
+          })
+        : null;
+      return await prisma.$transaction(async (tx) => {
+        const transfer = built
+          ? await tx.transaction.create({
               data: {
                 user_id: userId,
-                account_id: body.source_account_id!,
-                to_account_id: goal.account_id,
-                type: 'transfer' as const,
-                amount: round2(body.amount),
+                kind: built.kind,
+                refunds_transaction_id: built.refunds_transaction_id,
                 date: new Date(body.date),
-                description: body.description ?? `Versement objectif: ${goal.name}`,
+                description: description || `Versement objectif: ${goal.name}`,
+                lines: { create: linesCreateData(userId, built) },
               },
-            })]
-          : []),
-        prisma.savingsGoal.update({
-          where: { id: body.goal_id },
+              select: { id: true },
+            })
+          : null;
+        await tx.goalContribution.create({
+          data: {
+            user_id: userId,
+            goal_id: goal.id,
+            transaction_id: transfer?.id ?? null,
+            amount: round2(body.amount),
+            date: new Date(body.date),
+            description,
+          },
+        });
+        const updated = await tx.savingsGoal.update({
+          where: { id: goal.id },
           data: { current_amount: round2(goal.current_amount + body.amount) },
-        }),
-      ] as const;
-      const results = await prisma.$transaction([...ops]);
-      const transactionId = createTransfer ? (results[0] as { id: number }).id : null;
-      const updated = results[results.length - 1];
-      return { goal: updated, transaction_id: transactionId };
+        });
+        return { goal: updated, transaction_id: transfer?.id ?? null };
+      });
     }
 
     case 'create_recurring': {
-      const body = createRecurringSchema.parse(action.payload);
+      const body = createRecurringSchema.parse(normalizeModelBooleans(action.payload));
       if (body.account_id) await assertAccountOwned(userId, body.account_id);
       if (body.category_id) await assertCategoryOwned(userId, body.category_id);
       return await prisma.recurringTransaction.create({
@@ -538,7 +495,7 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
       });
     }
     case 'update_recurring': {
-      const body = z.object({ recurring_id: z.coerce.number().int().positive() }).and(updateRecurringSchema).parse(action.payload);
+      const body = z.object({ recurring_id: z.coerce.number().int().positive() }).and(updateRecurringSchema).parse(normalizeModelBooleans(action.payload));
       const existing = await prisma.recurringTransaction.findFirst({ where: { id: body.recurring_id, user_id: userId } });
       if (!existing) throw new Error('Récurrent introuvable');
       if (body.account_id) await assertAccountOwned(userId, body.account_id);
@@ -565,7 +522,7 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
     }
 
     case 'set_budget': {
-      const body = createBudgetSchema.parse(action.payload);
+      const body = createBudgetSchema.parse(normalizeModelBooleans(action.payload));
       await assertCategoryOwned(userId, body.category_id);
       const existing = await prisma.budget.findFirst({ where: { user_id: userId, category_id: body.category_id, month: body.month } });
       if (existing) return await prisma.budget.update({ where: { id: existing.id }, data: { amount_limit: body.amount_limit, recurring: body.recurring } });
@@ -614,7 +571,7 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
           update: { category_id: r.category_id },
         });
       }
-      const result = await applyRulesToUncategorized(userId);
+      const result = await applyRulesToUncategorizedLines(userId);
       return { rules_created: body.rules.length, ...result };
     }
     case 'delete_rule': {
@@ -629,6 +586,133 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
 
 function idOnly(field: string) {
   return z.object({ [field]: z.coerce.number().int().positive() }).transform((value) => (value as Record<string, number>)[field]!);
+}
+
+// ── Booléens fournis par le modèle ──
+// z.coerce.boolean() (utilisé par les schémas partagés) transforme la chaîne
+// 'false' en true. Le modèle envoie parfois des booléens en chaîne : on les
+// normalise AVANT le parse ('false'/'0'/'' → false, 'true'/'1' → true).
+const MODEL_BOOLEAN_KEYS = ['cleared', 'active', 'recurring', 'rollover', 'uncategorized'] as const;
+
+export function parseModelBoolean(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const v = value.trim().toLowerCase();
+    if (v === 'false' || v === '0' || v === '') return false;
+    if (v === 'true' || v === '1') return true;
+  }
+  if (typeof value === 'number') return value !== 0;
+  return value;
+}
+
+export function normalizeModelBooleans(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+  const out: Record<string, unknown> = { ...(raw as Record<string, unknown>) };
+  for (const key of MODEL_BOOLEAN_KEYS) {
+    if (key in out && out[key] != null) out[key] = parseModelBoolean(out[key]);
+  }
+  return out;
+}
+
+const modelBoolean = z.preprocess(parseModelBoolean, z.boolean());
+
+// ── Écritures d'opérations (miroir de routes/transactions.ts) ──
+
+type CreateTransactionBody = z.infer<typeof createTransactionSchema>;
+type UpdateTransactionPatch = Partial<LegacyInput> & {
+  date?: string;
+  description?: string | null;
+  cleared?: boolean;
+  tag_ids?: number[];
+};
+
+async function createTransactionFromLegacy(userId: number, body: CreateTransactionBody) {
+  const built = await buildLines(prisma, userId, body as LegacyInput);
+  const tagIds = await resolveTagIds(userId, body.tag_ids);
+  return await prisma.transaction.create({
+    data: {
+      user_id: userId,
+      kind: built.kind,
+      refunds_transaction_id: built.refunds_transaction_id,
+      date: new Date(body.date),
+      description: body.description ?? null,
+      cleared: body.cleared ?? false,
+      lines: { create: linesCreateData(userId, built) },
+      tags: { create: tagIds.map((tag_id) => ({ tag_id })) },
+    },
+    include: transactionInclude,
+  });
+}
+
+async function findEditableTransaction(userId: number, id: number) {
+  const existing = await prisma.transaction.findFirst({ where: { id, user_id: userId }, include: { lines: LINES_ORDERED } });
+  if (!existing) throw new HttpError(404, 'Transaction introuvable');
+  if (existing.kind === 'trade') throw new HttpError(400, 'Ce mouvement provient d\'un ordre de bourse : modifie l\'ordre');
+  return existing;
+}
+
+async function updateTransactionFromLegacy(userId: number, id: number, patch: UpdateTransactionPatch) {
+  const existing = await findEditableTransaction(userId, id);
+  // Lignes reconstruites (avec toutes les gardes de buildLines) seulement si
+  // la modification touche aux montants / comptes / catégories.
+  const built = patchTouchesLines(patch) ? await buildLines(prisma, userId, mergeLegacy(existing, patch), id) : null;
+  const tagIds = patch.tag_ids !== undefined ? await resolveTagIds(userId, patch.tag_ids) : null;
+  return await prisma.$transaction(async (tx) => {
+    if (built) {
+      await tx.transactionLine.deleteMany({ where: { transaction_id: id } });
+      await tx.transactionLine.createMany({ data: linesCreateData(userId, built).map((l) => ({ ...l, transaction_id: id })) });
+    }
+    if (tagIds) {
+      await tx.transactionTag.deleteMany({ where: { transaction_id: id } });
+      if (tagIds.length > 0) await tx.transactionTag.createMany({ data: tagIds.map((tag_id) => ({ transaction_id: id, tag_id })) });
+    }
+    return tx.transaction.update({
+      where: { id },
+      data: {
+        ...(built ? { kind: built.kind, refunds_transaction_id: built.refunds_transaction_id } : {}),
+        ...(patch.date != null ? { date: new Date(patch.date) } : {}),
+        ...(patch.description !== undefined ? { description: patch.description ?? null } : {}),
+        ...(patch.cleared != null ? { cleared: patch.cleared } : {}),
+      },
+      include: transactionInclude,
+    });
+  });
+}
+
+// Opérations « non catégorisées » éligibles aux règles : dépense/revenu à
+// une seule ligne sans catégorie (une opération ventilée garde sa ventilation,
+// comme le bulk-update). Version locale, sur le modèle à lignes, de
+// applyRulesToUncategorized.
+const UNCATEGORIZED_RULE_TARGET = {
+  kind: 'standard',
+  lines: { some: { category_id: null }, every: { category_id: null } },
+} satisfies Prisma.TransactionWhereInput;
+
+async function uncategorizedSingleLine(userId: number) {
+  const rows = await prisma.transaction.findMany({
+    where: { user_id: userId, ...UNCATEGORIZED_RULE_TARGET },
+    select: { id: true, description: true, lines: { select: { id: true } } },
+  });
+  return rows.filter((r) => r.lines.length === 1);
+}
+
+async function applyRulesToUncategorizedLines(userId: number): Promise<{ categorized: number; scanned: number }> {
+  const [rules, categories, uncategorized] = await Promise.all([
+    prisma.categoryRule.findMany({ where: { user_id: userId }, orderBy: { pattern: 'asc' } }),
+    prisma.category.findMany({ where: { user_id: userId }, select: { id: true } }),
+    uncategorizedSingleLine(userId),
+  ]);
+  const validCategory = new Set(categories.map((c) => c.id));
+  const activeRules = rules.filter((r) => validCategory.has(r.category_id));
+  const lineByTx = new Map(uncategorized.map((t) => [t.id, t.lines[0]!.id]));
+  let categorized = 0;
+  for (const [category_id, ids] of bucketByRule(uncategorized, activeRules)) {
+    const result = await prisma.transactionLine.updateMany({
+      where: { id: { in: ids.map((id) => lineByTx.get(id)!) }, user_id: userId, category_id: null },
+      data: { category_id },
+    });
+    categorized += result.count;
+  }
+  return { categorized, scanned: uncategorized.length };
 }
 
 async function listRecurring(userId: number) {
@@ -713,23 +797,39 @@ async function dashboardSummary(userId: number, rawArgs: unknown) {
   }).parse(rawArgs);
   const start = new Date(`${args.month}-01T00:00:00.000Z`);
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
-  const [transactions, accounts] = await Promise.all([
+  const [transactions, accounts, categories] = await Promise.all([
     prisma.transaction.findMany({
       where: { user_id: userId, date: { gte: start, lt: end } },
-      select: { type: true, amount: true, account_id: true, category_id: true },
+      select: LEDGER_TX_SELECT,
     }),
     prisma.account.findMany({ where: { user_id: userId }, select: { id: true } }),
+    prisma.category.findMany({ where: { user_id: userId }, select: { id: true, type: true } }),
   ]);
-  const income = transactions.filter((t) => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  const expenses = transactions.filter((t) => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  // Dépensé / reçu via txFlows : un remboursement réduit la dépense, les
+  // virements / mouvements de bourse / ajustements sont exclus.
+  // NB : comme avant le passage aux lignes, aucune conversion de devise n'est
+  // faite (montants sommés dans la devise de chaque compte) ; `currency` n'est
+  // qu'une étiquette. Le dashboard REST, lui, convertit.
+  const categoryType = categoryTypeLookup(categories);
+  let income = 0;
+  let expenses = 0;
+  for (const tx of transactions) {
+    for (const flow of txFlows(tx, categoryType)) {
+      if (flow.side === 'income') income += flow.value;
+      else expenses += flow.value;
+    }
+  }
+  income = round2(income);
+  expenses = round2(expenses);
   return {
     month: args.month,
     currency: args.currency,
     income,
     expenses,
-    net: income - expenses,
+    net: round2(income - expenses),
     transaction_count: transactions.length,
-    unassigned_count: transactions.filter((t) => t.type !== 'transfer' && (!t.account_id || !t.category_id)).length,
+    unassigned_count: transactions.filter((t) => t.kind === 'standard'
+      && (t.lines.length === 0 || t.lines.some((l) => l.account_id == null || (l.category_id == null && !l.refund)))).length,
     account_count: accounts.length,
   };
 }
@@ -756,9 +856,11 @@ async function listAccountSnapshots(userId: number, rawArgs: unknown) {
 
 type DateRange = { gte?: Date; lte?: Date; lt?: Date };
 
-// Pure, exported for unit testing. `uncategorized` must only force
-// `category_id: null` — it may not clobber an explicit `type` filter, so the
-// `type: { not: 'transfer' }` default is applied only when no type is given.
+// Pure, exported for unit testing. Le genre se filtre en SQL (virement =
+// kind transfer, dépense/revenu = kind standard) ; la distinction dépense /
+// revenu se fait ensuite sur la vue dérivée des lignes (cf. searchTransactions).
+// `uncategorized` cible les dépenses/revenus ayant une ligne sans catégorie et
+// ne remplace pas un filtre de type explicite.
 export function buildSearchTransactionsWhere(
   userId: number,
   args: {
@@ -769,15 +871,17 @@ export function buildSearchTransactionsWhere(
     tag_id?: number;
   },
   range: DateRange | null,
-) {
+): Prisma.TransactionWhereInput {
+  const lineFilters: Prisma.TransactionWhereInput[] = [];
+  if (args.category_id) lineFilters.push({ lines: { some: { category_id: args.category_id } } });
+  if (args.uncategorized) lineFilters.push({ lines: { some: { category_id: null } } });
   return {
     user_id: userId,
     ...(args.query ? { description: { contains: args.query, mode: 'insensitive' as const } } : {}),
-    ...(args.type ? { type: args.type } : {}),
-    ...(args.category_id ? { category_id: args.category_id } : {}),
-    ...(args.uncategorized
-      ? { category_id: null, ...(args.type ? {} : { type: { not: 'transfer' as const } }) }
-      : {}),
+    ...(args.type === 'transfer'
+      ? { kind: 'transfer' as const }
+      : args.type || args.uncategorized ? { kind: 'standard' as const } : {}),
+    ...(lineFilters.length > 0 ? { AND: lineFilters } : {}),
     ...(args.tag_id ? { tags: { some: { tag_id: args.tag_id } } } : {}),
     ...(range ? { date: range } : {}),
   };
@@ -789,7 +893,7 @@ async function searchTransactions(userId: number, rawArgs: unknown) {
     month: z.string().trim().default(''),
     type: z.enum(['expense', 'income', 'transfer']).optional(),
     category_id: z.coerce.number().int().positive().optional(),
-    uncategorized: z.boolean().optional(),
+    uncategorized: modelBoolean.optional(),
     tag_id: z.coerce.number().int().positive().optional(),
     from: z.string().trim().optional(),
     to: z.string().trim().optional(),
@@ -798,21 +902,32 @@ async function searchTransactions(userId: number, rawArgs: unknown) {
   const month = parseMonth(args.month);
   const range = month ? monthRange(month) : dateRange(args.from, args.to);
   const where = buildSearchTransactionsWhere(userId, args, range);
+  const sideFilter = args.type === 'expense' || args.type === 'income' ? args.type : null;
   // Return the total alongside the page so the model knows when the result is
   // truncated (has_more) instead of assuming it has seen everything.
-  const [total, transactions] = await Promise.all([
-    prisma.transaction.count({ where }),
+  // Filtre dépense/revenu sur la vue dérivée : pas de LIMIT/COUNT SQL dans ce cas.
+  const [count, rows, accounts, categories] = await Promise.all([
+    sideFilter ? Promise.resolve(0) : prisma.transaction.count({ where }),
     prisma.transaction.findMany({
       where,
-      take: args.limit,
+      ...(sideFilter ? {} : { take: args.limit }),
       orderBy: [{ date: 'desc' }, { id: 'desc' }],
-      include: {
-        account: { select: { name: true, currency: true } },
-        category: { select: { name: true, type: true } },
-        tags: { include: { tag: { select: { id: true, name: true } } } },
-      },
+      include: transactionInclude,
     }),
+    prisma.account.findMany({ where: { user_id: userId }, select: { id: true, name: true, currency: true } }),
+    prisma.category.findMany({ where: { user_id: userId }, select: { id: true, name: true, type: true } }),
   ]);
+  const accountById = new Map(accounts.map((a) => [a.id, { name: a.name, currency: a.currency }]));
+  const categoryById = new Map(categories.map((c) => [c.id, { name: c.name, type: c.type }]));
+  let serialized = rows.map(serializeTransaction);
+  if (sideFilter) serialized = serialized.filter((t) => t.type === sideFilter);
+  const total = sideFilter ? serialized.length : count;
+  const transactions = serialized.slice(0, args.limit).map((t) => ({
+    ...t,
+    account: t.account_id != null ? accountById.get(t.account_id) ?? null : null,
+    to_account: t.to_account_id != null ? accountById.get(t.to_account_id) ?? null : null,
+    category: t.category_id != null ? categoryById.get(t.category_id) ?? null : null,
+  }));
   return { total, returned: transactions.length, has_more: total > transactions.length, transactions };
 }
 
@@ -826,26 +941,31 @@ function propose(type: string, label: string, payload: unknown): ToolExecution {
 }
 
 async function proposeCreateTransaction(userId: number, rawArgs: unknown): Promise<ToolExecution> {
-  const body = createTransactionSchema.parse(rawArgs);
-  await assertTransactionReferences(userId, body);
+  const body = createTransactionSchema.parse(normalizeModelBooleans(rawArgs));
+  // Validation à blanc (références possédées, virement, ventilation,
+  // remboursement) : l'erreur remonte au modèle dès la proposition.
+  await buildLines(prisma, userId, body as LegacyInput);
   const label = `${body.type === 'expense' ? 'Créer une dépense' : body.type === 'income' ? 'Créer un revenu' : 'Créer un transfert'} de ${body.amount} le ${body.date}`;
   return propose('create_transaction', label, body);
 }
 
 async function proposeUpdateTransaction(userId: number, rawArgs: unknown): Promise<ToolExecution> {
   const baseSchema = z.object({ transaction_id: z.coerce.number().int().positive() }).and(updateTransactionSchema);
-  const body = baseSchema.parse(rawArgs);
-  const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
-  if (!existing) throw new Error('Transaction introuvable');
+  const body = baseSchema.parse(normalizeModelBooleans(rawArgs));
+  const existing = await findEditableTransaction(userId, body.transaction_id);
+  const { transaction_id, ...patch } = body;
+  if (patchTouchesLines(patch as Partial<LegacyInput>)) {
+    await buildLines(prisma, userId, mergeLegacy(existing, patch as Partial<LegacyInput>), transaction_id);
+  }
   const label = `Modifier la transaction "${existing.description ?? `#${existing.id}`}" du ${existing.date.toISOString().slice(0, 10)}`;
   return propose('update_transaction', label, body);
 }
 
 async function proposeDeleteTransaction(userId: number, rawArgs: unknown): Promise<ToolExecution> {
   const body = z.object({ transaction_id: z.coerce.number().int().positive() }).parse(rawArgs);
-  const existing = await prisma.transaction.findFirst({ where: { id: body.transaction_id, user_id: userId } });
-  if (!existing) throw new Error('Transaction introuvable');
-  return propose('delete_transaction', `Supprimer la transaction "${existing.description ?? `#${existing.id}`}" du ${existing.date.toISOString().slice(0, 10)}`, body);
+  const existing = await findEditableTransaction(userId, body.transaction_id);
+  const view = legacyView(existing);
+  return propose('delete_transaction', `Supprimer la transaction "${existing.description ?? `#${existing.id}`}" (${view.amount}) du ${existing.date.toISOString().slice(0, 10)}`, body);
 }
 
 async function proposeCreateCategory(rawArgs: unknown): Promise<ToolExecution> {
@@ -917,7 +1037,7 @@ async function proposeContributeGoal(userId: number, rawArgs: unknown): Promise<
 }
 
 async function proposeCreateRecurring(userId: number, rawArgs: unknown): Promise<ToolExecution> {
-  const body = createRecurringSchema.parse(rawArgs);
+  const body = createRecurringSchema.parse(normalizeModelBooleans(rawArgs));
   if (body.account_id) {
     const account = await prisma.account.findFirst({ where: { id: body.account_id, user_id: userId } });
     if (!account) throw new Error('Compte introuvable');
@@ -930,7 +1050,7 @@ async function proposeCreateRecurring(userId: number, rawArgs: unknown): Promise
 }
 
 async function proposeUpdateRecurring(userId: number, rawArgs: unknown): Promise<ToolExecution> {
-  const body = z.object({ recurring_id: z.coerce.number().int().positive() }).and(updateRecurringSchema).parse(rawArgs);
+  const body = z.object({ recurring_id: z.coerce.number().int().positive() }).and(updateRecurringSchema).parse(normalizeModelBooleans(rawArgs));
   const existing = await prisma.recurringTransaction.findFirst({ where: { id: body.recurring_id, user_id: userId } });
   if (!existing) throw new Error('Récurrent introuvable');
   return propose('update_recurring', `Modifier le récurrent "${existing.description}"`, body);
@@ -944,7 +1064,7 @@ async function proposeDeleteRecurring(userId: number, rawArgs: unknown): Promise
 }
 
 async function proposeSetBudget(userId: number, rawArgs: unknown): Promise<ToolExecution> {
-  const body = createBudgetSchema.parse(rawArgs);
+  const body = createBudgetSchema.parse(normalizeModelBooleans(rawArgs));
   const category = await prisma.category.findFirst({ where: { id: body.category_id, user_id: userId } });
   if (!category) throw new Error('Catégorie introuvable');
   return propose('set_budget', `Budget ${body.month} pour "${category.name}" : ${body.amount_limit}`, body);
@@ -984,10 +1104,7 @@ async function proposeCreateRules(userId: number, rawArgs: unknown): Promise<Too
 
   // Estimate how many of the current backlog these rules would catch, for the
   // confirmation label (the actual count is reported after confirmation).
-  const uncategorized = await prisma.transaction.findMany({
-    where: { user_id: userId, category_id: null, type: { not: 'transfer' }, splits: { none: {} } },
-    select: { id: true, description: true },
-  });
+  const uncategorized = await uncategorizedSingleLine(userId);
   const matched = Array.from(bucketByRule(uncategorized, rules).values()).reduce((sum, ids) => sum + ids.length, 0);
 
   const preview = rules.slice(0, 6).map((r) => `${r.pattern}→${categoryById.get(r.category_id)!.name}`).join(', ');

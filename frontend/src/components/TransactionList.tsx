@@ -15,7 +15,7 @@ export function TransactionList({ transactions, categoryById, accountById, onPic
         const sourceCurrency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
         const destinationCurrency = accountById.get(t.to_account_id ?? -1)?.currency ?? sourceCurrency;
         const categoryLabel = (t.splits ?? []).length > 0
-          ? t.splits.map((split) => categoryById.get(split.category_id)?.name ?? 'Catégorie').join(' + ')
+          ? t.splits.map((split) => categoryById.get(split.category_id ?? -1)?.name ?? 'Catégorie').join(' + ')
           : categoryById.get(t.category_id ?? -1)?.name ?? 'Sans catégorie';
         const content = (
           <>

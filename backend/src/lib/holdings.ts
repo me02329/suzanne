@@ -1,3 +1,4 @@
+import { HttpError } from '../middleware/errors.js';
 // Logique de position pure (testée, sans I/O) : à partir du carnet d'ordres
 // d'une position on déduit la quantité détenue, le prix de revient (méthode du
 // coût moyen pondéré, PRU) et la plus-value réalisée à une date donnée. La
@@ -53,6 +54,20 @@ export function positionStats(orders: OrderLike[], asOf?: Date): PositionStats {
     avg_cost: qty > 0 ? cost / qty : 0,
     realized_pnl: realized,
   };
+}
+
+// Rejoue le carnet dans l'ordre chronologique : à aucun moment une vente ne
+// doit dépasser la quantité détenue (y compris les ventes postérieures à un
+// ordre modifié ou supprimé). Lève une erreur 400 sinon.
+export function assertSaleWithinHoldings(orders: Array<Pick<OrderLike, 'side' | 'date' | 'quantity'> & { id?: number }>): void {
+  const ordered = [...orders].sort((a, b) => a.date.getTime() - b.date.getTime() || (a.side === 'buy' ? -1 : 1) - (b.side === 'buy' ? -1 : 1));
+  let qty = 0;
+  for (const o of ordered) {
+    qty += o.side === 'buy' ? o.quantity : -o.quantity;
+    if (qty < -1e-9) {
+      throw new HttpError(400, `Vente supérieure à la quantité détenue au ${o.date.toISOString().slice(0, 10)}`);
+    }
+  }
 }
 
 export interface PositionValue extends PositionStats {

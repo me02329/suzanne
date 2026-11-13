@@ -122,4 +122,9 @@ describe('billStatusForMonth', () => {
     expect(result.due).toBe(false);
     expect(result.matched_transactions).toHaveLength(0);
   });
+
+  it('matches a split expense when one of its categories is the bill category', () => {
+    expect(billMatchesTransaction(bill({ category_id: 7 }), tx({ category_id: null, category_ids: [3, 7] }))).toBe(true);
+    expect(billMatchesTransaction(bill({ category_id: 7 }), tx({ category_id: null, category_ids: [3] }))).toBe(false);
+  });
 });

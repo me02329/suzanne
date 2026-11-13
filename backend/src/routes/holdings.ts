@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../prisma.js';
+import { prisma, prismaBase } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import {
   createHoldingOrderSchema,
@@ -12,6 +12,8 @@ import {
 } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { valueHoldings, type HoldingInput } from '../lib/holdingsValuation.js';
+import { deleteOrdersCash, syncOrderCash } from '../lib/holdingCash.js';
+import { assertSaleWithinHoldings } from '../lib/holdings.js';
 
 export const holdingsRouter = Router();
 
@@ -131,7 +133,10 @@ holdingsRouter.patch('/users/:user_id/holdings/:id', asyncHandler(async (req, re
 holdingsRouter.delete('/users/:user_id/holdings/:id', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  const result = await prisma.holding.deleteMany({ where: { id, user_id } });
+  const result = await prismaBase.$transaction(async (tx) => {
+    await deleteOrdersCash(tx, { holding_id: id, user_id });
+    return tx.holding.deleteMany({ where: { id, user_id } });
+  });
   if (result.count === 0) {
     res.status(404).json({ error: 'Position introuvable' });
     return;
@@ -143,21 +148,16 @@ holdingsRouter.post('/users/:user_id/holdings/:id/orders', asyncHandler(async (r
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const body = createHoldingOrderSchema.parse(req.body);
-  const holding = await prisma.holding.findFirst({ where: { id, user_id }, select: { id: true } });
+  const holding = await prisma.holding.findFirst({ where: { id, user_id }, include: { orders: true } });
   if (!holding) {
     res.status(404).json({ error: 'Position introuvable' });
     return;
   }
-  await prisma.holdingOrder.create({
-    data: {
-      user_id,
-      holding_id: id,
-      side: body.side,
-      date: new Date(body.date),
-      quantity: body.quantity,
-      unit_price: body.unit_price,
-      fee: body.fee,
-    },
+  const candidate = { side: body.side, date: new Date(body.date), quantity: body.quantity, unit_price: body.unit_price, fee: body.fee };
+  assertSaleWithinHoldings([...holding.orders, candidate]);
+  await prismaBase.$transaction(async (tx) => {
+    const order = await tx.holdingOrder.create({ data: { user_id, holding_id: id, ...candidate } });
+    await syncOrderCash(tx, order.id);
   });
   res.status(201).json(serializeHolding((await ownHolding(user_id, id))!));
 }));
@@ -167,20 +167,23 @@ holdingsRouter.patch('/users/:user_id/holdings/:id/orders/:order_id', asyncHandl
   const id = idParam.parse(req.params.id);
   const order_id = idParam.parse(req.params.order_id);
   const body = updateHoldingOrderSchema.parse(req.body);
-  const order = await prisma.holdingOrder.findFirst({ where: { id: order_id, holding_id: id, user_id }, select: { id: true } });
+  const order = await prisma.holdingOrder.findFirst({ where: { id: order_id, holding_id: id, user_id } });
   if (!order) {
     res.status(404).json({ error: 'Ordre introuvable' });
     return;
   }
-  await prisma.holdingOrder.update({
-    where: { id: order_id },
-    data: {
-      ...(body.side != null ? { side: body.side } : {}),
-      ...(body.date != null ? { date: new Date(body.date) } : {}),
-      ...(body.quantity != null ? { quantity: body.quantity } : {}),
-      ...(body.unit_price != null ? { unit_price: body.unit_price } : {}),
-      ...(body.fee != null ? { fee: body.fee } : {}),
-    },
+  const next = {
+    side: body.side ?? order.side,
+    date: body.date != null ? new Date(body.date) : order.date,
+    quantity: body.quantity ?? order.quantity,
+    unit_price: body.unit_price ?? order.unit_price,
+    fee: body.fee ?? order.fee,
+  };
+  const siblings = await prisma.holdingOrder.findMany({ where: { holding_id: id, id: { not: order_id } } });
+  assertSaleWithinHoldings([...siblings, next]);
+  await prismaBase.$transaction(async (tx) => {
+    await tx.holdingOrder.update({ where: { id: order_id }, data: next });
+    await syncOrderCash(tx, order_id);
   });
   res.json(serializeHolding((await ownHolding(user_id, id))!));
 }));
@@ -189,7 +192,13 @@ holdingsRouter.delete('/users/:user_id/holdings/:id/orders/:order_id', asyncHand
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const order_id = idParam.parse(req.params.order_id);
-  const result = await prisma.holdingOrder.deleteMany({ where: { id: order_id, holding_id: id, user_id } });
+  const remaining = await prisma.holdingOrder.findMany({ where: { holding_id: id, id: { not: order_id } } });
+  // Supprimer un achat ne doit pas rendre une vente ultérieure impossible.
+  assertSaleWithinHoldings(remaining);
+  const result = await prismaBase.$transaction(async (tx) => {
+    await deleteOrdersCash(tx, { id: order_id, holding_id: id, user_id });
+    return tx.holdingOrder.deleteMany({ where: { id: order_id, holding_id: id, user_id } });
+  });
   if (result.count === 0) {
     res.status(404).json({ error: 'Ordre introuvable' });
     return;

@@ -1,0 +1,311 @@
+{
+ "app": "suzanne",
+ "version": 3,
+ "exported_at": "2026-11-13T01:58:24.623Z",
+ "source": "njord",
+ "accounts": [
+  {
+   "id": 1,
+   "name": "PEA",
+   "type": "pea",
+   "currency": "EUR",
+   "initial_balance": 0,
+   "initial_balance_date": "2022-01-02",
+   "orders_affect_cash": true,
+   "fiscal_start_date": "2022-01-09"
+  }
+ ],
+ "transactions": [
+  {
+   "kind": "transfer",
+   "date": "2022-01-09",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 200,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2022-04-10",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 200,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2022-07-10",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 200,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2022-10-09",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 200,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2023-01-08",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 300,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2023-04-09",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 300,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2023-07-09",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 300,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2023-10-08",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 300,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2024-01-07",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 400,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2024-04-07",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 400,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2024-07-07",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 400,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  },
+  {
+   "kind": "transfer",
+   "date": "2024-10-06",
+   "description": "Versement PEA",
+   "cleared": true,
+   "lines": [
+    {
+     "account_name": "PEA",
+     "amount": 400,
+     "category_id": null,
+     "refund": false,
+     "note": null
+    }
+   ]
+  }
+ ],
+ "holdings": [
+  {
+   "account_name": "PEA",
+   "symbol": "ESE.PA",
+   "name": "ESE",
+   "asset_class": "etf",
+   "currency": "EUR",
+   "orders": [
+    {
+     "side": "buy",
+     "date": "2022-01-11",
+     "quantity": 8,
+     "unit_price": 24,
+     "fee": 0
+    },
+    {
+     "side": "buy",
+     "date": "2022-07-12",
+     "quantity": 7,
+     "unit_price": 28,
+     "fee": 0
+    },
+    {
+     "side": "buy",
+     "date": "2023-01-10",
+     "quantity": 10,
+     "unit_price": 29.5,
+     "fee": 0
+    },
+    {
+     "side": "buy",
+     "date": "2023-07-11",
+     "quantity": 9,
+     "unit_price": 33,
+     "fee": 0
+    },
+    {
+     "side": "buy",
+     "date": "2024-01-09",
+     "quantity": 12,
+     "unit_price": 33,
+     "fee": 0
+    },
+    {
+     "side": "buy",
+     "date": "2024-07-09",
+     "quantity": 11,
+     "unit_price": 36,
+     "fee": 0
+    }
+   ]
+  },
+  {
+   "account_name": "PEA",
+   "symbol": "CW8.PA",
+   "name": "CW8",
+   "asset_class": "etf",
+   "currency": "EUR",
+   "orders": [
+    {
+     "side": "buy",
+     "date": "2022-04-12",
+     "quantity": 5,
+     "unit_price": 39,
+     "fee": 0
+    },
+    {
+     "side": "buy",
+     "date": "2022-10-11",
+     "quantity": 5,
+     "unit_price": 40,
+     "fee": 0
+    },
+    {
+     "side": "buy",
+     "date": "2023-04-11",
+     "quantity": 7,
+     "unit_price": 42,
+     "fee": 0
+    },
+    {
+     "side": "buy",
+     "date": "2023-10-10",
+     "quantity": 7,
+     "unit_price": 43,
+     "fee": 0
+    },
+    {
+     "side": "buy",
+     "date": "2024-04-09",
+     "quantity": 9,
+     "unit_price": 45,
+     "fee": 0
+    },
+    {
+     "side": "buy",
+     "date": "2024-10-08",
+     "quantity": 8,
+     "unit_price": 49,
+     "fee": 0
+    }
+   ]
+  }
+ ],
+ "snapshots": [
+  {
+   "account_name": "PEA",
+   "date": "2026-11-13",
+   "balance": 12.5
+  }
+ ]
+}

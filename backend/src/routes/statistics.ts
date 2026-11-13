@@ -6,24 +6,28 @@ import { currencyQuery, dateString, idParam } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { buildFx } from '../lib/fxHelper.js';
 import { addMonthsUtc, startOfUtcDay } from '../lib/dates.js';
+import { categoryTypeLookup, LINE_SELECT, txFlows, type Flow } from '../lib/ledger.js';
 
 export const statisticsRouter = Router();
 
 const rangeSchema = z.enum(['3m', '6m', '1y', '2y', 'all', 'custom']).default('1y');
 const optionalDate = dateString.optional();
-type CashflowTx = {
-  type: string;
-  amount: number;
+
+// Flux (dépense / revenu) d'une opération, déjà convertis en devise de
+// reporting. Une ligne de remboursement est une dépense négative sur la
+// catégorie de la dépense d'origine (cf. lib/ledger.ts).
+type ValuedFlow = Flow & { reported: number; refunded_description?: string | null };
+type StatsTx = {
   date: Date;
-  account_id: number | null;
-  refunds_transaction: unknown | null;
-  refund_allocations_sent: Array<{ amount: number }>;
+  description: string | null;
+  refunds_description: string | null;
+  flows: ValuedFlow[];
 };
-type CashflowAccount = { currency: string };
 
 // Long-range statistics: a unified endpoint that powers the "Statistiques"
 // tab. Expense charts stay expense-only, while cashflow uses all income and
-// expense transactions over the same requested range.
+// expense flows over the same requested range. Virements, mouvements de
+// bourse et ajustements n'ont pas de côté : ils sont exclus.
 statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const range = rangeSchema.parse(req.query.range ?? '1y');
@@ -32,54 +36,50 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   const fromParam = optionalDate.parse(req.query.from ?? undefined);
   const toParam = optionalDate.parse(req.query.to ?? undefined);
 
-  const [transactions, accounts, categories] = await Promise.all([
+  const [rows, accounts, categories] = await Promise.all([
     prisma.transaction.findMany({
-      where: {
-        user_id,
-        type: { in: ['expense', 'income'] },
-      },
+      where: { user_id, kind: 'standard' },
       // Projection minimale : seules les colonnes utilisées par les agrégations.
       select: {
-        type: true,
-        amount: true,
+        kind: true,
         date: true,
-        account_id: true,
-        category_id: true,
         description: true,
-        splits: { select: { category_id: true, amount: true } },
-        refunds_transaction: {
-          select: {
-            amount: true,
-            category_id: true,
-            description: true,
-            splits: { select: { category_id: true, amount: true } },
-          },
-        },
-        refund_allocations_sent: {
-          select: {
-            amount: true,
-            expense_transaction: {
-              select: {
-                amount: true,
-                category_id: true,
-                description: true,
-                splits: { select: { category_id: true, amount: true } },
-              },
-            },
-          },
-        },
+        lines: { select: LINE_SELECT },
+        refunds_transaction_id: true,
       },
     }),
     prisma.account.findMany({ where: { user_id }, select: { id: true, currency: true } }),
-    prisma.category.findMany({ where: { user_id }, select: { id: true, name: true, color: true } }),
+    prisma.category.findMany({ where: { user_id }, select: { id: true, name: true, color: true, type: true } }),
   ]);
   const { rates: fx } = await buildFx(accounts, reportCurrency);
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const categoryType = categoryTypeLookup(categories);
+
+  // Montant d'un flux en devise de reporting : devise du compte de la ligne
+  // (EUR quand la ligne n'a pas de compte).
+  const rateOf = (accountId: number | null) => fx.get(accountById.get(accountId ?? -1)?.currency ?? 'EUR') ?? 1;
+  // Libellé des dépenses remboursées (par ligne : un remboursement peut en couvrir plusieurs).
+  const refundedIds = Array.from(new Set(rows.flatMap((t) => t.lines.map((l) => l.refund_of_id ?? (l.refund ? t.refunds_transaction_id : null)).filter((id): id is number => id != null))));
+  const refundedDescription = new Map(
+    (refundedIds.length > 0 ? await prisma.transaction.findMany({ where: { id: { in: refundedIds }, user_id }, select: { id: true, description: true } }) : [])
+      .map((t) => [t.id, t.description]),
+  );
+  const transactions: StatsTx[] = rows.map((t) => ({
+    date: t.date,
+    description: t.description,
+    refunds_description: null,
+    flows: txFlows(t, categoryType).map((f) => ({
+      ...f,
+      reported: f.value * rateOf(f.account_id),
+      refunded_description: f.refund ? refundedDescription.get(f.refund_of_id ?? t.refunds_transaction_id ?? -1) : undefined,
+    })),
+  }));
+  const expenseFlows = (t: StatsTx) => t.flows.filter((f) => f.side === 'expense');
   // Expense charts intentionally ignore ordinary income: salary and similar
-  // flows are not spending. Refund incomes are kept and counted as negative
+  // flows are not spending. Refund lines are kept and counted as negative
   // expense so they cancel the original category/merchant.
-  const statsTransactions = transactions.filter((t) => t.type === 'expense' || isStatsRefund(t));
+  const statsTransactions = transactions.filter((t) => expenseFlows(t).length > 0);
 
   const today = startOfUtcDay(new Date());
   const earliest = transactions.length > 0
@@ -90,66 +90,61 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   let to = toParam ? new Date(`${toParam}T00:00:00.000Z`) : today;
   if (from > to) [from, to] = [to, from];
 
-  // Convert raw transaction amounts to the report currency via the source account's
-  // currency. Transactions without an account default to EUR (which gets converted).
-  // Dans les agrégats de dépenses ci-dessous, un `income` a déjà été filtré
-  // comme remboursement : il compte négativement et s'impute sur la catégorie /
-  // le marchand de la dépense qu'il rembourse.
-  const txValue = (t: { type: string; amount: number; account_id: number | null }, amount = t.amount) => {
-    const currency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
-    const value = amount * (fx.get(currency) ?? 1);
-    return t.type === 'income' ? -value : value;
-  };
   const inRange = statsTransactions.filter((t) => t.date >= from && t.date <= to);
   const cashflowInRange = transactions.filter((t) => t.date >= from && t.date <= to);
-  const categoryEntries = inRange.flatMap((t) => categoryAllocationsForStats(t).map((allocation) => ({
+  const categoryEntries = inRange.flatMap((t) => expenseFlows(t).map((flow) => ({
     transaction: t,
-    category_id: allocation.category_id,
-    amount: txValue(t, allocation.amount),
+    category_id: flow.category_id,
+    amount: flow.reported,
   })));
   const consideredEntries = excludeUncategorized
     ? categoryEntries.filter((entry) => entry.category_id != null)
     : categoryEntries;
   const consideredTransactions = excludeUncategorized
-    ? inRange.filter((t) => categoryAllocationsForStats(t).some((allocation) => allocation.category_id != null))
+    ? inRange.filter((t) => expenseFlows(t).some((flow) => flow.category_id != null))
     : inRange;
 
-  const totalExpenses = inRange.reduce((s, t) => {
-    if (t.type === 'expense') return s + txValue(t);
-    return s + txValue(t, refundAllocatedAmountForStats(t));
-  }, 0);
+  const totalExpenses = categoryEntries.reduce((s, entry) => s + entry.amount, 0);
   const totalCategorized = categoryEntries
     .filter((entry) => entry.category_id != null)
     .reduce((s, entry) => s + entry.amount, 0);
   const totalUncategorized = totalExpenses - totalCategorized;
 
-  // By category
-  const byCategoryMap = new Map<number | null, { amount: number; count: number }>();
+  // By category (une opération compte une fois par catégorie touchée)
+  const byCategoryMap = new Map<number | null, { amount: number; txs: Set<StatsTx> }>();
   for (const categoryEntry of consideredEntries) {
     const categoryId = categoryEntry.category_id;
-    const bucket = byCategoryMap.get(categoryId) ?? { amount: 0, count: 0 };
+    const bucket = byCategoryMap.get(categoryId) ?? { amount: 0, txs: new Set<StatsTx>() };
     bucket.amount += categoryEntry.amount;
-    bucket.count += 1;
+    bucket.txs.add(categoryEntry.transaction);
     byCategoryMap.set(categoryId, bucket);
   }
   const byCategory = Array.from(byCategoryMap.entries())
-    .map(([category_id, { amount, count }]) => {
+    .map(([category_id, { amount, txs }]) => {
       const category = category_id ? categoryById.get(category_id) : null;
       return {
         category_id,
         name: category?.name ?? 'Sans catégorie',
         color: category?.color ?? '#9ca3af',
         amount: round2(amount),
-        transactions_count: count,
+        transactions_count: txs.size,
       };
     })
     .sort((a, b) => b.amount - a.amount);
 
-  // By merchant (deduped + normalized description)
-  const merchantEntries = inRange.flatMap((t) => merchantAllocationsForStats(t).map((entry) => ({
-    ...entry,
-    amount: txValue(t, entry.amount),
-  })));
+  // By merchant (deduped + normalized description). Les lignes de
+  // remboursement s'imputent au marchand de la dépense remboursée.
+  const merchantEntries = inRange.flatMap((t) => {
+    const groups = new Map<string | null, { description: string | null; amount: number; categorized: boolean }>();
+    for (const flow of expenseFlows(t)) {
+      const description = flow.refunded_description !== undefined ? flow.refunded_description : t.description;
+      const group = groups.get(description) ?? { description, amount: 0, categorized: false };
+      group.amount += flow.reported;
+      if (flow.category_id != null) group.categorized = true;
+      groups.set(description, group);
+    }
+    return Array.from(groups.values());
+  });
   const consideredMerchantEntries = excludeUncategorized
     ? merchantEntries.filter((entry) => entry.categorized)
     : merchantEntries;
@@ -179,12 +174,9 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     monthlyMap.set(monthCursor.toISOString().slice(0, 7), 0);
     monthCursor.setUTCMonth(monthCursor.getUTCMonth() + 1);
   }
-  for (const t of inRange) {
-    const month = t.date.toISOString().slice(0, 7);
-    const value = t.type === 'expense'
-      ? txValue(t)
-      : txValue(t, refundAllocatedAmountForStats(t));
-    monthlyMap.set(month, (monthlyMap.get(month) ?? 0) + value);
+  for (const entry of categoryEntries) {
+    const month = entry.transaction.date.toISOString().slice(0, 7);
+    monthlyMap.set(month, (monthlyMap.get(month) ?? 0) + entry.amount);
   }
   const monthly = Array.from(monthlyMap.entries())
     .map(([month, amount]) => ({ month, amount: round2(amount) }))
@@ -204,136 +196,24 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     by_merchant: byMerchant,
     monthly,
     cashflow: {
-      monthly: buildCashflow(cashflowInRange, from, to, accountById, fx),
-      yearly: buildYearlyCashflow(cashflowInRange, from, to, accountById, fx),
+      monthly: buildCashflow(cashflowInRange, from, to),
+      yearly: buildYearlyCashflow(cashflowInRange, from, to),
     },
   });
 }));
 
-function isStatsRefund(t: {
-  type: string;
-  refunds_transaction: unknown | null;
-  refund_allocations_sent: Array<unknown>;
-}): boolean {
-  return t.type === 'income' && (t.refunds_transaction != null || t.refund_allocations_sent.length > 0);
-}
-
-function baseCategoryAllocations(t: {
-  amount: number;
-  category_id: number | null;
-  splits: Array<{ category_id: number; amount: number }>;
-}): Array<{ category_id: number | null; amount: number }> {
-  return t.splits.length > 0
-    ? t.splits.map((split) => ({ category_id: split.category_id, amount: split.amount }))
-    : [{ category_id: t.category_id, amount: t.amount }];
-}
-
-function categoryAllocationsForStats(t: {
-  type: string;
-  amount: number;
-  category_id: number | null;
-  splits: Array<{ category_id: number; amount: number }>;
-  refunds_transaction: {
-    amount: number;
-    category_id: number | null;
-    splits: Array<{ category_id: number; amount: number }>;
-  } | null;
-  refund_allocations_sent: Array<{
-    amount: number;
-    expense_transaction: {
-      amount: number;
-      category_id: number | null;
-      splits: Array<{ category_id: number; amount: number }>;
-    };
-  }>;
-}): Array<{ category_id: number | null; amount: number }> {
-  if (t.type !== 'income') return baseCategoryAllocations(t);
-  if (t.refund_allocations_sent.length > 0) {
-    return t.refund_allocations_sent.flatMap((refundAllocation) => {
-      const target = refundAllocation.expense_transaction;
-      if (!target || target.amount <= 0) return [{ category_id: null, amount: refundAllocation.amount }];
-      return baseCategoryAllocations(target).map((allocation) => ({
-        category_id: allocation.category_id,
-        amount: refundAllocation.amount * (allocation.amount / target.amount),
-      }));
-    });
+// Revenus / dépenses (montants en devise de reporting) d'une opération.
+function cashflowOf(t: StatsTx): { income: number; expenses: number } {
+  let income = 0;
+  let expenses = 0;
+  for (const flow of t.flows) {
+    if (flow.side === 'income') income += flow.reported;
+    else expenses += flow.reported;
   }
-  const target = t.refunds_transaction;
-  if (!target || target.amount <= 0) return [{ category_id: null, amount: t.amount }];
-  return baseCategoryAllocations(target).map((allocation) => ({
-    category_id: allocation.category_id,
-    amount: t.amount * (allocation.amount / target.amount),
-  }));
+  return { income, expenses };
 }
 
-function refundAllocatedAmountForStats(t: {
-  amount: number;
-  refunds_transaction: unknown | null;
-  refund_allocations_sent: Array<{ amount: number }>;
-}): number {
-  if (t.refund_allocations_sent.length > 0) {
-    return Math.min(t.amount, t.refund_allocations_sent.reduce((sum, allocation) => sum + allocation.amount, 0));
-  }
-  return t.refunds_transaction != null ? t.amount : 0;
-}
-
-function hasCategorizedAllocation(t: {
-  amount: number;
-  category_id: number | null;
-  splits: Array<{ category_id: number; amount: number }>;
-}): boolean {
-  return baseCategoryAllocations(t).some((allocation) => allocation.category_id != null);
-}
-
-function merchantAllocationsForStats(t: {
-  type: string;
-  amount: number;
-  description: string | null;
-  category_id: number | null;
-  splits: Array<{ category_id: number; amount: number }>;
-  refunds_transaction: {
-    amount: number;
-    category_id: number | null;
-    description: string | null;
-    splits: Array<{ category_id: number; amount: number }>;
-  } | null;
-  refund_allocations_sent: Array<{
-    amount: number;
-    expense_transaction: {
-      amount: number;
-      category_id: number | null;
-      description: string | null;
-      splits: Array<{ category_id: number; amount: number }>;
-    };
-  }>;
-}): Array<{ description: string | null; amount: number; categorized: boolean }> {
-  if (t.type !== 'income') {
-    return [{ description: t.description, amount: t.amount, categorized: hasCategorizedAllocation(t) }];
-  }
-  if (t.refund_allocations_sent.length > 0) {
-    return t.refund_allocations_sent.map((refundAllocation) => ({
-      description: refundAllocation.expense_transaction?.description ?? t.description,
-      amount: refundAllocation.amount,
-      categorized: refundAllocation.expense_transaction
-        ? hasCategorizedAllocation(refundAllocation.expense_transaction)
-        : false,
-    }));
-  }
-  const target = t.refunds_transaction;
-  return [{
-    description: target?.description ?? t.description,
-    amount: t.amount,
-    categorized: target ? hasCategorizedAllocation(target) : false,
-  }];
-}
-
-function buildCashflow(
-  transactions: CashflowTx[],
-  from: Date,
-  to: Date,
-  accountById: Map<number, CashflowAccount>,
-  fx: Map<string, number>,
-) {
+function buildCashflow(transactions: StatsTx[], from: Date, to: Date) {
   const buckets = new Map<string, { month: string; income: number; expenses: number; net: number }>();
   const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
   const lastMonth = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
@@ -346,13 +226,9 @@ function buildCashflow(
   for (const transaction of transactions) {
     const bucket = buckets.get(transaction.date.toISOString().slice(0, 7));
     if (!bucket) continue;
-    const rate = fx.get(accountById.get(transaction.account_id ?? -1)?.currency ?? 'EUR') ?? 1;
-    if (transaction.type === 'income') {
-      const refundAmount = refundAllocatedAmountForStats(transaction);
-      if (refundAmount > 0) bucket.expenses -= refundAmount * rate;
-      if (transaction.amount > refundAmount) bucket.income += (transaction.amount - refundAmount) * rate;
-    }
-    if (transaction.type === 'expense') bucket.expenses += transaction.amount * rate;
+    const { income, expenses } = cashflowOf(transaction);
+    bucket.income += income;
+    bucket.expenses += expenses;
     bucket.net = bucket.income - bucket.expenses;
   }
 
@@ -370,13 +246,7 @@ function buildCashflow(
   });
 }
 
-function buildYearlyCashflow(
-  transactions: CashflowTx[],
-  from: Date,
-  to: Date,
-  accountById: Map<number, CashflowAccount>,
-  fx: Map<string, number>,
-) {
+function buildYearlyCashflow(transactions: StatsTx[], from: Date, to: Date) {
   const buckets = new Map<string, { year: string; income: number; expenses: number; net: number }>();
   for (let year = from.getUTCFullYear(); year <= to.getUTCFullYear(); year += 1) {
     const key = String(year);
@@ -387,13 +257,9 @@ function buildYearlyCashflow(
     const year = transaction.date.toISOString().slice(0, 4);
     const bucket = buckets.get(year);
     if (!bucket) continue;
-    const rate = fx.get(accountById.get(transaction.account_id ?? -1)?.currency ?? 'EUR') ?? 1;
-    if (transaction.type === 'income') {
-      const refundAmount = refundAllocatedAmountForStats(transaction);
-      if (refundAmount > 0) bucket.expenses -= refundAmount * rate;
-      if (transaction.amount > refundAmount) bucket.income += (transaction.amount - refundAmount) * rate;
-    }
-    if (transaction.type === 'expense') bucket.expenses += transaction.amount * rate;
+    const { income, expenses } = cashflowOf(transaction);
+    bucket.income += income;
+    bucket.expenses += expenses;
     bucket.net = bucket.income - bucket.expenses;
   }
 

@@ -40,7 +40,7 @@ categoriesRouter.patch('/users/:user_id/categories/:id', asyncHandler(async (req
 }));
 
 // Fusion de deux catégories : réaffecte tout ce qui pointe sur la source
-// (transactions, ventilations, budgets, récurrents, règles, factures) vers la
+// (lignes d'opérations, budgets, récurrents, règles, factures) vers la
 // cible, puis supprime la source. Évite le « supprimer → tout devient sans
 // catégorie » et permet de dédoublonner un référentiel.
 const mergeCategorySchema = z.object({ target_category_id: z.coerce.number().int().positive() });
@@ -70,8 +70,8 @@ categoriesRouter.post('/users/:user_id/categories/:id/merge', asyncHandler(async
       ? [prisma.budget.deleteMany({ where: { user_id, category_id: sourceId, month: { in: targetMonths } } })]
       : []),
     prisma.budget.updateMany({ where: { user_id, category_id: sourceId }, data: { category_id: targetId } }),
-    prisma.transaction.updateMany({ where: { user_id, category_id: sourceId }, data: { category_id: targetId } }),
-    prisma.transactionSplit.updateMany({ where: { user_id, category_id: sourceId }, data: { category_id: targetId } }),
+    // Toutes les lignes, corbeille comprise (une restauration doit retrouver la cible).
+    prisma.transactionLine.updateMany({ where: { user_id, category_id: sourceId }, data: { category_id: targetId } }),
     prisma.recurringTransaction.updateMany({ where: { user_id, category_id: sourceId }, data: { category_id: targetId } }),
     prisma.categoryRule.updateMany({ where: { user_id, category_id: sourceId }, data: { category_id: targetId } }),
     prisma.bill.updateMany({ where: { user_id, category_id: sourceId }, data: { category_id: targetId } }),
@@ -80,6 +80,9 @@ categoriesRouter.post('/users/:user_id/categories/:id/merge', asyncHandler(async
   res.json({ merged: true, target_category_id: targetId });
 }));
 
+// Suppression : les lignes d'opérations qui la portent deviennent « sans
+// catégorie » (FK SetNull) — on ne touche jamais aux lignes ici, une
+// ventilation garde donc ses montants.
 categoriesRouter.delete('/users/:user_id/categories/:id', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);

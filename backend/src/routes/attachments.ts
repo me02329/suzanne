@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { createAttachmentSchema, idParam } from '../lib/validation.js';
+import { ATTACHMENT_MIME_TYPES, createAttachmentSchema, idParam } from '../lib/validation.js';
 
 export const attachmentsRouter = Router();
 
@@ -31,15 +31,19 @@ attachmentsRouter.post('/users/:user_id/transactions/:tx_id/attachments', asyncH
   res.status(201).json(row);
 }));
 
-// Téléchargement / aperçu : renvoie le binaire avec son type. `inline` permet
-// l'aperçu navigateur (image/PDF) ; le nom de fichier est conservé.
+// Téléchargement : renvoie le binaire avec son type, toujours en pièce jointe
+// et sans reniflage MIME (`nosniff`) — un fichier ne peut pas s'exécuter
+// comme page HTML sur l'origine de l'app. Le nom de fichier est conservé.
 attachmentsRouter.get('/users/:user_id/attachments/:id', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const attachment = await prisma.attachment.findFirst({ where: { id, user_id } });
   if (!attachment) { res.status(404).json({ error: 'Pièce jointe introuvable' }); return; }
-  res.setHeader('Content-Type', attachment.mime_type);
-  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(attachment.filename)}"`);
+  // Type d'une pièce antérieure à la liste fermée : servi en binaire opaque.
+  const mime = (ATTACHMENT_MIME_TYPES as readonly string[]).includes(attachment.mime_type) ? attachment.mime_type : 'application/octet-stream';
+  res.setHeader('Content-Type', mime);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(attachment.filename)}"; filename*=UTF-8''${encodeURIComponent(attachment.filename)}`);
   res.send(Buffer.from(attachment.data));
 }));
 

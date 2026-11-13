@@ -75,4 +75,19 @@ describe('evaluateAlerts', () => {
     const a = alert({ type: 'goal_behind', goal_id: 9 });
     expect(evaluateAlerts([a], ctx)).toHaveLength(0);
   });
+
+  it('formats account_balance alerts in the account currency', () => {
+    const ctx = baseCtx({ accounts: [{ id: 1, name: 'Courant CHF', currency: 'CHF' }], balanceByAccount: new Map([[1, 50]]) });
+    const a = alert({ type: 'account_balance', account_id: 1, operator: 'lt', threshold: 100 });
+    expect(evaluateAlerts([a], ctx)[0]!.message).toContain('CHF');
+  });
+
+  it('ignores trades and adjustments in transaction_amount alerts', () => {
+    const ctx = baseCtx({ monthTransactions: [
+      { amount: 900, type: 'trade', account_id: 1, description: 'Achat ETF' },
+      { amount: 900, type: 'adjustment', account_id: 1, description: 'Ajustement' },
+    ] });
+    const a = alert({ type: 'transaction_amount', operator: 'gt', threshold: 500 });
+    expect(evaluateAlerts([a], ctx)).toHaveLength(0);
+  });
 });

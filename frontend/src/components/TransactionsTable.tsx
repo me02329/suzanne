@@ -127,7 +127,7 @@ export function TransactionsTable({
             const isRefundIncome = t.type === 'income' && (refundAllocationCount > 0 || t.refunds_transaction_id != null);
             const selected = selectedIds.has(t.id);
             const compatibleCategories = categories.filter((c) => c.type === t.type);
-            const firstSplitCategory = splitRows.length > 0 ? categoryById.get(splitRows[0]!.category_id) : null;
+            const firstSplitCategory = splitRows.length > 0 ? categoryById.get(splitRows[0]!.category_id ?? -1) : null;
             const accent = firstSplitCategory?.color ?? category?.color
               ?? (t.type === 'income' ? 'var(--income)' : t.type === 'transfer' ? 'var(--accent)' : 'var(--expense)');
             return (
@@ -174,7 +174,7 @@ export function TransactionsTable({
                   {splitRows.length > 0 ? (
                     <span className="split-summary">
                       {splitRows.map((split) => {
-                        const splitCategory = categoryById.get(split.category_id);
+                        const splitCategory = categoryById.get(split.category_id ?? -1);
                         return `${splitCategory?.name ?? 'Catégorie'} ${money(split.amount, srcCurrency)}`;
                       }).join(' · ')}
                     </span>
@@ -220,9 +220,9 @@ export function TransactionsTable({
                   ) : splitRows.length > 0 ? (
                     <div className="split-list-mini">
                       {splitRows.map((split) => {
-                        const splitCategory = categoryById.get(split.category_id);
+                        const splitCategory = categoryById.get(split.category_id ?? -1);
                         return (
-                          <span key={split.id}>
+                          <span key={`${split.category_id}-${split.amount}`}>
                             <i style={{ background: splitCategory?.color ?? '#9ca3af' }} />
                             {splitCategory?.name ?? 'Catégorie'} · {money(split.amount, srcCurrency)}
                           </span>

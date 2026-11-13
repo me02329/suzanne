@@ -6,6 +6,21 @@ import { prismaBase as db } from '../prisma';
 const app = createApp();
 const api = request(app);
 
+// Écrit une opération au format lignes (équivalent de l'ancienne forme).
+type TxIn = { type: 'expense' | 'income' | 'transfer'; amount: number; date: string; account_id?: number | null; to_account_id?: number; category_id?: number; description?: string; recurring_transaction_id?: number; deleted_at?: Date };
+async function createTx(user_id: number, t: TxIn) {
+  const lines = t.type === 'transfer'
+    ? [{ user_id, account_id: t.account_id ?? null, amount: -t.amount, position: 0 }, { user_id, account_id: t.to_account_id!, amount: t.amount, position: 1 }]
+    : [{ user_id, account_id: t.account_id ?? null, category_id: t.category_id ?? null, amount: t.type === 'income' ? t.amount : -t.amount }];
+  return db.transaction.create({
+    data: {
+      user_id, kind: t.type === 'transfer' ? 'transfer' : 'standard', date: new Date(t.date), description: t.description ?? null,
+      recurring_transaction_id: t.recurring_transaction_id ?? null, deleted_at: t.deleted_at ?? null,
+      lines: { create: lines },
+    },
+  });
+}
+
 async function createUser(name: string) {
   const res = await api.post('/api/users').send({ name }).expect(201);
   return res.body.id as number;
@@ -30,19 +45,11 @@ async function seedFullUser(name: string) {
       frequency: 'monthly', day_of_month: 5, end_date: new Date('2026-12-31'), last_executed: new Date('2026-03-05'),
     },
   });
-  const expense = await db.transaction.create({
-    data: { user_id, account_id: checking.id, category_id: food.id, amount: 42.5, type: 'expense', date: new Date('2026-03-10'), description: 'Supermarché' },
-  });
-  await db.transaction.create({
-    data: { user_id, account_id: checking.id, to_account_id: pea.id, amount: 500, type: 'transfer', date: new Date('2026-03-11'), description: 'Versement PEA' },
-  });
-  await db.transaction.create({
-    data: { user_id, account_id: checking.id, recurring_transaction_id: recurring.id, amount: 9.99, type: 'expense', date: new Date('2026-03-05'), description: 'Abonnement' },
-  });
+  const expense = await createTx(user_id, { account_id: checking.id, category_id: food.id, amount: 42.5, type: 'expense', description: 'Supermarché', date: '2026-03-10' });
+  await createTx(user_id, { account_id: checking.id, to_account_id: pea.id, amount: 500, type: 'transfer', description: 'Versement PEA', date: '2026-03-11' });
+  await createTx(user_id, { account_id: checking.id, recurring_transaction_id: recurring.id, amount: 9.99, type: 'expense', description: 'Abonnement', date: '2026-03-05' });
   // Transaction dans la corbeille : ne doit pas ressusciter.
-  await db.transaction.create({
-    data: { user_id, account_id: checking.id, amount: 1, type: 'expense', date: new Date('2026-03-12'), description: 'Supprimée', deleted_at: new Date() },
-  });
+  await createTx(user_id, { account_id: checking.id, amount: 1, type: 'expense', description: 'Supprimée', deleted_at: new Date(), date: '2026-03-12' });
   const goal = await db.savingsGoal.create({ data: { user_id, account_id: pea.id, name: 'Retraite', target_amount: 10000 } });
   const holding = await db.holding.create({
     data: { user_id, account_id: pea.id, symbol: 'CW8.PA', name: 'Amundi MSCI World', asset_class: 'etf' },
@@ -134,10 +141,10 @@ describe('sauvegarde complète', () => {
     await db.transaction.deleteMany({ where: { user_id: source.user_id } });
 
     await api.post(`/api/users/${source.user_id}/import.json`).send({ payload: res.body }).expect(200);
-    const restored = await db.transaction.findMany({ where: { user_id: source.user_id } });
+    const restored = await db.transaction.findMany({ where: { user_id: source.user_id }, include: { lines: true } });
     expect(restored).toHaveLength(3);
-    expect(restored.every((t) => t.account_id === source.checking.id)).toBe(true);
-    expect(restored.find((t) => t.type === 'transfer')?.to_account_id).toBe(source.pea.id);
+    expect(restored.every((t) => t.lines.some((l) => l.account_id === source.checking.id))).toBe(true);
+    expect(restored.find((t) => t.kind === 'transfer')?.lines.find((l) => l.amount > 0)?.account_id).toBe(source.pea.id);
   });
 
   it("un import invalide n'écrit rien (atomique)", async () => {
@@ -166,7 +173,7 @@ describe('sauvegarde complète', () => {
       }],
     };
     await api.post(`/api/users/${target}/import.json`).send({ payload });
-    const splits = await db.transactionSplit.findMany({ where: { user_id: target } });
+    const splits = await db.transactionLine.findMany({ where: { user_id: target } });
     expect(splits.some((s) => s.category_id === foreign.id)).toBe(false);
   });
 });
@@ -177,9 +184,7 @@ describe('export CSV', () => {
     const account = await db.account.create({
       data: { user_id, name: 'Courant', type: 'checking', initial_balance: 0, initial_balance_date: new Date('2026-01-01') },
     });
-    await db.transaction.create({
-      data: { user_id, account_id: account.id, amount: 12.5, type: 'expense', date: new Date('2026-03-10'), description: '=HYPERLINK("x")' },
-    });
+    await createTx(user_id, { account_id: account.id, amount: 12.5, type: 'expense', description: '=HYPERLINK("x")', date: '2026-03-10' });
     const res = await api.get(`/api/users/${user_id}/transactions.csv`).expect(200);
     const text: string = res.text.replace(/^﻿/, '');
     const [header, row] = text.trim().split(/\r?\n/);
@@ -194,7 +199,7 @@ describe('export CSV', () => {
     await db.transaction.deleteMany({ where: { user_id } });
     const imported = await api.post(`/api/users/${user_id}/import.csv`).send({ csv: res.text, account_id: account.id }).expect(200);
     expect(imported.body.imported).toBe(1);
-    const tx = await db.transaction.findFirst({ where: { user_id } });
-    expect(tx).toMatchObject({ amount: 12.5, type: 'expense' });
+    const tx = await db.transaction.findFirst({ where: { user_id }, include: { lines: true } });
+    expect(tx?.lines.map((l) => l.amount)).toEqual([-12.5]);
   });
 });

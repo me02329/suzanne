@@ -44,6 +44,11 @@ export const createAccountSchema = z.object({
 export const updateAccountSchema = createAccountSchema.partial().extend({
   archived: z.coerce.boolean().optional(),
 });
+// Champs propres aux comptes d'investissement (création et modification).
+export const investmentAccountFields = z.object({
+  orders_affect_cash: z.preprocess((v) => (v === 'false' || v === '0' ? false : v), z.coerce.boolean()).optional(),
+  fiscal_start_date: dateString.nullish(),
+});
 
 export const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -267,8 +272,9 @@ export const updateHoldingSchema = createHoldingSchema.partial().omit({ account_
 export const createHoldingOrderSchema = z.object({
   side: z.enum(['buy', 'sell']),
   date: dateString,
-  quantity: z.coerce.number().positive().transform(round2),
-  unit_price: z.coerce.number().min(0).transform(round2),
+  // Fractions d'ETF / crypto : 8 décimales de quantité, 6 de cours.
+  quantity: z.coerce.number().positive().transform((n) => Math.round(n * 1e8) / 1e8),
+  unit_price: z.coerce.number().min(0).transform((n) => Math.round(n * 1e6) / 1e6),
   fee: z.coerce.number().min(0).default(0).transform(round2),
 });
 export const updateHoldingOrderSchema = createHoldingOrderSchema.partial();
@@ -303,11 +309,13 @@ export const updateAlertSchema = alertShape.partial();
 // Pièce jointe : reçus/justificatifs. On limite aux images et PDF, 8 Mo max
 // (le contenu transite en base64 dans le corps JSON, limité à 25 Mo côté app).
 const ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
+export const ATTACHMENT_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf'] as const;
 export const createAttachmentSchema = z.object({
   filename: z.string().trim().min(1).max(255),
-  mime_type: z.string().trim().refine(
-    (m) => m.startsWith('image/') || m === 'application/pdf',
-    'Seules les images et les PDF sont acceptés',
+  // Liste fermée : pas de SVG (scriptable) ni d'autre type servi tel quel.
+  mime_type: z.string().trim().toLowerCase().refine(
+    (m) => (ATTACHMENT_MIME_TYPES as readonly string[]).includes(m),
+    'Seules les images (PNG, JPEG, WebP, GIF) et les PDF sont acceptés',
   ),
   data_base64: z.string().min(1).refine((b64) => {
     // Taille approximative du binaire décodé sans tout matérialiser.

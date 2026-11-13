@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../prisma.js';
+import { prisma, prismaBase } from '../prisma.js';
+import { resyncAccountOrders } from '../lib/holdingCash.js';
 import { asyncHandler } from '../middleware/errors.js';
-import { createAccountSchema, idParam, updateAccountSchema } from '../lib/validation.js';
+import { createAccountSchema, idParam, updateAccountSchema, investmentAccountFields } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { serializeTransaction, transactionInclude } from './transactions.js';
 
@@ -15,61 +16,67 @@ accountsRouter.get('/users/:user_id/accounts', asyncHandler(async (req, res) => 
 
 // Activity for one account: all-time inflow/outflow totals + the most recent
 // movements. Replaces the account detail page fetching every user transaction
-// and filtering client-side — here the query is scoped to the account (indexed
-// on account_id / to_account_id) and only `limit` rows cross the wire.
+// and filtering client-side — here the query is scoped to the account's lines
+// (indexed on account_id) and only `limit` operations cross the wire.
 accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const limit = z.coerce.number().int().min(1).max(200).default(40).parse(req.query.limit ?? 40);
 
-  const account = await prisma.account.findFirst({ where: { id, user_id }, select: { id: true, initial_balance: true } });
+  const account = await prisma.account.findFirst({ where: { id, user_id }, select: { id: true, initial_balance: true, initial_balance_date: true } });
   if (!account) {
     res.status(404).json({ error: 'Not found' });
     return;
   }
 
-  // Les totaux lisent toutes les lignes du compte mais en projection minimale ;
-  // seules les `limit` lignes renvoyées embarquent tags et liens.
-  const where = { user_id, OR: [{ account_id: id }, { to_account_id: id }] };
-  const [totalsRows, recent] = await Promise.all([
-    prisma.transaction.findMany({
-      where,
-      select: { type: true, amount: true, to_amount: true, account_id: true, to_account_id: true, cleared: true },
+  // Les totaux lisent toutes les lignes du compte en projection minimale
+  // (corbeille filtrée explicitement : relation imbriquée) ; seules les
+  // `limit` opérations renvoyées embarquent tags et liens.
+  const [lines, recent, latestSnapshot] = await Promise.all([
+    prisma.transactionLine.findMany({
+      where: { user_id, account_id: id, transaction: { deleted_at: null } },
+      select: { amount: true, transaction_id: true, transaction: { select: { date: true, cleared: true } } },
     }),
     prisma.transaction.findMany({
-      where,
+      where: { user_id, lines: { some: { account_id: id } } },
       orderBy: [{ date: 'desc' }, { id: 'desc' }],
       take: limit,
       include: transactionInclude,
     }),
+    prisma.accountSnapshot.findFirst({ where: { user_id, account_id: id }, orderBy: { date: 'desc' }, select: { date: true, balance: true } }),
   ]);
 
-  // Signed effect on this account, mirroring frontend lib/account.ts
-  // accountSignedAmount: a transfer debits its source and credits its
-  // destination (to_amount when the currencies differ).
+  // Effet signé de chaque opération sur ce compte = somme de ses lignes sur
+  // le compte (un virement débite la source et crédite la destination, chacun
+  // dans sa devise).
+  const byTx = new Map<number, { signed: number; date: Date; cleared: boolean }>();
+  for (const l of lines) {
+    const cur = byTx.get(l.transaction_id);
+    if (cur) cur.signed += l.amount;
+    else byTx.set(l.transaction_id, { signed: l.amount, date: l.transaction.date, cleared: l.transaction.cleared });
+  }
+
+  // Rapprochement : le « solde pointé » part de la même ancre que
+  // computeAccountBalances (dashboard) — dernier relevé (mouvements strictement
+  // après) ou à défaut solde initial (mouvements du jour inclus) — et n'ajoute
+  // que les opérations pointées, en devise native du compte.
+  const anchor = latestSnapshot ? latestSnapshot.balance : account.initial_balance;
+  const since = latestSnapshot ? latestSnapshot.date : account.initial_balance_date;
+  const afterAnchor = (date: Date) => (latestSnapshot ? date > since : date >= since);
   let inflow = 0;
   let outflow = 0;
-  // Rapprochement : le « solde pointé » ne compte que les lignes pointées
-  // (cleared), en devise native du compte — c'est lui qu'on compare au relevé.
   let clearedDelta = 0;
   let unclearedCount = 0;
-  for (const t of totalsRows) {
-    let signed = 0;
-    if (t.type === 'transfer') {
-      if (t.account_id === id) signed = -t.amount;
-      else if (t.to_account_id === id) signed = t.to_amount ?? t.amount;
-    } else if (t.account_id === id) {
-      signed = t.type === 'income' ? t.amount : -t.amount;
-    }
-    if (signed > 0) inflow += signed; else outflow += -signed;
-    if (t.cleared) clearedDelta += signed;
-    else if (signed !== 0) unclearedCount += 1;
+  for (const t of byTx.values()) {
+    if (t.signed > 0) inflow += t.signed; else outflow += -t.signed;
+    if (t.cleared) { if (afterAnchor(t.date)) clearedDelta += t.signed; }
+    else if (t.signed !== 0) unclearedCount += 1;
   }
 
   res.json({
     inflow: round2(inflow),
     outflow: round2(outflow),
-    cleared_balance: round2(account.initial_balance + clearedDelta),
+    cleared_balance: round2(anchor + clearedDelta),
     uncleared_count: unclearedCount,
     recent: recent.map(serializeTransaction),
   });
@@ -78,7 +85,19 @@ accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (
 accountsRouter.post('/users/:user_id/accounts', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = createAccountSchema.parse(req.body);
-  const row = await prisma.account.create({ data: { ...body, user_id, initial_balance_date: new Date(body.initial_balance_date) } });
+  const extra = investmentAccountFields.parse(req.body);
+  // Nouveau compte d'investissement : les ordres de bourse débitent/créditent
+  // ses espèces par défaut (évite le double comptage espèces + titres).
+  const investment = ['pea', 'securities', 'crypto', 'retirement'].includes(body.type);
+  const row = await prisma.account.create({
+    data: {
+      ...body,
+      user_id,
+      initial_balance_date: new Date(body.initial_balance_date),
+      orders_affect_cash: extra.orders_affect_cash ?? investment,
+      fiscal_start_date: extra.fiscal_start_date ? new Date(extra.fiscal_start_date) : null,
+    },
+  });
   res.status(201).json(row);
 }));
 
@@ -86,14 +105,19 @@ accountsRouter.patch('/users/:user_id/accounts/:id', asyncHandler(async (req, re
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
   const body = updateAccountSchema.parse(req.body);
+  const extra = investmentAccountFields.parse(req.body);
   const existing = await prisma.account.findFirst({ where: { id, user_id } });
   if (!existing) {
     res.status(404).json({ error: 'Not found' });
     return;
   }
-  const row = await prisma.account.update({
+  const toggled = extra.orders_affect_cash !== undefined && extra.orders_affect_cash !== existing.orders_affect_cash;
+  const row = await prismaBase.$transaction(async (tx) => {
+    const updated = await tx.account.update({
     where: { id },
     data: {
+      ...(extra.orders_affect_cash !== undefined ? { orders_affect_cash: extra.orders_affect_cash } : {}),
+      ...(extra.fiscal_start_date !== undefined ? { fiscal_start_date: extra.fiscal_start_date ? new Date(extra.fiscal_start_date) : null } : {}),
       ...(body.name != null ? { name: body.name } : {}),
       ...(body.institution_id !== undefined ? { institution_id: body.institution_id ?? null } : {}),
       ...(body.type != null ? { type: body.type } : {}),
@@ -102,6 +126,10 @@ accountsRouter.patch('/users/:user_id/accounts/:id', asyncHandler(async (req, re
       ...(body.initial_balance_date != null ? { initial_balance_date: new Date(body.initial_balance_date) } : {}),
       ...(body.archived !== undefined ? { archived: body.archived } : {}),
     },
+    });
+    // Option basculée : (re)génère ou retire les mouvements d'espèces des ordres.
+    if (toggled) await resyncAccountOrders(tx, id);
+    return updated;
   });
   res.json(row);
 }));
@@ -109,10 +137,18 @@ accountsRouter.patch('/users/:user_id/accounts/:id', asyncHandler(async (req, re
 accountsRouter.delete('/users/:user_id/accounts/:id', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const id = idParam.parse(req.params.id);
-  const result = await prisma.account.deleteMany({ where: { id, user_id } });
-  if (result.count === 0) {
+  const existing = await prisma.account.findFirst({ where: { id, user_id }, select: { id: true } });
+  if (!existing) {
     res.status(404).json({ error: 'Not found' });
     return;
   }
+  // Un compte qui porte des lignes (corbeille comprise) ne se supprime pas :
+  // l'historique et les soldes deviendraient incohérents. On l'archive.
+  const lineCount = await prisma.transactionLine.count({ where: { user_id, account_id: id } });
+  if (lineCount > 0) {
+    res.status(409).json({ error: `Ce compte porte encore ${lineCount} ligne${lineCount > 1 ? 's' : ''} d'opération : archive-le plutôt que de le supprimer.` });
+    return;
+  }
+  await prisma.account.delete({ where: { id } });
   res.json({ deleted: true });
 }));

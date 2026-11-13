@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/errors.js';
 import { nextRecurringOccurrence } from '@suzanne/shared';
 import { createRecurringSchema, idParam, updateRecurringSchema } from '../lib/validation.js';
 import { dateKey, startOfUtcDay } from '../lib/dates.js';
+import { buildLines, linesCreateData, type BuiltLines } from '../lib/ledger.js';
 
 export const recurringRouter = Router();
 
@@ -165,17 +166,34 @@ async function generateDueRecurringTransactionsUnlocked(user_id: number, today: 
     const alreadyGenerated = new Set(existing.map((e) => dateKey(e.date)));
     const newDates = dueDates.filter((d) => !alreadyGenerated.has(dateKey(d)));
 
+    // Le modèle (type / montant / compte / catégorie) devient une opération à
+    // lignes via buildLines, comme une saisie manuelle. Un modèle devenu
+    // invalide est sauté (journalisé) sans bloquer les autres.
+    let built: BuiltLines | null = null;
+    if (newDates.length > 0) {
+      try {
+        built = await buildLines(prisma, user_id, {
+          type: row.type,
+          amount: row.amount,
+          account_id: row.account_id,
+          category_id: row.category_id,
+          date: dateKey(newDates[0]!),
+        });
+      } catch (e) {
+        console.error('[recurring] modèle invalide, occurrence non générée', { recurring_id: row.id, detail: (e as Error).message });
+        continue;
+      }
+    }
+
     await prisma.$transaction([
       ...newDates.map((date) => prisma.transaction.create({
         data: {
           user_id,
-          account_id: row.account_id,
-          category_id: row.category_id,
+          kind: built!.kind,
           recurring_transaction_id: row.id,
-          amount: row.amount,
-          type: row.type,
           date,
           description: row.description,
+          lines: { create: linesCreateData(user_id, built!) },
         },
       })),
       prisma.recurringTransaction.update({

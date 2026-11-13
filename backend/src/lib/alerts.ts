@@ -17,8 +17,13 @@ export interface AlertConfig {
 }
 
 export interface AlertContext {
-  accounts: Array<{ id: number; name: string }>;
-  // Solde signé par compte, en devise de reporting.
+  // `currency` = devise du compte (formate les alertes de solde ; à défaut,
+  // la devise du contexte).
+  accounts: Array<{ id: number; name: string; currency?: string }>;
+  // Solde par compte, dans la DEVISE DU COMPTE (pas de conversion : le seuil
+  // d'une alerte de solde est saisi pour ce compte). Pour un passif (crédit,
+  // carte…) c'est la valeur ABSOLUE de la dette : « dette > 10 000 » se lit
+  // naturellement, sans seuil négatif.
   balanceByAccount: Map<number, number>;
   // Transactions du mois courant (montants positifs, signe porté par le type).
   monthTransactions: Array<{ amount: number; type: string; account_id: number | null; description: string }>;
@@ -44,6 +49,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function evaluateAlerts(alerts: AlertConfig[], ctx: AlertContext): TriggeredAlert[] {
   const accountName = new Map(ctx.accounts.map((a) => [a.id, a.name]));
+  const accountCurrency = new Map(ctx.accounts.map((a) => [a.id, a.currency ?? ctx.currency]));
   const triggered: TriggeredAlert[] = [];
 
   for (const alert of alerts) {
@@ -57,11 +63,12 @@ export function evaluateAlerts(alerts: AlertConfig[], ctx: AlertContext): Trigge
       if (hit) {
         const name = accountName.get(alert.account_id) ?? `Compte #${alert.account_id}`;
         const word = alert.operator === 'lt' ? 'est descendu sous' : 'a dépassé';
+        const ccy = accountCurrency.get(alert.account_id) ?? ctx.currency;
         triggered.push({
           id: alert.id,
           type: alert.type,
           severity: 'warning',
-          message: `Le solde de « ${name} » ${word} ${fmt(alert.threshold, ctx.currency)} (actuel : ${fmt(balance, ctx.currency)}).`,
+          message: `Le solde de « ${name} » ${word} ${fmt(alert.threshold, ccy)} (actuel : ${fmt(balance, ccy)}).`,
         });
       }
       continue;
@@ -70,7 +77,8 @@ export function evaluateAlerts(alerts: AlertConfig[], ctx: AlertContext): Trigge
     if (alert.type === 'transaction_amount') {
       if (alert.operator == null || alert.threshold == null) continue;
       const matches = ctx.monthTransactions.filter((t) => {
-        if (t.type === 'transfer') return false;
+        // Virements, mouvements de bourse et ajustements ne sont pas des flux.
+        if (t.type !== 'expense' && t.type !== 'income') return false;
         if (alert.account_id != null && t.account_id !== alert.account_id) return false;
         return alert.operator === 'gt' ? t.amount > alert.threshold! : t.amount < alert.threshold!;
       });

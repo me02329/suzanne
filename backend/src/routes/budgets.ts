@@ -4,7 +4,7 @@ import { asyncHandler } from '../middleware/errors.js';
 import { createBudgetSchema, currencyQuery, idParam, monthString } from '../lib/validation.js';
 import { buildFx } from '../lib/fxHelper.js';
 import { round2 } from '../lib/money.js';
-import { spentByCategory, type CategoryTx } from '../lib/categorySpend.js';
+import { categoryTypeLookup, LEDGER_TX_SELECT, txFlows } from '../lib/ledger.js';
 
 export const budgetsRouter = Router();
 
@@ -14,12 +14,6 @@ budgetsRouter.get('/users/:user_id/budgets', asyncHandler(async (req, res) => {
   if (month) await ensureRecurringBudgets(user_id, month);
   res.json(await prisma.budget.findMany({ where: { user_id, ...(month ? { month } : {}) }, orderBy: { id: 'asc' } }));
 }));
-
-const BUDGET_TX_SELECT = {
-  id: true, type: true, amount: true, category_id: true, account_id: true, date: true, refunds_transaction_id: true,
-  splits: { select: { category_id: true, amount: true } },
-  refund_allocations_sent: { select: { amount: true, expense_transaction: { select: { amount: true, category_id: true, splits: { select: { category_id: true, amount: true } } } } } },
-} as const;
 
 // Statut des budgets d'un mois, report d'enveloppe inclus. Pour les budgets
 // `rollover`, on replie les mois antérieurs de la catégorie : limite effective =
@@ -31,29 +25,34 @@ budgetsRouter.get('/users/:user_id/budgets/status', asyncHandler(async (req, res
   const reportCurrency = currencyQuery.parse(req.query.currency ?? 'EUR');
   await ensureRecurringBudgets(user_id, month);
 
-  const [budgets, accounts, transactions] = await Promise.all([
+  const [year, monthIndex] = month.split('-').map(Number) as [number, number];
+  const monthEnd = new Date(Date.UTC(year, monthIndex, 1)); // 1er du mois suivant
+  const [budgets, accounts, categories, transactions] = await Promise.all([
     prisma.budget.findMany({ where: { user_id, month: { lte: month } }, orderBy: [{ month: 'asc' }, { id: 'asc' }] }),
     prisma.account.findMany({ where: { user_id }, select: { id: true, currency: true } }),
-    prisma.transaction.findMany({ where: { user_id }, select: BUDGET_TX_SELECT }),
+    prisma.category.findMany({ where: { user_id }, select: { id: true, type: true } }),
+    // Seules les opérations standard ont un côté dépense/revenu.
+    prisma.transaction.findMany({ where: { user_id, kind: 'standard', date: { lt: monthEnd } }, select: LEDGER_TX_SELECT }),
   ]);
   const { rates: fx } = await buildFx(accounts, reportCurrency);
   const currencyByAccount = new Map(accounts.map((a) => [a.id, a.currency]));
-  const txById = new Map<number, CategoryTx>(transactions.map((t) => [t.id, t as CategoryTx]));
-  const valueOf = (amount: number, t: CategoryTx) =>
-    amount * (fx.get(currencyByAccount.get((t as unknown as { account_id: number | null }).account_id ?? -1) ?? 'EUR') ?? 1);
+  const categoryType = categoryTypeLookup(categories);
+  // Devise d'un flux = devise du compte de sa ligne (EUR sans compte).
+  const rateOf = (accountId: number | null) => fx.get(currencyByAccount.get(accountId ?? -1) ?? 'EUR') ?? 1;
 
-  // Dépensé net par (mois, catégorie), calculé comme le dashboard.
-  const txByMonth = new Map<string, CategoryTx[]>();
+  // Dépensé net par (mois, catégorie), via txFlows comme le dashboard : une
+  // ligne de remboursement est une dépense négative sur sa catégorie.
+  const spentByMonth = new Map<string, Map<number | null, number>>();
   for (const t of transactions) {
-    const k = (t as unknown as { date: Date }).date.toISOString().slice(0, 7);
-    const list = txByMonth.get(k); if (list) list.push(t as CategoryTx); else txByMonth.set(k, [t as CategoryTx]);
+    const k = t.date.toISOString().slice(0, 7);
+    let byCat = spentByMonth.get(k);
+    if (!byCat) { byCat = new Map(); spentByMonth.set(k, byCat); }
+    for (const flow of txFlows(t, categoryType)) {
+      if (flow.side !== 'expense') continue;
+      byCat.set(flow.category_id, (byCat.get(flow.category_id) ?? 0) + flow.value * rateOf(flow.account_id));
+    }
   }
-  const spentCache = new Map<string, Map<number | null, number>>();
-  const spentFor = (m: string) => {
-    let cached = spentCache.get(m);
-    if (!cached) { cached = spentByCategory(txByMonth.get(m) ?? [], txById, valueOf); spentCache.set(m, cached); }
-    return cached;
-  };
+  const spentFor = (m: string) => spentByMonth.get(m) ?? new Map<number | null, number>();
 
   // Budgets groupés par catégorie, chaîne de mois ascendante pour le repli.
   const byCategory = new Map<number, typeof budgets>();
@@ -146,6 +145,8 @@ async function ensureRecurringBudgets(user_id: number, month: string): Promise<v
       month,
       amount_limit: budget.amount_limit,
       recurring: true,
+      // Le report d'enveloppe suit la reconduction.
+      rollover: budget.rollover,
     }));
   // skipDuplicates : deux GET concurrents (deux onglets) ne doivent pas faire
   // un 409 sur la contrainte (user, category, month).

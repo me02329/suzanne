@@ -6,6 +6,7 @@ import { createImportMappingSchema, csvImportSchema, dateString, idParam, statem
 import { round2 } from '../lib/money.js';
 import { assertAccountOwned } from '../lib/transactionHelpers.js';
 import { parseOfx, parseQif } from '../lib/statementParsers.js';
+import { legacyView, LINES_ORDERED } from '../lib/ledger.js';
 import { backupPayloadSchema, buildExportPayload, EXPORT_ENTITIES, importPayload } from '../lib/backup.js';
 
 export { buildExportPayload, EXPORT_ENTITIES, importPayload };
@@ -53,34 +54,38 @@ const csvExportQuery = z.object({ from: dateString.optional(), to: dateString.op
 importExportRouter.get('/users/:user_id/transactions.csv', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const { from, to } = csvExportQuery.parse(req.query);
-  const rows = await prisma.transaction.findMany({
-    where: {
-      user_id,
-      ...(from || to ? { date: { ...(from ? { gte: new Date(`${from}T00:00:00.000Z`) } : {}), ...(to ? { lte: new Date(`${to}T00:00:00.000Z`) } : {}) } } : {}),
-    },
-    include: {
-      account: { select: { name: true, currency: true } },
-      to_account: { select: { name: true } },
-      category: { select: { name: true } },
-      splits: { include: { category: { select: { name: true } } } },
-      tags: { include: { tag: { select: { name: true } } } },
-    },
-    orderBy: [{ date: 'desc' }, { id: 'desc' }],
-  });
+  const [rows, accounts, categories] = await Promise.all([
+    prisma.transaction.findMany({
+      where: {
+        user_id,
+        ...(from || to ? { date: { ...(from ? { gte: new Date(`${from}T00:00:00.000Z`) } : {}), ...(to ? { lte: new Date(`${to}T00:00:00.000Z`) } : {}) } } : {}),
+      },
+      include: { lines: LINES_ORDERED, tags: { include: { tag: { select: { name: true } } } } },
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
+    }),
+    prisma.account.findMany({ where: { user_id }, select: { id: true, name: true, currency: true } }),
+    prisma.category.findMany({ where: { user_id }, select: { id: true, name: true } }),
+  ]);
+  const accountById = new Map(accounts.map((a) => [a.id, a]));
+  const categoryName = new Map(categories.map((c) => [c.id, c.name]));
   const header = ['date', 'type', 'montant', 'devise', 'description', 'compte', 'compte_destination', 'categorie', 'tags', 'pointee'];
   const lines = rows.map((r) => {
-    const signed = r.type === 'income' ? r.amount : -r.amount;
-    const category = r.splits.length > 0
-      ? r.splits.map((s) => `${s.category.name} (${formatCsvAmount(s.amount)})`).join(' + ')
-      : r.category?.name ?? '';
+    const view = legacyView(r);
+    const signed = view.type === 'income' ? view.amount : -view.amount;
+    // Ventilation (ou remboursement réparti) : « Courses (30,00) + Loisirs (10,00) ».
+    const category = r.lines.length > 1 && view.type !== 'transfer'
+      ? r.lines.map((l) => `${l.category_id != null ? categoryName.get(l.category_id) ?? '?' : 'Sans catégorie'} (${formatCsvAmount(Math.abs(l.amount))})`).join(' + ')
+      : view.category_id != null ? categoryName.get(view.category_id) ?? '' : '';
+    const account = view.account_id != null ? accountById.get(view.account_id) : undefined;
+    const toAccount = view.to_account_id != null ? accountById.get(view.to_account_id) : undefined;
     return [
       r.date.toISOString().slice(0, 10),
-      r.type,
+      view.type,
       formatCsvAmount(signed),
-      r.account?.currency ?? '',
+      account?.currency ?? '',
       csvText(r.description ?? ''),
-      csvText(r.account?.name ?? ''),
-      csvText(r.to_account?.name ?? ''),
+      csvText(account?.name ?? ''),
+      csvText(toAccount?.name ?? ''),
       csvText(category),
       csvText(r.tags.map((t) => t.tag.name).join(', ')),
       r.cleared ? 'oui' : 'non',
@@ -88,7 +93,7 @@ importExportRouter.get('/users/:user_id/transactions.csv', asyncHandler(async (r
   });
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="suzanne-transactions-${stamp()}.csv"`);
-  res.send(`﻿${[header.join(';'), ...lines].join('\r\n')}\r\n`);
+  res.send(`\uFEFF${[header.join(';'), ...lines].join('\r\n')}\r\n`);
 }));
 
 function formatCsvAmount(value: number): string {
@@ -193,7 +198,29 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
   }).map(({ line: _line, ...row }) => row);
   // Une seule insertion batch (au lieu d'un INSERT par ligne) : import atomique
   // et beaucoup plus rapide sur les gros relevés.
-  if (toCreate.length > 0) await prisma.transaction.createMany({ data: toCreate });
+  if (toCreate.length > 0) {
+    // Import atomique : tout ou rien.
+    await prisma.$transaction(async (tx) => {
+      for (const row of toCreate) {
+        await tx.transaction.create({
+          data: {
+            user_id: row.user_id,
+            kind: 'standard',
+            date: row.date,
+            description: row.description,
+            lines: {
+              create: [{
+                user_id: row.user_id,
+                account_id: row.account_id,
+                category_id: row.category_id,
+                amount: row.type === 'income' ? row.amount : -row.amount,
+              }],
+            },
+          },
+        });
+      }
+    }, { timeout: 5 * 60_000, maxWait: 10_000 });
+  }
   // Lignes antérieures au premier solde connu du compte (solde initial ou
   // relevé) : elles complètent l'historique sans changer le solde actuel.
   let before_reference = 0;
@@ -281,13 +308,17 @@ async function existingCsvDuplicateKeys(
   const existing = await prisma.transaction.findMany({
     where: {
       user_id,
-      account_id,
-      type: { in: ['expense', 'income'] },
+      kind: 'standard',
       date: { gte: dates[0], lte: dates[dates.length - 1] },
+      lines: { some: { account_id } },
     },
-    select: { account_id: true, date: true, type: true, amount: true, description: true },
+    select: { date: true, description: true, lines: { select: { account_id: true, amount: true } } },
   });
-  return new Set(existing.map(csvDuplicateKey));
+  // Mouvement net de l'opération sur le compte importé (ventilations comprises).
+  return new Set(existing.map((t) => {
+    const net = t.lines.filter((l) => l.account_id === account_id).reduce((acc, l) => acc + l.amount, 0);
+    return csvDuplicateKey({ account_id, date: t.date, type: net > 0 ? 'income' : 'expense', amount: Math.abs(net), description: t.description });
+  }));
 }
 
 function csvDuplicateKey(row: {

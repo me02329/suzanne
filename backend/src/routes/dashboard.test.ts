@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { computeAccountBalances, computeAccountBalancesAt, computeWealthSeries } from './dashboard';
+import * as real from './dashboard';
+
+// Les fixtures sont écrites dans l'ancienne forme (type/amount/account_id/
+// to_account_id/to_amount) et converties en lignes comme le fait la migration.
+type LegacyTx = { id: number; type: string; amount: number; to_amount: number | null; date: Date; account_id: number | null; to_account_id: number | null };
+function led(txs: LegacyTx[]) {
+  return txs.map((t) => ({
+    id: t.id,
+    kind: t.type === 'transfer' ? 'transfer' : 'standard',
+    date: t.date,
+    refunds_transaction_id: null,
+    lines: t.type === 'transfer'
+      ? [
+          ...(t.account_id != null ? [{ account_id: t.account_id, category_id: null, amount: -t.amount, refund: false }] : []),
+          ...(t.to_account_id != null ? [{ account_id: t.to_account_id, category_id: null, amount: t.to_amount ?? t.amount, refund: false }] : []),
+        ]
+      : [{ account_id: t.account_id, category_id: null, amount: t.type === 'income' ? t.amount : -t.amount, refund: false }],
+  }));
+}
+type P<F extends (...a: any[]) => any> = Parameters<F>;
+const computeAccountBalances = (a: P<typeof real.computeAccountBalances>[0], t: LegacyTx[], ...r: [P<typeof real.computeAccountBalances>[2], P<typeof real.computeAccountBalances>[3]]) => real.computeAccountBalances(a, led(t), ...r);
+const computeAccountBalancesAt = (a: P<typeof real.computeAccountBalancesAt>[0], t: LegacyTx[], ...r: [P<typeof real.computeAccountBalancesAt>[2], Date, Map<string, number>]) => real.computeAccountBalancesAt(a, led(t), ...r);
+const computeWealthSeries = (a: P<typeof real.computeWealthSeries>[0], t: LegacyTx[], ...r: [P<typeof real.computeWealthSeries>[2], Date[], Map<string, number>[]]) => real.computeWealthSeries(a, led(t), ...r);
 
 const date = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 const r2 = (value: number) => Math.round(value * 100) / 100;

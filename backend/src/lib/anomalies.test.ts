@@ -50,4 +50,13 @@ describe('detectAnomalies', () => {
     ]);
     expect(r.duplicates).toHaveLength(0);
   });
+
+  it('does not flag trades or adjustments as missing account/category', () => {
+    const r = detectAnomalies([
+      tx({ id: 1, type: 'trade', category_id: null }),
+      tx({ id: 2, type: 'adjustment', category_id: null, account_id: null }),
+    ]);
+    expect(r.no_account).toHaveLength(0);
+    expect(r.no_category).toHaveLength(0);
+  });
 });

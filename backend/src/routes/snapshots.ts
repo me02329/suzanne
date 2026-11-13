@@ -32,12 +32,15 @@ snapshotsRouter.get('/users/:user_id/account-snapshots/suggestions', asyncHandle
   const { date } = z.object({ date: dateString }).parse(req.query);
   const target = new Date(date);
 
-  const [accounts, snapshots, transactions] = await Promise.all([
+  // Mouvements = lignes des opérations vivantes (le client ne filtre pas la
+  // corbeille sur une relation imbriquée : filtre explicite). Un virement est
+  // deux lignes, chacune dans la devise de son compte.
+  const [accounts, snapshots, lines] = await Promise.all([
     prisma.account.findMany({ where: { user_id } }),
     prisma.accountSnapshot.findMany({ where: { user_id, date: { lte: target } }, orderBy: [{ date: 'desc' }] }),
-    prisma.transaction.findMany({
-      where: { user_id, date: { lte: target } },
-      select: { type: true, amount: true, to_amount: true, date: true, account_id: true, to_account_id: true },
+    prisma.transactionLine.findMany({
+      where: { user_id, account_id: { not: null }, transaction: { deleted_at: null, date: { lte: target } } },
+      select: { account_id: true, amount: true, transaction: { select: { date: true } } },
     }),
   ]);
 
@@ -45,19 +48,12 @@ snapshotsRouter.get('/users/:user_id/account-snapshots/suggestions', asyncHandle
   const latest = new Map<number, { date: Date; balance: number }>();
   for (const s of snapshots) if (!latest.has(s.account_id)) latest.set(s.account_id, { date: s.date, balance: s.balance });
 
-  // Indexées une fois par compte (au lieu d'un filter O(transactions) par compte).
-  type SuggestionTx = (typeof transactions)[number];
-  const bySource = new Map<number, SuggestionTx[]>();
-  const byDest = new Map<number, SuggestionTx[]>();
-  for (const t of transactions) {
-    if (t.account_id != null) {
-      const list = bySource.get(t.account_id);
-      if (list) list.push(t); else bySource.set(t.account_id, [t]);
-    }
-    if (t.type === 'transfer' && t.to_account_id != null) {
-      const list = byDest.get(t.to_account_id);
-      if (list) list.push(t); else byDest.set(t.to_account_id, [t]);
-    }
+  // Indexées une fois par compte (au lieu d'un filter O(lignes) par compte).
+  const byAccount = new Map<number, Array<{ date: Date; amount: number }>>();
+  for (const l of lines) {
+    const move = { date: l.transaction.date, amount: l.amount };
+    const list = byAccount.get(l.account_id!);
+    if (list) list.push(move); else byAccount.set(l.account_id!, [move]);
   }
 
   const suggestions = accounts.map((account) => {
@@ -65,16 +61,14 @@ snapshotsRouter.get('/users/:user_id/account-snapshots/suggestions', asyncHandle
     const base = snap ? snap.balance : account.initial_balance;
     const since = snap ? snap.date : account.initial_balance_date;
     const matches = (d: Date) => (snap ? d > since : d >= since);
-    const outgoing = (bySource.get(account.id) ?? [])
-      .reduce((s, t) => (matches(t.date) ? s + (t.type === 'income' ? t.amount : -t.amount) : s), 0);
-    const incoming = (byDest.get(account.id) ?? [])
-      .reduce((s, t) => (matches(t.date) ? s + (t.to_amount ?? t.amount) : s), 0);
+    const delta = (byAccount.get(account.id) ?? [])
+      .reduce((s, m) => (matches(m.date) ? s + m.amount : s), 0);
     return {
       account_id: account.id,
-      suggested_balance: round2(base + outgoing + incoming),
+      suggested_balance: round2(base + delta),
       last_snapshot_date: snap ? snap.date.toISOString().slice(0, 10) : null,
       last_snapshot_balance: snap ? snap.balance : null,
-      delta: round2(outgoing + incoming),
+      delta: round2(delta),
     };
   });
   res.json(suggestions);

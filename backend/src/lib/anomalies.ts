@@ -1,6 +1,7 @@
 // Détection d'anomalies de données, pure et testée. Trois familles :
 // - sans compte    : transaction de flux (revenu/dépense) non rattachée ;
-// - sans catégorie : revenu/dépense sans catégorie (les transferts sont exclus) ;
+// - sans catégorie : revenu/dépense sans catégorie (virements, mouvements de
+//   bourse et ajustements sont exclus : ils n'ont pas de catégorie) ;
 // - doublons probables : même compte, même type, même montant, dates proches
 //   (import rejoué, double saisie). Surfacé comme « probable » — l'utilisateur
 //   tranche, on ne supprime jamais automatiquement.
@@ -14,6 +15,9 @@ export interface AnomalyTx {
   account_id: number | null;
   category_id: number | null;
 }
+
+// Seules les dépenses / revenus portent compte et catégorie à vérifier.
+const isFlow = (t: AnomalyTx) => t.type === 'expense' || t.type === 'income';
 
 export interface AnomalyTxRef {
   id: number;
@@ -51,11 +55,11 @@ const toRef = (t: AnomalyTx): AnomalyTxRef => ({
 
 export function detectAnomalies(transactions: AnomalyTx[]): AnomalyReport {
   const no_account = transactions
-    .filter((t) => t.type !== 'transfer' && t.account_id == null)
+    .filter((t) => isFlow(t) && t.account_id == null)
     .map(toRef);
 
   const no_category = transactions
-    .filter((t) => t.type !== 'transfer' && t.category_id == null)
+    .filter((t) => isFlow(t) && t.category_id == null)
     .map(toRef);
 
   // Doublons : on regroupe par (compte|type|montant arrondi) puis on apparie les

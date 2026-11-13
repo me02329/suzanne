@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createAccountSchema,
+  createAttachmentSchema,
   batchAccountSnapshotsSchema,
   createTransactionSchema,
   dateString,
@@ -93,5 +94,19 @@ describe('validation schemas', () => {
       date: '2026-05-31',
       balances: [],
     }).success).toBe(false);
+  });
+});
+
+describe('createAttachmentSchema', () => {
+  const base = { filename: 'facture.pdf', data_base64: 'aGVsbG8=' };
+  it('accepts the allowed image and PDF types', () => {
+    for (const mime_type of ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf', 'IMAGE/PNG']) {
+      expect(createAttachmentSchema.safeParse({ ...base, mime_type }).success).toBe(true);
+    }
+  });
+  it('rejects SVG, HTML and other types', () => {
+    for (const mime_type of ['image/svg+xml', 'text/html', 'application/octet-stream', 'image/bmp']) {
+      expect(createAttachmentSchema.safeParse({ ...base, mime_type }).success).toBe(false);
+    }
   });
 });

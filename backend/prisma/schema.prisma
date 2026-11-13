@@ -94,8 +94,7 @@ model User {
   savings_goals           SavingsGoal[]
   account_snapshots       AccountSnapshot[]
   tags                    Tag[]
-  transaction_splits      TransactionSplit[]
-  refund_allocations      RefundAllocation[]
+  transaction_lines       TransactionLine[]
   goal_contributions      GoalContribution[]
   bills                   Bill[]
   bill_matches            BillMatch[]
@@ -135,12 +134,18 @@ model Account {
   // sélecteurs de saisie. On archive au lieu de supprimer (qui détacherait
   // les transactions via onDelete: SetNull et rendrait l'historique incohérent).
   archived             Boolean  @default(false)
+  // Compte-titres / PEA : chaque ordre de bourse génère son mouvement
+  // d'espèces (opération kind=trade). Désactivé par défaut pour ne pas
+  // modifier rétroactivement les soldes des comptes existants.
+  orders_affect_cash   Boolean  @default(false)
+  // Date fiscale (PEA : date du premier versement, règle des 5 ans ;
+  // assurance-vie : 8 ans). Null = date d'ouverture.
+  fiscal_start_date    DateTime? @db.Date
   created_at           DateTime @default(now()) @db.Timestamptz(6)
 
   user                   User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   institution            Institution?           @relation(fields: [institution_id], references: [id], onDelete: SetNull)
-  transactions           Transaction[]          @relation("TxSource")
-  incoming_transactions  Transaction[]          @relation("TxDestination")
+  transaction_lines      TransactionLine[]
   recurring_transactions RecurringTransaction[]
   snapshots              AccountSnapshot[]
   savings_goals          SavingsGoal[]
@@ -164,8 +169,7 @@ model Category {
   created_at DateTime @default(now()) @db.Timestamptz(6)
 
   user                   User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  transactions           Transaction[]
-  transaction_splits      TransactionSplit[]
+  transaction_lines      TransactionLine[]
   budgets                Budget[]
   recurring_transactions RecurringTransaction[]
   category_rules          CategoryRule[]
@@ -191,92 +195,90 @@ model CategoryRule {
   @@map("category_rules")
 }
 
+// Genre d'opération : comment lire ses lignes (cf. docs/ARCHITECTURE-ledger.md).
+enum TransactionKind {
+  standard
+  transfer
+  trade
+  adjustment
+}
+
+// Opération : en-tête (date, libellé, pointage, tags…). Les montants vivent
+// dans ses lignes (TransactionLine), une par compte/catégorie touché.
 model Transaction {
   id            Int             @id @default(autoincrement())
   user_id       Int
-  account_id    Int?
-  to_account_id Int?
-  category_id   Int?
+  kind          TransactionKind @default(standard)
   recurring_transaction_id Int?
-  // Remboursement : un revenu peut pointer la dépense qu'il rembourse.
-  // Plusieurs revenus peuvent pointer la même dépense (remboursements partiels).
+  // Remboursement : l'opération rembourse cette dépense (affichage et
+  // rapprochement ; les montants remboursés sont portés par les lignes).
   refunds_transaction_id Int?
-  amount        Float
-  to_amount     Float?
-  exchange_rate Float?
-  type          TransactionType
   date          DateTime        @db.Date
   description   String?
   // Pointage : la ligne a été rapprochée du relevé bancaire.
   cleared       Boolean         @default(false)
   created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  // Soft-delete : corbeille restaurable ; purge = suppression définitive.
+  deleted_at    DateTime?       @db.Timestamptz(6)
 
   user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  account    Account?  @relation("TxSource", fields: [account_id], references: [id], onDelete: SetNull)
-  to_account Account?  @relation("TxDestination", fields: [to_account_id], references: [id], onDelete: SetNull)
-  category   Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
   recurring_transaction RecurringTransaction? @relation(fields: [recurring_transaction_id], references: [id], onDelete: SetNull)
   refunds_transaction Transaction?  @relation("Refunds", fields: [refunds_transaction_id], references: [id], onDelete: SetNull)
   refunded_by         Transaction[] @relation("Refunds")
-  tags       TransactionTag[]
-  splits     TransactionSplit[]
-  refund_allocations_sent     RefundAllocation[] @relation("RefundAllocationRefund")
-  refund_allocations_received RefundAllocation[] @relation("RefundAllocationExpense")
-  goal_contributions          GoalContribution[]
-  bill_matches                BillMatch[]
-  attachments                 Attachment[]
-  // Soft-delete : une suppression positionne deleted_at ; la transaction part en
-  // corbeille (exclue de toutes les lectures via une extension Prisma) et reste
-  // restaurable. Purge = suppression définitive.
-  deleted_at                  DateTime? @db.Timestamptz(6)
+  lines              TransactionLine[]
+  // Lignes d'autres opérations qui remboursent celle-ci.
+  refund_lines       TransactionLine[] @relation("RefundLines")
+  tags               TransactionTag[]
+  goal_contributions GoalContribution[]
+  bill_matches       BillMatch[]
+  attachments        Attachment[]
+  holding_order      HoldingOrder?
 
   @@index([user_id, date])
   @@index([user_id, deleted_at])
-  @@index([account_id])
-  @@index([to_account_id])
-  @@index([category_id])
   @@index([recurring_transaction_id])
   @@index([refunds_transaction_id])
   @@map("transactions")
 }
 
-model RefundAllocation {
-  id                     Int      @id @default(autoincrement())
-  user_id                Int
-  refund_transaction_id  Int
-  expense_transaction_id Int
-  amount                 Float
-  created_at             DateTime @default(now()) @db.Timestamptz(6)
-
-  user                User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  refund_transaction  Transaction @relation("RefundAllocationRefund", fields: [refund_transaction_id], references: [id], onDelete: Cascade)
-  expense_transaction Transaction @relation("RefundAllocationExpense", fields: [expense_transaction_id], references: [id], onDelete: Cascade)
-
-  @@unique([refund_transaction_id, expense_transaction_id])
-  @@index([user_id])
-  @@index([refund_transaction_id])
-  @@index([expense_transaction_id])
-  @@map("refund_allocations")
-}
-
-model TransactionSplit {
+// Ligne d'opération : montant signé (devise du compte) sur un compte, avec
+// catégorie optionnelle. Somme des lignes d'un compte = mouvement du compte.
+model TransactionLine {
   id             Int      @id @default(autoincrement())
   user_id        Int
   transaction_id Int
-  category_id    Int
+  // null = opération hors compte (à affecter).
+  account_id     Int?
+  category_id    Int?
   amount         Float
+  // Ligne de remboursement : ne compte que pour les lignes sans catégorie
+  // (sinon c'est le type de la catégorie qui fixe le côté dépense/revenu).
+  refund         Boolean  @default(false)
+  // Ligne de remboursement : la dépense remboursée par CETTE ligne (un
+  // remboursement peut couvrir plusieurs dépenses).
+  refund_of_id   Int?
   note           String?
-  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  position       Int      @default(0)
 
   user        User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
   transaction Transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
-  category    Category    @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  // NoAction (vérifié en fin d'instruction) : impossible de supprimer un compte
+  // qui porte des lignes (il faut l'archiver), mais la suppression en cascade
+  // d'un utilisateur reste possible.
+  account     Account?    @relation(fields: [account_id], references: [id], onDelete: NoAction)
+  // Supprimer une catégorie décatégorise la ligne au lieu de la supprimer.
+  category    Category?   @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  refund_of   Transaction? @relation("RefundLines", fields: [refund_of_id], references: [id], onDelete: SetNull)
 
-  @@index([user_id])
   @@index([transaction_id])
+  @@index([refund_of_id])
+  @@index([account_id])
   @@index([category_id])
-  @@map("transaction_splits")
+  @@index([user_id])
+  @@map("transaction_lines")
 }
+
+
 
 model Tag {
   id         Int      @id @default(autoincrement())
@@ -526,6 +528,9 @@ model HoldingOrder {
 
   user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   holding Holding @relation(fields: [holding_id], references: [id], onDelete: Cascade)
+  // Mouvement d'espèces de l'ordre (opération kind=trade) sur le compte.
+  cash_transaction_id Int?         @unique
+  cash_transaction    Transaction? @relation(fields: [cash_transaction_id], references: [id], onDelete: SetNull)
 
   @@index([holding_id, date])
   @@index([user_id])
