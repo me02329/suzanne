@@ -148,7 +148,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
   const deleteTx = useCallback((tx: Transaction) => {
     void run(
       () => api.deleteTransaction(userId, tx.id),
-      t('Transaction déplacée vers la corbeille'),
+      t('operations.transaction_moved_to_trash'),
       { undo: () => api.restoreTransaction(userId, tx.id) },
     ).then((ok) => {
       if (ok) setDialog((d) => (d && 'tx' in d && d.tx?.id === tx.id ? null : d && 'txs' in d && d.txs.some((x) => x.id === tx.id) ? null : d));
@@ -171,28 +171,28 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
   const toggleCleared = (tx: Transaction) => {
     void run(
       () => api.updateTransaction(userId, tx.id, { cleared: !tx.cleared }),
-      tx.cleared ? t('Transaction dépointée') : t('Transaction pointée'),
+      tx.cleared ? t('operations.transaction_uncleared') : t('operations.transaction_cleared'),
     );
   };
 
   const inlineUpdate = (tx: Transaction, patch: Partial<Pick<Transaction, 'account_id' | 'to_account_id' | 'category_id'>>) => {
-    void run(() => api.updateTransaction(userId, tx.id, patch), t('Transaction modifiée'));
+    void run(() => api.updateTransaction(userId, tx.id, patch), t('operations.transaction_updated'));
   };
 
   const { totals, page, totalPages, pageStart, pageEnd, sorted, paged } = filters;
   const emptyMessage = issueFilter === 'unassigned_account'
-    ? t('Aucune transaction sans compte.')
-    : filters.activeCount > 0 ? t('Aucune opération ne correspond aux filtres.') : t('Aucune transaction sur ce mois.');
+    ? t('operations.no_transactions_without_account')
+    : filters.activeCount > 0 ? t('operations.no_transactions_match_filters') : t('operations.no_transactions_this_month');
 
   return (
     <section className="stack journal">
       {issueFilter === 'unassigned_account' && (
         <div className="jr-notice">
           <div>
-            <strong>{t('Transactions sans compte · toutes périodes')}</strong>
-            <span>{t('Elles comptent dans les liquidités tant qu\'aucun compte n\'est rattaché.')}</span>
+            <strong>{t('operations.transactions_without_account_all_periods')}</strong>
+            <span>{t('operations.they_count_as_cash_until')}</span>
           </div>
-          <button type="button" className="secondary" onClick={onClearIssueFilter}>{t('Revenir au mois courant')}</button>
+          <button type="button" className="secondary" onClick={onClearIssueFilter}>{t('operations.back_to_current_month')}</button>
         </div>
       )}
 
@@ -209,34 +209,34 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
         <FilterBar state={filters} categories={categories} tags={tags} mobile={mobile} accounts={accounts} />
 
         <div className="jr-summary">
-          <span className="jr-summary-count"><strong>{filters.filtered.length}</strong> {t(filters.filtered.length > 1 ? 'opérations' : 'opération')}</span>
+          <span className="jr-summary-count"><strong>{filters.filtered.length}</strong> {t(filters.filtered.length > 1 ? 'operations.transactions_2' : 'operations.transaction')}</span>
           <span className="jr-totals">
-            <span className="jr-num income" title={t('Revenus')}>+{money(totals.income)}</span>
-            <span className="jr-num expense" title={totals.refunds > 0 ? t('Dépenses nettes des remboursements') : t('Dépenses')}>{totals.expenses < 0 ? '+' : '−'}{money(Math.abs(totals.expenses))}</span>
+            <span className="jr-num income" title={t('commun.income')}>+{money(totals.income)}</span>
+            <span className="jr-num expense" title={totals.refunds > 0 ? t('operations.expenses_net_refunds') : t('commun.expenses')}>{totals.expenses < 0 ? '+' : '−'}{money(Math.abs(totals.expenses))}</span>
             {totals.refunds > 0.004 && (
-              <span className="jr-num jr-muted" title={t('Remboursements reçus : ils annulent les dépenses remboursées au lieu de compter comme revenus (dépenses brutes : {{gross}})', { gross: money(totals.expenses + totals.refunds) })}>
-                ↺ {t('dont {{amount}} remboursés', { amount: money(totals.refunds) })}
+              <span className="jr-num jr-muted" title={t('operations.refunds_received_they_cancel_refunded', { gross: money(totals.expenses + totals.refunds) })}>
+                ↺ {t('operations.incl_amount_refunded', { amount: money(totals.refunds) })}
               </span>
             )}
-            {totals.transfers > 0 && <span className="jr-num jr-muted" title={t('Transferts')}>⇄ {money(totals.transfers)}</span>}
+            {totals.transfers > 0 && <span className="jr-num jr-muted" title={t('operations.transfers')}>⇄ {money(totals.transfers)}</span>}
           </span>
           <span className="jr-spacer" />
           {mobile ? (
             <button
               type="button"
               className={`jr-tool${selecting ? ' on' : ''}`}
-              title={t('Sélectionner')}
+              title={t('operations.select')}
               onClick={() => { if (selecting) selection.clear(); setSelecting(!selecting); }}
             >
-              <CheckSquare size={16} /> {selecting ? t('Terminé') : <span className="jr-sr">{t('Sélectionner')}</span>}
+              <CheckSquare size={16} /> {selecting ? t('operations.done') : <span className="jr-sr">{t('operations.select')}</span>}
             </button>
           ) : (
-            <button type="button" className="jr-tool" onClick={() => setCompact(!compact)} title={compact ? t('Affichage confortable') : t('Affichage compact')}>
-              {compact ? <Rows3 size={16} /> : <Rows2 size={16} />} {compact ? t('Confortable') : t('Compact')}
+            <button type="button" className="jr-tool" onClick={() => setCompact(!compact)} title={compact ? t('operations.comfortable_view') : t('operations.compact_view')}>
+              {compact ? <Rows3 size={16} /> : <Rows2 size={16} />} {compact ? t('operations.comfortable') : t('operations.compact')}
             </button>
           )}
-          <button type="button" className="jr-tool" onClick={() => setDialog({ kind: 'trash' })} title={t('Corbeille')} aria-label={t('Corbeille')}>
-            <Trash2 size={16} /> {!mobile && t('Corbeille')}
+          <button type="button" className="jr-tool" onClick={() => setDialog({ kind: 'trash' })} title={t('operations.trash')} aria-label={t('operations.trash')}>
+            <Trash2 size={16} /> {!mobile && t('operations.trash')}
           </button>
         </div>
 
@@ -277,13 +277,13 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
         )}
 
         {totalPages > 1 && (
-          <nav className="jr-pages" aria-label={t('Pagination')}>
-            <button type="button" className="secondary" disabled={page <= 1} onClick={() => filters.setPage(page - 1)} aria-label={t('Précédent')}>
-              <ChevronLeft size={16} /> {!mobile && t('Précédent')}
+          <nav className="jr-pages" aria-label={t('operations.pagination')}>
+            <button type="button" className="secondary" disabled={page <= 1} onClick={() => filters.setPage(page - 1)} aria-label={t('operations.previous')}>
+              <ChevronLeft size={16} /> {!mobile && t('operations.previous')}
             </button>
-            <span>{t('{{start}}–{{end}} sur {{total}}', { start: pageStart, end: pageEnd, total: sorted.length })}</span>
-            <button type="button" className="secondary" disabled={page >= totalPages} onClick={() => filters.setPage(page + 1)} aria-label={t('Suivant')}>
-              {!mobile && t('Suivant')} <ChevronRight size={16} />
+            <span>{t('operations.start_end_total', { start: pageStart, end: pageEnd, total: sorted.length })}</span>
+            <button type="button" className="secondary" disabled={page >= totalPages} onClick={() => filters.setPage(page + 1)} aria-label={t('operations.next')}>
+              {!mobile && t('operations.next')} <ChevronRight size={16} />
             </button>
           </nav>
         )}
@@ -302,7 +302,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
           run={run}
           onClose={closeDialog}
           extraActions={dialog.mode === 'edit' && dialog.tx
-            ? <RowMenu items={menuItems(dialog.tx, handlers)} label={t('Autres actions')} />
+            ? <RowMenu items={menuItems(dialog.tx, handlers)} label={t('operations.more_actions')} />
             : undefined}
         />
       )}

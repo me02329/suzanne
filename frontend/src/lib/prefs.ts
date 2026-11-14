@@ -32,10 +32,11 @@ export function useHintDelay(): number {
   );
 }
 
+// Libellés = clés de traduction (catalogue reglages.csv), affichées avec t().
 export const HINT_DELAY_OPTIONS: Array<{ value: number; label: string }> = [
-  { value: -1, label: 'Jamais' },
-  { value: 300, label: 'Immédiat' },
-  { value: 1000, label: '1 seconde' },
-  { value: 2000, label: '2 secondes' },
-  { value: 3000, label: '3 secondes' },
+  { value: -1, label: 'reglages.hint_delay.never' },
+  { value: 300, label: 'reglages.hint_delay.immediate' },
+  { value: 1000, label: 'reglages.hint_delay.1s' },
+  { value: 2000, label: 'reglages.hint_delay.2s' },
+  { value: 3000, label: 'reglages.hint_delay.3s' },
 ];

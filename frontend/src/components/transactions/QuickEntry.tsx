@@ -58,7 +58,7 @@ export const QuickEntry = forwardRef<HTMLInputElement, {
       category_id: categoryId ? Number(categoryId) : null,
       account_id: accountId ? Number(accountId) : null,
       date: date || todayIso(),
-    }), t('Transaction ajoutée'));
+    }), t('operations.transaction_added'));
     setBusy(false);
     if (!ok) return;
     // Saisies en chaîne : on garde compte et date, on revient sur le montant.
@@ -74,43 +74,43 @@ export const QuickEntry = forwardRef<HTMLInputElement, {
       className={`jr-quick${expanded ? ' expanded' : ''}`}
       onSubmit={submit}
       onFocus={() => setEngaged(true)}
-      aria-label={t('Saisie rapide')}
+      aria-label={t('operations.quick_entry')}
       noValidate
     >
-      <div className="jr-seg jr-quick-type" role="radiogroup" aria-label={t('Type de transaction')}>
-        <button type="button" role="radio" aria-checked={type === 'expense'} className={type === 'expense' ? 'on' : ''} onClick={() => switchType('expense')}>{t('Dépense')}</button>
-        <button type="button" role="radio" aria-checked={type === 'income'} className={type === 'income' ? 'on' : ''} onClick={() => switchType('income')}>{t('Revenu')}</button>
+      <div className="jr-seg jr-quick-type" role="radiogroup" aria-label={t('operations.transaction_type')}>
+        <button type="button" role="radio" aria-checked={type === 'expense'} className={type === 'expense' ? 'on' : ''} onClick={() => switchType('expense')}>{t('operations.expense')}</button>
+        <button type="button" role="radio" aria-checked={type === 'income'} className={type === 'income' ? 'on' : ''} onClick={() => switchType('income')}>{t('operations.income')}</button>
       </div>
       <input
         ref={amountRef}
         className="jr-quick-amount"
         inputMode="decimal"
         autoComplete="off"
-        placeholder={t('Montant')}
-        aria-label={t('Montant')}
+        placeholder={t('operations.amount')}
+        aria-label={t('operations.amount')}
         aria-invalid={invalid || undefined}
         value={amount}
         onChange={(e) => { setAmount(e.target.value); setInvalid(false); }}
       />
-      <input className="jr-quick-label" placeholder={t('Libellé')} aria-label={t('Libellé')} value={description} onChange={(e) => setDescription(e.target.value)} />
-      <select className="jr-quick-extra" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label={t('Catégorie')}>
-        <option value="">{t('Catégorie')}</option>
+      <input className="jr-quick-label" placeholder={t('operations.label')} aria-label={t('operations.label')} value={description} onChange={(e) => setDescription(e.target.value)} />
+      <select className="jr-quick-extra" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label={t('commun.category')}>
+        <option value="">{t('commun.category')}</option>
         {typed.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
-      <select className="jr-quick-extra" value={accountId} onChange={(e) => setAccountId(e.target.value)} aria-label={t('Compte')}>
-        <option value="">{t('Compte')}</option>
+      <select className="jr-quick-extra" value={accountId} onChange={(e) => setAccountId(e.target.value)} aria-label={t('operations.account')}>
+        <option value="">{t('operations.account')}</option>
         {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
       </select>
-      <input className="jr-quick-extra" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t('Date')} />
-      <button className="primary accent jr-quick-add" disabled={busy}><Plus size={16} /> <span>{t('Ajouter')}</span></button>
+      <input className="jr-quick-extra" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t('operations.date')} />
+      <button className="primary accent jr-quick-add" disabled={busy}><Plus size={16} /> <span>{t('operations.add')}</span></button>
       <button
         type="button"
         className="jr-link jr-quick-more"
         onClick={() => onMore({ type, amount, description, category_id: categoryId, account_id: accountId, date })}
       >
-        {t('Plus d\'options')}
+        {t('operations.more_options')}
       </button>
-      {invalid && <p className="jr-error jr-quick-error" role="alert">{t('Saisis un montant positif (ex. 12,50).')}</p>}
+      {invalid && <p className="jr-error jr-quick-error" role="alert">{t('operations.enter_positive_amount_e_g')}</p>}
     </form>
   );
 });

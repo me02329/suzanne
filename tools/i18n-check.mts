@@ -8,6 +8,7 @@
 // Rapporté (bloquant avec --strict) : clé utilisée absente des catalogues,
 // texte visible écrit en dur dans le JSX. Rapporté seulement : clés inutilisées,
 // appels t() à clé calculée, entrées restantes de l'ancien i18n_data.json.
+import fs from 'node:fs';
 import { catalogIssues } from '../frontend/src/i18n/catalog.ts';
 import {
   LANGS, type DynamicUse, type KeyUse, hardcodedTexts, isStableKey, loadCatalogs, loadLegacy, rel, scanFile, sourceFiles,
@@ -44,6 +45,10 @@ for (const file of sourceFiles()) {
 const known = (key: string) => catalogKeys.has(key) || key in legacy;
 const missing = uses.filter((u) => !known(u.key));
 const usedKeys = new Set(uses.map((u) => u.key));
+// Clé stable écrite comme donnée (libellés de navigation, options…) puis passée
+// à t() par une variable : la chaîne littérale dans le code suffit.
+const allSource = sourceFiles().map((f) => fs.readFileSync(f, 'utf8')).join('\n');
+for (const m of allSource.matchAll(/['"`]([a-z0-9_]+(?:\.[a-z0-9_]+)+)['"`]/g)) usedKeys.add(m[1]!);
 const unusedCatalog = [...catalogKeys].filter((k) => !usedKeys.has(k));
 const unusedLegacy = Object.keys(legacy).filter((k) => !usedKeys.has(k));
 const legacyUses = uses.filter((u) => !isStableKey(u.key));

@@ -1,1 +1,31 @@
 keys,fr,en
+ui.nav.accounts,Patrimoine,Net worth
+ui.nav.accounts_short,Comptes,Accounts
+ui.nav.analysis,Analyse,Analysis
+ui.nav.assistant,Assistant,Assistant
+ui.nav.home,Accueil,Home
+ui.nav.ops,Opérations,Transactions
+ui.nav.plan,Planifier,Plan
+ui.nav.settings,Réglages,Settings
+ui.tab.accounts,Comptes,Accounts
+ui.tab.alerts,Alertes,Alerts
+ui.tab.anomalies,À vérifier,To review
+ui.tab.assistant,Assistant,Assistant
+ui.tab.bills,Factures,Bills
+ui.tab.budgets,Budgets,Budgets
+ui.tab.categories,Catégories,Categories
+ui.tab.dashboard,Aperçu,Overview
+ui.tab.forecast,Prévisions,Forecast
+ui.tab.goals,Objectifs,Goals
+ui.tab.health,Santé,Health
+ui.tab.investments,Placements,Investments
+ui.tab.recurring,Récurrents,Recurring
+ui.tab.rules,Règles,Rules
+ui.tab.settings,Préférences,Preferences
+ui.tab.simulator,Simulateur,Simulator
+ui.tab.statistics,Statistiques,Statistics
+ui.tab.tags,Tags,Tags
+ui.tab.tools,Import / Export,Import / Export
+ui.tab.transactions,Journal,Journal
+ui.tab.users,Profils,Profiles
+ui.tab.wealth,Patrimoine,Net worth

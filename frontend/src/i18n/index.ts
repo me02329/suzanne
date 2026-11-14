@@ -1,6 +1,5 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import data from './i18n_data.json';
 import { buildResources, parseCatalog } from './catalog';
 
 // Langues disponibles. Pour en ajouter une : ajouter son code ici ET une
@@ -16,12 +15,10 @@ const SUPPORTED = LANGUAGES.map((l) => l.code) as readonly string[];
 
 // Source des textes : les catalogues `catalogs/*.csv` (format `keys,fr,en`, clés
 // stables `domaine.partie.nom`, un fichier par domaine), lus au build par Vite.
-// L'ancien dictionnaire i18n_data.json (clé = phrase française) reste chargé
-// tant que tous les écrans ne sont pas passés aux clés stables
-// (`node tools/i18n-migrate.mjs`), puis il sera supprimé.
+// Contrôle : `npm run i18n:check` (ADR 0007).
 const csvFiles = import.meta.glob('./catalogs/*.csv', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const catalogs = Object.entries(csvFiles).map(([file, text]) => parseCatalog(text, file.replace('./catalogs/', '')));
-const resources = buildResources(catalogs, data as Record<string, Record<string, string>>, SUPPORTED);
+const resources = buildResources(catalogs, {}, SUPPORTED);
 
 function initialLang(): Lang {
   try {

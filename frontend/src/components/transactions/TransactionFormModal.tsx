@@ -97,22 +97,22 @@ export function TransactionFormModal({ mode, tx, draft, userId, accounts, catego
   };
 
   const validate = (): string | null => {
-    if (!(amountValue > 0)) return t('Saisis un montant positif (ex. 12,50).');
-    if (!date) return t('Choisis une date.');
+    if (!(amountValue > 0)) return t('operations.enter_positive_amount_e_g');
+    if (!date) return t('operations.choose_date');
     if (isTransfer) {
-      if (!idOrNull(accountId) || !idOrNull(toAccountId)) return t('Un transfert a besoin d\'un compte de départ et d\'arrivée.');
-      if (accountId === toAccountId) return t('Les deux comptes du transfert doivent être différents.');
+      if (!idOrNull(accountId) || !idOrNull(toAccountId)) return t('operations.a_transfer_needs_source_and');
+      if (accountId === toAccountId) return t('operations.the_two_accounts_transfer_must');
     }
     if (!isTransfer && splitEnabled) {
-      if (splits.length === 0) return t('Ajoute au moins une ligne de ventilation.');
+      if (splits.length === 0) return t('operations.add_at_least_one_split');
       for (const row of splits) {
         if (!row.category_id || !(parseAmount(row.amount) > 0)) {
-          return t('Chaque ligne de ventilation doit avoir une catégorie et un montant.');
+          return t('operations.each_split_line_needs_category');
         }
       }
       const total = roundAmount(splits.reduce((sum, row) => sum + parseAmount(row.amount), 0));
       if (Math.abs(total - roundAmount(amountValue)) > 0.01) {
-        return t('La ventilation ({{total}}) doit égaler le montant ({{amount}}).', { total: money(total, currency), amount: money(amountValue, currency) });
+        return t('operations.the_split_total_must_equal', { total: money(total, currency), amount: money(amountValue, currency) });
       }
     }
     return null;
@@ -142,8 +142,8 @@ export function TransactionFormModal({ mode, tx, draft, userId, accounts, catego
     if (mode !== 'create') body.cleared = cleared;
     setBusy(true);
     const ok = mode === 'edit' || mode === 'split'
-      ? await run(() => api.updateTransaction(userId, source!.id, body), mode === 'split' ? t('Ventilation enregistrée') : t('Transaction modifiée'))
-      : await run(() => api.createTransaction(userId, body), mode === 'copy' ? t('Transaction copiée') : t('Transaction ajoutée'));
+      ? await run(() => api.updateTransaction(userId, source!.id, body), mode === 'split' ? t('operations.split_saved') : t('operations.transaction_updated'))
+      : await run(() => api.createTransaction(userId, body), mode === 'copy' ? t('operations.transaction_copied') : t('operations.transaction_added'));
     setBusy(false);
     if (ok) {
       onSaved?.();
@@ -151,23 +151,23 @@ export function TransactionFormModal({ mode, tx, draft, userId, accounts, catego
     }
   };
 
-  const title = mode === 'create' ? t('Nouvelle transaction')
-    : mode === 'copy' ? t('Copier la transaction')
-    : mode === 'split' ? t('Ventiler la transaction')
-    : t('Modifier la transaction');
-  const submitLabel = mode === 'create' ? t('Ajouter') : mode === 'copy' ? t('Créer la copie') : t('Enregistrer');
+  const title = mode === 'create' ? t('operations.new_transaction')
+    : mode === 'copy' ? t('operations.copy_transaction')
+    : mode === 'split' ? t('operations.split_transaction')
+    : t('operations.edit_transaction');
+  const submitLabel = mode === 'create' ? t('operations.add') : mode === 'copy' ? t('operations.create_copy') : t('operations.save');
 
   return (
     <Modal title={title} onClose={onClose}>
       <form className="jr-form" onSubmit={submit} noValidate>
-        <div className="jr-seg full" role="radiogroup" aria-label={t('Type de transaction')}>
+        <div className="jr-seg full" role="radiogroup" aria-label={t('operations.transaction_type')}>
           {(['expense', 'income', 'transfer'] as const).map((value) => (
             <button key={value} type="button" role="radio" aria-checked={type === value} className={type === value ? 'on' : ''} onClick={() => changeType(value)}>
-              {value === 'expense' ? t('Dépense') : value === 'income' ? t('Revenu') : t('Transfert')}
+              {value === 'expense' ? t('operations.expense') : value === 'income' ? t('operations.income') : t('operations.transfer')}
             </button>
           ))}
         </div>
-        <label>{t('Montant')}
+        <label>{t('operations.amount')}
           <input
             className="jr-amount-input"
             inputMode="decimal"
@@ -179,27 +179,27 @@ export function TransactionFormModal({ mode, tx, draft, userId, accounts, catego
             autoFocus={mode === 'create' || mode === 'copy'}
           />
         </label>
-        <label>{t('Date')}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label>
-        <label className="full">{t('Libellé')}
-          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('Ex: Carrefour, salaire, loyer...')} />
+        <label>{t('operations.date')}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label>
+        <label className="full">{t('operations.label')}
+          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('operations.e_g_walmart_salary_rent')} />
         </label>
-        <label>{isTransfer ? t('Depuis le compte') : t('Compte')}
+        <label>{isTransfer ? t('operations.from_account') : t('operations.account')}
           <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            <option value="">{isTransfer ? t('Choisir...') : t('Aucun')}</option>
+            <option value="">{isTransfer ? t('operations.choose') : t('operations.none')}</option>
             {pickableAccounts(accounts, source?.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </label>
         {isTransfer ? (
-          <label>{t('Vers le compte')}
+          <label>{t('operations.to_account')}
             <select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)}>
-              <option value="">{t('Choisir...')}</option>
+              <option value="">{t('operations.choose')}</option>
               {pickableAccounts(accounts, source?.to_account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
         ) : (
-          <label>{t('Catégorie')}
+          <label>{t('commun.category')}
             <select value={splitEnabled ? '' : categoryId} onChange={(e) => setCategoryId(e.target.value)} disabled={splitEnabled}>
-              <option value="">{splitEnabled ? t('Ventilée') : t('Aucune')}</option>
+              <option value="">{splitEnabled ? t('operations.split_3') : t('operations.none_2')}</option>
               {typedCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
@@ -207,27 +207,27 @@ export function TransactionFormModal({ mode, tx, draft, userId, accounts, catego
         {!isTransfer && (
           <label className="jr-check full">
             <input type="checkbox" checked={splitEnabled} onChange={(e) => toggleSplit(e.target.checked)} />
-            {t('Ventiler sur plusieurs catégories')}
+            {t('operations.split_across_several_categories')}
           </label>
         )}
         {!isTransfer && splitEnabled && (
           <SplitEditor drafts={splits} categories={typedCategories} target={amountValue > 0 ? amountValue : 0} currency={currency} onChange={setSplits} />
         )}
         <div className="full jr-field">
-          <span className="jr-field-label">{t('Tags')}</span>
+          <span className="jr-field-label">{t('operations.tags')}</span>
           <TagPicker value={tagIds} tags={tags} onChange={setTagIds} />
         </div>
         {(mode === 'edit' || mode === 'split') && (
           <label className="jr-check full">
             <input type="checkbox" checked={cleared} onChange={(e) => setCleared(e.target.checked)} />
-            {t('Pointée (rapprochée du relevé)')}
+            {t('operations.cleared_matched_with_statement')}
           </label>
         )}
         {error && <p className="jr-error full" role="alert">{error}</p>}
         <div className="jr-form-actions full">
           {extraActions}
           <span className="jr-spacer" />
-          <button type="button" className="secondary" onClick={onClose}>{t('Annuler')}</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('commun.cancel')}</button>
           <button className="primary" disabled={busy}>{submitLabel}</button>
         </div>
       </form>
@@ -259,31 +259,31 @@ function SplitEditor({ drafts, categories, target, currency, onChange }: {
   return (
     <div className="jr-split full">
       <div className="jr-split-head">
-        <strong>{t('Ventilation')}</strong>
+        <strong>{t('operations.split')}</strong>
         <span className={balanced ? 'ok' : target > 0 ? 'ko' : undefined}>
           {target > 0
             ? (balanced
-              ? t('{{amount}} ventilés', { amount: money(total, currency) })
-              : `${money(total, currency)} / ${money(target, currency)} · ${t('reste {{amount}}', { amount: money(remaining, currency) })}`)
-            : t('Total lignes : {{amount}}', { amount: money(total, currency) })}
+              ? t('operations.amount_split', { amount: money(total, currency) })
+              : `${money(total, currency)} / ${money(target, currency)} · ${t('operations.remaining_amount_2', { amount: money(remaining, currency) })}`)
+            : t('operations.lines_total_amount', { amount: money(total, currency) })}
         </span>
       </div>
       {drafts.map((row) => (
         <div className="jr-split-row" key={row.key}>
-          <select value={row.category_id} onChange={(e) => update(row.key, { category_id: e.target.value })} aria-label={t('Catégorie de ventilation')}>
-            <option value="">{t('Catégorie')}</option>
+          <select value={row.category_id} onChange={(e) => update(row.key, { category_id: e.target.value })} aria-label={t('operations.split_category')}>
+            <option value="">{t('commun.category')}</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <div className="jr-split-amount">
-            <input inputMode="decimal" autoComplete="off" value={row.amount} onChange={(e) => update(row.key, { amount: e.target.value })} placeholder="0,00" aria-label={t('Montant ventilé')} />
-            <button type="button" className="jr-link" onClick={() => fill(row.key)} disabled={target <= 0} title={t('Compléter avec le restant')}>{t('solde')}</button>
+            <input inputMode="decimal" autoComplete="off" value={row.amount} onChange={(e) => update(row.key, { amount: e.target.value })} placeholder="0,00" aria-label={t('operations.split_amount')} />
+            <button type="button" className="jr-link" onClick={() => fill(row.key)} disabled={target <= 0} title={t('operations.fill_with_remainder')}>{t('operations.fill')}</button>
           </div>
-          <input value={row.note} onChange={(e) => update(row.key, { note: e.target.value })} placeholder={t('Note (ex: ménager)')} aria-label={t('Note de ventilation')} />
-          <button type="button" className="icon-ghost" onClick={() => remove(row.key)} aria-label={t('Retirer la ligne')}><Trash2 size={16} /></button>
+          <input value={row.note} onChange={(e) => update(row.key, { note: e.target.value })} placeholder={t('operations.note_e_g_household')} aria-label={t('operations.split_note')} />
+          <button type="button" className="icon-ghost" onClick={() => remove(row.key)} aria-label={t('operations.remove_line')}><Trash2 size={16} /></button>
         </div>
       ))}
       <button type="button" className="secondary jr-split-add" onClick={() => onChange([...drafts, emptySplitDraft()])}>
-        <Plus size={16} /> {t('Ajouter une ligne')}
+        <Plus size={16} /> {t('operations.add_line')}
       </button>
     </div>
   );

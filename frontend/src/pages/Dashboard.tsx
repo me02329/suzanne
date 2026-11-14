@@ -62,7 +62,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
   const prevSavingRate = prevMonthRow && prevMonthRow.income > 0 ? Math.round((prevMonthRow.net / prevMonthRow.income) * 100) : null;
   const netWorth = summary?.net_worth ?? summary?.balance ?? 0;
   const netMonthly = summary?.net ?? 0;
-  const monthLabel = summary?.month ? formatMonthLong(summary.month) : t('Mois sélectionné');
+  const monthLabel = summary?.month ? formatMonthLong(summary.month) : t('accueil.selected_month');
   const prevLabel = prevMonthRow ? formatMonth(prevMonthRow.month) : '';
 
   // Variation vs mois précédent, colorée selon le sens favorable.
@@ -102,7 +102,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
         key: `b${e.bill.id}`,
         date: e.expected_date!.slice(0, 10),
         label: e.bill.name,
-        sub: e.status === 'late' ? t('Facture en retard') : t('Facture'),
+        sub: e.status === 'late' ? t('accueil.overdue_bill') : t('accueil.bill'),
         amount: -((e.bill.amount_min + e.bill.amount_max) / 2),
         approx: true,
         currency: e.bill.account_id != null ? accountById.get(e.bill.account_id)?.currency ?? 'EUR' : 'EUR',
@@ -147,21 +147,21 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
     <section className="pg home">
       <div className="home-hero">
         <div className="home-hero-main">
-          <span className="pg-kicker">{t('Valeur nette')}</span>
+          <span className="pg-kicker">{t('accueil.net_worth')}</span>
           <strong className="home-hero-value">{money(netWorth)}</strong>
           <div className="home-hero-split">
-            <span>{t('Actifs')} <b>{money(summary?.balance_assets ?? 0)}</b></span>
-            <span>{t('Passifs')} <b>{money(summary?.balance_liabilities ?? 0)}</b></span>
+            <span>{t('commun.assets')} <b>{money(summary?.balance_assets ?? 0)}</b></span>
+            <span>{t('commun.liabilities')} <b>{money(summary?.balance_liabilities ?? 0)}</b></span>
           </div>
           <div className="home-hero-net">
-            <span>{t('Flux net')} · {monthLabel}</span>
+            <span>{t('accueil.net_flow')} · {monthLabel}</span>
             <strong className={netMonthly > 0 ? 'income' : netMonthly < 0 ? 'expense' : undefined}>{signedMoney(netMonthly)}</strong>
             {prevMonthRow && <small>{delta(netMonthly, prevMonthRow.net, 'up')}</small>}
           </div>
         </div>
         {sparkData.length > 1 && (
           <div className="home-hero-spark" aria-hidden="true">
-            <span>{t('Flux nets cumulés')} · {sparkData.length} {t('mois')}</span>
+            <span>{t('accueil.cumulative_net_flows')} · {sparkData.length} {t('accueil.months')}</span>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={sparkData} margin={{ top: 6, right: 2, bottom: 2, left: 2 }}>
                 <defs>
@@ -178,7 +178,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                   itemStyle={chartTheme.tooltip.itemStyle}
                   cursor={{ stroke: chartTheme.axis, strokeDasharray: '3 3' }}
                 />
-                <Area type="monotone" dataKey="cumulative_net" name={t('Cumul')} stroke={chartTheme.total} strokeWidth={1.75} fill="url(#homeSpark)" dot={false} isAnimationActive={false} />
+                <Area type="monotone" dataKey="cumulative_net" name={t('accueil.cumulative')} stroke={chartTheme.total} strokeWidth={1.75} fill="url(#homeSpark)" dot={false} isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -187,18 +187,18 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
 
       <div className="pg-stats">
         <Link className="pg-stat" to="/transactions?type=income">
-          <span>{t('Revenus')}</span>
+          <span>{t('commun.income')}</span>
           <strong className="income">{money(summary?.income ?? 0)}</strong>
           {prevMonthRow && <small>{delta(summary?.income ?? 0, prevMonthRow.income, 'up')}</small>}
         </Link>
         <Link className="pg-stat" to="/transactions?type=expense">
-          <span>{t('Dépenses')}</span>
+          <span>{t('commun.expenses')}</span>
           <strong className="expense">{money(summary?.expenses ?? 0)}</strong>
           {prevMonthRow && <small>{delta(summary?.expenses ?? 0, prevMonthRow.expenses, 'down')}</small>}
         </Link>
         <div className="pg-stat">
-          <span>{t('Taux d\'épargne')}</span>
-          <strong title={savingRate != null && savingRate < -100 ? t('Dépenses bien supérieures aux revenus du mois ({{n}} %)', { n: savingRate }) : undefined}>
+          <span>{t('accueil.savings_rate')}</span>
+          <strong title={savingRate != null && savingRate < -100 ? t('accueil.expenses_well_above_this_month', { n: savingRate }) : undefined}>
             {savingRate == null ? '—' : savingRate < -100 ? '< −100 %' : `${savingRate} %`}
           </strong>
           {savingRate != null && prevSavingRate != null && savingRate >= -100 && prevSavingRate >= -100 && (
@@ -210,7 +210,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
           )}
         </div>
         <Link className="pg-stat" to="/transactions">
-          <span>{t('Transactions')}</span>
+          <span>{t('accueil.transactions')}</span>
           <strong>{transactions.length}</strong>
           <small>{monthLabel}</small>
         </Link>
@@ -220,19 +220,19 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
         <div className="home-col">
           <div className="pg-card">
             <div className="pg-card-head">
-              <h2>{t('Budgets')}</h2>
-              <Link className="home-link" to="/budgets">{t('Voir')} <ArrowRight size={14} /></Link>
+              <h2>{t('accueil.budgets')}</h2>
+              <Link className="home-link" to="/budgets">{t('accueil.view')} <ArrowRight size={14} /></Link>
             </div>
             <div className="pg-card-body">
               {budgetRows == null ? (
-                <p className="pg-note">{t('Chargement…')}</p>
+                <p className="pg-note">{t('accueil.loading')}</p>
               ) : budgetRows.length === 0 ? (
-                <p className="pg-note">{t('Aucun budget ce mois-ci.')} <Link to="/budgets">{t('Fixer des limites')}</Link></p>
+                <p className="pg-note">{t('accueil.no_budget_this_month')} <Link to="/budgets">{t('accueil.set_limits')}</Link></p>
               ) : (
                 <>
                   <div className="home-budget-figure">
                     <strong>{money(budgetSpent)} <small>/ {money(budgetLimit)}</small></strong>
-                    <span>{budgetRatio == null ? '—' : `${Math.round(budgetRatio * 100)} % ${t('consommé')}`}</span>
+                    <span>{budgetRatio == null ? '—' : `${Math.round(budgetRatio * 100)} % ${t('accueil.used')}`}</span>
                   </div>
                   <div className={`meter big${budgetRatio != null && budgetRatio >= 1 ? ' over' : budgetRatio != null && budgetRatio >= 0.8 ? ' warn' : ''}`}>
                     <span style={{ width: `${Math.max(0, Math.min(100, (budgetRatio ?? 0) * 100))}%` }} />
@@ -243,7 +243,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
             {budgetAlerts.length > 0 && (
               <ul className="home-list">
                 {budgetAlerts.slice(0, 3).map(({ b, ratio, forecast }) => {
-                  const name = categoryById.get(b.category_id)?.name ?? t('Catégorie');
+                  const name = categoryById.get(b.category_id)?.name ?? t('commun.category');
                   const over = ratio >= 1;
                   return (
                     <li key={b.id}>
@@ -253,7 +253,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                           <span title={name}>{name}</span>
                           <small>
                             {money(b.spent)} / {money(b.effective_limit)}
-                            {over ? ` · ${t('dépassé de {{amount}}', { amount: money(b.spent - b.effective_limit) })}` : forecast ? ` · ${t('dépassement prévu le {{date}}', { date: forecast })}` : ''}
+                            {over ? ` · ${t('accueil.over_by_amount', { amount: money(b.spent - b.effective_limit) })}` : forecast ? ` · ${t('accueil.overshoot_expected_on_date', { date: forecast })}` : ''}
                           </small>
                         </span>
                         <strong className={over ? 'expense' : undefined}>{ratio === Infinity ? '∞' : `${Math.round(ratio * 100)} %`}</strong>
@@ -263,16 +263,16 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                 })}
               </ul>
             )}
-            {budgetAlerts.length > 3 && <p className="home-foot">+{budgetAlerts.length - 3} {t('autres budgets en alerte')}</p>}
+            {budgetAlerts.length > 3 && <p className="home-foot">+{budgetAlerts.length - 3} {t('accueil.other_budgets_on_alert')}</p>}
           </div>
 
           <div className="pg-card">
             <div className="pg-card-head">
-              <h2>{t('À venir')}</h2>
-              <Link className="home-link" to="/bills">{t('Factures')} <ArrowRight size={14} /></Link>
+              <h2>{t('accueil.upcoming')}</h2>
+              <Link className="home-link" to="/bills">{t('accueil.bills')} <ArrowRight size={14} /></Link>
             </div>
             {visibleUpcoming.length === 0 ? (
-              <p className="pg-empty">{t('Rien d’attendu dans les 14 prochains jours.')}</p>
+              <p className="pg-empty">{t('accueil.nothing_expected_in_next_14')}</p>
             ) : (
               <ul className="home-list">
                 {visibleUpcoming.map((item) => {
@@ -296,9 +296,9 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
             )}
             {activeExpenseRecurring.length > 0 && (
               <p className="home-foot">
-                {t('Abonnements')} <strong>{money(subTotals.monthly)}</strong> / {t('mois')}
-                {subTotals.periodic > 0 && <> · <strong>{money(subTotals.periodic)}</strong> / {t('an')}</>}
-                {biggestSub && <> · {t('le plus cher')} : {biggestSub.r.description} ({money(biggestSub.report)}{biggestSub.unit})</>}
+                {t('accueil.subscriptions')} <strong>{money(subTotals.monthly)}</strong> / {t('accueil.months')}
+                {subTotals.periodic > 0 && <> · <strong>{money(subTotals.periodic)}</strong> / {t('accueil.yr')}</>}
+                {biggestSub && <> · {t('accueil.the_most_expensive')} : {biggestSub.r.description} ({money(biggestSub.report)}{biggestSub.unit})</>}
               </p>
             )}
           </div>
@@ -307,11 +307,11 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
         <div className="home-col">
           <div className="pg-card">
             <div className="pg-card-head">
-              <h2>{t('Où part l’argent')}</h2>
-              <Link className="home-link" to="/statistics">{t('Analyse')} <ArrowRight size={14} /></Link>
+              <h2>{t('accueil.where_money_goes')}</h2>
+              <Link className="home-link" to="/statistics">{t('accueil.analysis')} <ArrowRight size={14} /></Link>
             </div>
             {topCategories.length === 0 ? (
-              <p className="pg-empty">{t('Aucune dépense ce mois-ci.')}</p>
+              <p className="pg-empty">{t('accueil.no_expenses_this_month')}</p>
             ) : (
               <ul className="home-list">
                 {topCategories.map((row, index) => {
@@ -334,17 +334,17 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
                 })}
               </ul>
             )}
-            {otherCategories > 0 && <p className="home-foot">+ {money(otherCategories)} {t('dans')} {categoryRows.length - 6} {t('autres catégories')}</p>}
+            {otherCategories > 0 && <p className="home-foot">+ {money(otherCategories)} {t('accueil.in')} {categoryRows.length - 6} {t('accueil.other_categories')}</p>}
           </div>
 
           <div className="pg-card">
             <div className="pg-card-head">
-              <h2>{t('Plus grosses dépenses')}</h2>
-              <Link className="home-link" to="/transactions">{t('Journal')} <ArrowRight size={14} /></Link>
+              <h2>{t('accueil.largest_expenses')}</h2>
+              <Link className="home-link" to="/transactions">{t('accueil.journal')} <ArrowRight size={14} /></Link>
             </div>
             <div className="pg-card-body">
               {topExpenses.length === 0 ? (
-                <p className="pg-note">{t('Aucune dépense ce mois-ci.')}</p>
+                <p className="pg-note">{t('accueil.no_expenses_this_month')}</p>
               ) : (
                 <TransactionList
                   transactions={topExpenses}

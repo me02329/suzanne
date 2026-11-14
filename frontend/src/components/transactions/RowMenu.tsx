@@ -28,10 +28,10 @@ export function useTxMenuItems() {
   const { t } = useTranslation();
   return (tx: Transaction, h: TxActionHandlers, opts: { withSplit?: boolean } = {}): RowMenuItem[] => {
     const items: RowMenuItem[] = [
-      { key: 'copy', label: t('Copier'), icon: <Copy size={16} />, onSelect: () => h.onCopy(tx) },
+      { key: 'copy', label: t('operations.copy'), icon: <Copy size={16} />, onSelect: () => h.onCopy(tx) },
       {
         key: 'link',
-        label: tx.recurring_transaction_id != null ? t('Modifier le lien de récurrence') : t('Lier à une récurrence'),
+        label: tx.recurring_transaction_id != null ? t('operations.edit_recurring_link') : t('operations.link_to_recurring_entry'),
         icon: <Repeat size={16} />,
         on: tx.recurring_transaction_id != null,
         onSelect: () => h.onLink(tx),
@@ -39,17 +39,17 @@ export function useTxMenuItems() {
     ];
     if (tx.type !== 'transfer' && opts.withSplit !== false) {
       const split = (tx.splits ?? []).length > 0;
-      items.push({ key: 'split', label: split ? t('Modifier la ventilation') : t('Ventiler'), icon: <Split size={16} />, on: split, onSelect: () => h.onSplit(tx) });
+      items.push({ key: 'split', label: split ? t('operations.edit_split') : t('operations.split_2'), icon: <Split size={16} />, on: split, onSelect: () => h.onSplit(tx) });
     }
     if (tx.type === 'expense') {
-      items.push({ key: 'refund', label: t('Rembourser…'), icon: <HandCoins size={16} />, on: refundedAmount(tx) > 0, onSelect: () => h.onRefund(tx) });
+      items.push({ key: 'refund', label: t('operations.refund_3'), icon: <HandCoins size={16} />, on: refundedAmount(tx) > 0, onSelect: () => h.onRefund(tx) });
     } else if (tx.type === 'income') {
       const linked = (tx.refund_allocations?.length ?? 0) > 0 || tx.refunds_transaction_id != null;
-      items.push({ key: 'refund', label: t('Lier à des dépenses'), icon: <Link2 size={16} />, on: linked, onSelect: () => h.onRefund(tx) });
+      items.push({ key: 'refund', label: t('operations.link_to_expenses'), icon: <Link2 size={16} />, on: linked, onSelect: () => h.onRefund(tx) });
     }
     items.push(
-      { key: 'attachments', label: t('Pièces jointes'), icon: <Paperclip size={16} />, onSelect: () => h.onAttachments(tx) },
-      { key: 'delete', label: t('Supprimer'), icon: <Trash2 size={16} />, danger: true, onSelect: () => h.onDelete(tx) },
+      { key: 'attachments', label: t('operations.attachments'), icon: <Paperclip size={16} />, onSelect: () => h.onAttachments(tx) },
+      { key: 'delete', label: t('operations.delete'), icon: <Trash2 size={16} />, danger: true, onSelect: () => h.onDelete(tx) },
     );
     return items;
   };
@@ -115,8 +115,8 @@ export function RowMenu({ items, label }: { items: RowMenuItem[]; label?: string
         ref={buttonRef}
         type="button"
         className="icon-ghost jr-menu-trigger"
-        aria-label={label ?? t('Plus d\'actions')}
-        title={label ?? t('Plus d\'actions')}
+        aria-label={label ?? t('operations.more_actions_2')}
+        title={label ?? t('operations.more_actions_2')}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={(event) => { event.stopPropagation(); setOpen((v) => !v); }}

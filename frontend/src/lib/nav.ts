@@ -15,6 +15,7 @@ export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'stati
 // Navigation à deux niveaux : 7 sections (barre latérale / barre du bas), et
 // des onglets à l'intérieur de chaque section. Chaque onglet garde sa propre
 // URL (/budgets, /bills…) : les liens existants restent valides.
+// Les libellés sont des clés de traduction (catalogue ui.csv), affichées avec t().
 export interface NavSection {
   id: string;
   label: string;
@@ -28,43 +29,43 @@ const icon = (C: typeof House) => React.createElement(C, { size: 20, strokeWidth
 
 export const navSections: NavSection[] = [
   {
-    id: 'home', label: 'Accueil', short: 'Accueil', icon: icon(House),
-    tabs: [{ tab: 'dashboard', label: 'Aperçu' }, { tab: 'health', label: 'Santé' }, { tab: 'alerts', label: 'Alertes' }],
+    id: 'home', label: 'ui.nav.home', short: 'ui.nav.home', icon: icon(House),
+    tabs: [{ tab: 'dashboard', label: 'ui.tab.dashboard' }, { tab: 'health', label: 'ui.tab.health' }, { tab: 'alerts', label: 'ui.tab.alerts' }],
   },
   {
-    id: 'ops', label: 'Opérations', short: 'Opérations', icon: icon(ArrowLeftRight),
-    tabs: [{ tab: 'transactions', label: 'Journal' }, { tab: 'anomalies', label: 'À vérifier' }],
+    id: 'ops', label: 'ui.nav.ops', short: 'ui.nav.ops', icon: icon(ArrowLeftRight),
+    tabs: [{ tab: 'transactions', label: 'ui.tab.transactions' }, { tab: 'anomalies', label: 'ui.tab.anomalies' }],
   },
   {
-    id: 'accounts', label: 'Patrimoine', short: 'Comptes', icon: icon(Landmark),
+    id: 'accounts', label: 'ui.nav.accounts', short: 'ui.nav.accounts_short', icon: icon(Landmark),
     tabs: [
-      { tab: 'accounts', label: 'Comptes' },
-      { tab: 'wealth', label: 'Patrimoine' },
-      { tab: 'investments', label: 'Placements' },
-      { tab: 'goals', label: 'Objectifs' },
-      { tab: 'simulator', label: 'Simulateur' },
+      { tab: 'accounts', label: 'ui.tab.accounts' },
+      { tab: 'wealth', label: 'ui.tab.wealth' },
+      { tab: 'investments', label: 'ui.tab.investments' },
+      { tab: 'goals', label: 'ui.tab.goals' },
+      { tab: 'simulator', label: 'ui.tab.simulator' },
     ],
   },
   {
-    id: 'plan', label: 'Planifier', short: 'Planifier', icon: icon(CalendarRange),
+    id: 'plan', label: 'ui.nav.plan', short: 'ui.nav.plan', icon: icon(CalendarRange),
     tabs: [
-      { tab: 'budgets', label: 'Budgets' },
-      { tab: 'recurring', label: 'Récurrents' },
-      { tab: 'bills', label: 'Factures' },
-      { tab: 'forecast', label: 'Prévisions' },
+      { tab: 'budgets', label: 'ui.tab.budgets' },
+      { tab: 'recurring', label: 'ui.tab.recurring' },
+      { tab: 'bills', label: 'ui.tab.bills' },
+      { tab: 'forecast', label: 'ui.tab.forecast' },
     ],
   },
-  { id: 'analysis', label: 'Analyse', short: 'Analyse', icon: icon(PieChart), tabs: [{ tab: 'statistics', label: 'Statistiques' }] },
-  { id: 'assistant', label: 'Assistant', short: 'Assistant', icon: icon(Sparkles), tabs: [{ tab: 'assistant', label: 'Assistant' }] },
+  { id: 'analysis', label: 'ui.nav.analysis', short: 'ui.nav.analysis', icon: icon(PieChart), tabs: [{ tab: 'statistics', label: 'ui.tab.statistics' }] },
+  { id: 'assistant', label: 'ui.nav.assistant', short: 'ui.nav.assistant', icon: icon(Sparkles), tabs: [{ tab: 'assistant', label: 'ui.tab.assistant' }] },
   {
-    id: 'settings', label: 'Réglages', short: 'Réglages', icon: icon(Settings),
+    id: 'settings', label: 'ui.nav.settings', short: 'ui.nav.settings', icon: icon(Settings),
     tabs: [
-      { tab: 'categories', label: 'Catégories' },
-      { tab: 'tags', label: 'Tags' },
-      { tab: 'rules', label: 'Règles' },
-      { tab: 'tools', label: 'Import / Export' },
-      { tab: 'users', label: 'Profils' },
-      { tab: 'settings', label: 'Préférences' },
+      { tab: 'categories', label: 'ui.tab.categories' },
+      { tab: 'tags', label: 'ui.tab.tags' },
+      { tab: 'rules', label: 'ui.tab.rules' },
+      { tab: 'tools', label: 'ui.tab.tools' },
+      { tab: 'users', label: 'ui.tab.users' },
+      { tab: 'settings', label: 'ui.tab.settings' },
     ],
   },
 ];
@@ -82,7 +83,7 @@ export function sectionForTab(tab: Tab): NavSection {
 }
 
 export function tabLabel(tab: Tab): string {
-  return navItems.find((i) => i.tab === tab)?.label ?? 'Aperçu';
+  return navItems.find((i) => i.tab === tab)?.label ?? 'ui.tab.dashboard';
 }
 
 // Maps a search result type to the tab where the user should land.

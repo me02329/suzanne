@@ -37,11 +37,11 @@ export function RefundModal(props: Props) {
   const invalid = incomes.length + expenses.length !== props.seed.length || (incomes.length > 1 && expenses.length > 1);
   if (invalid || props.seed.length === 0) {
     return (
-      <Modal title={t('Remboursement')} onClose={props.onClose}>
+      <Modal title={t('operations.refund')} onClose={props.onClose}>
         <p className="jr-note">
-          {t('Sélectionne des dépenses et/ou des revenus (pas de transferts), avec un seul revenu ou une seule dépense d’un côté : un revenu peut rembourser plusieurs dépenses, et une dépense peut être remboursée par plusieurs revenus.')}
+          {t('operations.select_expenses_and_or_income')}
         </p>
-        <div className="jr-form-actions"><span className="jr-spacer" /><button type="button" className="secondary" onClick={props.onClose}>{t('Fermer')}</button></div>
+        <div className="jr-form-actions"><span className="jr-spacer" /><button type="button" className="secondary" onClick={props.onClose}>{t('operations.close')}</button></div>
       </Modal>
     );
   }
@@ -55,13 +55,13 @@ function ExpenseRefund(props: Props & { expenses: Transaction[] }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<'create' | 'existing'>('create');
   const n = props.expenses.length;
-  const title = n > 1 ? t('Rembourser {{n}} dépenses', { n }) : t('Rembourser la dépense');
+  const title = n > 1 ? t('operations.refund_n_expenses_2', { n }) : t('operations.refund_expense');
   return (
     <Modal title={title} onClose={props.onClose}>
       <div className="jr-form">
-        <div className="jr-seg full" role="tablist" aria-label={t('Mode')}>
-          <button type="button" role="tab" aria-selected={tab === 'create'} className={tab === 'create' ? 'on' : ''} onClick={() => setTab('create')}>{t('Nouveau remboursement')}</button>
-          <button type="button" role="tab" aria-selected={tab === 'existing'} className={tab === 'existing' ? 'on' : ''} onClick={() => setTab('existing')}>{t('Revenu déjà saisi')}</button>
+        <div className="jr-seg full" role="tablist" aria-label={t('operations.mode')}>
+          <button type="button" role="tab" aria-selected={tab === 'create'} className={tab === 'create' ? 'on' : ''} onClick={() => setTab('create')}>{t('operations.new_refund')}</button>
+          <button type="button" role="tab" aria-selected={tab === 'existing'} className={tab === 'existing' ? 'on' : ''} onClick={() => setTab('existing')}>{t('operations.income_already_entered')}</button>
         </div>
       </div>
       {tab === 'create'
@@ -83,8 +83,8 @@ function CreateRefund({ expenses, userId, accounts, accountById, categoryById, r
   const [date, setDate] = useState(todayIso());
   const [accountId, setAccountId] = useState(String(first.account_id ?? ''));
   const [description, setDescription] = useState(expenses.length === 1
-    ? t('Remboursement : {{label}}', { label: txLabel(first, categoryById) })
-    : t('Remboursement : {{n}} dépenses', { n: expenses.length }));
+    ? t('operations.refund_label', { label: txLabel(first, categoryById) })
+    : t('operations.refund_n_expenses', { n: expenses.length }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const value = parseAmount(amount);
@@ -92,7 +92,7 @@ function CreateRefund({ expenses, userId, accounts, accountById, categoryById, r
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!(value > 0)) { setError(t('Saisis un montant positif (ex. 12,50).')); return; }
+    if (!(value > 0)) { setError(t('operations.enter_positive_amount_e_g')); return; }
     setError(null);
     // Le montant est réparti sur les dépenses, de la plus ancienne à la plus
     // récente ; un éventuel surplus reste un simple revenu.
@@ -112,7 +112,7 @@ function CreateRefund({ expenses, userId, accounts, accountById, categoryById, r
       amount: roundAmount(value),
       date,
       description: description.trim(),
-    }), t('Remboursement enregistré'));
+    }), t('operations.refund_recorded'));
     setBusy(false);
     if (ok) { onDone?.(); onClose(); }
   };
@@ -127,26 +127,26 @@ function CreateRefund({ expenses, userId, accounts, accountById, categoryById, r
           </li>
         ))}
       </ul>
-      {already > 0 && <p className="jr-note full">{t('Déjà remboursé : {{amount}}', { amount: money(already, currency) })}</p>}
-      <label>{t('Montant')}<input inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></label>
-      <label>{t('Date')}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label>
+      {already > 0 && <p className="jr-note full">{t('operations.already_refunded_amount', { amount: money(already, currency) })}</p>}
+      <label>{t('operations.amount')}<input inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></label>
+      <label>{t('operations.date')}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label>
       {surplus > 0 && (
         <p className="jr-note full">
-          {t('{{remaining}} viendront annuler la dépense ; le surplus de {{surplus}} sera compté comme revenu.', { remaining: money(remaining, currency), surplus: money(surplus, currency) })}
+          {t('operations.remaining_will_offset_expense_surplus', { remaining: money(remaining, currency), surplus: money(surplus, currency) })}
         </p>
       )}
-      <label className="full">{t('Compte crédité')}
+      <label className="full">{t('operations.credited_account')}
         <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-          <option value="">{t('Aucun')}</option>
+          <option value="">{t('operations.none')}</option>
           {pickableAccounts(accounts, first.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </label>
-      <label className="full">{t('Libellé')}<input value={description} onChange={(e) => setDescription(e.target.value)} /></label>
+      <label className="full">{t('operations.label')}<input value={description} onChange={(e) => setDescription(e.target.value)} /></label>
       {error && <p className="jr-error full" role="alert">{error}</p>}
       <div className="jr-form-actions full">
         <span className="jr-spacer" />
-        <button type="button" className="secondary" onClick={onClose}>{t('Annuler')}</button>
-        <button className="primary" disabled={busy}>{t('Créer le remboursement')}</button>
+        <button type="button" className="secondary" onClick={onClose}>{t('commun.cancel')}</button>
+        <button className="primary" disabled={busy}>{t('operations.create_refund')}</button>
       </div>
     </form>
   );
@@ -159,8 +159,8 @@ type EditorProps = Props & { initialIncomes: Transaction[]; initialExpenses: Tra
 function LinkEditor(props: EditorProps) {
   const { t } = useTranslation();
   const title = props.initialIncomes.length === 1 && props.initialExpenses.length === 0
-    ? t('Lier à des dépenses')
-    : t('Lier les remboursements');
+    ? t('operations.link_to_expenses')
+    : t('operations.link_refunds');
   return (
     <Modal title={title} onClose={props.onClose}>
       <LinkEditorBody {...props} />
@@ -277,19 +277,19 @@ function LinkEditorBody({ initialIncomes, initialExpenses, userId, accountById, 
   const overItems = new Set<number>();
   if (pivot) {
     if (pivotSide === 'income') {
-      if (keptOf(pivot) + checkedTotal - pivot.amount > 0.01) errors.push(t('Le total alloué dépasse le montant du remboursement.'));
+      if (keptOf(pivot) + checkedTotal - pivot.amount > 0.01) errors.push(t('operations.the_allocated_total_exceeds_refund'));
       for (const x of items) {
         if (amounts[x.id] === undefined) continue;
         if (refundedByOthers(x, new Set([pivot.id])) + num(amounts[x.id]) - x.amount > 0.01) overItems.add(x.id);
       }
-      if (overItems.size > 0) errors.push(t('Une allocation dépasse le reste remboursable de sa dépense.'));
+      if (overItems.size > 0) errors.push(t('operations.an_allocation_exceeds_refundable_remaind'));
     } else {
-      if (refundedByOthers(pivot, modalIncomeIds) + checkedTotal - pivot.amount > 0.01) errors.push(t('Le cumul des remboursements dépasse le montant de la dépense.'));
+      if (refundedByOthers(pivot, modalIncomeIds) + checkedTotal - pivot.amount > 0.01) errors.push(t('operations.total_refunds_exceed_expense_amount'));
       for (const x of items) {
         if (amounts[x.id] === undefined) continue;
         if (keptOf(x) + num(amounts[x.id]) - x.amount > 0.01) overItems.add(x.id);
       }
-      if (overItems.size > 0) errors.push(t('Un revenu alloue plus que son montant.'));
+      if (overItems.size > 0) errors.push(t('operations.an_income_allocates_more_than'));
     }
   }
   const changed = pivot != null && items.some((x) => {
@@ -322,7 +322,7 @@ function LinkEditorBody({ initialIncomes, initialExpenses, userId, accountById, 
     const linkedCount = Object.keys(amounts).length;
     const ok = await run(async () => {
       for (const u of updates) await api.updateTransaction(userId, u.income.id, { refund_allocations: u.allocations });
-    }, linkedCount > 0 ? t('Remboursements enregistrés') : t('Lien de remboursement retiré'));
+    }, linkedCount > 0 ? t('operations.refunds_saved') : t('operations.refund_link_removed'));
     setBusy(false);
     if (ok) { onDone?.(); onClose(); }
   };
@@ -337,8 +337,8 @@ function LinkEditorBody({ initialIncomes, initialExpenses, userId, accountById, 
       <div className="jr-form" style={{ marginTop: 12 }}>
         <p className="jr-note full">
           {pivotSide === 'income'
-            ? t('Choisis le revenu qui rembourse ces {{n}} dépenses.', { n: others.length })
-            : t('Choisis la dépense remboursée par ces {{n}} revenus.', { n: others.length })}
+            ? t('operations.choose_income_that_refunds_these', { n: others.length })
+            : t('operations.choose_expense_refunded_by_these', { n: others.length })}
         </p>
         <ul className="jr-alloc-list full">
           {others.map((tx) => <li key={tx.id}><span>{formatTxDate(tx.date)} · {txLabel(tx, categoryById)}</span><span className="jr-num">{sign(tx)}{money(tx.amount, currencyOf(tx))}</span></li>)}
@@ -354,7 +354,7 @@ function LinkEditorBody({ initialIncomes, initialExpenses, userId, accountById, 
           single
           onToggle={(tx) => setPivot(tx)}
         />
-        <div className="jr-form-actions full"><span className="jr-spacer" /><button type="button" className="secondary" onClick={onClose}>{t('Annuler')}</button></div>
+        <div className="jr-form-actions full"><span className="jr-spacer" /><button type="button" className="secondary" onClick={onClose}>{t('commun.cancel')}</button></div>
       </div>
     );
   }
@@ -370,8 +370,8 @@ function LinkEditorBody({ initialIncomes, initialExpenses, userId, accountById, 
         <strong className="jr-num">{sign(pivot)}{money(pivot.amount, pivotCurrency)}</strong>
       </div>
       <div className={`jr-alloc full${errors.length > 0 ? ' ko' : ''}`}>
-        <span>{pivotSide === 'income' ? t('Alloué : {{amount}}', { amount: money(checkedTotal, pivotCurrency) }) : t('Remboursé : {{amount}}', { amount: money(roundAmount(checkedTotal + pivotRefunded), pivotCurrency) })}</span>
-        <span>{t('Reste : {{amount}}', { amount: money(pivotLeft, pivotCurrency) })}</span>
+        <span>{pivotSide === 'income' ? t('operations.allocated_amount', { amount: money(checkedTotal, pivotCurrency) }) : t('operations.refunded_amount', { amount: money(roundAmount(checkedTotal + pivotRefunded), pivotCurrency) })}</span>
+        <span>{t('operations.remaining_amount', { amount: money(pivotLeft, pivotCurrency) })}</span>
       </div>
 
       {items.length > 0 && (
@@ -389,7 +389,7 @@ function LinkEditorBody({ initialIncomes, initialExpenses, userId, accountById, 
                     inputMode="decimal"
                     value={amounts[x.id]}
                     onChange={(e) => setAmounts((cur) => ({ ...cur, [x.id]: e.target.value }))}
-                    aria-label={t('Montant alloué à {{label}}', { label: txLabel(x, categoryById) })}
+                    aria-label={t('operations.amount_allocated_to_label', { label: txLabel(x, categoryById) })}
                   />
                 )}
               </label>
@@ -397,7 +397,7 @@ function LinkEditorBody({ initialIncomes, initialExpenses, userId, accountById, 
           })}
         </div>
       )}
-      {loading && <p className="jr-note full">{t('Chargement des liens existants…')}</p>}
+      {loading && <p className="jr-note full">{t('operations.loading_existing_links')}</p>}
 
       <TxPicker
         userId={userId}
@@ -408,14 +408,14 @@ function LinkEditorBody({ initialIncomes, initialExpenses, userId, accountById, 
         accountById={accountById}
         categoryById={categoryById}
         onToggle={(tx, on) => toggle(tx, on)}
-        label={manySide === 'expense' ? t('Ajouter des dépenses') : t('Ajouter des revenus')}
+        label={manySide === 'expense' ? t('operations.add_expenses') : t('operations.add_income')}
       />
 
       {errors.map((e) => <p key={e} className="jr-error full">{e}</p>)}
       <div className="jr-form-actions full">
         <span className="jr-spacer" />
-        <button type="button" className="secondary" onClick={onClose}>{t('Annuler')}</button>
-        <button className="primary" disabled={busy || loading || errors.length > 0 || !changed}>{t('Enregistrer')}</button>
+        <button type="button" className="secondary" onClick={onClose}>{t('commun.cancel')}</button>
+        <button className="primary" disabled={busy || loading || errors.length > 0 || !changed}>{t('operations.save')}</button>
       </div>
     </form>
   );
@@ -462,7 +462,7 @@ function TxPicker({ userId, type, defaultMonth, selectedIds, excludeIds, account
 
   return (
     <div className="full jr-picker">
-      <span className="jr-field-label">{label ?? (type === 'expense' ? t('Chercher une dépense') : t('Chercher un revenu'))}</span>
+      <span className="jr-field-label">{label ?? (type === 'expense' ? t('operations.search_expenses') : t('operations.search_income'))}</span>
       <div className="jr-picker-bar">
         <div className="jr-search">
           <Search size={16} aria-hidden="true" />
@@ -470,19 +470,19 @@ function TxPicker({ userId, type, defaultMonth, selectedIds, excludeIds, account
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('Libellé ou montant…')}
-            aria-label={t('Rechercher')}
+            placeholder={t('operations.label_or_amount')}
+            aria-label={t('operations.search')}
           />
         </div>
-        <select value={period} onChange={(e) => setPeriod(e.target.value as 'all' | 'month')} aria-label={t('Période')}>
-          <option value="all">{t('Toutes les dates')}</option>
-          <option value="month">{t('Un mois précis')}</option>
+        <select value={period} onChange={(e) => setPeriod(e.target.value as 'all' | 'month')} aria-label={t('operations.period')}>
+          <option value="all">{t('operations.all_dates')}</option>
+          <option value="month">{t('operations.a_specific_month')}</option>
         </select>
         {period === 'month' && <MonthPicker value={month} onChange={setMonth} />}
       </div>
       <div className="jr-candidates">
-        {searching && visible.length === 0 && <p className="empty">{t('Recherche…')}</p>}
-        {!searching && visible.length === 0 && <p className="empty">{t('Aucune opération trouvée.')}</p>}
+        {searching && visible.length === 0 && <p className="empty">{t('operations.searching')}</p>}
+        {!searching && visible.length === 0 && <p className="empty">{t('operations.no_transactions_found')}</p>}
         {visible.map((tx) => {
           const c = accountById.get(tx.account_id ?? -1)?.currency ?? 'EUR';
           const refunded = tx.type === 'expense' ? refundedAmount(tx) : (tx.refund_allocations ?? []).reduce((s, a) => s + a.amount, 0);
@@ -492,7 +492,7 @@ function TxPicker({ userId, type, defaultMonth, selectedIds, excludeIds, account
               <input type={single ? 'radio' : 'checkbox'} name={single ? 'jr-pick' : undefined} checked={checked} onChange={(e) => onToggle(tx, e.target.checked)} />
               <span>
                 {formatTxDate(tx.date)} · {txLabel(tx, categoryById)}
-                {refunded > 0 && <small> · {tx.type === 'expense' ? t('déjà remboursé {{amount}}', { amount: money(refunded, c) }) : t('déjà alloué {{amount}}', { amount: money(refunded, c) })}</small>}
+                {refunded > 0 && <small> · {tx.type === 'expense' ? t('operations.already_refunded_amount_2', { amount: money(refunded, c) }) : t('operations.already_allocated_amount', { amount: money(refunded, c) })}</small>}
               </span>
               <span className="jr-num">{tx.type === 'income' ? '+' : '−'}{money(tx.amount, c)}</span>
             </label>

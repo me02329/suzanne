@@ -31,7 +31,7 @@ export function BulkBar({ selection, userId, tags, run, onEdit, onRefund }: {
   const setCleared = (cleared: boolean) => {
     void run(
       () => api.bulkUpdateTransactions(userId, { ids, cleared }),
-      (result) => t(cleared ? '{{n}} transactions pointées' : '{{n}} transactions dépointées', { n: (result as { updated: number }).updated }),
+      (result) => t(cleared ? 'operations.n_transactions_cleared' : 'operations.n_transactions_uncleared', { n: (result as { updated: number }).updated }),
     ).then((ok) => { if (ok) clear(); });
   };
 
@@ -39,7 +39,7 @@ export function BulkBar({ selection, userId, tags, run, onEdit, onRefund }: {
     const name = tags.find((tag) => tag.id === tagId)?.name ?? 'tag';
     void run(
       () => api.bulkUpdateTransactions(userId, { ids, add_tag_id: tagId }),
-      (result) => t('{{n}} transactions taguées « {{name}} »', { n: (result as { updated: number }).updated, name }),
+      (result) => t('operations.n_transactions_tagged_name', { n: (result as { updated: number }).updated, name }),
     ).then((ok) => { if (ok) clear(); });
   };
 
@@ -47,30 +47,30 @@ export function BulkBar({ selection, userId, tags, run, onEdit, onRefund }: {
   const remove = () => {
     void run(
       () => api.bulkDeleteTransactions(userId, ids),
-      (result) => t('{{n}} transactions déplacées vers la corbeille', { n: (result as { deleted: number }).deleted }),
+      (result) => t('operations.n_transactions_moved_to_trash', { n: (result as { deleted: number }).deleted }),
       { undo: () => Promise.all(ids.map((id) => api.restoreTransaction(userId, id))) },
     ).then((ok) => { if (ok) clear(); });
   };
 
   return (
-    <div className="jr-bulk" role="region" aria-label={t('Actions sur la sélection')}>
-      <strong>{t(count > 1 ? '{{n}} sélectionnées' : '{{n}} sélectionnée', { n: count })}</strong>
-      <button type="button" className="secondary" onClick={onEdit}>{t('Modifier')}</button>
+    <div className="jr-bulk" role="region" aria-label={t('operations.actions_on_selection')}>
+      <strong>{t(count > 1 ? 'operations.n_selected_3' : 'operations.n_selected_2', { n: count })}</strong>
+      <button type="button" className="secondary" onClick={onEdit}>{t('operations.edit')}</button>
       {onRefund && canRefund && (
-        <button type="button" className="secondary" onClick={onRefund} title={t('Un revenu peut rembourser plusieurs dépenses, et une dépense être remboursée par plusieurs revenus')}>
-          {nIncome === 0 ? t('Rembourser') : nExpense === 0 ? t('Lier à une dépense') : t('Lier le remboursement')}
+        <button type="button" className="secondary" onClick={onRefund} title={t('operations.one_income_can_refund_several')}>
+          {nIncome === 0 ? t('operations.refund_2') : nExpense === 0 ? t('operations.link_to_expense') : t('operations.link_refund')}
         </button>
       )}
-      <button type="button" className="secondary" onClick={() => setCleared(true)}>{t('Pointer')}</button>
-      <button type="button" className="secondary" onClick={() => setCleared(false)}>{t('Dépointer')}</button>
+      <button type="button" className="secondary" onClick={() => setCleared(true)}>{t('operations.clear_2')}</button>
+      <button type="button" className="secondary" onClick={() => setCleared(false)}>{t('operations.unclear')}</button>
       {tags.length > 0 && (
-        <select value="" aria-label={t('Ajouter un tag à la sélection')} onChange={(e) => { if (e.target.value) addTag(Number(e.target.value)); }}>
-          <option value="">{t('Ajouter un tag…')}</option>
+        <select value="" aria-label={t('operations.add_tag_to_selection')} onChange={(e) => { if (e.target.value) addTag(Number(e.target.value)); }}>
+          <option value="">{t('operations.add_tag')}</option>
           {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
         </select>
       )}
-      <button type="button" className="secondary jr-danger" onClick={remove}>{t('Supprimer')}</button>
-      <button type="button" className="icon-ghost" onClick={clear} aria-label={t('Désélectionner')} title={t('Désélectionner')}><X size={18} /></button>
+      <button type="button" className="secondary jr-danger" onClick={remove}>{t('operations.delete')}</button>
+      <button type="button" className="icon-ghost" onClick={clear} aria-label={t('operations.deselect')} title={t('operations.deselect')}><X size={18} /></button>
     </div>
   );
 }
@@ -102,38 +102,38 @@ export function BulkEditModal({ selection, userId, accounts, categories, run, on
         ...(applyAccount ? { account_id: accountId ? Number(accountId) : null } : {}),
         ...(applyCategory ? { category_id: categoryId ? Number(categoryId) : null } : {}),
       }),
-      (result) => t('{{n}} transactions modifiées', { n: (result as { updated: number }).updated }),
+      (result) => t('operations.n_transactions_updated', { n: (result as { updated: number }).updated }),
     );
     setBusy(false);
     if (ok) { selection.clear(); onClose(); }
   };
 
   return (
-    <Modal title={t(count > 1 ? 'Modifier {{n}} transactions' : 'Modifier {{n}} transaction', { n: count })} onClose={onClose}>
+    <Modal title={t(count > 1 ? 'operations.edit_n_transactions' : 'operations.edit_n_transaction', { n: count })} onClose={onClose}>
       <form className="jr-form" onSubmit={submit}>
-        <label className="jr-check full"><input type="checkbox" checked={applyAccount} onChange={(e) => setApplyAccount(e.target.checked)} /> {t('Changer le compte')}</label>
+        <label className="jr-check full"><input type="checkbox" checked={applyAccount} onChange={(e) => setApplyAccount(e.target.checked)} /> {t('operations.change_account')}</label>
         <label className="full">
-          <select value={accountId} onChange={(e) => { setAccountId(e.target.value); setApplyAccount(true); }} aria-label={t('Compte')}>
-            <option value="">{t('Sans compte')}</option>
+          <select value={accountId} onChange={(e) => { setAccountId(e.target.value); setApplyAccount(true); }} aria-label={t('operations.account')}>
+            <option value="">{t('operations.no_account')}</option>
             {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </label>
-        <label className="jr-check full"><input type="checkbox" checked={applyCategory} onChange={(e) => setApplyCategory(e.target.checked)} /> {t('Changer la catégorie')}</label>
+        <label className="jr-check full"><input type="checkbox" checked={applyCategory} onChange={(e) => setApplyCategory(e.target.checked)} /> {t('operations.change_category')}</label>
         <label className="full">
-          <select value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setApplyCategory(true); }} aria-label={t('Catégorie')}>
-            <option value="">{t('Sans catégorie')}</option>
-            <optgroup label={t('Dépenses')}>
+          <select value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setApplyCategory(true); }} aria-label={t('commun.category')}>
+            <option value="">{t('operations.no_category')}</option>
+            <optgroup label={t('commun.expenses')}>
               {categories.filter((c) => c.type === 'expense').map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </optgroup>
-            <optgroup label={t('Revenus')}>
+            <optgroup label={t('commun.income')}>
               {categories.filter((c) => c.type === 'income').map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </optgroup>
           </select>
         </label>
         <div className="jr-form-actions full">
           <span className="jr-spacer" />
-          <button type="button" className="secondary" onClick={onClose}>{t('Annuler')}</button>
-          <button className="primary" disabled={busy || (!applyAccount && !applyCategory)}>{t('Appliquer')}</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('commun.cancel')}</button>
+          <button className="primary" disabled={busy || (!applyAccount && !applyCategory)}>{t('operations.apply')}</button>
         </div>
       </form>
     </Modal>

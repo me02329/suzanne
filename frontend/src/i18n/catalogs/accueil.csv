@@ -1,0 +1,34 @@
+keys,fr,en
+accueil.analysis,Analyse,Analysis
+accueil.bill,Facture,Bill
+accueil.bills,Factures,Bills
+accueil.budgets,Budgets,Budgets
+accueil.cumulative,Cumul,Cumulative
+accueil.cumulative_net_flows,Flux nets cumulés,Cumulative net flows
+accueil.expenses_well_above_this_month,Dépenses bien supérieures aux revenus du mois ({{n}} %),Expenses well above this month's income ({{n}}%)
+accueil.in,dans,in
+accueil.journal,Journal,Journal
+accueil.largest_expenses,Plus grosses dépenses,Largest expenses
+accueil.loading,Chargement…,Loading…
+accueil.months,mois,months
+accueil.net_flow,Flux net,Net flow
+accueil.net_worth,Valeur nette,Net worth
+accueil.no_budget_this_month,Aucun budget ce mois-ci.,No budget this month.
+accueil.no_expenses_this_month,Aucune dépense ce mois-ci.,No expenses this month.
+accueil.nothing_expected_in_next_14,Rien d’attendu dans les 14 prochains jours.,Nothing expected in the next 14 days.
+accueil.other_budgets_on_alert,autres budgets en alerte,other budgets on alert
+accueil.other_categories,autres catégories,other categories
+accueil.over_by_amount,dépassé de {{amount}},over by {{amount}}
+accueil.overdue_bill,Facture en retard,Overdue bill
+accueil.overshoot_expected_on_date,dépassement prévu le {{date}},overshoot expected on {{date}}
+accueil.savings_rate,Taux d'épargne,Savings rate
+accueil.selected_month,Mois sélectionné,Selected month
+accueil.set_limits,Fixer des limites,Set limits
+accueil.subscriptions,Abonnements,Subscriptions
+accueil.the_most_expensive,le plus cher,the most expensive
+accueil.transactions,Transactions,Transactions
+accueil.upcoming,À venir,Upcoming
+accueil.used,consommé,used
+accueil.view,Voir,View
+accueil.where_money_goes,Où part l’argent,Where the money goes
+accueil.yr,an,yr

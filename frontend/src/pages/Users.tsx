@@ -17,23 +17,23 @@ export function UsersPage({ users, currentUserId, run }: { users: User[]; curren
     event.preventDefault();
     const name = String(new FormData(event.currentTarget).get('name')).trim();
     if (!name) return;
-    void run(() => api.createUser({ name }), t('Profil créé')).then((ok) => { if (ok) setCreating(false); });
+    void run(() => api.createUser({ name }), t('reglages.profile_created')).then((ok) => { if (ok) setCreating(false); });
   };
 
   return (
     <section className="st-page">
       <div className="st-toolbar">
         <p className="st-summary">
-          <strong>{users.length}</strong> {users.length > 1 ? t('profils') : t('profil')}
-          <span className="st-sub">{t('chacun a ses comptes et ses opérations')}</span>
+          <strong>{users.length}</strong> {users.length > 1 ? t('reglages.profiles') : t('reglages.profile')}
+          <span className="st-sub">{t('reglages.each_with_their_own_accounts')}</span>
         </p>
         <button type="button" className="primary accent" onClick={() => setCreating(true)}>
-          <Plus size={16} /> {t('Nouveau profil')}
+          <Plus size={16} /> {t('reglages.new_profile')}
         </button>
       </div>
 
       <div className="panel st-list">
-        {users.length === 0 && <p className="empty">{t('Aucun profil.')}</p>}
+        {users.length === 0 && <p className="empty">{t('reglages.no_profiles')}</p>}
         <ul className="st-people">
           {users.map((u) => {
             const active = u.id === currentUserId;
@@ -42,13 +42,13 @@ export function UsersPage({ users, currentUserId, run }: { users: User[]; curren
                 <span className="st-avatar" aria-hidden="true">{u.name.trim().charAt(0).toUpperCase() || '?'}</span>
                 <span className="st-person">
                   <strong title={u.name}>{u.name}</strong>
-                  <small>{t('Créé le')} {new Date(u.created_at).toLocaleDateString(localeTag())}</small>
+                  <small>{t('reglages.created_on')} {new Date(u.created_at).toLocaleDateString(localeTag())}</small>
                 </span>
-                {active && <span className="st-badge">{t('Profil actif')}</span>}
+                {active && <span className="st-badge">{t('reglages.active_profile')}</span>}
                 <RowMenu items={[{
-                  label: t('Supprimer le profil'), icon: <Trash2 />, danger: true,
-                  confirm: t('Supprimer {{name}} et toutes ses données ?', { name: u.name }),
-                  onSelect: () => void run(() => api.deleteUser(u.id), t('Profil supprimé')),
+                  label: t('reglages.delete_profile'), icon: <Trash2 />, danger: true,
+                  confirm: t('reglages.delete_name_and_all_their', { name: u.name }),
+                  onSelect: () => void run(() => api.deleteUser(u.id), t('reglages.profile_deleted')),
                 }]} />
               </li>
             );
@@ -57,12 +57,12 @@ export function UsersPage({ users, currentUserId, run }: { users: User[]; curren
       </div>
 
       {creating && (
-        <Modal title={t('Nouveau profil')} onClose={() => setCreating(false)}>
+        <Modal title={t('reglages.new_profile')} onClose={() => setCreating(false)}>
           <form className="form st-form" onSubmit={submit}>
-            <label className="full">{t('Nom')}<input name="name" required maxLength={60} placeholder={t('Ex: Démo, Famille...')} autoComplete="off" /></label>
+            <label className="full">{t('commun.name')}<input name="name" required maxLength={60} placeholder={t('reglages.e_g_demo_family')} autoComplete="off" /></label>
             <div className="modal-actions full">
-              <button type="button" className="secondary" onClick={() => setCreating(false)}>{t('Annuler')}</button>
-              <button className="primary">{t('Créer')}</button>
+              <button type="button" className="secondary" onClick={() => setCreating(false)}>{t('commun.cancel')}</button>
+              <button className="primary">{t('reglages.create')}</button>
             </div>
           </form>
         </Modal>

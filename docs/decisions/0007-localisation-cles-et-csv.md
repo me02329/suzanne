@@ -1,7 +1,7 @@
 # ADR 0007 — Localisation par clés stables et catalogues CSV `keys,fr,en`
 
 - Date : 13 novembre 2026 (outillage : 14 novembre 2026)
-- Statut : accepté — outillage en place, migration des écrans à faire
+- Statut : accepté — appels t() convertis (14 novembre 2026), textes écrits en dur à migrer
 
 ## Contexte
 
@@ -44,8 +44,10 @@ utilisée existe dans un et un seul catalogue et qu'aucune case n'est vide.
 
 ## Conséquences
 
-- Migration mécanique des écrans en trois temps : conversion automatique des appels existants,
-  libellés de navigation (`lib/nav.ts`, clés calculées) à la main, puis textes encore écrits
-  en dur, écran par écran ; traduction anglaise complétée au passage.
-- Une fois `i18n:check --strict` au vert, `--strict` passe en CI et `i18n_data.json` est
-  supprimé.
+- Fait le 14 novembre 2026 : les 492 appels `t('Phrase')` convertis (373 clés, anglais
+  complété), libellés de navigation (`lib/nav.ts`) et options de préférences passés en clés
+  (données passées à `t()` par variable : une clé écrite en toutes lettres dans le code
+  compte comme utilisée), `i18n_data.json` supprimé.
+- Reste : les textes encore écrits en dur dans le JSX (~880), écran par écran ; les pluriels
+  écrits en ternaire (`n > 1 ? … : …`) à passer en `_one` / `_other`. Une fois
+  `i18n:check --strict` au vert, `--strict` passe en CI.

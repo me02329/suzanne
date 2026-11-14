@@ -92,25 +92,25 @@ export function Settings() {
     <section className="st-page st-prefs">
       <section className="panel st-pref">
         <div className="st-pref-head">
-          <h2>{t('Langue')}</h2>
-          <p>{t('Langue de l’interface, format des nombres et des dates.')}</p>
+          <h2>{t('reglages.language')}</h2>
+          <p>{t('reglages.interface_language_number_and_date')}</p>
         </div>
         <label className="st-field">
-          <span className="sr-only">{t('Langue')}</span>
+          <span className="sr-only">{t('reglages.language')}</span>
           <select value={currentLang()} onChange={(e) => setLanguage(e.target.value as Lang)}>
-            <option value="fr">{t('Français')}</option>
-            <option value="en">{t('English')}</option>
+            <option value="fr">{t('reglages.francais')}</option>
+            <option value="en">{t('reglages.english')}</option>
           </select>
         </label>
       </section>
 
       <section className="panel st-pref">
         <div className="st-pref-head">
-          <h2>{t('Infobulles des catégories')}</h2>
-          <p>{t('Délai de survol avant d’afficher la description d’une catégorie (à saisir dans Catégories).')}</p>
+          <h2>{t('reglages.category_tooltips')}</h2>
+          <p>{t('reglages.hover_delay_before_showing_category')}</p>
         </div>
         <label className="st-field">
-          <span className="sr-only">{t('Délai des infobulles')}</span>
+          <span className="sr-only">{t('reglages.tooltip_delay')}</span>
           <select value={hintDelay} onChange={(e) => setHintDelay(Number(e.target.value))}>
             {HINT_DELAY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
           </select>

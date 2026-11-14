@@ -169,6 +169,6 @@ for (const [file, list] of byFile) {
   fs.writeFileSync(file, text);
 }
 
-fs.writeFileSync(LEGACY_FILE, `${JSON.stringify({}, null, 2)}\n`);
+if (fs.existsSync(LEGACY_FILE)) fs.writeFileSync(LEGACY_FILE, `${JSON.stringify({}, null, 2)}\n`);
 console.log(`\n✓ ${byFile.size} fichiers réécrits, catalogues dans ${rel(CATALOG_DIR)}/, i18n_data.json vidé.`);
 console.log('  Ensuite : traduire les cases anglaises vides, puis npm run i18n:check et npm test.');

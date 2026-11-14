@@ -1,0 +1,260 @@
+keys,fr,en
+operations.a_specific_month,Un mois précis,A specific month
+operations.a_transfer_needs_source_and,Un transfert a besoin d'un compte de départ et d'arrivée.,A transfer needs a source and a destination account.
+operations.account,Compte,Account
+operations.account_filter,Filtre de compte,Account filter
+operations.actions,Actions,Actions
+operations.actions_on_selection,Actions sur la sélection,Actions on selection
+operations.add,Ajouter,Add
+operations.add_at_least_one_split,Ajoute au moins une ligne de ventilation.,Add at least one split line.
+operations.add_expenses,Ajouter des dépenses,Add expenses
+operations.add_income,Ajouter des revenus,Add income
+operations.add_line,Ajouter une ligne,Add a line
+operations.add_tag,Ajouter un tag…,Add a tag…
+operations.add_tag_to_selection,Ajouter un tag à la sélection,Add a tag to the selection
+operations.all_accounts,Tous les comptes,All accounts
+operations.all_categories,Toutes les catégories,All categories
+operations.all_dates,Toutes les dates,All dates
+operations.all_except,Tout sauf,All except
+operations.all_tags,Tous les tags,All tags
+operations.all_transactions_splits_budgets_recurrin,"Toutes les transactions, ventilations, budgets, récurrents, règles et factures de « {{name}} » seront réaffectés à la catégorie cible, puis « {{name}} » sera supprimée. Action irréversible.","All transactions, splits, budgets, recurring entries, rules and bills of “{{name}}” will be reassigned to the target category, then “{{name}}” will be deleted. This cannot be undone."
+operations.all_types,Tous les types,All types
+operations.allocated_amount,Alloué : {{amount}},Allocated: {{amount}}
+operations.already_allocated_amount,déjà alloué {{amount}},already allocated {{amount}}
+operations.already_refunded_amount,Déjà remboursé : {{amount}},Already refunded: {{amount}}
+operations.already_refunded_amount_2,déjà remboursé {{amount}},already refunded {{amount}}
+operations.amount,Montant,Amount
+operations.amount_allocated_to_label,Montant alloué à {{label}},Amount allocated to {{label}}
+operations.amount_largest_first,"Montant, du plus gros","Amount, largest first"
+operations.amount_smallest_first,"Montant, du plus petit","Amount, smallest first"
+operations.amount_split,{{amount}} ventilés,{{amount}} split
+operations.an_allocation_exceeds_refundable_remaind,Une allocation dépasse le reste remboursable de sa dépense.,An allocation exceeds the refundable remainder of its expense.
+operations.an_income_allocates_more_than,Un revenu alloue plus que son montant.,An income allocates more than its amount.
+operations.apply,Appliquer,Apply
+operations.attachments,Pièces jointes,Attachments
+operations.back_to_current_month,Revenir au mois courant,Back to the current month
+operations.by_type,Par type,By type
+operations.categories,catégories,categories
+operations.category,catégorie,category
+operations.category_added,Catégorie ajoutée,Category added
+operations.category_deleted,Catégorie supprimée,Category deleted
+operations.category_filter,Filtre de catégorie,Category filter
+operations.category_updated,Catégorie mise à jour,Category updated
+operations.change_account,Changer le compte,Change account
+operations.change_category,Changer la catégorie,Change category
+operations.choose,Choisir...,Choose...
+operations.choose_date,Choisis une date.,Choose a date.
+operations.choose_expense_refunded_by_these,Choisis la dépense remboursée par ces {{n}} revenus.,Choose the expense refunded by these {{n}} income entries.
+operations.choose_income_that_refunds_these,Choisis le revenu qui rembourse ces {{n}} dépenses.,Choose the income that refunds these {{n}} expenses.
+operations.choose_target_category,Choisir la catégorie cible…,Choose the target category…
+operations.clear,Effacer,Clear
+operations.clear_2,Pointer,Clear
+operations.clear_search,Effacer la recherche,Clear search
+operations.cleared,Pointées,Cleared
+operations.cleared_click_to_unclear,Pointée — cliquer pour dépointer,Cleared — click to unclear
+operations.cleared_filter,Filtre de pointage,Cleared filter
+operations.cleared_matched_with_statement,Pointée (rapprochée du relevé),Cleared (matched with statement)
+operations.cleared_or_not,Pointées ou non,Cleared or not
+operations.close,Fermer,Close
+operations.color,Couleur,Color
+operations.comfortable,Confortable,Comfortable
+operations.comfortable_view,Affichage confortable,Comfortable view
+operations.compact,Compact,Compact
+operations.compact_view,Affichage compact,Compact view
+operations.copy,Copier,Copy
+operations.copy_transaction,Copier la transaction,Copy transaction
+operations.create_copy,Créer la copie,Create copy
+operations.create_refund,Créer le remboursement,Create the refund
+operations.created_on_d,Créé le {{d}},Created on {{d}}
+operations.credited_account,Compte crédité,Credited account
+operations.date,Date,Date
+operations.date_newest_first,"Date, récentes d'abord","Date, newest first"
+operations.date_oldest_first,"Date, anciennes d'abord","Date, oldest first"
+operations.delete,Supprimer,Delete
+operations.delete_name_category_its_transactions,Supprimer la catégorie « {{name}} » ? Ses transactions resteront mais perdront leur catégorie.,Delete the “{{name}}” category? Its transactions will remain but lose their category.
+operations.delete_name_tag_transactions_carrying,Supprimer le tag « {{name}} » ? Les transactions qui le portent ne seront pas supprimées.,Delete the “{{name}}” tag? Transactions carrying it won't be deleted.
+operations.description,Description,Description
+operations.deselect,Désélectionner,Deselect
+operations.destination_account,Compte destination,Destination account
+operations.done,Terminé,Done
+operations.e_g_walmart_salary_rent,"Ex: Carrefour, salaire, loyer...","e.g. Walmart, salary, rent..."
+operations.each_split_line_needs_category,Chaque ligne de ventilation doit avoir une catégorie et un montant.,Each split line needs a category and an amount.
+operations.edit,Modifier,Edit
+operations.edit_n_transaction,Modifier {{n}} transaction,Edit {{n}} transaction
+operations.edit_n_transactions,Modifier {{n}} transactions,Edit {{n}} transactions
+operations.edit_name,Modifier « {{name}} »,Edit “{{name}}”
+operations.edit_recurring_link,Modifier le lien de récurrence,Edit recurring link
+operations.edit_split,Modifier la ventilation,Edit the split
+operations.edit_transaction,Modifier la transaction,Edit transaction
+operations.enter_positive_amount_e_g,"Saisis un montant positif (ex. 12,50).",Enter a positive amount (e.g. 12.50).
+operations.every_word_must_appear_word,Chaque mot doit apparaître ; « -mot » exclut (ex. « courses -auchan »),Every word must appear; “-word” excludes (e.g. “groceries -auchan”)
+operations.except,Sauf,Except
+operations.expense,Dépense,Expense
+operations.expenses,dépenses,expenses
+operations.expenses_net_refunds,Dépenses nettes des remboursements,Expenses net of refunds
+operations.fill,solde,fill
+operations.fill_with_remainder,Compléter avec le restant,Fill with the remainder
+operations.filter_list,Filtrer la liste,Filter the list
+operations.filter_list_2,Filtrer la liste…,Filter the list…
+operations.filter_mode,Mode du filtre,Filter mode
+operations.filters,Filtres,Filters
+operations.from_account,Depuis le compte,From account
+operations.icon,Icône,Icon
+operations.incl_amount_refunded,dont {{amount}} remboursés,incl. {{amount}} refunded
+operations.income,Revenu,Income
+operations.income_2,revenus,income
+operations.income_already_entered,Revenu déjà saisi,Income already entered
+operations.italy_trip_john_s_wedding,"Voyage Italie, Mariage Jean...","Italy trip, John's wedding..."
+operations.label,Libellé,Label
+operations.label_or_amount,Libellé ou montant…,Label or amount…
+operations.label_z,"Libellé, A → Z","Label, A → Z"
+operations.lines_total_amount,Total lignes : {{amount}},Lines total: {{amount}}
+operations.link,Lier,Link
+operations.link_refund,Lier le remboursement,Link the refund
+operations.link_refunds,Lier les remboursements,Link the refunds
+operations.link_to_expense,Lier à une dépense,Link to an expense
+operations.link_to_expenses,Lier à des dépenses,Link to expenses
+operations.link_to_recurring_entry,Lier à une récurrence,Link to a recurring entry
+operations.linked_to_recurring_item,Liée à une récurrence,Linked to a recurring item
+operations.loading_existing_links,Chargement des liens existants…,Loading existing links…
+operations.mark_as_cleared_matched_with,Pointer (rapprochée du relevé),Mark as cleared (matched with statement)
+operations.merge,Fusionner,Merge
+operations.merge_into,Fusionner dans,Merge into
+operations.merge_into_2,Fusionner dans…,Merge into…
+operations.merge_name,Fusionner « {{name}} »,Merge “{{name}}”
+operations.mode,Mode,Mode
+operations.more_actions,Autres actions,More actions
+operations.more_actions_2,Plus d'actions,More actions
+operations.more_options,Plus d'options,More options
+operations.my_tag,Mon tag,My tag
+operations.n_active_filter_reset,{{n}} filtre actif · Réinitialiser,{{n}} active filter · Reset
+operations.n_active_filters_reset,{{n}} filtres actifs · Réinitialiser,{{n}} active filters · Reset
+operations.n_expenses,↩ {{n}} dépenses,↩ {{n}} expenses
+operations.n_selected,{{n}} choisies,{{n}} selected
+operations.n_selected_2,{{n}} sélectionnée,{{n}} selected
+operations.n_selected_3,{{n}} sélectionnées,{{n}} selected
+operations.n_transactions_cleared,{{n}} transactions pointées,{{n}} transactions cleared
+operations.n_transactions_moved_to_trash,{{n}} transactions déplacées vers la corbeille,{{n}} transactions moved to the trash
+operations.n_transactions_tagged_name,{{n}} transactions taguées « {{name}} »,{{n}} transactions tagged “{{name}}”
+operations.n_transactions_uncleared,{{n}} transactions dépointées,{{n}} transactions uncleared
+operations.n_transactions_updated,{{n}} transactions modifiées,{{n}} transactions updated
+operations.name_merged_into_target,« {{name}} » fusionnée dans « {{target}} »,“{{name}}” merged into “{{target}}”
+operations.new_category,Nouvelle catégorie,New category
+operations.new_refund,Nouveau remboursement,New refund
+operations.new_tag,Nouveau tag,New tag
+operations.new_transaction,Nouvelle transaction,New transaction
+operations.next,Suivant,Next
+operations.no_account,Sans compte,No account
+operations.no_category,Sans catégorie,No category
+operations.no_expense_categories,Aucune catégorie de dépense.,No expense categories.
+operations.no_income_categories,Aucune catégorie de revenu.,No income categories.
+operations.no_other_expense_category_available,Aucune autre catégorie de dépense disponible.,No other expense category available.
+operations.no_other_income_category_available,Aucune autre catégorie de revenu disponible.,No other income category available.
+operations.no_results,Aucun résultat,No results
+operations.no_tag,Sans tag,No tag
+operations.no_tags_yet,Aucun tag pour l'instant.,No tags yet.
+operations.no_transactions_found,Aucune opération trouvée.,No transactions found.
+operations.no_transactions_match_filters,Aucune opération ne correspond aux filtres.,No transactions match the filters.
+operations.no_transactions_this_month,Aucune transaction sur ce mois.,No transactions this month.
+operations.no_transactions_without_account,Aucune transaction sans compte.,No transactions without an account.
+operations.none,Aucun,None
+operations.none_2,Aucune,None
+operations.note_e_g_household,Note (ex: ménager),Note (e.g. household)
+operations.ok,OK,OK
+operations.one_income_can_refund_several,"Un revenu peut rembourser plusieurs dépenses, et une dépense être remboursée par plusieurs revenus","One income can refund several expenses, and one expense can be refunded by several income entries"
+operations.only,Seulement,Only
+operations.pagination,Pagination,Pagination
+operations.period,Période,Period
+operations.preview,Aperçu,Preview
+operations.previous,Précédent,Previous
+operations.quick_entry,Saisie rapide,Quick entry
+operations.received,Reçu,Received
+operations.recurring,Récurrence,Recurring
+operations.recurring_2,récurrente,recurring
+operations.recurring_link_removed,Lien récurrence retiré,Recurring link removed
+operations.refund,Remboursement,Refund
+operations.refund_2,Rembourser,Refund
+operations.refund_3,Rembourser…,Refund…
+operations.refund_4,↩ remboursement,↩ refund
+operations.refund_expense,Rembourser la dépense,Refund the expense
+operations.refund_label,Remboursement : {{label}},Refund: {{label}}
+operations.refund_link_removed,Lien de remboursement retiré,Refund link removed
+operations.refund_n_expenses,Remboursement : {{n}} dépenses,Refund: {{n}} expenses
+operations.refund_n_expenses_2,Rembourser {{n}} dépenses,Refund {{n}} expenses
+operations.refund_recorded,Remboursement enregistré,Refund recorded
+operations.refunded,✓ remboursée,✓ refunded
+operations.refunded_amount,Remboursé : {{amount}},Refunded: {{amount}}
+operations.refunded_b,Remboursé {{a}} sur {{b}},Refunded {{a}} of {{b}}
+operations.refunds_label_date,Rembourse « {{label}} » du {{date}},Refunds “{{label}}” of {{date}}
+operations.refunds_received_they_cancel_refunded,Remboursements reçus : ils annulent les dépenses remboursées au lieu de compter comme revenus (dépenses brutes : {{gross}}),Refunds received: they cancel the refunded expenses instead of counting as income (gross expenses: {{gross}})
+operations.refunds_saved,Remboursements enregistrés,Refunds saved
+operations.remaining_amount,Reste : {{amount}},Remaining: {{amount}}
+operations.remaining_amount_2,reste {{amount}},remaining {{amount}}
+operations.remaining_will_offset_expense_surplus,{{remaining}} viendront annuler la dépense ; le surplus de {{surplus}} sera compté comme revenu.,{{remaining}} will offset the expense; the {{surplus}} surplus will count as income.
+operations.remove_line,Retirer la ligne,Remove line
+operations.rename_like_recurring_entry,Renommer comme la récurrence,Rename like the recurring entry
+operations.replace_amount_with_recurring_one,Remplacer le montant par celui de la récurrence,Replace the amount with the recurring one
+operations.reset,Réinitialiser,Reset
+operations.save,Enregistrer,Save
+operations.search,Rechercher,Search
+operations.search_expenses,Chercher une dépense,Search expenses
+operations.search_income,Chercher un revenu,Search income
+operations.search_journal,Rechercher dans le journal,Search the journal
+operations.search_word_excludes,Rechercher (-mot exclut),Search (-word excludes)
+operations.searching,Recherche…,Searching…
+operations.second_classification_on_top_category,"2e classement, en plus de la catégorie : ex. un séminaire = catégorie Transport + tag « Travail ». Une opération peut porter plusieurs tags.",Second classification on top of the category: e.g. a seminar = Transport category + “Work” tag. A transaction can carry several tags.
+operations.select,Sélectionner,Select
+operations.select_all_visible_transactions,Sélectionner toutes les transactions visibles,Select all visible transactions
+operations.select_expenses_and_or_income,"Sélectionne des dépenses et/ou des revenus (pas de transferts), avec un seul revenu ou une seule dépense d’un côté : un revenu peut rembourser plusieurs dépenses, et une dépense peut être remboursée par plusieurs revenus.","Select expenses and/or income (no transfers), with a single income or a single expense on one side: one income can refund several expenses, and one expense can be refunded by several income entries."
+operations.select_label,Sélectionner {{label}},Select {{label}}
+operations.shown_when_hovering_category_name,Affichée au survol du nom de la catégorie (délai réglable dans Préférences).,Shown when hovering the category name (delay adjustable in Preferences).
+operations.sort_by,Trier par,Sort by
+operations.source_account,Compte source,Source account
+operations.spent,Dépensé,Spent
+operations.split,Ventilation,Split
+operations.split_2,Ventiler,Split
+operations.split_3,Ventilée,Split
+operations.split_across_several_categories,Ventiler sur plusieurs catégories,Split across several categories
+operations.split_amount,Montant ventilé,Split amount
+operations.split_category,Catégorie de ventilation,Split category
+operations.split_note,Note de ventilation,Split note
+operations.split_saved,Ventilation enregistrée,Split saved
+operations.split_transaction,Ventiler la transaction,Split the transaction
+operations.start_end_total,{{start}}–{{end}} sur {{total}},{{start}}–{{end}} of {{total}}
+operations.stock_market,Bourse,Stock market
+operations.sync_account_category_type,Synchroniser compte / catégorie / type,Sync account / category / type
+operations.tag,tag,tag
+operations.tag_added,Tag ajouté,Tag added
+operations.tag_deleted,Tag supprimé,Tag deleted
+operations.tag_filter,Filtre de tag,Tag filter
+operations.tag_updated,Tag modifié,Tag updated
+operations.tags,Tags,Tags
+operations.tags_2,tags,tags
+operations.the_allocated_total_exceeds_refund,Le total alloué dépasse le montant du remboursement.,The allocated total exceeds the refund amount.
+operations.the_split_total_must_equal,La ventilation ({{total}}) doit égaler le montant ({{amount}}).,The split ({{total}}) must equal the amount ({{amount}}).
+operations.the_target,la cible,the target
+operations.the_two_accounts_transfer_must,Les deux comptes du transfert doivent être différents.,The two accounts of the transfer must be different.
+operations.they_count_as_cash_until,Elles comptent dans les liquidités tant qu'aucun compte n'est rattaché.,They count as cash until an account is assigned.
+operations.to_account,Vers le compte,To account
+operations.total_refunds_exceed_expense_amount,Le cumul des remboursements dépasse le montant de la dépense.,Total refunds exceed the expense amount.
+operations.transaction,opération,transaction
+operations.transaction_added,Transaction ajoutée,Transaction added
+operations.transaction_cleared,Transaction pointée,Transaction cleared
+operations.transaction_copied,Transaction copiée,Transaction copied
+operations.transaction_linked_to_recurring,Transaction liée à la récurrence,Transaction linked to recurring
+operations.transaction_moved_to_trash,Transaction déplacée vers la corbeille,Transaction moved to trash
+operations.transaction_type,Type de transaction,Transaction type
+operations.transaction_uncleared,Transaction dépointée,Transaction uncleared
+operations.transaction_updated,Transaction modifiée,Transaction updated
+operations.transactions,Opérations,Transactions
+operations.transactions_2,opérations,transactions
+operations.transactions_without_account_all_periods,Transactions sans compte · toutes périodes,Transactions without account · all periods
+operations.transfer,Transfert,Transfer
+operations.transfers,Transferts,Transfers
+operations.trash,Corbeille,Trash
+operations.type,Type,Type
+operations.type_filter,Filtre de type,Type filter
+operations.unclear,Dépointer,Unclear
+operations.uncleared,Non pointées,Uncleared
+operations.view_n_transactions,Voir {{n}} opérations,View {{n}} transactions
+operations.what_category_covers_e_g,"Ce que couvre la catégorie, ex. « Séminaires, salons, déplacements pro remboursés ou non »","What the category covers, e.g. “Seminars, trade fairs, business travel, reimbursed or not”"

@@ -40,7 +40,7 @@ export function SetFilterMenu({ label, allLabel, noneLabel, options, value, onCh
   const nameOf = (id: string) => all.find((o) => o.value === id)?.label ?? id;
   const summary = value.ids.length === 0
     ? allLabel
-    : `${value.mode === 'exclude' ? t('Sauf') + ' ' : ''}${value.ids.length === 1 ? nameOf(value.ids[0]!) : t('{{n}} choisies', { n: value.ids.length })}`;
+    : `${value.mode === 'exclude' ? t('operations.except') + ' ' : ''}${value.ids.length === 1 ? nameOf(value.ids[0]!) : t('operations.n_selected', { n: value.ids.length })}`;
   const needle = search.trim().toLowerCase();
   const visible = all.filter((o) => !needle || o.label.toLowerCase().includes(needle));
   const toggle = (id: string, on: boolean) => {
@@ -63,12 +63,12 @@ export function SetFilterMenu({ label, allLabel, noneLabel, options, value, onCh
       </button>
       {open && (
         <div className="jr-setfilter-pop" role="dialog" aria-label={label}>
-          <div className="jr-seg" role="radiogroup" aria-label={t('Mode du filtre')}>
-            <button type="button" role="radio" aria-checked={value.mode === 'include'} className={value.mode === 'include' ? 'on' : ''} onClick={() => onChange({ ...value, mode: 'include' })}>{t('Seulement')}</button>
-            <button type="button" role="radio" aria-checked={value.mode === 'exclude'} className={value.mode === 'exclude' ? 'on' : ''} onClick={() => onChange({ ...value, mode: 'exclude' })}>{t('Tout sauf')}</button>
+          <div className="jr-seg" role="radiogroup" aria-label={t('operations.filter_mode')}>
+            <button type="button" role="radio" aria-checked={value.mode === 'include'} className={value.mode === 'include' ? 'on' : ''} onClick={() => onChange({ ...value, mode: 'include' })}>{t('operations.only')}</button>
+            <button type="button" role="radio" aria-checked={value.mode === 'exclude'} className={value.mode === 'exclude' ? 'on' : ''} onClick={() => onChange({ ...value, mode: 'exclude' })}>{t('operations.all_except')}</button>
           </div>
           {all.length > 8 && (
-            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Filtrer la liste…')} aria-label={t('Filtrer la liste')} autoFocus />
+            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('operations.filter_list_2')} aria-label={t('operations.filter_list')} autoFocus />
           )}
           <div className="jr-setfilter-list">
             {visible.map((o) => {
@@ -85,11 +85,11 @@ export function SetFilterMenu({ label, allLabel, noneLabel, options, value, onCh
                 </div>
               );
             })}
-            {visible.length === 0 && <p className="jr-note">{t('Aucun résultat')}</p>}
+            {visible.length === 0 && <p className="jr-note">{t('operations.no_results')}</p>}
           </div>
           <div className="jr-setfilter-foot">
-            <button type="button" className="jr-link" disabled={value.ids.length === 0} onClick={() => onChange(NO_SET_FILTER)}>{t('Effacer')}</button>
-            <button type="button" className="secondary" onClick={() => setOpen(false)}>{t('OK')}</button>
+            <button type="button" className="jr-link" disabled={value.ids.length === 0} onClick={() => onChange(NO_SET_FILTER)}>{t('operations.clear')}</button>
+            <button type="button" className="secondary" onClick={() => setOpen(false)}>{t('operations.ok')}</button>
           </div>
         </div>
       )}

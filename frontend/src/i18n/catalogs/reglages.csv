@@ -1,0 +1,26 @@
+keys,fr,en
+reglages.active_profile,Profil actif,Active profile
+reglages.category_tooltips,Infobulles des catégories,Category tooltips
+reglages.create,Créer,Create
+reglages.created_on,Créé le,Created on
+reglages.delete_name_and_all_their,Supprimer {{name}} et toutes ses données ?,Delete {{name}} and all their data?
+reglages.delete_profile,Supprimer le profil,Delete profile
+reglages.e_g_demo_family,"Ex: Démo, Famille...","e.g. Demo, Family..."
+reglages.each_with_their_own_accounts,chacun a ses comptes et ses opérations,each with their own accounts and transactions
+reglages.english,English,English
+reglages.francais,Français,Français
+reglages.hover_delay_before_showing_category,Délai de survol avant d’afficher la description d’une catégorie (à saisir dans Catégories).,Hover delay before showing a category's description (written in Categories).
+reglages.interface_language_number_and_date,"Langue de l’interface, format des nombres et des dates.","Interface language, number and date format."
+reglages.language,Langue,Language
+reglages.new_profile,Nouveau profil,New profile
+reglages.no_profiles,Aucun profil.,No profiles.
+reglages.profile,profil,profile
+reglages.profile_created,Profil créé,Profile created
+reglages.profile_deleted,Profil supprimé,Profile deleted
+reglages.profiles,profils,profiles
+reglages.tooltip_delay,Délai des infobulles,Tooltip delay
+reglages.hint_delay.1s,1 seconde,1 second
+reglages.hint_delay.2s,2 secondes,2 seconds
+reglages.hint_delay.3s,3 secondes,3 seconds
+reglages.hint_delay.immediate,Immédiat,Immediate
+reglages.hint_delay.never,Jamais,Never

@@ -54,14 +54,14 @@ export function JournalList({ rows, grouped, emptyMessage, categoryById, account
             <span className="jr-item-label">{txLabel(tx, categoryById)}</span>
             <span className="jr-item-meta">
               {!grouped && <span className="jr-item-day">{formatTxDay(tx.date)}</span>}
-              {readOnly && <span className="jr-badge">{t('Bourse')}</span>}
+              {readOnly && <span className="jr-badge">{t('operations.stock_market')}</span>}
               {category && (
                 <span className="jr-chip">
                   {color && <i style={{ background: color }} />}
                   {category}
                 </span>
               )}
-              {!category && !readOnly && <span>{t('Sans catégorie')}</span>}
+              {!category && !readOnly && <span>{t('operations.no_category')}</span>}
             </span>
           </span>
           <span className={`jr-num jr-amt ${txTone(tx)}`}>{txAmountLabel(tx, accountById)}</span>

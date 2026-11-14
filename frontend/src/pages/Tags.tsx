@@ -29,16 +29,16 @@ function TagForm({ initial, onSubmit, onCancel, submitLabel }: {
   };
   return (
     <form className="form st-form" onSubmit={submit}>
-      <label className="full">{t('Nom')}
-        <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={40} placeholder={t('Voyage Italie, Mariage Jean...')} autoComplete="off" />
+      <label className="full">{t('commun.name')}
+        <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={40} placeholder={t('operations.italy_trip_john_s_wedding')} autoComplete="off" />
       </label>
-      <label>{t('Couleur')}<input type="color" value={color} onChange={(e) => setColor(e.target.value)} /></label>
+      <label>{t('operations.color')}<input type="color" value={color} onChange={(e) => setColor(e.target.value)} /></label>
       <div className="st-preview">
-        <span className="st-preview-label">{t('Aperçu')}</span>
-        <span className="tag-chip" style={{ background: color }}>{name.trim() || t('Mon tag')}</span>
+        <span className="st-preview-label">{t('operations.preview')}</span>
+        <span className="tag-chip" style={{ background: color }}>{name.trim() || t('operations.my_tag')}</span>
       </div>
       <div className="modal-actions full">
-        <button type="button" className="secondary" onClick={onCancel}>{t('Annuler')}</button>
+        <button type="button" className="secondary" onClick={onCancel}>{t('commun.cancel')}</button>
         <button className="primary">{submitLabel}</button>
       </div>
     </form>
@@ -62,44 +62,44 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
   }, [userId, tags]);
 
   const create = (body: { name: string; color: string }) => {
-    void run(() => api.createTag(userId, body), t('Tag ajouté')).then((ok) => { if (ok) setCreating(false); });
+    void run(() => api.createTag(userId, body), t('operations.tag_added')).then((ok) => { if (ok) setCreating(false); });
   };
   const update = (body: { name: string; color: string }) => {
     if (!editing) return;
-    void run(() => api.updateTag(userId, editing.id, body), t('Tag modifié')).then((ok) => { if (ok) setEditing(null); });
+    void run(() => api.updateTag(userId, editing.id, body), t('operations.tag_updated')).then((ok) => { if (ok) setEditing(null); });
   };
 
   return (
     <section className="st-page">
       <div className="st-toolbar">
         <p className="st-summary">
-          <strong>{tags.length}</strong> {tags.length > 1 ? t('tags') : t('tag')}
-          <span className="st-sub">{t('2e classement, en plus de la catégorie : ex. un séminaire = catégorie Transport + tag « Travail ». Une opération peut porter plusieurs tags.')}</span>
+          <strong>{tags.length}</strong> {tags.length > 1 ? t('operations.tags_2') : t('operations.tag')}
+          <span className="st-sub">{t('operations.second_classification_on_top_category')}</span>
         </p>
         <button type="button" className="primary accent" onClick={() => setCreating(true)}>
-          <Plus size={16} /> {t('Nouveau tag')}
+          <Plus size={16} /> {t('operations.new_tag')}
         </button>
       </div>
 
       <div className="panel st-list">
-        <DataTable empty={tags.length === 0 ? t('Aucun tag pour l\'instant.') : null}>
-          <thead><tr><th>{t('Nom')}</th><th className="r">{t('Opérations')}</th><th className="r">{t('Dépensé')}</th><th className="r">{t('Reçu')}</th><th>{t('Période')}</th><th className="actions-cell"><span className="sr-only">{t('Actions')}</span></th></tr></thead>
+        <DataTable empty={tags.length === 0 ? t('operations.no_tags_yet') : null}>
+          <thead><tr><th>{t('commun.name')}</th><th className="r">{t('operations.transactions')}</th><th className="r">{t('operations.spent')}</th><th className="r">{t('operations.received')}</th><th>{t('operations.period')}</th><th className="actions-cell"><span className="sr-only">{t('operations.actions')}</span></th></tr></thead>
           <tbody>
             {tags.map((tag) => (
               <tr key={tag.id}>
                 <td className="cell-primary"><span className="tag-chip" style={{ background: tag.color }} title={tag.name}>{tag.name}</span></td>
-                <td className="r num" data-label={t('Opérations')}>{summary.get(tag.id)?.count ?? 0}</td>
-                <td className="r num expense" data-label={t('Dépensé')}>{summary.get(tag.id)?.expenses ? money(summary.get(tag.id)!.expenses) : '—'}</td>
-                <td className="r num income" data-label={t('Reçu')}>{summary.get(tag.id)?.income ? money(summary.get(tag.id)!.income) : '—'}</td>
-                <td className="st-muted" data-label={t('Période')}>{summary.get(tag.id)?.first_date
+                <td className="r num" data-label={t('operations.transactions')}>{summary.get(tag.id)?.count ?? 0}</td>
+                <td className="r num expense" data-label={t('operations.spent')}>{summary.get(tag.id)?.expenses ? money(summary.get(tag.id)!.expenses) : '—'}</td>
+                <td className="r num income" data-label={t('operations.received')}>{summary.get(tag.id)?.income ? money(summary.get(tag.id)!.income) : '—'}</td>
+                <td className="st-muted" data-label={t('operations.period')}>{summary.get(tag.id)?.first_date
                   ? `${new Date(summary.get(tag.id)!.first_date!).toLocaleDateString(localeTag())} → ${new Date(summary.get(tag.id)!.last_date!).toLocaleDateString(localeTag())}`
-                  : t('Créé le {{d}}', { d: new Date(tag.created_at).toLocaleDateString(localeTag()) })}</td>
+                  : t('operations.created_on_d', { d: new Date(tag.created_at).toLocaleDateString(localeTag()) })}</td>
                 <td className="actions-cell">
-                  <IconButton label={t('Modifier')} tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(tag)} />
+                  <IconButton label={t('operations.edit')} tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(tag)} />
                   <RowMenu items={[{
-                    label: t('Supprimer'), icon: <Trash2 />, danger: true,
-                    confirm: t('Supprimer le tag « {{name}} » ? Les transactions qui le portent ne seront pas supprimées.', { name: tag.name }),
-                    onSelect: () => void run(() => api.deleteTag(userId, tag.id), t('Tag supprimé')),
+                    label: t('operations.delete'), icon: <Trash2 />, danger: true,
+                    confirm: t('operations.delete_name_tag_transactions_carrying', { name: tag.name }),
+                    onSelect: () => void run(() => api.deleteTag(userId, tag.id), t('operations.tag_deleted')),
                   }]} />
                 </td>
               </tr>
@@ -109,13 +109,13 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
       </div>
 
       {creating && (
-        <Modal title={t('Nouveau tag')} onClose={() => setCreating(false)}>
-          <TagForm onSubmit={create} onCancel={() => setCreating(false)} submitLabel={t('Ajouter')} />
+        <Modal title={t('operations.new_tag')} onClose={() => setCreating(false)}>
+          <TagForm onSubmit={create} onCancel={() => setCreating(false)} submitLabel={t('operations.add')} />
         </Modal>
       )}
       {editing && (
-        <Modal title={t('Modifier « {{name}} »', { name: editing.name })} onClose={() => setEditing(null)}>
-          <TagForm key={editing.id} initial={editing} onSubmit={update} onCancel={() => setEditing(null)} submitLabel={t('Enregistrer')} />
+        <Modal title={t('operations.edit_name', { name: editing.name })} onClose={() => setEditing(null)}>
+          <TagForm key={editing.id} initial={editing} onSubmit={update} onCancel={() => setEditing(null)} submitLabel={t('operations.save')} />
         </Modal>
       )}
     </section>

@@ -1,0 +1,54 @@
+keys,fr,en
+patrimoine.1_month,1 mois,1 month
+patrimoine.12_months,12 mois,12 months
+patrimoine.6_months,6 mois,6 months
+patrimoine.account_alerts,Alertes comptes,Account alerts
+patrimoine.accounts,Comptes,Accounts
+patrimoine.all,Tout,All
+patrimoine.amount_credit_loans_is_included,{{amount}} de crédits/emprunts sont intégrés au patrimoine net.,{{amount}} of credit/loans is included in net worth.
+patrimoine.amount_historical_income_expense_has,"{{amount}} de revenus/dépenses historiques n'ont pas de compte rattaché. Elles peuvent être catégorisées mais restent hors compte, donc elles sont ajoutées aux Liquidités.","{{amount}} of historical income/expense has no account attached. It can be categorized but stays off-account, so it's added to Cash."
+patrimoine.amount_is_sitting_on_checking,{{amount}} restent sur compte courant. Une partie pourrait être fléchée vers livret ou investissement.,{{amount}} is sitting on the checking account. Some could be moved to savings or investments.
+patrimoine.areas,Zones,Areas
+patrimoine.balances_by_account,Soldes par compte,Balances by account
+patrimoine.base_100,Base 100,Base 100
+patrimoine.base_100_each_series_starts,Base 100 : chaque série démarre à 100 depuis son premier solde non nul. Le tooltip conserve le montant réel.,Base 100: each series starts at 100 from its first non-zero balance. The tooltip keeps the real amount.
+patrimoine.by_group,Par groupe,By group
+patrimoine.cash,Liquidités,Cash
+patrimoine.couldn_t_refresh_rate_for,Impossible de rafraîchir le taux pour {{currencies}}. Les montants convertis utilisent un taux périmé ou approché — réessaie plus tard.,Couldn't refresh the rate for {{currencies}}. Converted amounts use a stale or approximate rate — try again later.
+patrimoine.count_transaction_without_account_all,"{{count}} transaction sans compte, toutes périodes","{{count}} transaction without an account, all periods"
+patrimoine.count_transactions_without_account_all,"{{count}} transactions sans compte, toutes périodes","{{count}} transactions without an account, all periods"
+patrimoine.crypto,Crypto,Crypto
+patrimoine.custom,Personnalisé,Custom
+patrimoine.day,Jour,Day
+patrimoine.end_range_empty_today,Fin de la période (vide = aujourd'hui),End of range (empty = today)
+patrimoine.exchange_rates_unavailable,Taux de change indisponibles,Exchange rates unavailable
+patrimoine.high_cash_on_checking_account,Cash élevé sur compte courant,High cash on checking account
+patrimoine.high_crypto_share_net_worth,Crypto élevée dans le patrimoine,High crypto share of net worth
+patrimoine.investments,Investissements,Investments
+patrimoine.liabilities_to_watch,Passifs à suivre,Liabilities to watch
+patrimoine.linear,Linéaire,Linear
+patrimoine.lines,Lignes,Lines
+patrimoine.loading_history,Chargement de l'historique…,Loading history…
+patrimoine.month,Mois,Month
+patrimoine.name_near_its_ceiling,{{name}} proche du plafond,{{name}} near its ceiling
+patrimoine.net_worth,Patrimoine net,Net worth
+patrimoine.net_worth_breakdown,Répartition du patrimoine,Net worth breakdown
+patrimoine.net_worth_chart_scale,Échelle du graphique patrimoine,Net worth chart scale
+patrimoine.net_worth_chart_type,Type de graphique patrimoine,Net worth chart type
+patrimoine.net_worth_over_time,Évolution du patrimoine,Net worth over time
+patrimoine.no_account_alerts,Aucune alerte sur les comptes.,No account alerts.
+patrimoine.no_accounts_to_display,Aucun compte à afficher.,No accounts to display.
+patrimoine.no_balance_to_break_down,Aucun solde à répartir.,No balance to break down.
+patrimoine.not_enough_history_yet_to,Pas encore assez d'historique pour tracer cette plage.,Not enough history yet to plot this range.
+patrimoine.other,Autres,Other
+patrimoine.pct_assets_are_in_crypto,{{pct}} % des actifs sont en crypto.,{{pct}}% of assets are in crypto.
+patrimoine.pseudo_log,Pseudo-log,Pseudo-log
+patrimoine.pseudo_log_zero_and_negative,"Pseudo-log : zéro et les soldes négatifs restent affichables, tandis que les gros écarts sont compressés. Le tooltip conserve le montant réel.",Pseudo-log: zero and negative balances stay visible while large gaps are compressed. The tooltip keeps the real amount.
+patrimoine.savings_accounts,Livrets,Savings accounts
+patrimoine.series_breakdown,Découpage des séries,Series breakdown
+patrimoine.snapshot_as_today_independent_selected,"Photographie à date, indépendante du mois sélectionné","Snapshot as of today, independent of the selected month"
+patrimoine.start_range,Début de la période,Start of range
+patrimoine.total,Total,Total
+patrimoine.view_and_fix,Voir et corriger,View and fix
+patrimoine.week,Semaine,Week
+patrimoine.ytd,YTD,YTD
