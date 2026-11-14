@@ -12,6 +12,7 @@ import { RowMenu } from '../components/ui/RowMenu';
 import { amountInputValue, positiveAmount } from '../components/home/amount';
 import type { Run } from '../lib/run';
 import '../styles/pages/plan.css';
+import { useTranslation } from 'react-i18next';
 
 const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -29,6 +30,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
   reportCurrency: string;
   run: Run;
 }) {
+  const { t } = useTranslation();
   // null = fermé ; 'new' = création ; sinon édition.
   const [form, setForm] = useState<'new' | RecurringTransaction | null>(null);
   const [collapsed, setCollapsed] = usePersistedState<Record<string, boolean>>('recurring_groups_collapsed', {});
@@ -88,37 +90,37 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
     <section className="pg recurring-page">
       <div className="pg-hero">
         <div>
-          <span className="pg-kicker">Charges récurrentes</span>
+          <span className="pg-kicker">{t('operations.recurring.recurring_charges')}</span>
           <strong className="pg-hero-value">
-            {money(expenseTotals.monthly, displayCurrency)} <small>/ mois</small>
+            {money(expenseTotals.monthly, displayCurrency)} <small>{t('operations.recurring.month')}</small>
           </strong>
           <p className="pg-hero-sub">
-            {expenseTotals.periodic > 0 && <>+ <strong>{money(expenseTotals.periodic, displayCurrency)}</strong> / an en périodique · </>}
-            {expenseTotals.weekly > 0 && <>+ <strong>{money(expenseTotals.weekly, displayCurrency)}</strong> / sem · </>}
-            {incomeTotals.monthly > 0 && <>revenus <strong className="income">{money(incomeTotals.monthly, displayCurrency)}</strong> / mois · </>}
-            {activeCount} actif{activeCount > 1 ? 's' : ''}
+            {expenseTotals.periodic > 0 && <>+ <strong>{money(expenseTotals.periodic, displayCurrency)}</strong>  {t('operations.recurring.year_periodic')} </>}
+            {expenseTotals.weekly > 0 && <>+ <strong>{money(expenseTotals.weekly, displayCurrency)}</strong>  {t('operations.recurring.wk')} </>}
+            {incomeTotals.monthly > 0 && <>{t('operations.recurring.income')} <strong className="income">{money(incomeTotals.monthly, displayCurrency)}</strong>  {t('operations.recurring.month_2')} </>}
+            {activeCount}  {t('operations.recurring.active')}{activeCount > 1 ? 's' : ''}
           </p>
         </div>
         <div className="pg-toolbar-actions">
           <button type="button" className="secondary" onClick={() => void run(() => api.generateRecurring(userId), 'Récurrents générés')}>
-            <CalendarClock size={16} /> Générer ce mois
+            <CalendarClock size={16} />  {t('operations.recurring.generate_this_month')}
           </button>
           <button type="button" className="primary accent" onClick={() => setForm('new')}>
-            <Plus size={16} /> Nouveau récurrent
+            <Plus size={16} />  {t('operations.recurring.new_recurring_item')}
           </button>
         </div>
       </div>
 
       <div className="pg-card">
-        <div className="pg-card-head"><h2>Dépenses</h2></div>
+        <div className="pg-card-head"><h2>{t('operations.recurring.expenses')}</h2></div>
         {expenseGroups.length > 0 ? renderGroups(expenseGroups, 'exp') : (
-          <p className="pg-empty"><strong>Aucune dépense récurrente</strong>Ajoute loyer, abonnements, assurances… pour suivre tes charges fixes.</p>
+          <p className="pg-empty"><strong>{t('operations.recurring.no_recurring_expenses')}</strong>{t('operations.recurring.add_rent_subscriptions_insurance_to')}</p>
         )}
       </div>
 
       {incomeGroups.length > 0 && (
         <div className="pg-card">
-          <div className="pg-card-head"><h2>Revenus</h2></div>
+          <div className="pg-card-head"><h2>{t('operations.recurring.income_2')}</h2></div>
           {renderGroups(incomeGroups, 'inc')}
         </div>
       )}
@@ -148,6 +150,7 @@ function RecurringRow({ r, native, unit, account, category, onEdit, onSkip, onTo
   onToggleActive: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const occurrence = formatRelativeDate(r.active ? nextRecurringOccurrence(r) : null);
   const soon = occurrence.days != null && occurrence.days <= 7;
   const income = r.type === 'income';
@@ -157,7 +160,7 @@ function RecurringRow({ r, native, unit, account, category, onEdit, onSkip, onTo
       <div className="lrow-main">
         <div className="lrow-title">
           <span title={r.description}>{r.description}</span>
-          {!r.active && <span className="tag">En pause</span>}
+          {!r.active && <span className="tag">{t('operations.recurring.paused')}</span>}
         </div>
         <span className="lrow-sub">
           {recurringFrequencyLabel(r.frequency, r.interval ?? 1)}
@@ -169,7 +172,7 @@ function RecurringRow({ r, native, unit, account, category, onEdit, onSkip, onTo
         {income ? '+' : '−'}{money(native, account?.currency ?? 'EUR')}<small>{unit}</small>
       </div>
       <div className="lrow-actions">
-        <button type="button" className="icon-button neutral" aria-label={`Modifier ${r.description}`} title="Modifier" onClick={onEdit}>
+        <button type="button" className="icon-button neutral" aria-label={`Modifier ${r.description}`} title={t('operations.recurring.edit')} onClick={onEdit}>
           <Pencil size={17} />
         </button>
         <RowMenu
@@ -197,6 +200,7 @@ function RecurringFormModal({ userId, editing, accounts, categories, run, onClos
   run: Run;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [freq, setFreq] = useState<RecurringFrequency>(editing?.frequency ?? 'monthly');
   const [type, setType] = useState<'expense' | 'income'>(editing?.type ?? 'expense');
   const [error, setError] = useState<string | null>(null);
@@ -229,53 +233,53 @@ function RecurringFormModal({ userId, editing, accounts, categories, run, onClos
   return (
     <Modal title={editing ? `Modifier « ${editing.description} »` : 'Nouveau récurrent'} onClose={onClose}>
       <form className="pg-form" onSubmit={submit}>
-        <label className="full">Libellé<input name="description" defaultValue={editing?.description ?? ''} placeholder="ex. Loyer, Netflix…" required autoFocus /></label>
-        <label>Type
+        <label className="full">{t('operations.recurring.label')}<input name="description" defaultValue={editing?.description ?? ''} placeholder={t('operations.recurring.e_g_rent_netflix')} required autoFocus /></label>
+        <label>{t('operations.recurring.type')}
           <select value={type} onChange={(e) => setType(e.target.value as 'expense' | 'income')}>
-            <option value="expense">Dépense</option>
-            <option value="income">Revenu</option>
+            <option value="expense">{t('operations.recurring.expense')}</option>
+            <option value="income">{t('operations.recurring.income_3')}</option>
           </select>
         </label>
-        <label>Montant
+        <label>{t('operations.recurring.amount')}
           <input name="amount" inputMode="decimal" autoComplete="off" defaultValue={amountInputValue(editing?.amount)} required onInput={() => setError(null)} />
         </label>
-        <label>Répéter
+        <label>{t('operations.recurring.repeat')}
           <select value={freq} onChange={(e) => setFreq(e.target.value as RecurringFrequency)}>
-            <option value="weekly">Chaque semaine</option>
-            <option value="monthly">Chaque mois</option>
-            <option value="yearly">Chaque année</option>
+            <option value="weekly">{t('operations.recurring.every_week')}</option>
+            <option value="monthly">{t('operations.recurring.every_month')}</option>
+            <option value="yearly">{t('operations.recurring.every_year')}</option>
           </select>
         </label>
-        <label>Tous les (intervalle)<input name="interval" type="number" inputMode="numeric" min="1" max="120" defaultValue={editing?.interval ?? 1} required /></label>
+        <label>{t('operations.recurring.every_interval')}<input name="interval" type="number" inputMode="numeric" min="1" max="120" defaultValue={editing?.interval ?? 1} required /></label>
         {freq === 'yearly' && (
-          <label>Mois
+          <label>{t('operations.recurring.month_3')}
             <select name="month_of_year" defaultValue={editing?.month_of_year ?? currentMonth}>
               {MONTHS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </label>
         )}
         {freq !== 'weekly' && (
-          <label>Jour du mois<input name="day_of_month" type="number" inputMode="numeric" min="1" max="31" defaultValue={editing?.day_of_month ?? 1} /></label>
+          <label>{t('operations.recurring.day_month')}<input name="day_of_month" type="number" inputMode="numeric" min="1" max="31" defaultValue={editing?.day_of_month ?? 1} /></label>
         )}
-        <label>Compte
+        <label>{t('operations.recurring.account')}
           <select name="account_id" defaultValue={editing?.account_id ?? ''}>
-            <option value="">Aucun</option>
+            <option value="">{t('operations.recurring.none')}</option>
             {pickableAccounts(accounts, editing?.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </label>
-        <label>Catégorie
+        <label>{t('operations.recurring.category')}
           <select name="category_id" defaultValue={editing?.category_id ?? ''}>
-            <option value="">Aucune</option>
+            <option value="">{t('operations.recurring.none_2')}</option>
             {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
-        <label className="full">Fin (optionnel)
+        <label className="full">{t('operations.recurring.end_optional')}
           <input name="end_date" type="date" defaultValue={editing?.end_date ? editing.end_date.slice(0, 10) : ''} />
-          <span className="hint">Aucune occurrence ne sera générée après cette date.</span>
+          <span className="hint">{t('operations.recurring.no_occurrences_will_be_generated')}</span>
         </label>
         {error && <p className="hint full expense" role="alert">{error}</p>}
         <div className="pg-form-actions">
-          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('operations.recurring.cancel')}</button>
           <button type="submit" className="primary">{editing ? 'Enregistrer' : 'Ajouter'}</button>
         </div>
       </form>

@@ -10,6 +10,8 @@ import { RowMenu } from '../components/ui/RowMenu';
 import { amountInputValue, positiveAmount } from '../components/home/amount';
 import type { Run } from '../lib/run';
 import '../styles/pages/plan.css';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 
 // jj/mm/aaaa à partir d'une date ISO (sans passer par Date : pas de décalage de fuseau).
 const dayLabel = (iso: string | null | undefined, withYear = false) => {
@@ -47,6 +49,7 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
   accountById: Map<number, Account>;
   run: Run;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<'new' | Bill | null>(null);
   const [linking, setLinking] = useState<BillStatusEntry | null>(null);
   const entries = [...(billsStatus?.bills ?? [])].sort((a, b) =>
@@ -87,22 +90,23 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
     <section className="pg bills-page">
       <div className="pg-hero">
         <div>
-          <span className="pg-kicker">Factures · {formatMonthLong(month)}</span>
+          <span className="pg-kicker">{t('budgets.bills.bills')} {formatMonthLong(month)}</span>
           {due > 0 ? (
             <>
-              <strong className="pg-hero-value">{paid} <small>/ {due} payée{due > 1 ? 's' : ''}</small></strong>
+              <strong className="pg-hero-value">{paid} <small>/ {due}  {t('budgets.bills.paid')}{due > 1 ? 's' : ''}</small></strong>
               <p className="pg-hero-sub">
-                Payé <strong>{money(billsStatus?.paid_total ?? 0)}</strong> sur ~{money(billsStatus?.expected_total ?? 0)} attendus
-                {remaining > 0 && <> · reste ~<strong>{money(remaining)}</strong></>}
+                
+                {t('budgets.bills.paid_2')} <strong>{money(billsStatus?.paid_total ?? 0)}</strong>  {t('budgets.bills.of')}{money(billsStatus?.expected_total ?? 0)}  {t('budgets.bills.expected')}
+                {remaining > 0 && <>  {t('budgets.bills.remaining')}<strong>{money(remaining)}</strong></>}
               </p>
             </>
           ) : (
-            <p className="pg-hero-sub">Aucune facture attendue ce mois-ci.</p>
+            <p className="pg-hero-sub">{t('budgets.bills.no_bills_expected_this_month')}</p>
           )}
         </div>
         <div className="pg-toolbar-actions">
           <button type="button" className="primary accent" onClick={() => setForm('new')}>
-            <Plus size={16} /> Nouvelle facture
+            <Plus size={16} />  {t('budgets.bills.new_bill')}
           </button>
         </div>
         {due > 0 && (
@@ -113,11 +117,12 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
       </div>
 
       <div className="pg-card">
-        <div className="pg-card-head"><h2>Échéancier</h2></div>
+        <div className="pg-card-head"><h2>{t('budgets.bills.schedule')}</h2></div>
         {entries.length === 0 ? (
           <p className="pg-empty">
-            <strong>Aucune facture attendue</strong>
-            Ajoute tes charges variables (électricité, eau…) avec une fourchette : on vérifie chaque mois qu’elles sont payées.
+            <strong>{t('budgets.bills.no_bills_expected')}</strong>
+            
+            {t('budgets.bills.add_your_variable_bills_electricity')}
           </p>
         ) : (
           <ul className="lrows">
@@ -149,11 +154,11 @@ export function Bills({ userId, month, billsStatus, accounts, categories, accoun
                   </div>
                   <div className="lrow-actions">
                     {entry.due && (
-                      <button type="button" className="icon-button neutral" title="Lier une dépense" aria-label={`Lier une dépense à ${bill.name}`} onClick={() => setLinking(entry)}>
+                      <button type="button" className="icon-button neutral" title={t('budgets.bills.link_expense')} aria-label={`Lier une dépense à ${bill.name}`} onClick={() => setLinking(entry)}>
                         <Link2 size={17} />
                       </button>
                     )}
-                    <button type="button" className="icon-button neutral" title="Modifier" aria-label={`Modifier ${bill.name}`} onClick={() => setForm(bill)}>
+                    <button type="button" className="icon-button neutral" title={t('budgets.bills.edit')} aria-label={`Modifier ${bill.name}`} onClick={() => setForm(bill)}>
                       <Pencil size={17} />
                     </button>
                     <RowMenu
@@ -211,6 +216,7 @@ function BillFormModal({ userId, month, editing, accounts, categories, run, onCl
   run: Run;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const expenseCategories = categories.filter((c) => c.type === 'expense');
 
@@ -241,34 +247,34 @@ function BillFormModal({ userId, month, editing, accounts, categories, run, onCl
   return (
     <Modal title={editing ? `Modifier « ${editing.name} »` : 'Nouvelle facture attendue'} onClose={onClose}>
       <form className="pg-form" onSubmit={submit} onInput={() => setError(null)}>
-        <label className="full">Nom<input name="name" defaultValue={editing?.name ?? ''} placeholder="ex. Électricité" required autoFocus /></label>
-        <label>Montant min<input name="amount_min" inputMode="decimal" autoComplete="off" defaultValue={amountInputValue(editing?.amount_min)} required /></label>
-        <label>Montant max<input name="amount_max" inputMode="decimal" autoComplete="off" defaultValue={amountInputValue(editing?.amount_max)} required /></label>
-        <label>Première échéance<input name="start_date" type="date" defaultValue={editing?.start_date?.slice(0, 10) ?? `${month}-01`} required /></label>
-        <label>Fréquence
+        <label className="full">{t('budgets.bills.name')}<input name="name" defaultValue={editing?.name ?? ''} placeholder={t('budgets.bills.e_g_electricity')} required autoFocus /></label>
+        <label>{t('budgets.bills.min_amount')}<input name="amount_min" inputMode="decimal" autoComplete="off" defaultValue={amountInputValue(editing?.amount_min)} required /></label>
+        <label>{t('budgets.bills.max_amount')}<input name="amount_max" inputMode="decimal" autoComplete="off" defaultValue={amountInputValue(editing?.amount_max)} required /></label>
+        <label>{t('budgets.bills.first_due_date')}<input name="start_date" type="date" defaultValue={editing?.start_date?.slice(0, 10) ?? `${month}-01`} required /></label>
+        <label>{t('budgets.bills.frequency')}
           <select name="frequency" defaultValue={editing?.frequency ?? 'monthly'}>
-            <option value="monthly">Mensuelle</option>
-            <option value="yearly">Annuelle</option>
+            <option value="monthly">{t('budgets.bills.monthly')}</option>
+            <option value="yearly">{t('budgets.bills.yearly')}</option>
           </select>
         </label>
-        <label>Intervalle<input name="interval" type="number" inputMode="numeric" min="1" max="24" defaultValue={editing?.interval ?? 1} /></label>
-        <label>Motif de rapprochement<input name="pattern" defaultValue={editing?.pattern ?? ''} placeholder="vide = le nom" /></label>
-        <label>Compte
+        <label>{t('budgets.bills.interval')}<input name="interval" type="number" inputMode="numeric" min="1" max="24" defaultValue={editing?.interval ?? 1} /></label>
+        <label>{t('budgets.bills.matching_pattern')}<input name="pattern" defaultValue={editing?.pattern ?? ''} placeholder={t('budgets.bills.empty_name')} /></label>
+        <label>{t('budgets.bills.account')}
           <select name="account_id" defaultValue={editing?.account_id ?? ''}>
-            <option value="">Tous</option>
+            <option value="">{t('budgets.bills.all')}</option>
             {pickableAccounts(accounts, editing?.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </label>
-        <label>Catégorie
+        <label>{t('budgets.bills.category')}
           <select name="category_id" defaultValue={editing?.category_id ?? ''}>
-            <option value="">Toutes</option>
+            <option value="">{t('budgets.bills.all_2')}</option>
             {expenseCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
-        <p className="hint full">Intervalle 3 = trimestrielle. Le paiement est repéré dans les dépenses dont le libellé contient le motif.</p>
+        <p className="hint full">{t('budgets.bills.interval_3_quarterly_payment_is')}</p>
         {error && <p className="hint full expense" role="alert">{error}</p>}
         <div className="pg-form-actions">
-          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('budgets.bills.cancel')}</button>
           <button type="submit" className="primary">{editing ? 'Enregistrer' : 'Ajouter'}</button>
         </div>
       </form>
@@ -286,6 +292,7 @@ function BillLinkModal({ userId, entry, accountById, run, onClose }: {
   run: Run;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const bill = entry.bill;
   const currency = bill.account_id != null ? accountById.get(bill.account_id)?.currency ?? 'EUR' : 'EUR';
   const [query, setQuery] = useState('');
@@ -314,23 +321,23 @@ function BillLinkModal({ userId, entry, accountById, run, onClose }: {
 
   return (
     <Modal title={`Lier une dépense à « ${bill.name} »`} onClose={onClose}>
-      <p className="pg-note">Le paiement n’a pas été repéré (espèces, libellé variable) ? Lie la dépense : elle comptera pour son mois.</p>
+      <p className="pg-note">{t('budgets.bills.payment_not_detected_cash_varying')}</p>
       {manualMatches.length > 0 && (
         <div className="full refund-selected-list">
           {manualMatches.map((t) => (
             <span key={t.id}>
               {dayLabel(t.date, true)} · {t.description ?? `#${t.id}`} · {money(t.amount, currency)}
-              <button type="button" className="ghost-button" onClick={() => unlink(t.id)} aria-label="Retirer le lien"><X size={13} /></button>
+              <button type="button" className="ghost-button" onClick={() => unlink(t.id)} aria-label={i18n.t('budgets.bills.remove_link')}><X size={13} /></button>
             </span>
           ))}
         </div>
       )}
       <label className="full">
-        <div className="search-box inline"><Search size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Chercher la dépense (libellé)…" autoFocus /></div>
+        <div className="search-box inline"><Search size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('budgets.bills.search_expense_label')} autoFocus /></div>
       </label>
       <div className="full refund-candidates">
-        {searching && candidates.length === 0 && <p className="empty">Recherche…</p>}
-        {!searching && candidates.length === 0 && <p className="empty">Aucune dépense trouvée.</p>}
+        {searching && candidates.length === 0 && <p className="empty">{t('budgets.bills.searching')}</p>}
+        {!searching && candidates.length === 0 && <p className="empty">{t('budgets.bills.no_expenses_found')}</p>}
         {candidates.map((t) => {
           const txCurrency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
           const alreadyLinked = manualMatches.some((m) => m.id === t.id);
@@ -344,7 +351,7 @@ function BillLinkModal({ userId, entry, accountById, run, onClose }: {
           );
         })}
       </div>
-      <button type="button" className="secondary" onClick={onClose}>Fermer</button>
+      <button type="button" className="secondary" onClick={onClose}>{t('budgets.bills.close')}</button>
     </Modal>
   );
 }

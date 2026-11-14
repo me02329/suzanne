@@ -335,3 +335,38 @@ operations.attachments_modal.delete,Supprimer,Delete
 operations.attachments_modal.close,Fermer,Close
 operations.trash_modal.delete_permanently_this_cannot_be,Supprimer définitivement ? Cette action est irréversible.,Delete permanently? This cannot be undone.
 operations.attachments_modal.delete_this_attachment,Supprimer cette pièce jointe ?,Delete this attachment?
+operations.recurring.recurring_charges,Charges récurrentes,Recurring charges
+operations.recurring.month,/ mois,/ month
+operations.recurring.year_periodic,/ an en périodique ·,/ year periodic ·
+operations.recurring.wk,/ sem ·,/ wk ·
+operations.recurring.income,revenus,income
+operations.recurring.month_2,/ mois ·,/ month ·
+operations.recurring.active,actif,active
+operations.recurring.generate_this_month,Générer ce mois,Generate this month
+operations.recurring.new_recurring_item,Nouveau récurrent,New recurring item
+operations.recurring.expenses,Dépenses,Expenses
+operations.recurring.no_recurring_expenses,Aucune dépense récurrente,No recurring expenses
+operations.recurring.add_rent_subscriptions_insurance_to,"Ajoute loyer, abonnements, assurances… pour suivre tes charges fixes.","Add rent, subscriptions, insurance… to track your fixed charges."
+operations.recurring.income_2,Revenus,Income
+operations.recurring.paused,En pause,Paused
+operations.recurring.edit,Modifier,Edit
+operations.recurring.label,Libellé,Label
+operations.recurring.e_g_rent_netflix,"ex. Loyer, Netflix…","e.g. Rent, Netflix…"
+operations.recurring.type,Type,Type
+operations.recurring.expense,Dépense,Expense
+operations.recurring.income_3,Revenu,Income
+operations.recurring.amount,Montant,Amount
+operations.recurring.repeat,Répéter,Repeat
+operations.recurring.every_week,Chaque semaine,Every week
+operations.recurring.every_month,Chaque mois,Every month
+operations.recurring.every_year,Chaque année,Every year
+operations.recurring.every_interval,Tous les (intervalle),Every (interval)
+operations.recurring.month_3,Mois,Month
+operations.recurring.day_month,Jour du mois,Day of month
+operations.recurring.account,Compte,Account
+operations.recurring.none,Aucun,None
+operations.recurring.category,Catégorie,Category
+operations.recurring.none_2,Aucune,None
+operations.recurring.end_optional,Fin (optionnel),End (optional)
+operations.recurring.no_occurrences_will_be_generated,Aucune occurrence ne sera générée après cette date.,No occurrences will be generated after this date.
+operations.recurring.cancel,Annuler,Cancel

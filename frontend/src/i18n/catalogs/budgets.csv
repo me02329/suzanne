@@ -1,0 +1,103 @@
+keys,fr,en
+budgets.budgets.monthly_budget,Budget du mois ·,Monthly budget ·
+budgets.budgets.spent,dépensés sur,spent of
+budgets.budgets.i_e,· soit,· i.e.
+budgets.budgets.per_day_for,par jour pendant,per day for
+budgets.budgets.day,jour,day
+budgets.budgets.at_current_pace,Au rythme actuel :,At the current pace:
+budgets.budgets.at_month_end,en fin de mois,at month end
+budgets.budgets.incl,dont,incl.
+budgets.budgets.outside_envelopes,hors enveloppes,outside envelopes
+budgets.budgets.spent_2,dépensés,spent
+budgets.budgets.set_budget_for_month_and,Fixe un budget pour le mois et suis ton « reste à vivre » jour après jour.,Set a budget for the month and track your “left to spend” day by day.
+budgets.budgets.new_envelope,Nouvelle enveloppe,New envelope
+budgets.budgets.today,Aujourd’hui,Today
+budgets.budgets.envelopes,Enveloppes,Envelopes
+budgets.budgets.suggest_limits,Suggérer des plafonds,Suggest limits
+budgets.budgets.no_envelopes_yet,Pas encore d’enveloppe,No envelopes yet
+budgets.budgets.set_limit_per_category_or,Fixe une limite par catégorie — ou laisse Suzanne te proposer des plafonds d’après tes 6 derniers mois.,Set a limit per category — or let Suzanne suggest limits based on your last 6 months.
+budgets.budgets.sinking_funds,Provisions,Sinking funds
+budgets.budgets.new_sinking_fund,Nouvelle provision,New sinking fund
+budgets.budgets.smooth_out_your_big_expenses,Lisse tes grosses dépenses,Smooth out your big expenses
+budgets.budgets.holidays_annual_insurance_gifts_set,"Vacances, assurance annuelle, cadeaux… Fixe un montant par an : Suzanne le découpe en mensualités et suit ce qui est disponible.","Holidays, annual insurance, gifts… Set a yearly amount: Suzanne splits it into monthly instalments and tracks what is available."
+budgets.budgets.last_6_months,6 derniers mois,Last 6 months
+budgets.budgets.spent_monthly_budget,dépensé / budget du mois,spent / monthly budget
+budgets.budgets.monthly_budget_2,Budget du mois :,Monthly budget:
+budgets.budgets.delete,Supprimer,Delete
+budgets.budgets.envelope_carry_over,Report d’enveloppe,Envelope carry-over
+budgets.budgets.carry_over,Report,Carry-over
+budgets.budgets.over_by,Dépassé de,Over by
+budgets.budgets.of,sur,of
+budgets.budgets.edit,Modifier,Edit
+budgets.budgets.month,/mois,/month
+budgets.budgets.available,disponibles ·,available ·
+budgets.budgets.set_aside,"mis de côté,","set aside,"
+budgets.budgets.target,Objectif,Target
+budgets.budgets.cycle,· cycle,· cycle
+budgets.budgets.all_your_expense_categories_already,Toutes tes catégories de dépense ont déjà une enveloppe ce mois-ci.,All your expense categories already have an envelope this month.
+budgets.budgets.category,Catégorie,Category
+budgets.budgets.monthly_limit,Limite mensuelle,Monthly limit
+budgets.budgets.e_g_300,ex. 300,e.g. 300
+budgets.budgets.renew_every_month,Reconduire chaque mois,Renew every month
+budgets.budgets.carry_remainder_or_overspend_over,Reporter le reste (ou le dépassement) sur le mois suivant,Carry the remainder (or overspend) over to next month
+budgets.budgets.cancel,Annuler,Cancel
+budgets.budgets.everything_you_plan_to_spend,"Tout ce que tu prévois de dépenser ce mois-ci, toutes catégories confondues. Suzanne en déduit ton « reste à vivre » et ce que tu peux dépenser par jour.","Everything you plan to spend this month, across all categories. Suzanne derives your “left to spend” and what you can spend per day."
+budgets.budgets.amount,Montant,Amount
+budgets.budgets.median_your_last_6_months,Médiane de tes 6 derniers mois :,Median of your last 6 months:
+budgets.budgets.save,Enregistrer,Save
+budgets.budgets.suggested_limits,Plafonds suggérés,Suggested limits
+budgets.budgets.based_on_median_your_spending,D’après la médiane de tes dépenses sur,Based on the median of your spending over
+budgets.budgets.full_months_exceptional_month_does,"mois complets (un mois exceptionnel ne fausse pas le calcul), arrondie à 5 €. Coche, ajuste, applique.","full months (an exceptional month does not skew the result), rounded to €5. Tick, adjust, apply."
+budgets.budgets.calculating,Calcul…,Calculating…
+budgets.budgets.not_enough_history_to_suggest,Pas assez d’historique pour proposer des plafonds.,Not enough history to suggest limits.
+budgets.budgets.already_budgeted,· déjà budgétée,· already budgeted
+budgets.budgets.apply,Appliquer,Apply
+budgets.budgets.name,Nom,Name
+budgets.budgets.e_g_summer_holidays,ex. Vacances d’été,e.g. Summer holidays
+budgets.budgets.amount_to_save,Montant à réunir,Amount to save
+budgets.budgets.e_g_1200,ex. 1200,e.g. 1200
+budgets.budgets.every,Tous les,Every
+budgets.budgets.3_months,3 mois,3 months
+budgets.budgets.6_months,6 mois,6 months
+budgets.budgets.12_months,12 mois,12 months
+budgets.budgets.24_months,24 mois,24 months
+budgets.budgets.expense_category,Catégorie des dépenses,Expense category
+budgets.budgets.none_track_pot_only,Aucune (suivi de la cagnotte seulement),None (track the pot only)
+budgets.budgets.cycle_start,Début du cycle,Cycle start
+budgets.budgets.each_month_twelfth_depending_on,"Chaque mois, un douzième (selon la période) est mis de côté virtuellement ; les dépenses de la catégorie viennent en déduction. Aucun argent n’est déplacé.","Each month, a twelfth (depending on the period) is set aside virtually; the category's expenses are deducted. No money is moved."
+budgets.bills.bills,Factures ·,Bills ·
+budgets.bills.paid,payée,paid
+budgets.bills.paid_2,Payé,Paid
+budgets.bills.of,sur ~,of ~
+budgets.bills.expected,attendus,expected
+budgets.bills.remaining,· reste ~,· remaining ~
+budgets.bills.no_bills_expected_this_month,Aucune facture attendue ce mois-ci.,No bills expected this month.
+budgets.bills.new_bill,Nouvelle facture,New bill
+budgets.bills.schedule,Échéancier,Schedule
+budgets.bills.no_bills_expected,Aucune facture attendue,No bills expected
+budgets.bills.add_your_variable_bills_electricity,"Ajoute tes charges variables (électricité, eau…) avec une fourchette : on vérifie chaque mois qu’elles sont payées.","Add your variable bills (electricity, water…) with a range: we check every month that they are paid."
+budgets.bills.link_expense,Lier une dépense,Link an expense
+budgets.bills.edit,Modifier,Edit
+budgets.bills.name,Nom,Name
+budgets.bills.e_g_electricity,ex. Électricité,e.g. Electricity
+budgets.bills.min_amount,Montant min,Min amount
+budgets.bills.max_amount,Montant max,Max amount
+budgets.bills.first_due_date,Première échéance,First due date
+budgets.bills.frequency,Fréquence,Frequency
+budgets.bills.monthly,Mensuelle,Monthly
+budgets.bills.yearly,Annuelle,Yearly
+budgets.bills.interval,Intervalle,Interval
+budgets.bills.matching_pattern,Motif de rapprochement,Matching pattern
+budgets.bills.empty_name,vide = le nom,empty = the name
+budgets.bills.account,Compte,Account
+budgets.bills.all,Tous,All
+budgets.bills.category,Catégorie,Category
+budgets.bills.all_2,Toutes,All
+budgets.bills.interval_3_quarterly_payment_is,Intervalle 3 = trimestrielle. Le paiement est repéré dans les dépenses dont le libellé contient le motif.,Interval 3 = quarterly. The payment is found among expenses whose label contains the pattern.
+budgets.bills.cancel,Annuler,Cancel
+budgets.bills.payment_not_detected_cash_varying,"Le paiement n’a pas été repéré (espèces, libellé variable) ? Lie la dépense : elle comptera pour son mois.","Payment not detected (cash, varying label)? Link the expense: it will count for its month."
+budgets.bills.remove_link,Retirer le lien,Remove link
+budgets.bills.search_expense_label,Chercher la dépense (libellé)…,Search the expense (label)…
+budgets.bills.searching,Recherche…,Searching…
+budgets.bills.no_expenses_found,Aucune dépense trouvée.,No expenses found.
+budgets.bills.close,Fermer,Close

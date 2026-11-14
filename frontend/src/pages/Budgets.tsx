@@ -11,6 +11,7 @@ import type { Run } from '../lib/run';
 import '../styles/pages/plan.css';
 import '../styles/pages/budgets.css';
 import { localeTag } from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 // Budgets du mois : budget global (reste à vivre), enveloppes par catégorie
 // avec leur rythme de dépense, suggestions de plafonds, provisions pour
@@ -50,6 +51,7 @@ export function Budgets({ userId, month, categories, run, reportCurrency = 'EUR'
   reportCurrency?: string;
   dataVersion?: number;
 }) {
+  const { t } = useTranslation();
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
   const [history, setHistory] = useState<BudgetHistoryPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +123,7 @@ export function Budgets({ userId, month, categories, run, reportCurrency = 'EUR'
       {/* Reste à vivre */}
       <div className="pg-hero">
         <div>
-          <span className="pg-kicker">Budget du mois · {formatMonthLong(month)}</span>
+          <span className="pg-kicker">{t('budgets.budgets.monthly_budget')} {formatMonthLong(month)}</span>
           {!overview ? (
             <p className="pg-hero-sub">{error ? `Chargement impossible : ${error}` : 'Chargement…'}</p>
           ) : global ? (
@@ -131,25 +133,25 @@ export function Budgets({ userId, month, categories, run, reportCurrency = 'EUR'
                 <small> {global.remaining >= 0 ? 'restants' : 'de dépassement'}</small>
               </strong>
               <p className="pg-hero-sub">
-                <strong>{money(global.spent, cur)}</strong> dépensés sur <strong>{money(global.amount_limit, cur)}</strong>
+                <strong>{money(global.spent, cur)}</strong>  {t('budgets.budgets.spent')} <strong>{money(global.amount_limit, cur)}</strong>
                 {isCurrent && global.pace.daily_allowance != null && global.remaining > 0 && (
-                  <> · soit <strong>{money(global.pace.daily_allowance, cur)}</strong> par jour pendant {global.pace.days_left} jour{global.pace.days_left > 1 ? 's' : ''}</>
+                  <>  {t('budgets.budgets.i_e')} <strong>{money(global.pace.daily_allowance, cur)}</strong>  {t('budgets.budgets.per_day_for')} {global.pace.days_left}  {t('budgets.budgets.day')}{global.pace.days_left > 1 ? 's' : ''}</>
                 )}
               </p>
               <div className="bg-hero-chips">
                 <PaceChip pace={global.pace} currency={cur} />
                 {isCurrent && global.pace.status === 'projected_over' && (
-                  <span className="bg-hint">Au rythme actuel : {money(global.pace.projected, cur)} en fin de mois</span>
+                  <span className="bg-hint">{t('budgets.budgets.at_current_pace')} {money(global.pace.projected, cur)}  {t('budgets.budgets.at_month_end')}</span>
                 )}
                 {overview.unbudgeted_spent > 0 && budgets.length > 0 && (
-                  <span className="bg-hint">dont {money(overview.unbudgeted_spent, cur)} hors enveloppes</span>
+                  <span className="bg-hint">{t('budgets.budgets.incl')} {money(overview.unbudgeted_spent, cur)}  {t('budgets.budgets.outside_envelopes')}</span>
                 )}
               </div>
             </>
           ) : (
             <>
-              <strong className="pg-hero-value">{money(overview.total_spent, cur)} <small>dépensés</small></strong>
-              <p className="pg-hero-sub">Fixe un budget pour le mois et suis ton « reste à vivre » jour après jour.</p>
+              <strong className="pg-hero-value">{money(overview.total_spent, cur)} <small>{t('budgets.budgets.spent_2')}</small></strong>
+              <p className="pg-hero-sub">{t('budgets.budgets.set_budget_for_month_and')}</p>
             </>
           )}
         </div>
@@ -158,14 +160,14 @@ export function Budgets({ userId, month, categories, run, reportCurrency = 'EUR'
             <Wallet size={16} /> {global ? 'Budget du mois' : 'Définir le budget du mois'}
           </button>
           <button type="button" className="primary accent" onClick={() => setDialog({ kind: 'budget', editing: null })}>
-            <Plus size={16} /> Nouvelle enveloppe
+            <Plus size={16} />  {t('budgets.budgets.new_envelope')}
           </button>
         </div>
         {global && (
           <div className="pg-hero-meter">
             <div className={`${meterTone(globalRatio)} big`}>
               <span style={{ width: width(globalRatio) }} />
-              {isCurrent && <i className="bg-today" style={{ left: `${Math.round(global.pace.elapsed_ratio * 100)}%` }} title="Aujourd’hui" />}
+              {isCurrent && <i className="bg-today" style={{ left: `${Math.round(global.pace.elapsed_ratio * 100)}%` }} title={t('budgets.budgets.today')} />}
             </div>
           </div>
         )}
@@ -174,15 +176,16 @@ export function Budgets({ userId, month, categories, run, reportCurrency = 'EUR'
       {/* Enveloppes */}
       <div className="pg-card">
         <div className="pg-card-head">
-          <h2>Enveloppes</h2>
+          <h2>{t('budgets.budgets.envelopes')}</h2>
           <button type="button" className="bg-link" onClick={() => setDialog({ kind: 'suggest' })}>
-            <Lightbulb size={15} /> Suggérer des plafonds
+            <Lightbulb size={15} />  {t('budgets.budgets.suggest_limits')}
           </button>
         </div>
         {budgets.length === 0 ? (
           <p className="pg-empty">
-            <strong>Pas encore d’enveloppe</strong>
-            Fixe une limite par catégorie — ou laisse Suzanne te proposer des plafonds d’après tes 6 derniers mois.
+            <strong>{t('budgets.budgets.no_envelopes_yet')}</strong>
+            
+            {t('budgets.budgets.set_limit_per_category_or')}
           </p>
         ) : (
           <ul className="lrows">
@@ -205,15 +208,16 @@ export function Budgets({ userId, month, categories, run, reportCurrency = 'EUR'
       {/* Provisions */}
       <div className="pg-card">
         <div className="pg-card-head">
-          <h2>Provisions</h2>
+          <h2>{t('budgets.budgets.sinking_funds')}</h2>
           <button type="button" className="bg-link" onClick={() => setDialog({ kind: 'fund', editing: null })}>
-            <Plus size={15} /> Nouvelle provision
+            <Plus size={15} />  {t('budgets.budgets.new_sinking_fund')}
           </button>
         </div>
         {(overview?.sinking_funds ?? []).length === 0 ? (
           <p className="pg-empty">
-            <strong>Lisse tes grosses dépenses</strong>
-            Vacances, assurance annuelle, cadeaux… Fixe un montant par an : Suzanne le découpe en mensualités et suit ce qui est disponible.
+            <strong>{t('budgets.budgets.smooth_out_your_big_expenses')}</strong>
+            
+            {t('budgets.budgets.holidays_annual_insurance_gifts_set')}
           </p>
         ) : (
           <div className="bg-funds">
@@ -235,8 +239,8 @@ export function Budgets({ userId, month, categories, run, reportCurrency = 'EUR'
       {history.some((h) => h.total_spent > 0) && (
         <div className="pg-card">
           <div className="pg-card-head">
-            <h2>6 derniers mois</h2>
-            <span className="pg-card-meta">dépensé / budget du mois</span>
+            <h2>{t('budgets.budgets.last_6_months')}</h2>
+            <span className="pg-card-meta">{t('budgets.budgets.spent_monthly_budget')}</span>
           </div>
           <div className="bg-history" role="list">
             {history.map((h) => {
@@ -257,8 +261,9 @@ export function Budgets({ userId, month, categories, run, reportCurrency = 'EUR'
 
       {global && (
         <p className="pg-note bg-footnote">
-          Budget du mois : {money(global.amount_limit, cur)}{global.recurring ? ', reconduit chaque mois' : ''}.{' '}
-          <button type="button" className="bg-link inline" onClick={removeGlobal}>Supprimer</button>
+          
+          {t('budgets.budgets.monthly_budget_2')} {money(global.amount_limit, cur)}{global.recurring ? ', reconduit chaque mois' : ''}.{' '}
+          <button type="button" className="bg-link inline" onClick={removeGlobal}>{t('budgets.budgets.delete')}</button>
         </p>
       )}
 
@@ -297,6 +302,7 @@ function BudgetRow({ budget: b, currency, showPace, category, onEdit, onToggle, 
   onToggle: (key: 'recurring' | 'rollover') => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const ratio = budgetUsage(b);
   const remaining = b.effective_limit - b.spent;
   const name = category?.name ?? 'Catégorie';
@@ -306,10 +312,10 @@ function BudgetRow({ budget: b, currency, showPace, category, onEdit, onToggle, 
         <div className="lrow-title">
           <span title={name}>{name}</span>
           {showPace && b.pace.status !== 'ok' && <PaceChip pace={b.pace} currency={currency} />}
-          {b.rollover && <span className="tag" title="Report d’enveloppe"><RotateCcw size={11} /> Report</span>}
+          {b.rollover && <span className="tag" title={t('budgets.budgets.envelope_carry_over')}><RotateCcw size={11} />  {t('budgets.budgets.carry_over')}</span>}
         </div>
         <span className="lrow-sub">
-          {remaining >= 0 ? `Reste ${money(remaining, currency)}` : <span className="expense">Dépassé de {money(-remaining, currency)}</span>}
+          {remaining >= 0 ? `Reste ${money(remaining, currency)}` : <span className="expense">{t('budgets.budgets.over_by')} {money(-remaining, currency)}</span>}
           {showPace && b.pace.daily_allowance != null && remaining > 0 && ` · ${money(b.pace.daily_allowance, currency)}/jour`}
           {showPace && b.pace.status === 'projected_over' && ` · fin de mois ≈ ${money(b.pace.projected, currency)}`}
           {b.rollover && b.carried_over !== 0 && ` · ${b.carried_over >= 0 ? '+' : '−'}${money(Math.abs(b.carried_over), currency)} reporté`}
@@ -317,10 +323,10 @@ function BudgetRow({ budget: b, currency, showPace, category, onEdit, onToggle, 
       </div>
       <div className="lrow-amount">
         <span className={ratio != null && ratio >= 1 ? 'expense' : undefined}>{money(b.spent, currency)}</span>
-        <small>sur {money(b.effective_limit, currency)} · {pctLabel(ratio)}</small>
+        <small>{t('budgets.budgets.of')} {money(b.effective_limit, currency)} · {pctLabel(ratio)}</small>
       </div>
       <div className="lrow-actions">
-        <button type="button" className="icon-button neutral" aria-label={`Modifier le budget ${name}`} title="Modifier" onClick={onEdit}>
+        <button type="button" className="icon-button neutral" aria-label={`Modifier le budget ${name}`} title={t('budgets.budgets.edit')} onClick={onEdit}>
           <Pencil size={17} />
         </button>
         <RowMenu
@@ -348,6 +354,7 @@ function FundCard({ fund: f, currency, categoryName, onEdit, onDelete }: {
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const accruedRatio = f.target_amount > 0 ? f.accrued / f.target_amount : 0;
   return (
     <article className="bg-fund">
@@ -355,7 +362,7 @@ function FundCard({ fund: f, currency, categoryName, onEdit, onDelete }: {
         <span className="bg-fund-icon" style={{ background: f.color }}><PiggyBank size={16} /></span>
         <div className="bg-fund-title">
           <strong>{f.name}</strong>
-          <small>{categoryName ?? 'Sans catégorie'} · {money(f.monthly_contribution, currency)}/mois</small>
+          <small>{categoryName ?? 'Sans catégorie'} · {money(f.monthly_contribution, currency)}{t('budgets.budgets.month')}</small>
         </div>
         <RowMenu items={[
           { label: 'Modifier', icon: <Pencil />, onSelect: onEdit },
@@ -363,9 +370,9 @@ function FundCard({ fund: f, currency, categoryName, onEdit, onDelete }: {
         ]} />
       </header>
       <strong className={f.available < 0 ? 'bg-fund-value expense' : 'bg-fund-value'}>{money(f.available, currency)}</strong>
-      <small className="bg-fund-sub">disponibles · {money(f.accrued, currency)} mis de côté, {money(f.spent, currency)} dépensés</small>
+      <small className="bg-fund-sub">{t('budgets.budgets.available')} {money(f.accrued, currency)}  {t('budgets.budgets.set_aside')} {money(f.spent, currency)}  {t('budgets.budgets.spent_2')}</small>
       <div className="meter"><span style={{ width: width(accruedRatio) }} /></div>
-      <small className="bg-fund-sub">Objectif {money(f.target_amount, currency)} · cycle {formatMonthLong(f.cycle_start)} → {formatMonthLong(f.cycle_end)}</small>
+      <small className="bg-fund-sub">{t('budgets.budgets.target')} {money(f.target_amount, currency)}  {t('budgets.budgets.cycle')} {formatMonthLong(f.cycle_start)} → {formatMonthLong(f.cycle_end)}</small>
     </article>
   );
 }
@@ -379,6 +386,7 @@ function BudgetFormModal({ userId, month, categories, budgets, editing, mutate, 
   mutate: Mutate;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const taken = new Set(budgets.map((b) => b.category_id));
   // En création, seules les catégories pas encore budgétées ce mois.
@@ -402,23 +410,23 @@ function BudgetFormModal({ userId, month, categories, budgets, editing, mutate, 
   return (
     <Modal title={editing ? 'Modifier l’enveloppe' : `Nouvelle enveloppe · ${formatMonthLong(month)}`} onClose={onClose}>
       {!editing && options.length === 0 ? (
-        <p className="pg-note">Toutes tes catégories de dépense ont déjà une enveloppe ce mois-ci.</p>
+        <p className="pg-note">{t('budgets.budgets.all_your_expense_categories_already')}</p>
       ) : (
         <form className="pg-form" onSubmit={submit}>
-          <label className="full">Catégorie
+          <label className="full">{t('budgets.budgets.category')}
             <select name="category_id" defaultValue={editing?.category_id ?? options[0]?.id} disabled={Boolean(editing)} required>
               {options.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
-          <label className="full">Limite mensuelle
-            <input name="amount_limit" inputMode="decimal" autoComplete="off" placeholder="ex. 300"
+          <label className="full">{t('budgets.budgets.monthly_limit')}
+            <input name="amount_limit" inputMode="decimal" autoComplete="off" placeholder={t('budgets.budgets.e_g_300')}
               defaultValue={amountInputValue(editing?.amount_limit)} autoFocus required onInput={() => setError(null)} />
           </label>
-          <label className="check full"><input name="recurring" type="checkbox" defaultChecked={editing?.recurring ?? true} /> Reconduire chaque mois</label>
-          <label className="check full"><input name="rollover" type="checkbox" defaultChecked={editing?.rollover ?? false} /> Reporter le reste (ou le dépassement) sur le mois suivant</label>
+          <label className="check full"><input name="recurring" type="checkbox" defaultChecked={editing?.recurring ?? true} />  {t('budgets.budgets.renew_every_month')}</label>
+          <label className="check full"><input name="rollover" type="checkbox" defaultChecked={editing?.rollover ?? false} />  {t('budgets.budgets.carry_remainder_or_overspend_over')}</label>
           {error && <p className="hint full expense" role="alert">{error}</p>}
           <div className="pg-form-actions">
-            <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+            <button type="button" className="secondary" onClick={onClose}>{t('budgets.budgets.cancel')}</button>
             <button type="submit" className="primary">{editing ? 'Enregistrer' : 'Créer l’enveloppe'}</button>
           </div>
         </form>
@@ -435,6 +443,7 @@ function GlobalBudgetModal({ userId, month, currency, current, mutate, onClose }
   mutate: Mutate;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [suggested, setSuggested] = useState<number | null>(null);
   useEffect(() => {
@@ -453,19 +462,19 @@ function GlobalBudgetModal({ userId, month, currency, current, mutate, onClose }
   return (
     <Modal title={`Budget du mois · ${formatMonthLong(month)}`} onClose={onClose}>
       <form className="pg-form" onSubmit={submit}>
-        <p className="pg-note full">Tout ce que tu prévois de dépenser ce mois-ci, toutes catégories confondues. Suzanne en déduit ton « reste à vivre » et ce que tu peux dépenser par jour.</p>
-        <label className="full">Montant
+        <p className="pg-note full">{t('budgets.budgets.everything_you_plan_to_spend')}</p>
+        <label className="full">{t('budgets.budgets.amount')}
           <input name="amount_limit" inputMode="decimal" autoComplete="off" autoFocus required
             defaultValue={amountInputValue(current?.amount_limit)} placeholder={suggested ? String(suggested) : 'ex. 1800'} onInput={() => setError(null)} />
         </label>
         {suggested != null && (
-          <p className="hint full">Médiane de tes 6 derniers mois : <strong>{money(suggested, currency)}</strong></p>
+          <p className="hint full">{t('budgets.budgets.median_your_last_6_months')} <strong>{money(suggested, currency)}</strong></p>
         )}
-        <label className="check full"><input name="recurring" type="checkbox" defaultChecked={current?.recurring ?? true} /> Reconduire chaque mois</label>
+        <label className="check full"><input name="recurring" type="checkbox" defaultChecked={current?.recurring ?? true} />  {t('budgets.budgets.renew_every_month')}</label>
         {error && <p className="hint full expense" role="alert">{error}</p>}
         <div className="pg-form-actions">
-          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
-          <button type="submit" className="primary">Enregistrer</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('budgets.budgets.cancel')}</button>
+          <button type="submit" className="primary">{t('budgets.budgets.save')}</button>
         </div>
       </form>
     </Modal>
@@ -480,6 +489,7 @@ function SuggestionsModal({ userId, month, currency, existing, mutate, onClose }
   mutate: Mutate;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [data, setData] = useState<BudgetSuggestions | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<Map<number, string>>(new Map());
@@ -509,12 +519,12 @@ function SuggestionsModal({ userId, month, currency, existing, mutate, onClose }
   const max = Math.max(1, ...(data?.categories.flatMap((c) => c.history) ?? [1]));
 
   return (
-    <Modal title="Plafonds suggérés" onClose={onClose} wide>
+    <Modal title={t('budgets.budgets.suggested_limits')} onClose={onClose} wide>
       <div className="pg-form">
-        <p className="pg-note full">D’après la médiane de tes dépenses sur {data?.months.length ?? 6} mois complets (un mois exceptionnel ne fausse pas le calcul), arrondie à 5 €. Coche, ajuste, applique.</p>
+        <p className="pg-note full">{t('budgets.budgets.based_on_median_your_spending')} {data?.months.length ?? 6}  {t('budgets.budgets.full_months_exceptional_month_does')}</p>
         {error && <p className="hint full expense">{error}</p>}
-        {!data ? <p className="pg-note full">Calcul…</p> : data.categories.length === 0 ? (
-          <p className="pg-note full">Pas assez d’historique pour proposer des plafonds.</p>
+        {!data ? <p className="pg-note full">{t('budgets.budgets.calculating')}</p> : data.categories.length === 0 ? (
+          <p className="pg-note full">{t('budgets.budgets.not_enough_history_to_suggest')}</p>
         ) : (
           <ul className="bg-suggest full">
             {data.categories.map((c) => {
@@ -527,7 +537,7 @@ function SuggestionsModal({ userId, month, currency, existing, mutate, onClose }
                       if (next.has(c.category_id)) next.delete(c.category_id); else next.set(c.category_id, String(c.suggested));
                       return next;
                     })} />
-                    <span>{c.name}{existingIds.has(c.category_id) && <small> · déjà budgétée</small>}</span>
+                    <span>{c.name}{existingIds.has(c.category_id) && <small>  {t('budgets.budgets.already_budgeted')}</small>}</span>
                   </label>
                   <span className="bg-spark" aria-hidden>
                     {c.history.map((v, i) => <i key={i} style={{ height: `${Math.max(4, (v / max) * 100)}%` }} />)}
@@ -546,8 +556,8 @@ function SuggestionsModal({ userId, month, currency, existing, mutate, onClose }
           </ul>
         )}
         <div className="pg-form-actions">
-          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
-          <button type="button" className="primary" disabled={picked.size === 0} onClick={apply}>Appliquer {picked.size > 0 ? `(${picked.size})` : ''}</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('budgets.budgets.cancel')}</button>
+          <button type="button" className="primary" disabled={picked.size === 0} onClick={apply}>{t('budgets.budgets.apply')} {picked.size > 0 ? `(${picked.size})` : ''}</button>
         </div>
       </div>
     </Modal>
@@ -562,6 +572,7 @@ function FundModal({ userId, month, categories, editing, mutate, onClose }: {
   mutate: Mutate;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const expenseCategories = categories.filter((c) => c.type === 'expense');
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -586,33 +597,33 @@ function FundModal({ userId, month, categories, editing, mutate, onClose }: {
   return (
     <Modal title={editing ? 'Modifier la provision' : 'Nouvelle provision'} onClose={onClose}>
       <form className="pg-form" onSubmit={submit}>
-        <label className="full">Nom
-          <input name="name" defaultValue={editing?.name} placeholder="ex. Vacances d’été" autoFocus required onInput={() => setError(null)} />
+        <label className="full">{t('budgets.budgets.name')}
+          <input name="name" defaultValue={editing?.name} placeholder={t('budgets.budgets.e_g_summer_holidays')} autoFocus required onInput={() => setError(null)} />
         </label>
-        <label>Montant à réunir
-          <input name="target_amount" inputMode="decimal" autoComplete="off" defaultValue={amountInputValue(editing?.target_amount)} placeholder="ex. 1200" required onInput={() => setError(null)} />
+        <label>{t('budgets.budgets.amount_to_save')}
+          <input name="target_amount" inputMode="decimal" autoComplete="off" defaultValue={amountInputValue(editing?.target_amount)} placeholder={t('budgets.budgets.e_g_1200')} required onInput={() => setError(null)} />
         </label>
-        <label>Tous les
+        <label>{t('budgets.budgets.every')}
           <select name="period_months" defaultValue={editing?.period_months ?? 12}>
-            <option value={3}>3 mois</option>
-            <option value={6}>6 mois</option>
-            <option value={12}>12 mois</option>
-            <option value={24}>24 mois</option>
+            <option value={3}>{t('budgets.budgets.3_months')}</option>
+            <option value={6}>{t('budgets.budgets.6_months')}</option>
+            <option value={12}>{t('budgets.budgets.12_months')}</option>
+            <option value={24}>{t('budgets.budgets.24_months')}</option>
           </select>
         </label>
-        <label className="full">Catégorie des dépenses
+        <label className="full">{t('budgets.budgets.expense_category')}
           <select name="category_id" defaultValue={editing?.category_id ?? ''}>
-            <option value="">Aucune (suivi de la cagnotte seulement)</option>
+            <option value="">{t('budgets.budgets.none_track_pot_only')}</option>
             {expenseCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
-        <label className="full">Début du cycle
+        <label className="full">{t('budgets.budgets.cycle_start')}
           <input name="start_month" type="month" defaultValue={editing?.start_month ?? month} />
         </label>
-        <p className="hint full">Chaque mois, un douzième (selon la période) est mis de côté virtuellement ; les dépenses de la catégorie viennent en déduction. Aucun argent n’est déplacé.</p>
+        <p className="hint full">{t('budgets.budgets.each_month_twelfth_depending_on')}</p>
         {error && <p className="hint full expense" role="alert">{error}</p>}
         <div className="pg-form-actions">
-          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('budgets.budgets.cancel')}</button>
           <button type="submit" className="primary">{editing ? 'Enregistrer' : 'Créer la provision'}</button>
         </div>
       </form>
