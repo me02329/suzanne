@@ -26,7 +26,7 @@ export interface AlertContext {
   // naturellement, sans seuil négatif.
   balanceByAccount: Map<number, number>;
   // Transactions du mois courant (montants positifs, signe porté par le type).
-  monthTransactions: Array<{ amount: number; type: string; account_id: number | null; description: string }>;
+  monthTransactions: Array<{ amount: number; type: string; account_id: number | null; description: string; professional?: boolean }>;
   goals: Array<{ id: number; name: string; current_amount: number; target_amount: number; deadline: string | null }>;
   // Dernière date de snapshot par compte (absent = jamais).
   latestSnapshotByAccount: Map<number, Date>;
@@ -80,6 +80,8 @@ export function evaluateAlerts(alerts: AlertConfig[], ctx: AlertContext): Trigge
         // Virements, mouvements de bourse et ajustements ne sont pas des flux.
         if (t.type !== 'expense' && t.type !== 'income') return false;
         if (alert.account_id != null && t.account_id !== alert.account_id) return false;
+        // Alerte globale : les comptes professionnels n'en font pas partie.
+        if (alert.account_id == null && t.professional) return false;
         return alert.operator === 'gt' ? t.amount > alert.threshold! : t.amount < alert.threshold!;
       });
       if (matches.length > 0) {

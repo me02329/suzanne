@@ -102,3 +102,6 @@ comptes.account_detail.balance,Solde (,Balance (
 comptes.account_detail.for_this_account_enter_cash,"Pour ce compte, saisis les espèces seules : les titres sont valorisés à part.","For this account, enter cash only: securities are valued separately."
 comptes.account_detail.cancel,Annuler,Cancel
 comptes.account_detail.save,Enregistrer,Save
+comptes.account_form_modal.professional,Compte professionnel (société),Business account (company)
+comptes.account_form_modal.professional_hint,"Ex. compte d'une SASU : ses opérations restent visibles (trésorerie, virements avec tes comptes) mais ne comptent jamais dans tes revenus, dépenses, budgets et statistiques personnels. Patrimoine : groupe « Société ».","E.g. a one-person company account: its transactions stay visible (cash, transfers with your accounts) but never count in your personal income, expenses, budgets and statistics. Net worth: « Company » group."
+comptes.accounts.pro_section,Pro,Business

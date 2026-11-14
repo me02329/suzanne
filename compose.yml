@@ -15,11 +15,19 @@ services:
       AI_API_KEY: ${AI_API_KEY}
       AI_MODEL: ${AI_MODEL:-gpt-4.1-mini}
       AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      # Synchronisation bancaire Enable Banking (facultative, docs/ENABLE-BANKING.md).
+      # Désactivée tant que ENABLE_BANKING_APP_ID est vide. La clé privée est un
+      # fichier du dossier ./secrets (monté en lecture seule, ignoré par git).
+      ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
+      ENABLE_BANKING_KEY_PATH: /run/secrets/enablebanking.pem
+      ENABLE_BANKING_REDIRECT_URL: ${ENABLE_BANKING_REDIRECT_URL:-}
       # Pool Prisma (défaut 5, ouvert à la demande) : suffisant pour un foyer ;
       # à augmenter seulement si l'app rame avec beaucoup d'usagers simultanés.
       # DATABASE_POOL_MAX: "5"
       # Heap V8 plafonné à 128 Mo par le Dockerfile ; surchargez ici si besoin.
       # NODE_OPTIONS: "--max-old-space-size=128"
+    volumes:
+      - ./secrets:/run/secrets:ro
     mem_limit: 384m
     cpus: "0.5"
     security_opt:

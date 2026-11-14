@@ -6,6 +6,8 @@ import { http } from './api';
 export interface InvestmentAccountFields {
   orders_affect_cash?: boolean;
   fiscal_start_date?: string | null;
+  /** Compte professionnel (société) : hors des finances personnelles. */
+  professional?: boolean;
 }
 export type AccountWithInvestment = Account & InvestmentAccountFields;
 

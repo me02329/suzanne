@@ -71,9 +71,19 @@ export interface Flow {
   refund_of_id: number | null;
 }
 
-export function txFlows(tx: Pick<LedgerTx, 'kind' | 'lines'>, categoryType: CategoryTypeOf): Flow[] {
+/** Comptes exclus des finances personnelles (comptes professionnels). */
+export type AccountFilter = (accountId: number | null) => boolean;
+
+/** Filtre des comptes professionnels d'un profil (leurs lignes ne sont ni dépense ni revenu perso). */
+export async function professionalAccountFilter(user_id: number): Promise<AccountFilter> {
+  const ids = new Set((await prisma.account.findMany({ where: { user_id, professional: true }, select: { id: true } })).map((a) => a.id));
+  return (accountId) => accountId != null && ids.has(accountId);
+}
+
+export function txFlows(tx: Pick<LedgerTx, 'kind' | 'lines'>, categoryType: CategoryTypeOf, excluded?: AccountFilter): Flow[] {
   const out: Flow[] = [];
   for (const line of tx.lines) {
+    if (excluded?.(line.account_id)) continue;
     const side = lineSide(tx.kind, line, categoryType);
     if (!side) continue;
     out.push({

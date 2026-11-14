@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { accountGroupLabel, accountTypeGroup, accountTypeLabel, type AccountType } from '@suzanne/shared';
+import { accountGroupLabel, accountGroupOf, accountTypeLabel, type AccountType } from '@suzanne/shared';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { currencyQuery, idParam, monthString } from '../lib/validation.js';
@@ -7,7 +7,7 @@ import { round2 } from '../lib/money.js';
 import { buildFx } from '../lib/fxHelper.js';
 import { buildFxByDate } from '../lib/fxStore.js';
 import { securitiesByAccountByDate, securitiesByAccountNow } from '../lib/holdingsValuation.js';
-import { categoryTypeLookup, LEDGER_TX_SELECT, txFlows, type LedgerTx } from '../lib/ledger.js';
+import { categoryTypeLookup, LEDGER_TX_SELECT, professionalAccountFilter, txFlows, type LedgerTx } from '../lib/ledger.js';
 import { addMonthsUtc, dateKey, startOfUtcDay } from '../lib/dates.js';
 
 export const dashboardRouter = Router();
@@ -21,6 +21,7 @@ const ACCOUNT_SELECT = {
   id: true,
   name: true,
   type: true,
+  professional: true,
   currency: true,
   initial_balance: true,
   initial_balance_date: true,
@@ -73,6 +74,7 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const securities = await securitiesByAccountNow(holdings, accounts);
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const categoryType = categoryTypeLookup(categories);
+  const excluded = await professionalAccountFilter(user_id);
   // Pas d'arrondi par ligne : les sommes sont arrondies une fois à la sortie.
   const rateOf = (accountId: number | null) => fx.get(accountById.get(accountId ?? -1)?.currency ?? 'EUR') ?? 1;
 
@@ -81,7 +83,7 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
   const byCategory = new Map<number | null, number>();
   for (const t of transactions) {
     if (t.date < start || t.date >= end) continue;
-    for (const flow of txFlows(t, categoryType)) {
+    for (const flow of txFlows(t, categoryType, excluded)) {
       const value = flow.value * rateOf(flow.account_id);
       if (flow.side === 'income') income += value;
       else {
@@ -118,8 +120,8 @@ dashboardRouter.get('/users/:user_id/dashboard', asyncHandler(async (req, res) =
     unassigned_count: unassignedCount,
     account_balances: accountBalances.map((a) => ({ ...a, balance: round2(a.balance), signed_balance: round2(a.signed_balance) })),
     balance_by_group: balanceByGroup,
-    monthly_cashflow: buildCashflow(transactions, start, categoryType, rateOf),
-    yearly_cashflow: buildYearlyCashflow(transactions, categoryType, rateOf),
+    monthly_cashflow: buildCashflow(transactions, start, categoryType, rateOf, excluded),
+    yearly_cashflow: buildYearlyCashflow(transactions, categoryType, rateOf, excluded),
     expenses_by_category: Array.from(byCategory.entries()).map(([category_id, amount]) => {
       const category = category_id ? categoryById.get(category_id) : null;
       return { category_id, name: category?.name ?? 'Sans catégorie', color: category?.color ?? '#9ca3af', amount: round2(amount) };
@@ -271,8 +273,8 @@ function balanceRow(account: AccountRow, raw: number, fx: Map<string, number>) {
     type: account.type,
     currency: account.currency,
     type_label: accountTypeLabel(account.type as AccountType),
-    group: accountTypeGroup(account.type as AccountType),
-    group_label: accountGroupLabel(accountTypeGroup(account.type as AccountType)),
+    group: accountGroupOf(account),
+    group_label: accountGroupLabel(accountGroupOf(account)),
     balance,
     signed_balance: isLiability ? -balance : balance,
     is_liability: isLiability,
@@ -341,8 +343,8 @@ export function computeWealthSeries(
         type: account.type,
         currency: account.currency,
         type_label: accountTypeLabel(account.type as AccountType),
-        group: accountTypeGroup(account.type as AccountType),
-        group_label: accountGroupLabel(accountTypeGroup(account.type as AccountType)),
+        group: accountGroupOf(account),
+        group_label: accountGroupLabel(accountGroupOf(account)),
         balance,
         signed_balance: isLiability ? -balance : balance,
         is_liability: isLiability,
@@ -524,8 +526,9 @@ function buildHistoryDates(from: Date, to: Date, granularity: string): Date[] {
 
 type RateOf = (accountId: number | null) => number;
 type CategoryTypeOf = Parameters<typeof txFlows>[1];
+type Excluded = Parameters<typeof txFlows>[2];
 
-function buildCashflow(transactions: BalanceTx[], endMonth: Date, categoryType: CategoryTypeOf, rateOf: RateOf) {
+function buildCashflow(transactions: BalanceTx[], endMonth: Date, categoryType: CategoryTypeOf, rateOf: RateOf, excluded?: Excluded) {
   const buckets = new Map<string, { month: string; income: number; expenses: number; net: number }>();
   for (let i = 11; i >= 0; i -= 1) {
     const start = new Date(Date.UTC(endMonth.getUTCFullYear(), endMonth.getUTCMonth() - i, 1));
@@ -535,7 +538,7 @@ function buildCashflow(transactions: BalanceTx[], endMonth: Date, categoryType: 
   for (const t of transactions) {
     const bucket = buckets.get(t.date.toISOString().slice(0, 7));
     if (!bucket) continue;
-    for (const flow of txFlows(t, categoryType)) {
+    for (const flow of txFlows(t, categoryType, excluded)) {
       if (flow.side === 'income') bucket.income += flow.value * rateOf(flow.account_id);
       else bucket.expenses += flow.value * rateOf(flow.account_id);
     }
@@ -555,12 +558,12 @@ function buildCashflow(transactions: BalanceTx[], endMonth: Date, categoryType: 
   });
 }
 
-function buildYearlyCashflow(transactions: BalanceTx[], categoryType: CategoryTypeOf, rateOf: RateOf) {
+function buildYearlyCashflow(transactions: BalanceTx[], categoryType: CategoryTypeOf, rateOf: RateOf, excluded?: Excluded) {
   const byYear = new Map<string, { year: string; income: number; expenses: number; net: number }>();
   for (const t of transactions) {
     const year = t.date.toISOString().slice(0, 4);
     const row = byYear.get(year) ?? { year, income: 0, expenses: 0, net: 0 };
-    for (const flow of txFlows(t, categoryType)) {
+    for (const flow of txFlows(t, categoryType, excluded)) {
       if (flow.side === 'income') row.income += flow.value * rateOf(flow.account_id);
       else row.expenses += flow.value * rateOf(flow.account_id);
     }

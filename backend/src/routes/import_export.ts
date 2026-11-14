@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma, prismaBase } from '../prisma.js';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
@@ -197,8 +198,12 @@ function fingerprintOf(account_id: number | null, raw: string): string {
   return createHash('sha256').update(`${account_id ?? '-'}|${raw}`).digest('hex').slice(0, 40);
 }
 
-type ParsedImportRow = {
+export type ParsedImportRow = {
   fingerprint?: string;
+  /** Note de la ligne (ex. libellé bancaire complet d'une synchro). */
+  note?: string | null;
+  /** Données brutes de la banque (synchro) : ajoutées à transactions.bank_data. */
+  bank_data?: Record<string, unknown> | null;
   cleared?: boolean;
   line: number;
   user_id: number;
@@ -237,7 +242,7 @@ async function recurringProjections(user_id: number, account_id: number | null, 
     .map((t) => ({ id: t.id, date: t.date.getTime(), amount: t.lines[0]!.amount, recurring_transaction_id: t.recurring_transaction_id!, description: t.description ?? '' }));
 }
 
-async function dedupeAndInsert(user_id: number, account_id: number | null, parsedRows: ParsedImportRow[], baseSkipped: number) {
+export async function dedupeAndInsert(user_id: number, account_id: number | null, parsedRows: ParsedImportRow[], baseSkipped: number) {
   const tagRules = await loadTagRules(user_id);
   const duplicateKeys = await existingCsvDuplicateKeys(user_id, account_id, parsedRows);
   const fingerprints = parsedRows.map((r) => r.fingerprint).filter((f): f is string => Boolean(f));
@@ -287,12 +292,17 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
       },
       select: { id: true, date: true, description: true, lines: { select: { id: true, account_id: true, amount: true } } },
     });
+    // Société → perso (salaire, dividendes) : un revenu personnel, pas un
+    // virement neutre ; on ne relie pas automatiquement (perso → société, oui).
+    const proIds = new Set((await prisma.account.findMany({ where: { user_id, professional: true }, select: { id: true } })).map((a) => a.id));
+    const fromCompany = (signed: number, other: number) => (signed > 0 ? proIds.has(other) && !proIds.has(account_id) : proIds.has(account_id) && !proIds.has(other));
     const used = new Set<number>();
     for (const row of toCreate) {
       if (!TRANSFER_RX.test(row.description)) continue;
       const signed = row.type === 'income' ? row.amount : -row.amount;
       const match = candidates
         .filter((c) => !used.has(c.id) && c.lines.length === 1 && c.lines[0]!.account_id != null && c.lines[0]!.account_id !== account_id
+          && !fromCompany(signed, c.lines[0]!.account_id)
           && Math.abs(c.lines[0]!.amount + signed) < 0.005
           && Math.abs(c.date.getTime() - row.date.getTime()) <= pad
           && TRANSFER_RX.test(c.description ?? ''))
@@ -333,7 +343,10 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
           await tx.transactionLine.create({
             data: { user_id: row.user_id, transaction_id: counterpart, account_id: row.account_id, amount: row.type === 'income' ? row.amount : -row.amount, position: 1 },
           });
-          await tx.transaction.update({ where: { id: counterpart }, data: { kind: 'transfer', import_fingerprint: row.fingerprint ?? undefined } });
+          // Données bancaires : celles de ce côté s'ajoutent à celles de l'autre côté.
+          const previous = row.bank_data ? (await tx.transaction.findUnique({ where: { id: counterpart }, select: { bank_data: true } }))?.bank_data : null;
+          const bankData = row.bank_data ? [...(Array.isArray(previous) ? previous : []), row.bank_data] : undefined;
+          await tx.transaction.update({ where: { id: counterpart }, data: { kind: 'transfer', import_fingerprint: row.fingerprint ?? undefined, ...(bankData ? { bank_data: bankData as Prisma.InputJsonValue } : {}) } });
           continue;
         }
         await tx.transaction.create({
@@ -342,6 +355,7 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
             kind: 'standard',
             recurring_transaction_id: recurringLink.get(row) ?? null,
             import_fingerprint: row.fingerprint ?? null,
+            ...(row.bank_data ? { bank_data: [row.bank_data] as Prisma.InputJsonValue } : {}),
             cleared: row.cleared ?? false,
             date: row.date,
             description: row.description,
@@ -353,6 +367,7 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
                 account_id: row.account_id,
                 category_id: row.category_id,
                 amount: row.type === 'income' ? row.amount : -row.amount,
+                note: row.note ?? null,
               }],
             },
           },
@@ -575,13 +590,13 @@ function unescapeCsvText(value: string): string {
   return /^'[=+\-@\t\r]/.test(value) ? value.slice(1) : value;
 }
 
-async function loadRules(user_id: number) {
+export async function loadRules(user_id: number) {
   const rules = await prisma.categoryRule.findMany({ where: { user_id } });
   // Le motif le plus long (le plus spécifique) gagne, de façon déterministe.
   return rules.sort((a, b) => b.pattern.length - a.pattern.length || a.id - b.id);
 }
 
-function matchRule<T extends { pattern: string }>(rules: T[], description: string): T | undefined {
+export function matchRule<T extends { pattern: string }>(rules: T[], description: string): T | undefined {
   const upper = description.toUpperCase();
   return rules.find((r) => upper.includes(r.pattern));
 }

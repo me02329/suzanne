@@ -51,6 +51,8 @@ export interface Account {
   initial_balance: number;
   initial_balance_date: string;
   archived: boolean;
+  /** Compte professionnel (société) : hors des finances personnelles. */
+  professional?: boolean;
   created_at: string;
 }
 
@@ -100,6 +102,31 @@ export interface TagRule {
 
 // Opération. Les champs « historiques » (type, amount, account_id,
 // to_account_id, to_amount, category_id, splits) sont dérivés des lignes.
+/** Données d'une opération telles que fournies par la banque (synchro Enable Banking). */
+export interface BankDataEntry {
+  source: 'enable_banking';
+  bank: string;
+  account_id: number;
+  synced_at: string;
+  entry_reference?: string;
+  transaction_id?: string;
+  status?: string;
+  booking_date?: string;
+  value_date?: string;
+  transaction_date?: string;
+  remittance_information?: string[];
+  creditor_name?: string;
+  debtor_name?: string;
+  creditor_iban?: string;
+  debtor_iban?: string;
+  bank_transaction_code?: string;
+  merchant_category_code?: string;
+  reference_number?: string;
+  note?: string;
+  balance_after?: number;
+  exchange_rate?: unknown;
+}
+
 export interface Transaction {
   id: number;
   user_id: number;
@@ -122,6 +149,10 @@ export interface Transaction {
   // Pointage : la ligne a été rapprochée du relevé bancaire.
   cleared: boolean;
   created_at: string;
+  /** Origine : « eb:… » synchro bancaire, autre valeur import de relevé, absent = saisie. */
+  import_fingerprint?: string | null;
+  /** Données brutes de la banque (une entrée par côté synchronisé). */
+  bank_data?: BankDataEntry[] | null;
   tags: Tag[];
   splits: TransactionSplit[];
   refund_allocations: RefundAllocation[];
@@ -322,8 +353,9 @@ export interface CreateAlertBody {
 
 export interface TriggeredAlert {
   id: number;
-  // 'budget' : alerte automatique de budget (id négatif, non configurable).
-  type: AlertType | 'budget';
+  // 'budget' / 'bank' : alertes automatiques (budget, accès bancaire qui expire ;
+  // id négatif, non configurables).
+  type: AlertType | 'budget' | 'bank';
   severity: 'warning' | 'info';
   message: string;
 }
@@ -728,7 +760,7 @@ export interface StatisticsSummary {
 // dashboard, alertes). Ne pas dupliquer ailleurs.
 // ---------------------------------------------------------------------------
 
-export type AccountGroup = 'cash' | 'regulated_savings' | 'investments' | 'crypto' | 'liabilities' | 'other';
+export type AccountGroup = 'cash' | 'regulated_savings' | 'investments' | 'crypto' | 'liabilities' | 'other' | 'business';
 
 export const ACCOUNT_TYPES: ReadonlyArray<{ value: AccountType; label: string; group: AccountGroup }> = [
   { value: 'checking', label: 'Compte courant', group: 'cash' },
@@ -758,6 +790,8 @@ export const ACCOUNT_GROUPS: ReadonlyArray<{ value: AccountGroup; label: string;
   { value: 'crypto', label: 'Crypto', color: '#f59e0b' },
   { value: 'liabilities', label: 'Passifs', color: '#dc2626' },
   { value: 'other', label: 'Autres', color: '#64748b' },
+  // Comptes professionnels (société) : leur trésorerie, à part du reste.
+  { value: 'business', label: 'Société', color: '#0f766e' },
 ];
 
 const ACCOUNT_TYPE_INDEX = new Map(ACCOUNT_TYPES.map((entry) => [entry.value, entry]));
@@ -769,6 +803,11 @@ export function accountTypeLabel(type: AccountType): string {
 
 export function accountTypeGroup(type: AccountType): AccountGroup {
   return ACCOUNT_TYPE_INDEX.get(type)?.group ?? 'other';
+}
+
+/** Groupe d'un compte : « Société » pour un compte professionnel, sinon celui de son type. */
+export function accountGroupOf(account: { type: AccountType | string; professional?: boolean | null }): AccountGroup {
+  return account.professional ? 'business' : accountTypeGroup(account.type as AccountType);
 }
 
 export function accountGroupLabel(group: string): string {

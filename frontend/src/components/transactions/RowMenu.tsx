@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, HandCoins, Link2, MoreHorizontal, Paperclip, Repeat, Split, Trash2 } from 'lucide-react';
+import { Copy, HandCoins, Info, Link2, MoreHorizontal, Paperclip, Repeat, Split, Trash2 } from 'lucide-react';
 import { refundedAmount, type Transaction } from '@suzanne/shared';
 
 export interface RowMenuItem {
@@ -14,6 +14,7 @@ export interface RowMenuItem {
 }
 
 export interface TxActionHandlers {
+  onDetails: (t: Transaction) => void;
   onCopy: (t: Transaction) => void;
   onLink: (t: Transaction) => void;
   onSplit: (t: Transaction) => void;
@@ -28,6 +29,7 @@ export function useTxMenuItems() {
   const { t } = useTranslation();
   return (tx: Transaction, h: TxActionHandlers, opts: { withSplit?: boolean } = {}): RowMenuItem[] => {
     const items: RowMenuItem[] = [
+      { key: 'details', label: t('operations.detail.open'), icon: <Info size={16} />, onSelect: () => h.onDetails(tx) },
       { key: 'copy', label: t('operations.copy'), icon: <Copy size={16} />, onSelect: () => h.onCopy(tx) },
       {
         key: 'link',

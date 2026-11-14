@@ -18,3 +18,7 @@ CLAUDE.md
 .agents/
 .claude/
 .codex/
+
+# Enable Banking : clés privées
+*.pem
+secrets/

@@ -85,7 +85,7 @@ export async function seedGolden(): Promise<number> {
 }
 
 // + champs ajoutés après la capture de référence (absents de celle-ci).
-const VOLATILE = new Set(['created_at', 'updated_at', 'exported_at', 'orders_affect_cash', 'fiscal_start_date', 'pace', 'uid', 'import_fingerprint']);
+const VOLATILE = new Set(['created_at', 'updated_at', 'exported_at', 'orders_affect_cash', 'fiscal_start_date', 'professional', 'pace', 'uid', 'import_fingerprint']);
 function scrub(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(scrub);
   if (value && typeof value === 'object') {

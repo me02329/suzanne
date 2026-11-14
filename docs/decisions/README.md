@@ -14,3 +14,5 @@ remplace (statut « remplacé par NNNN »).
 | 0006 | Identité visuelle « carnet de comptes » et navigation en 7 sections |
 | 0007 | Localisation par clés stables et catalogues CSV `keys,fr,en` |
 | 0008 | Garde-fous des imports bancaires |
+| 0009 | Synchronisation bancaire DSP2 via Enable Banking |
+| 0010 | Comptes professionnels hors des finances personnelles |

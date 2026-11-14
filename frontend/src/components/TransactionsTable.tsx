@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Circle, Pencil } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Circle, Info, Pencil } from 'lucide-react';
 import { CategoryHint, CategoryName } from './CategoryName';
 import { CategorySelect } from './CategorySelect';
 import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne/shared';
@@ -137,6 +137,7 @@ export function TransactionsTable({
                   <span className="jr-label" title={label}>{label}</span>
                   <span className="jr-badges">
                     {readOnly && <span className="jr-badge">{t('operations.stock_market')}</span>}
+                    {tx.type !== 'transfer' && accountById.get(tx.account_id ?? -1)?.professional && <span className="jr-badge jr-badge-pro" title={t('operations.pro_badge_hint')}>{t('operations.pro_badge')}</span>}
                     {linked && <span className="jr-badge" title={t('operations.linked_to_recurring_item')}>↻ {t('operations.recurring_2')}</span>}
                     {refunded > 0 && (
                       <span className="jr-badge" title={t('operations.refunded_b', { a: money(refunded, srcCurrency), b: money(tx.amount, srcCurrency) })}>
@@ -245,6 +246,9 @@ export function TransactionsTable({
                         onClick={() => onToggleCleared(tx)}
                       >
                         {tx.cleared ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                      </button>
+                      <button type="button" className="icon-ghost" aria-label={t('operations.detail.open')} title={t('operations.detail.open')} onClick={() => actions.onDetails(tx)}>
+                        <Info size={16} />
                       </button>
                       <button type="button" className="icon-ghost" aria-label={t('operations.edit')} title={t('operations.edit')} onClick={() => onEdit(tx)}>
                         <Pencil size={16} />

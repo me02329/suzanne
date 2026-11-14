@@ -6,7 +6,7 @@ import { computePace, previousMonths, sinkingFundCycle, suggestLimit } from '../
 import { createBudgetSchema, currencyQuery, idParam, monthString } from '../lib/validation.js';
 import { buildFx } from '../lib/fxHelper.js';
 import { round2 } from '../lib/money.js';
-import { categoryTypeLookup, LEDGER_TX_SELECT, txFlows } from '../lib/ledger.js';
+import { categoryTypeLookup, LEDGER_TX_SELECT, professionalAccountFilter, txFlows } from '../lib/ledger.js';
 
 export const budgetsRouter = Router();
 
@@ -49,13 +49,14 @@ async function loadSpend(user_id: number, reportCurrency: string, untilMonth: st
   const { rates: fx } = await buildFx(accounts, reportCurrency);
   const currencyByAccount = new Map(accounts.map((a) => [a.id, a.currency]));
   const categoryType = categoryTypeLookup(categories);
+  const excluded = await professionalAccountFilter(user_id);
   const rateOf = (accountId: number | null) => fx.get(currencyByAccount.get(accountId ?? -1) ?? 'EUR') ?? 1;
   const byMonth = new Map<string, Map<number | null, number>>();
   for (const t of transactions) {
     const k = t.date.toISOString().slice(0, 7);
     let byCat = byMonth.get(k);
     if (!byCat) { byCat = new Map(); byMonth.set(k, byCat); }
-    for (const flow of txFlows(t, categoryType)) {
+    for (const flow of txFlows(t, categoryType, excluded)) {
       if (flow.side !== 'expense') continue;
       byCat.set(flow.category_id, (byCat.get(flow.category_id) ?? 0) + flow.value * rateOf(flow.account_id));
     }

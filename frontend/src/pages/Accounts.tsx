@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Archive, ArchiveRestore, CalendarCheck, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   accountGroupLabel,
-  accountTypeGroup,
+  accountGroupOf,
   accountTypeLabel,
   type Account,
   type AccountSnapshot,
@@ -23,7 +23,7 @@ import type { Run } from '../lib/run';
 import '../styles/pages/accounts.css';
 import { useTranslation } from 'react-i18next';
 
-const ORDERED_GROUPS = ['cash', 'regulated_savings', 'investments', 'crypto', 'liabilities', 'other'];
+const ORDERED_GROUPS = ['cash', 'regulated_savings', 'investments', 'crypto', 'liabilities', 'other', 'business'];
 
 interface Group { key: string; title: string; accounts: Account[] }
 
@@ -54,7 +54,8 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
     const sorted = [...active].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     if (groupBy === 'institution') {
       const list: Group[] = institutions
-        .map((i) => ({ key: `i${i.id}`, title: i.name, accounts: sorted.filter((a) => a.institution_id === i.id) }))
+        // Dans une même banque : comptes perso d'abord, puis les comptes pro (société).
+        .map((i) => ({ key: `i${i.id}`, title: i.name, accounts: sorted.filter((a) => a.institution_id === i.id).sort((a, b) => Number(Boolean(a.professional)) - Number(Boolean(b.professional))) }))
         .filter((g) => g.accounts.length > 0)
         .sort((a, b) => a.title.localeCompare(b.title, 'fr'));
       const none = sorted.filter((a) => a.institution_id == null || !institutionById.has(a.institution_id));
@@ -62,7 +63,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       return list;
     }
     return ORDERED_GROUPS
-      .map((g) => ({ key: g, title: accountGroupLabel(g), accounts: sorted.filter((a) => accountTypeGroup(a.type) === g) }))
+      .map((g) => ({ key: g, title: accountGroupLabel(g), accounts: sorted.filter((a) => accountGroupOf(a) === g) }))
       .filter((g) => g.accounts.length > 0);
   }, [accounts, institutions, institutionById, groupBy]);
 
@@ -89,7 +90,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       undo: () => accountsApi.create(userId, {
         name: a.name, type: a.type, currency: a.currency, institution_id: a.institution_id,
         initial_balance: a.initial_balance, initial_balance_date: a.initial_balance_date.slice(0, 10),
-        orders_affect_cash: a.orders_affect_cash, fiscal_start_date: a.fiscal_start_date?.slice(0, 10) ?? null,
+        orders_affect_cash: a.orders_affect_cash, fiscal_start_date: a.fiscal_start_date?.slice(0, 10) ?? null, professional: a.professional ?? false,
       }),
     });
   };
@@ -178,7 +179,16 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                     <h2>{group.title}</h2>
                     <span className={`num${total < 0 ? ' expense' : ''}`}>{money(total, reportCurrency)}</span>
                   </header>
-                  <ul className="acc-list">{group.accounts.map(row)}</ul>
+                  <ul className="acc-list">
+                    {group.accounts.map((a, i) => (
+                      <Fragment key={a.id}>
+                        {a.professional && i > 0 && !group.accounts[i - 1]!.professional && (
+                          <li className="acc-pro-sep" role="separator"><span>{t('comptes.accounts.pro_section')}</span></li>
+                        )}
+                        {row(a)}
+                      </Fragment>
+                    ))}
+                  </ul>
                 </section>
               );
             })}

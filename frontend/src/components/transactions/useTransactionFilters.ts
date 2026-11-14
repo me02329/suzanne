@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { accountTypeGroup, refundAllocatedAmount, type Account, type Category, type Transaction, type TransactionType } from '@suzanne/shared';
+import { accountGroupOf, refundAllocatedAmount, type Account, type Category, type Transaction, type TransactionType } from '@suzanne/shared';
 import { money, txLabel, typeLabel } from '../../lib/format';
 import { usePersistedState } from '../../lib/storage';
 import { formatTxDate } from './txUtils';
@@ -109,8 +109,8 @@ export function useTransactionFilters(source: Transaction[], categoryById: Map<n
         const id = Number(accountGroup.slice(8));
         if (t.account_id !== id && t.to_account_id !== id && !(t.lines ?? []).some((l) => l.account_id === id)) return false;
       } else if (accountGroup !== 'all') {
-        const groups = [src ? accountTypeGroup(src.type) : null, dest ? accountTypeGroup(dest.type) : null];
-        if (!groups.includes(accountGroup as ReturnType<typeof accountTypeGroup>)) return false;
+        const groups = [src ? accountGroupOf(src) : null, dest ? accountGroupOf(dest) : null];
+        if (!groups.includes(accountGroup as ReturnType<typeof accountGroupOf>)) return false;
       }
       if (needle.include.length === 0 && needle.exclude.length === 0) return true;
       const haystack = [
@@ -146,7 +146,13 @@ export function useTransactionFilters(source: Transaction[], categoryById: Map<n
 
   // Récap aligné sur le dashboard : la part remboursement d'un revenu annule
   // une dépense ; seul l'éventuel surplus compte comme revenu.
+  // Opérations d'un compte professionnel (société) : affichées, mais hors des
+  // revenus et dépenses personnels (comme le dashboard et les statistiques).
   const totals = useMemo(() => filtered.reduce((acc, t) => {
+    if ((t.type === 'income' || t.type === 'expense') && accountById.get(t.account_id ?? -1)?.professional) {
+      acc.professional += 1;
+      return acc;
+    }
     if (t.type === 'income') {
       const refundPart = refundAllocatedAmount(t);
       acc.income += t.amount - refundPart;
@@ -156,7 +162,7 @@ export function useTransactionFilters(source: Transaction[], categoryById: Map<n
     if (t.type === 'expense') acc.expenses += t.amount;
     if (t.type === 'transfer') acc.transfers += t.amount;
     return acc;
-  }, { income: 0, expenses: 0, transfers: 0, refunds: 0 }), [filtered]);
+  }, { income: 0, expenses: 0, transfers: 0, refunds: 0, professional: 0 }), [filtered, accountById]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
