@@ -46,3 +46,94 @@ reglages.token_modal.access_token_required,Token d’accès requis,Access token 
 reglages.token_modal.this_server_is_protected_by,Ce serveur est protégé par un token d’accès. Saisissez-le pour continuer.,This server is protected by an access token. Enter it to continue.
 reglages.token_modal.token,Token,Token
 reglages.token_modal.confirm,Valider,Confirm
+reglages.tools.skip,Ignorer,Skip
+reglages.tools.import,Importer,Import
+reglages.tools.your_bank_s_csv_file,Fichier CSV de ta banque,Your bank's CSV file
+reglages.tools.detected_columns_preview_before_confirmi,"Colonnes détectées, aperçu avant validation","Detected columns, preview before confirming"
+reglages.tools.ofx_qif_statement,Relevé OFX / QIF,OFX / QIF statement
+reglages.tools.duplicates_skipped_rules_applied,"Doublons ignorés, règles appliquées","Duplicates skipped, rules applied"
+reglages.tools.restore_json_export,Restaurer un export JSON,Restore a JSON export
+reglages.tools.nothing_is_overwritten_or_duplicated,Rien n’est écrasé ni dupliqué,Nothing is overwritten or duplicated
+reglages.tools.export,Exporter,Export
+reglages.tools.full_backup,Sauvegarde complète,Full backup
+reglages.tools.everything_as_re_importable_json,"Tout, en JSON réimportable","Everything, as re-importable JSON"
+reglages.tools.custom_export,Export sur mesure,Custom export
+reglages.tools.choose_data_and_period,Choisir les données et la période,Choose the data and the period
+reglages.tools.transactions_as_csv,Opérations en CSV,Transactions as CSV
+reglages.tools.for_spreadsheet_separator,Pour un tableur (séparateur ;),For a spreadsheet (; separator)
+reglages.tools.last_csv_import,Dernier import CSV,Last CSV import
+reglages.tools.hide,Masquer,Hide
+reglages.tools.imported,importée,imported
+reglages.tools.skipped,ignorée,skipped
+reglages.tools.incl,", dont",", incl."
+reglages.tools.duplicate,doublon,duplicate
+reglages.tools.transaction_s_older_than_account,opération(s) antérieure(s) au solde de référence du compte (,transaction(s) older than the account's reference balance (
+reglages.tools.they_complete_history_without_changing,) : elles complètent l’historique sans modifier le solde actuel.,): they complete the history without changing the current balance.
+reglages.tools.line,Ligne,Line
+reglages.tools.import_csv,Importer un CSV,Import a CSV
+reglages.tools.key_to_change,· touche pour changer,· key to change
+reglages.tools.account,Compte,Account
+reglages.tools.none,Aucun,None
+reglages.tools.date_format,Format de date,Date format
+reglages.tools.auto_detect,Détection auto,Auto-detect
+reglages.tools.yyyy_mm_dd,AAAA-MM-JJ,YYYY-MM-DD
+reglages.tools.dd_mm_yyyy,JJ/MM/AAAA,DD/MM/YYYY
+reglages.tools.mm_dd_yyyy,MM/JJ/AAAA,MM/DD/YYYY
+reglages.tools.dd_mm_yyyy_2,JJ-MM-AAAA,DD-MM-YYYY
+reglages.tools.yyyymmdd,AAAAMMJJ,YYYYMMDD
+reglages.tools.bank_profile,Profil de banque,Bank profile
+reglages.tools.choose_profile,Choisir un profil…,Choose a profile…
+reglages.tools.or_paste_csv_content,Ou coller le contenu du CSV,Or paste the CSV content
+reglages.tools.csv_content,Contenu CSV,CSV content
+reglages.tools.columns_to_import,Colonnes à importer,Columns to import
+reglages.tools.save_as_profile,Enregistrer comme profil,Save as profile
+reglages.tools.delete_this_profile,Supprimer ce profil,Delete this profile
+reglages.tools.cancel,Annuler,Cancel
+reglages.tools.data,Données (,Data (
+reglages.tools.all,Tout,All
+reglages.tools.finances,Finances,Finances
+reglages.tools.structure,Structure,Structure
+reglages.tools.none_2,Aucune,None
+reglages.tools.period_transactions_and_balances,Période (opérations et soldes),Period (transactions and balances)
+reglages.tools.from,Du,From
+reglages.tools.to,Au,To
+reglages.tools.current_year,Année en cours,Current year
+reglages.tools.all_dates,Toutes les dates,All dates
+reglages.tools.restore_backup,Restaurer une sauvegarde,Restore a backup
+reglages.tools.nothing_is_overwritten_what_already,"Rien n’est écrasé : ce qui existe déjà (mêmes noms, ou même opération — compte, date, montant, libellé) est reconnu et pas dupliqué. Tout ou rien : en cas d’erreur, rien n’est écrit.","Nothing is overwritten: what already exists (same names, or same transaction — account, date, amount, label) is recognised and not duplicated. All or nothing: on error, nothing is written."
+reglages.tools.or_paste_json,Ou coller le JSON,Or paste the JSON
+reglages.tools.json_content,Contenu JSON,JSON content
+reglages.settings.ai_assistant,Assistant IA,AI assistant
+reglages.settings.key_and_model_used_by,Clé et modèle utilisés par l’assistant. Ces réglages priment sur les variables,Key and model used by the assistant. These settings override the server's
+reglages.settings.variables,du serveur.,variables.
+reglages.settings.loading,Chargement…,Loading…
+reglages.settings.provider_address_endpoint,Adresse du fournisseur (endpoint),Provider address (endpoint)
+reglages.settings.api_key,Clé API,API key
+reglages.settings.required,· obligatoire,· required
+reglages.settings.model,Modèle,Model
+reglages.settings.provider,Fournisseur,Provider
+reglages.settings.clear_key,Effacer la clé,Clear the key
+reglages.settings.save,Enregistrer,Save
+reglages.settings.where_to_find_key,Où trouver une clé ?,Where to find a key?
+reglages.settings.openai,OpenAI :,OpenAI:
+reglages.settings.recommended_model,", modèle conseillé",", recommended model"
+reglages.settings.cheap_can_use_tools,"(peu cher, sait utiliser les outils).","(cheap, can use tools)."
+reglages.settings.any_openai_compatible_endpoint_works,Tout endpoint compatible OpenAI marche aussi : Ollama en local (,Any OpenAI-compatible endpoint works too: Ollama locally (
+reglages.settings.a_proxy_to_another_provider,"), un proxy vers un autre fournisseur, etc.","), a proxy to another provider, etc."
+reglages.assistant.examples,Exemples,Examples
+reglages.assistant.new_conversation,Nouvelle conversation,New conversation
+reglages.assistant.new,Nouvelle,New
+reglages.assistant.set,Définis,Set
+reglages.assistant.on_server_or_in_preferences,côté serveur ou dans Préférences.,on the server or in Preferences.
+reglages.assistant.openai_billing,facturation OpenAI,OpenAI billing
+reglages.assistant.retry,Réessayer,Retry
+reglages.assistant.thinking,Réflexion…,Thinking…
+reglages.assistant.confirm,Confirmer,Confirm
+reglages.assistant.skip,Ignorer,Skip
+reglages.assistant.how_much_did_i_spend,Combien j’ai dépensé en courses ce mois-ci ?,How much did I spend on groceries this month?
+reglages.assistant.your_question,Ta question,Your question
+reglages.assistant.stop,Stopper,Stop
+reglages.assistant.send,Envoyer,Send
+reglages.assistant.live_reading_any_change_asks,Lecture en direct · toute modification demande ta confirmation · Ctrl+Entrée pour envoyer,Live reading · any change asks for your confirmation · Ctrl+Enter to send
+reglages.assistant.what_can_i_ask,Que puis-je demander ?,What can I ask?
+reglages.assistant.click_example_to_run_it,Clique un exemple pour le lancer. Toute écriture passe par un bouton « Confirmer ».,Click an example to run it. Any write goes through a “Confirm” button.

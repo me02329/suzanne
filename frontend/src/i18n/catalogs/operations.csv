@@ -370,3 +370,19 @@ operations.recurring.none_2,Aucune,None
 operations.recurring.end_optional,Fin (optionnel),End (optional)
 operations.recurring.no_occurrences_will_be_generated,Aucune occurrence ne sera générée après cette date.,No occurrences will be generated after this date.
 operations.recurring.cancel,Annuler,Cancel
+operations.rules.if_label_contains,Si le libellé contient,If the label contains
+operations.rules.then_file_under,alors classer dans,then file under
+operations.rules.choose_category,Choisir une catégorie…,Choose a category…
+operations.rules.applies_to_imports_and_to,"S'applique aux imports, et aux opérations sans catégorie via « Appliquer ».","Applies to imports, and to uncategorised transactions via “Apply”."
+operations.rules.cancel,Annuler,Cancel
+operations.rules.rule,règle,rule
+operations.rules.the_keyword_found_in_label,le mot-clé trouvé dans le libellé décide de la catégorie,the keyword found in the label decides the category
+operations.rules.apply,Appliquer,Apply
+operations.rules.to_uncategorised_transactions," aux opérations sans catégorie"," to uncategorised transactions"
+operations.rules.new_rule,Nouvelle règle,New rule
+operations.rules.keyword,Mot-clé,Keyword
+operations.rules.category,Catégorie,Category
+operations.rules.created_on,Créée le,Created on
+operations.rules.actions,Actions,Actions
+operations.rules.edit,Modifier,Edit
+operations.rules.edit_rule,Modifier la règle,Edit the rule

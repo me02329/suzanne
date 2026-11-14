@@ -8,6 +8,7 @@ import type { Run } from '../lib/run';
 import { Modal } from '../components/Modal';
 import { WELCOME, type ChatMessage, type ToolEvent } from '../lib/assistantState';
 import '../styles/pages/assistant.css';
+import { useTranslation } from 'react-i18next';
 
 // Catalogue lisible des capacités de l'assistant, affiché dans la modale
 // « Que puis-je demander ? ». Reflète les tools de backend/src/ai/tools.ts.
@@ -70,6 +71,7 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
   setStreaming: Dispatch<SetStateAction<boolean>>;
   abortRef: MutableRefObject<AbortController | null>;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState('');
   const [health, setHealth] = useState<AiHealthStatus | null>(null);
   const [testing, setTesting] = useState(false);
@@ -265,10 +267,10 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
         </div>
         <div className="ai-head-actions">
           <button type="button" className="secondary" onClick={() => setCapsOpen(true)}>
-            <Wand2 size={15} /> <span>Exemples</span>
+            <Wand2 size={15} /> <span>{t('reglages.assistant.examples')}</span>
           </button>
-          <button type="button" className="secondary" onClick={resetConversation} aria-label="Nouvelle conversation" title="Nouvelle conversation">
-            <RotateCcw size={15} /> <span className="ai-hide-sm">Nouvelle</span>
+          <button type="button" className="secondary" onClick={resetConversation} aria-label={t('reglages.assistant.new_conversation')} title={t('reglages.assistant.new_conversation')}>
+            <RotateCcw size={15} /> <span className="ai-hide-sm">{t('reglages.assistant.new')}</span>
           </button>
         </div>
       </header>
@@ -277,19 +279,19 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
         <div className={`ai-health ${healthTone}`} role="status">
           <AlertTriangle size={15} />
           <span>
-            {!health.configured && <>Définis <code>AI_API_KEY</code> côté serveur ou dans Préférences.</>}
+            {!health.configured && <>{t('reglages.assistant.set')} <code>AI_API_KEY</code>  {t('reglages.assistant.on_server_or_in_preferences')}</>}{/* i18n-ignore */}
             {health.configured && health.error && (
               <>
                 {health.error.message} <em>({health.error.kind})</em>
                 {health.error.kind === 'insufficient_quota' && (
-                  <> — <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noopener noreferrer nofollow">facturation OpenAI</a></>
+                  <> — <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noopener noreferrer nofollow">{t('reglages.assistant.openai_billing')}</a></>
                 )}
               </>
             )}
             <span className="ai-endpoint"> · {health.baseUrl}</span>
           </span>
           <button type="button" className="ghost-button" onClick={refreshHealth} disabled={testing}>
-            {testing ? <Loader2 className="spin-icon" size={14} /> : null} Réessayer
+            {testing ? <Loader2 className="spin-icon" size={14} /> : null}  {t('reglages.assistant.retry')}
           </button>
         </div>
       )}
@@ -321,7 +323,7 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
                   {message.content
                     ? <SafeMarkdown>{message.content}</SafeMarkdown>
                     : message.streaming
-                      ? <span className="ai-thinking"><Loader2 className="spin-icon" size={14} /> Réflexion…</span>
+                      ? <span className="ai-thinking"><Loader2 className="spin-icon" size={14} />  {t('reglages.assistant.thinking')}</span>
                       : null}
                   {message.streaming && message.content && <span className="ai-cursor">▍</span>}
                 </div>
@@ -335,10 +337,10 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
                       <strong>{action.label}</strong>
                       <div>
                         <button className="primary" type="button" onClick={() => confirmAction(message.id, index, action)}>
-                          <Check size={16} /> Confirmer
+                          <Check size={16} />  {t('reglages.assistant.confirm')}
                         </button>
                         <button className="secondary" type="button" onClick={() => dismissAction(message.id, index)}>
-                          <X size={16} /> Ignorer
+                          <X size={16} />  {t('reglages.assistant.skip')}
                         </button>
                       </div>
                     </div>
@@ -356,26 +358,26 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Combien j’ai dépensé en courses ce mois-ci ?"
-          aria-label="Ta question"
+          placeholder={t('reglages.assistant.how_much_did_i_spend')}
+          aria-label={t('reglages.assistant.your_question')}
           rows={1}
         />
         {streaming ? (
-          <button type="button" className="secondary ai-send" onClick={cancel} aria-label="Stopper">
-            <X size={18} /> <span className="ai-hide-sm">Stopper</span>
+          <button type="button" className="secondary ai-send" onClick={cancel} aria-label={t('reglages.assistant.stop')}>
+            <X size={18} /> <span className="ai-hide-sm">{t('reglages.assistant.stop')}</span>
           </button>
         ) : (
-          <button className="primary accent ai-send" type="submit" disabled={!draft.trim()} aria-label="Envoyer">
-            <Send size={17} /> <span className="ai-hide-sm">Envoyer</span>
+          <button className="primary accent ai-send" type="submit" disabled={!draft.trim()} aria-label={t('reglages.assistant.send')}>
+            <Send size={17} /> <span className="ai-hide-sm">{t('reglages.assistant.send')}</span>
           </button>
         )}
       </form>
-      <p className="ai-hint">Lecture en direct · toute modification demande ta confirmation · Ctrl+Entrée pour envoyer</p>
+      <p className="ai-hint">{t('reglages.assistant.live_reading_any_change_asks')}</p>
 
       {capsOpen && (
-        <Modal title="Que puis-je demander ?" onClose={() => setCapsOpen(false)} wide>
+        <Modal title={t('reglages.assistant.what_can_i_ask')} onClose={() => setCapsOpen(false)} wide>
           <div className="assistant-caps">
-            <p className="panel-note">Clique un exemple pour le lancer. Toute écriture passe par un bouton « Confirmer ».</p>
+            <p className="panel-note">{t('reglages.assistant.click_example_to_run_it')}</p>
             {CAPABILITIES.map((group) => (
               <div className="assistant-caps-group" key={group.title}>
                 <h3>{group.title}</h3>

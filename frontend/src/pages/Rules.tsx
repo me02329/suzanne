@@ -9,6 +9,7 @@ import { RowMenu } from '../components/ui/RowMenu';
 import type { Run } from '../lib/run';
 import '../styles/pages/settings.css';
 import { localeTag } from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 type RuleBody = { pattern: string; category_id: number };
 
@@ -19,6 +20,7 @@ function RuleForm({ initial, categories, onSubmit, onCancel, submitLabel }: {
   onCancel: () => void;
   submitLabel: string;
 }) {
+  const { t } = useTranslation();
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -29,18 +31,18 @@ function RuleForm({ initial, categories, onSubmit, onCancel, submitLabel }: {
   };
   return (
     <form className="form st-form" onSubmit={submit}>
-      <label className="full">Si le libellé contient
-        <input name="pattern" defaultValue={initial?.pattern} placeholder="CARREFOUR" required autoComplete="off" autoCapitalize="characters" />
+      <label className="full">{t('operations.rules.if_label_contains')}
+        <input name="pattern" defaultValue={initial?.pattern} placeholder="CARREFOUR" /* i18n-ignore */ required autoComplete="off" autoCapitalize="characters" />
       </label>
-      <label className="full">alors classer dans
+      <label className="full">{t('operations.rules.then_file_under')}
         <select name="category_id" defaultValue={initial?.category_id ?? ''} required>
-          <option value="" disabled>Choisir une catégorie…</option>
+          <option value="" disabled>{t('operations.rules.choose_category')}</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </label>
-      <p className="panel-note full">S'applique aux imports, et aux opérations sans catégorie via « Appliquer ».</p>
+      <p className="panel-note full">{t('operations.rules.applies_to_imports_and_to')}</p>
       <div className="modal-actions full">
-        <button type="button" className="secondary" onClick={onCancel}>Annuler</button>
+        <button type="button" className="secondary" onClick={onCancel}>{t('operations.rules.cancel')}</button>
         <button className="primary">{submitLabel}</button>
       </div>
     </form>
@@ -54,6 +56,7 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
   categoryById: Map<number, Category>;
   run: Run;
 }) {
+  const { t } = useTranslation();
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<CategoryRule | null>(null);
 
@@ -87,39 +90,39 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
     <section className="st-page">
       <div className="st-toolbar">
         <p className="st-summary">
-          <strong>{rules.length}</strong> règle{rules.length > 1 ? 's' : ''}
-          <span className="st-sub">le mot-clé trouvé dans le libellé décide de la catégorie</span>
+          <strong>{rules.length}</strong>  {t('operations.rules.rule')}{rules.length > 1 ? 's' : ''}
+          <span className="st-sub">{t('operations.rules.the_keyword_found_in_label')}</span>
         </p>
         <div className="st-toolbar-actions">
           {rules.length > 0 && (
             <button type="button" className="secondary" onClick={applyAll}>
-              <Wand2 size={16} /> Appliquer<span className="st-hide-sm">&nbsp;aux opérations sans catégorie</span>
+              <Wand2 size={16} />  {t('operations.rules.apply')}<span className="st-hide-sm">{t('operations.rules.to_uncategorised_transactions')}</span>
             </button>
           )}
           <button type="button" className="primary accent" onClick={() => setCreating(true)} disabled={categories.length === 0}>
-            <Plus size={16} /> Nouvelle règle
+            <Plus size={16} />  {t('operations.rules.new_rule')}
           </button>
         </div>
       </div>
 
       <div className="panel st-list">
         <DataTable empty={rules.length === 0 ? 'Aucune règle. Ajoute un mot-clé (ex. CARREFOUR) pour classer tes opérations automatiquement.' : null}>
-          <thead><tr><th>Mot-clé</th><th>Catégorie</th><th>Créée le</th><th className="actions-cell"><span className="sr-only">Actions</span></th></tr></thead>
+          <thead><tr><th>{t('operations.rules.keyword')}</th><th>{t('operations.rules.category')}</th><th>{t('operations.rules.created_on')}</th><th className="actions-cell"><span className="sr-only">{t('operations.rules.actions')}</span></th></tr></thead>
           <tbody>
             {rules.map((r) => {
               const category = categoryById.get(r.category_id);
               return (
                 <tr key={r.id}>
                   <td className="cell-primary"><code className="st-pattern" title={r.pattern}>{r.pattern}</code><ArrowRight size={14} className="st-arrow" aria-hidden="true" /></td>
-                  <td data-label="Catégorie">
+                  <td data-label={t('operations.rules.category')}>
                     <span className="st-name">
                       <span className="dot" style={{ background: category?.color ?? 'var(--faint)' }} aria-hidden="true" />
                       {category?.name ?? 'Catégorie supprimée'}
                     </span>
                   </td>
-                  <td className="st-muted" data-label="Créée le">{new Date(r.created_at).toLocaleDateString(localeTag())}</td>
+                  <td className="st-muted" data-label={t('operations.rules.created_on')}>{new Date(r.created_at).toLocaleDateString(localeTag())}</td>
                   <td className="actions-cell">
-                    <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(r)} />
+                    <IconButton label={t('operations.rules.edit')} tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(r)} />
                     <RowMenu items={[{ label: 'Supprimer', icon: <Trash2 />, danger: true, onSelect: () => remove(r) }]} />
                   </td>
                 </tr>
@@ -130,12 +133,12 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
       </div>
 
       {creating && (
-        <Modal title="Nouvelle règle" onClose={() => setCreating(false)}>
+        <Modal title={t('operations.rules.new_rule')} onClose={() => setCreating(false)}>
           <RuleForm categories={categories} onSubmit={create} onCancel={() => setCreating(false)} submitLabel="Enregistrer" />
         </Modal>
       )}
       {editing && (
-        <Modal title="Modifier la règle" onClose={() => setEditing(null)}>
+        <Modal title={t('operations.rules.edit_rule')} onClose={() => setEditing(null)}>
           <RuleForm key={editing.id} initial={editing} categories={categories} onSubmit={update} onCancel={() => setEditing(null)} submitLabel="Enregistrer" />
         </Modal>
       )}

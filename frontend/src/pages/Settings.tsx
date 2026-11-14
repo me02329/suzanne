@@ -119,11 +119,11 @@ export function Settings() {
 
       <section className="panel st-pref st-pref-ai">
         <div className="st-pref-head">
-          <h2>Assistant IA</h2>
-          <p>Clé et modèle utilisés par l’assistant. Ces réglages priment sur les variables <code>AI_*</code> du serveur.</p>
+          <h2>{t('reglages.settings.ai_assistant')}</h2>
+          <p>{t('reglages.settings.key_and_model_used_by')} <code>AI_*</code>  {t('reglages.settings.variables')}</p>{/* i18n-ignore */}
         </div>
 
-        {loading && <p className="empty"><Loader2 className="spin-icon" size={16} /> Chargement…</p>}
+        {loading && <p className="empty"><Loader2 className="spin-icon" size={16} />  {t('reglages.settings.loading')}</p>}
         {!loading && !data && <div className="error">{error ?? 'Impossible de charger les réglages.'}</div>}
 
         {data && (
@@ -140,20 +140,20 @@ export function Settings() {
             {notice && <div className="notice">{notice}</div>}
 
             <form className="form st-form" key={formKey} onSubmit={submit}>
-              <label className="full">Adresse du fournisseur (endpoint)
+              <label className="full">{t('reglages.settings.provider_address_endpoint')}
                 <input
                   name="base_url"
                   type="url"
                   inputMode="url"
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="https://api.openai.com/v1"
+                  placeholder="https://api.openai.com/v1" /* i18n-ignore */
                   autoComplete="off"
                   spellCheck={false}
                 />
               </label>
               <label className="full">
-                <span>Clé API{keyRequired && <em className="st-required"> · obligatoire</em>}</span>
+                <span>{t('reglages.settings.api_key')}{keyRequired && <em className="st-required">  {t('reglages.settings.required')}</em>}</span>
                 <input
                   name="api_key"
                   type="password"
@@ -171,29 +171,29 @@ export function Settings() {
                     : data.has_key ? 'Laisse vide pour garder la clé actuelle.' : 'Ex. OpenAI : platform.openai.com/api-keys'}
                 </small>
               </label>
-              <label>Modèle<input name="model" defaultValue={data.model} placeholder="gpt-4.1-mini" autoComplete="off" spellCheck={false} /></label>
-              <label>Fournisseur<input name="provider" defaultValue={data.provider} placeholder="openai" autoComplete="off" spellCheck={false} /></label>
+              <label>{t('reglages.settings.model')}<input name="model" defaultValue={data.model} placeholder="gpt-4.1-mini" /* i18n-ignore */ autoComplete="off" spellCheck={false} /></label>
+              <label>{t('reglages.settings.provider')}<input name="provider" defaultValue={data.provider} placeholder="openai" /* i18n-ignore */ autoComplete="off" spellCheck={false} /></label>
               <div className="st-form-actions full">
                 {data.has_key && (
                   <button type="button" className="secondary" onClick={() => void clearKey()} disabled={saving}>
-                    <Trash2 size={16} /> Effacer la clé
+                    <Trash2 size={16} />  {t('reglages.settings.clear_key')}
                   </button>
                 )}
                 <button className="primary" type="submit" disabled={saving || (keyRequired && !apiKey.trim())}>
-                  {saving && <Loader2 className="spin-icon" size={16} />} Enregistrer
+                  {saving && <Loader2 className="spin-icon" size={16} />}  {t('reglages.settings.save')}
                 </button>
               </div>
             </form>
 
             <details className="st-help">
-              <summary>Où trouver une clé ?</summary>
+              <summary>{t('reglages.settings.where_to_find_key')}</summary>
               <p>
-                OpenAI : <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">platform.openai.com/api-keys</a>,
-                modèle conseillé <code>gpt-4.1-mini</code> (peu cher, sait utiliser les outils).
+                
+                {t('reglages.settings.openai')} <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">platform.openai.com/api-keys</a>{t('reglages.settings.recommended_model')} <code>gpt-4.1-mini</code>  {t('reglages.settings.cheap_can_use_tools')}{/* i18n-ignore */}
               </p>
               <p>
-                Tout endpoint compatible OpenAI marche aussi : Ollama en local (<code>http://localhost:11434/v1</code>),
-                un proxy vers un autre fournisseur, etc.
+                
+                {t('reglages.settings.any_openai_compatible_endpoint_works')}<code>http://localhost:11434/v1</code>{t('reglages.settings.a_proxy_to_another_provider')}{/* i18n-ignore */}
               </p>
             </details>
           </div>

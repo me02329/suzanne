@@ -14,6 +14,7 @@ import { AuditLogPanel } from '../components/AuditLogPanel';
 
 import type { Run } from '../lib/run';
 import '../styles/pages/settings.css';
+import { useTranslation } from 'react-i18next';
 
 const EXPORT_ENTITIES = [
   { key: 'transactions', label: 'Transactions' },
@@ -47,6 +48,7 @@ function currentYearRange() {
 }
 
 export function Tools({ userId, accounts, run }: { userId: number; accounts: Account[]; run: Run }) {
+  const { t } = useTranslation();
   const [csv, setCsv] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [statementOpen, setStatementOpen] = useState(false);
@@ -250,7 +252,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
 
   const columnSelect = (key: keyof typeof mapping, label: string, required = false) => (
     <label>{label}<select value={mapping[key]} onChange={(e) => setMapping((current) => ({ ...current, [key]: e.target.value }))} required={required}>
-      <option value="">Ignorer</option>
+      <option value="">{t('reglages.tools.skip')}</option>
       {preview.headers.map((header) => <option key={header} value={header}>{header}</option>)}
     </select></label>
   );
@@ -261,39 +263,39 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     <section className="st-page tools-page">
       <div className="st-tools-grid">
         <section className="panel st-actions" aria-labelledby="tools-import-title">
-          <h2 id="tools-import-title" className="st-list-title">Importer</h2>
+          <h2 id="tools-import-title" className="st-list-title">{t('reglages.tools.import')}</h2>
           <button className="st-action" type="button" onClick={() => setImportOpen(true)}>
             <span className="st-action-icon"><FileUp size={18} /></span>
-            <span className="st-action-text"><strong>Fichier CSV de ta banque</strong><small>Colonnes détectées, aperçu avant validation</small></span>
+            <span className="st-action-text"><strong>{t('reglages.tools.your_bank_s_csv_file')}</strong><small>{t('reglages.tools.detected_columns_preview_before_confirmi')}</small></span>
             <ChevronRight size={16} className="st-action-chevron" aria-hidden="true" />
           </button>
           <button className="st-action" type="button" onClick={() => setStatementOpen(true)}>
             <span className="st-action-icon"><Landmark size={18} /></span>
-            <span className="st-action-text"><strong>Relevé OFX / QIF</strong><small>Doublons ignorés, règles appliquées</small></span>
+            <span className="st-action-text"><strong>{t('reglages.tools.ofx_qif_statement')}</strong><small>{t('reglages.tools.duplicates_skipped_rules_applied')}</small></span>
             <ChevronRight size={16} className="st-action-chevron" aria-hidden="true" />
           </button>
           <button className="st-action" type="button" onClick={() => setRestoreOpen(true)}>
             <span className="st-action-icon"><RotateCcw size={18} /></span>
-            <span className="st-action-text"><strong>Restaurer un export JSON</strong><small>Rien n’est écrasé ni dupliqué</small></span>
+            <span className="st-action-text"><strong>{t('reglages.tools.restore_json_export')}</strong><small>{t('reglages.tools.nothing_is_overwritten_or_duplicated')}</small></span>
             <ChevronRight size={16} className="st-action-chevron" aria-hidden="true" />
           </button>
         </section>
 
         <section className="panel st-actions" aria-labelledby="tools-export-title">
-          <h2 id="tools-export-title" className="st-list-title">Exporter</h2>
+          <h2 id="tools-export-title" className="st-list-title">{t('reglages.tools.export')}</h2>
           <button className="st-action" type="button" onClick={fullBackup} disabled={exporting}>
             <span className="st-action-icon"><DatabaseBackup size={18} /></span>
-            <span className="st-action-text"><strong>Sauvegarde complète</strong><small>Tout, en JSON réimportable</small></span>
+            <span className="st-action-text"><strong>{t('reglages.tools.full_backup')}</strong><small>{t('reglages.tools.everything_as_re_importable_json')}</small></span>
             {exporting ? <Loader2 size={16} className="spin-icon st-action-chevron" aria-hidden="true" /> : <Download size={16} className="st-action-chevron" aria-hidden="true" />}
           </button>
           <button className="st-action" type="button" onClick={() => setExportOpen(true)}>
             <span className="st-action-icon"><FileJson size={18} /></span>
-            <span className="st-action-text"><strong>Export sur mesure</strong><small>Choisir les données et la période</small></span>
+            <span className="st-action-text"><strong>{t('reglages.tools.custom_export')}</strong><small>{t('reglages.tools.choose_data_and_period')}</small></span>
             <ChevronRight size={16} className="st-action-chevron" aria-hidden="true" />
           </button>
           <button className="st-action" type="button" onClick={() => void runCsvExport()} disabled={exporting}>
             <span className="st-action-icon"><Table2 size={18} /></span>
-            <span className="st-action-text"><strong>Opérations en CSV</strong><small>Pour un tableur (séparateur ;)</small></span>
+            <span className="st-action-text"><strong>{t('reglages.tools.transactions_as_csv')}</strong><small>{t('reglages.tools.for_spreadsheet_separator')}</small></span>
             <Download size={16} className="st-action-chevron" aria-hidden="true" />
           </button>
         </section>
@@ -302,24 +304,23 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
       {lastCsvImport && (
         <section className="panel st-import-result" aria-live="polite">
           <div className="st-import-head">
-            <h2 className="st-list-title">Dernier import CSV</h2>
-            <button type="button" className="icon-button neutral" aria-label="Masquer" onClick={() => setLastCsvImport(null)}><X size={16} /></button>
+            <h2 className="st-list-title">{t('reglages.tools.last_csv_import')}</h2>
+            <button type="button" className="icon-button neutral" aria-label={t('reglages.tools.hide')} onClick={() => setLastCsvImport(null)}><X size={16} /></button>
           </div>
           <p className="st-import-figures">
-            <strong>{lastCsvImport.imported}</strong> importée{lastCsvImport.imported > 1 ? 's' : ''}
-            <span> · {lastCsvImport.skipped} ignorée{lastCsvImport.skipped > 1 ? 's' : ''}, dont {lastCsvImport.duplicates_count} doublon{lastCsvImport.duplicates_count > 1 ? 's' : ''}</span>
+            <strong>{lastCsvImport.imported}</strong>  {t('reglages.tools.imported')}{lastCsvImport.imported > 1 ? 's' : ''}
+            <span> · {lastCsvImport.skipped}  {t('reglages.tools.skipped')}{lastCsvImport.skipped > 1 ? 's' : ''}{t('reglages.tools.incl')} {lastCsvImport.duplicates_count}  {t('reglages.tools.duplicate')}{lastCsvImport.duplicates_count > 1 ? 's' : ''}</span>
           </p>
           {(lastCsvImport.before_reference ?? 0) > 0 && (
             <p className="panel-note">
-              {lastCsvImport.before_reference} opération(s) antérieure(s) au solde de référence du compte ({lastCsvImport.reference_date}) :
-              elles complètent l’historique sans modifier le solde actuel.
+              {lastCsvImport.before_reference}  {t('reglages.tools.transaction_s_older_than_account')}{lastCsvImport.reference_date}{t('reglages.tools.they_complete_history_without_changing')}
             </p>
           )}
           {lastCsvImport.duplicates.length > 0 && (
             <ul className="st-dupes">
               {lastCsvImport.duplicates.slice(0, 12).map((duplicate) => (
                 <li key={`${duplicate.line}-${duplicate.reason}`}>
-                  <strong>Ligne {duplicate.line}</strong>
+                  <strong>{t('reglages.tools.line')} {duplicate.line}</strong>
                   <span>{duplicate.date} · <span className="amount-cell">{duplicate.amount}</span> · {duplicate.description || 'Sans libellé'} · {duplicate.reason === 'existing' ? 'déjà présente' : 'doublon du fichier'}</span>
                 </li>
               ))}
@@ -338,7 +339,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
       )}
 
       {importOpen && (
-        <Modal title="Importer un CSV" onClose={() => setImportOpen(false)} wide>
+        <Modal title={t('reglages.tools.import_csv')} onClose={() => setImportOpen(false)} wide>
           <form className="form tools-modal-form" onSubmit={submit}>
             <div className="full">
               <div
@@ -352,31 +353,31 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
                 tabIndex={0}
               >
                 <Upload size={20} />
-                <span>{fileName ? <><strong>{fileName}</strong> · touche pour changer</> : 'Dépose le fichier CSV ici, ou touche pour parcourir'}</span>
+                <span>{fileName ? <><strong>{fileName}</strong>  {t('reglages.tools.key_to_change')}</> : 'Dépose le fichier CSV ici, ou touche pour parcourir'}</span>
               </div>
               <input ref={fileInputRef} type="file" accept=".csv,text/csv" hidden onChange={onFileInput} />
             </div>
-            <label>Compte<select name="account_id"><option value="">Aucun</option>{pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}</select></label>
-            <label>Format de date<select value={dateFormat} onChange={(e) => setDateFormat(e.target.value as ImportDateFormat)}>
-              <option value="auto">Détection auto</option>
-              <option value="yyyy-mm-dd">AAAA-MM-JJ</option>
-              <option value="dd/mm/yyyy">JJ/MM/AAAA</option>
-              <option value="mm/dd/yyyy">MM/JJ/AAAA</option>
-              <option value="dd-mm-yyyy">JJ-MM-AAAA</option>
-              <option value="yyyymmdd">AAAAMMJJ</option>
+            <label>{t('reglages.tools.account')}<select name="account_id"><option value="">{t('reglages.tools.none')}</option>{pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}</select></label>
+            <label>{t('reglages.tools.date_format')}<select value={dateFormat} onChange={(e) => setDateFormat(e.target.value as ImportDateFormat)}>
+              <option value="auto">{t('reglages.tools.auto_detect')}</option>
+              <option value="yyyy-mm-dd">{t('reglages.tools.yyyy_mm_dd')}</option>
+              <option value="dd/mm/yyyy">{t('reglages.tools.dd_mm_yyyy')}</option>
+              <option value="mm/dd/yyyy">{t('reglages.tools.mm_dd_yyyy')}</option>
+              <option value="dd-mm-yyyy">{t('reglages.tools.dd_mm_yyyy_2')}</option>
+              <option value="yyyymmdd">{t('reglages.tools.yyyymmdd')}</option>
             </select></label>
             {mappings.length > 0 && (
-              <label className="full">Profil de banque
+              <label className="full">{t('reglages.tools.bank_profile')}
                 <select defaultValue="" onChange={(e) => { const m = mappings.find((x) => String(x.id) === e.target.value); if (m) applyMapping(m); }}>
-                  <option value="">Choisir un profil…</option>
+                  <option value="">{t('reglages.tools.choose_profile')}</option>
                   {mappings.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </label>
             )}
             <details className="full st-paste">
-              <summary>Ou coller le contenu du CSV</summary>
+              <summary>{t('reglages.tools.or_paste_csv_content')}</summary>
               <textarea
-                aria-label="Contenu CSV"
+                aria-label={t('reglages.tools.csv_content')}
                 value={csv}
                 onChange={(e) => { setCsv(e.target.value); setFileName(null); }}
                 placeholder={PLACEHOLDER_CSV}
@@ -385,19 +386,19 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
             </details>
             {preview.headers.length > 0 && (
               <>
-                <div className="form-section-title">Colonnes à importer</div>
+                <div className="form-section-title">{t('reglages.tools.columns_to_import')}</div>
                 {columnSelect('date', 'Date', true)}
                 {columnSelect('amount', 'Montant', true)}
                 {columnSelect('description', 'Libellé')}
                 {columnSelect('type', 'Type')}
                 <div className="full st-mapping">
                   <button type="button" className="secondary" disabled={!mapping.date || !mapping.amount} onClick={saveMapping}>
-                    <DatabaseBackup size={16} /> Enregistrer comme profil
+                    <DatabaseBackup size={16} />  {t('reglages.tools.save_as_profile')}
                   </button>
                   {mappings.map((m) => (
                     <span key={m.id} className="st-chip">
                       {m.name}
-                      <button type="button" aria-label={`Supprimer le profil ${m.name}`} title="Supprimer ce profil" onClick={() => removeMapping(m)}><X size={12} /></button>
+                      <button type="button" aria-label={`Supprimer le profil ${m.name}`} title={t('reglages.tools.delete_this_profile')} onClick={() => removeMapping(m)}><X size={12} /></button>
                     </span>
                   ))}
                 </div>
@@ -410,22 +411,22 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
               </>
             )}
             <div className="modal-actions full">
-              <button type="button" className="secondary" onClick={() => setImportOpen(false)}>Annuler</button>
-              <button className="primary" disabled={!csv.trim() || !mapping.date || !mapping.amount}>Importer</button>
+              <button type="button" className="secondary" onClick={() => setImportOpen(false)}>{t('reglages.tools.cancel')}</button>
+              <button className="primary" disabled={!csv.trim() || !mapping.date || !mapping.amount}>{t('reglages.tools.import')}</button>
             </div>
           </form>
         </Modal>
       )}
 
       {exportOpen && (
-        <Modal title="Export sur mesure" onClose={() => setExportOpen(false)}>
+        <Modal title={t('reglages.tools.custom_export')} onClose={() => setExportOpen(false)}>
           <div className="form tools-modal-form">
-            <div className="form-section-title">Données ({exportEntities.size}/{EXPORT_ENTITIES.length})</div>
+            <div className="form-section-title">{t('reglages.tools.data')}{exportEntities.size}/{EXPORT_ENTITIES.length})</div>
             <div className="preset-row full">
-              <button type="button" className="secondary" onClick={() => setExportPreset(ALL_EXPORT_KEYS)}>Tout</button>
-              <button type="button" className="secondary" onClick={() => setExportPreset(FINANCE_EXPORT_KEYS)}>Finances</button>
-              <button type="button" className="secondary" onClick={() => setExportPreset(STRUCTURE_EXPORT_KEYS)}>Structure</button>
-              <button type="button" className="secondary" onClick={() => setExportPreset([])}>Aucune</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset(ALL_EXPORT_KEYS)}>{t('reglages.tools.all')}</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset(FINANCE_EXPORT_KEYS)}>{t('reglages.tools.finances')}</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset(STRUCTURE_EXPORT_KEYS)}>{t('reglages.tools.structure')}</button>
+              <button type="button" className="secondary" onClick={() => setExportPreset([])}>{t('reglages.tools.none_2')}</button>
             </div>
             <div className="checkbox-grid full">
               {EXPORT_ENTITIES.map((entity) => (
@@ -439,15 +440,15 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
                 </label>
               ))}
             </div>
-            <div className="form-section-title">Période (opérations et soldes)</div>
-            <label>Du<input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} /></label>
-            <label>Au<input type="date" value={exportTo} onChange={(e) => setExportTo(e.target.value)} /></label>
+            <div className="form-section-title">{t('reglages.tools.period_transactions_and_balances')}</div>
+            <label>{t('reglages.tools.from')}<input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} /></label>
+            <label>{t('reglages.tools.to')}<input type="date" value={exportTo} onChange={(e) => setExportTo(e.target.value)} /></label>
             <div className="preset-row full">
-              <button type="button" className="secondary" onClick={setCurrentYearExportRange}>Année en cours</button>
-              <button type="button" className="secondary" onClick={() => { setExportFrom(''); setExportTo(''); }}>Toutes les dates</button>
+              <button type="button" className="secondary" onClick={setCurrentYearExportRange}>{t('reglages.tools.current_year')}</button>
+              <button type="button" className="secondary" onClick={() => { setExportFrom(''); setExportTo(''); }}>{t('reglages.tools.all_dates')}</button>
             </div>
             <div className="modal-actions full">
-              <button type="button" className="secondary" onClick={() => setExportOpen(false)}>Annuler</button>
+              <button type="button" className="secondary" onClick={() => setExportOpen(false)}>{t('reglages.tools.cancel')}</button>
               <button className="primary" type="button" onClick={() => void runExport()} disabled={exporting || exportEntities.size === 0}>
                 <Download size={16} /> {exporting ? 'Export…' : 'Télécharger'}
               </button>
@@ -457,11 +458,11 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
       )}
 
       {restoreOpen && (
-        <Modal title="Restaurer une sauvegarde" onClose={() => setRestoreOpen(false)}>
+        <Modal title={t('reglages.tools.restore_backup')} onClose={() => setRestoreOpen(false)}>
           <div className="form tools-modal-form">
             <p className="panel-note full">
-              Rien n’est écrasé : ce qui existe déjà (mêmes noms, ou même opération — compte, date, montant, libellé) est reconnu
-              et pas dupliqué. Tout ou rien : en cas d’erreur, rien n’est écrit.
+              
+              {t('reglages.tools.nothing_is_overwritten_what_already')}
             </p>
             <div
               className={`csv-drop full${restoreDragActive ? ' active' : ''}${restoreFileName ? ' loaded' : ''}`}
@@ -474,21 +475,21 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
               tabIndex={0}
             >
               <Upload size={20} />
-              <span>{restoreFileName ? <><strong>{restoreFileName}</strong> · touche pour changer</> : 'Dépose le fichier JSON ici, ou touche pour parcourir'}</span>
+              <span>{restoreFileName ? <><strong>{restoreFileName}</strong>  {t('reglages.tools.key_to_change')}</> : 'Dépose le fichier JSON ici, ou touche pour parcourir'}</span>
             </div>
             <input ref={restoreFileRef} type="file" accept="application/json,.json" hidden onChange={onRestoreFile} />
             <details className="full st-paste">
-              <summary>Ou coller le JSON</summary>
+              <summary>{t('reglages.tools.or_paste_json')}</summary>
               <textarea
-                aria-label="Contenu JSON"
+                aria-label={t('reglages.tools.json_content')}
                 value={restorePayload}
                 onChange={(e) => { setRestorePayload(e.target.value); setRestoreFileName(null); }}
-                placeholder='{"version":1,"accounts":[...],...}'
+                placeholder='{"version":1,"accounts":[...],...}' /* i18n-ignore */
                 rows={6}
               />
             </details>
             <div className="modal-actions full">
-              <button type="button" className="secondary" onClick={() => setRestoreOpen(false)}>Annuler</button>
+              <button type="button" className="secondary" onClick={() => setRestoreOpen(false)}>{t('reglages.tools.cancel')}</button>
               <button className="primary" type="button" onClick={() => void runRestore()} disabled={restoring || !restorePayload.trim()}>
                 <Upload size={16} /> {restoring ? 'Import…' : 'Restaurer'}
               </button>
