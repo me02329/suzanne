@@ -618,9 +618,9 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
         date,
         description,
         cleared: Boolean(raw.cleared ?? false),
-        // Données bancaires de la synchro (fiche de l'opération), telles qu'exportées.
+        // Données bancaires de la synchro (fiche de l'opération), comptes traduits.
         ...(Array.isArray(raw.bank_data) && raw.bank_data.length > 0 && JSON.stringify(raw.bank_data).length < 20_000
-          ? { bank_data: raw.bank_data as Prisma.InputJsonValue } : {}),
+          ? { bank_data: (raw.bank_data as Array<Record<string, unknown>>).map((e) => ({ ...e, account_id: accountMap.get(num(e?.account_id, -1)) ?? null })) as Prisma.InputJsonValue } : {}),
         lines: { create: lines.map((l, position) => ({ user_id, ...l, position })) },
         tags: tagIds.size > 0 ? { create: Array.from(tagIds).map((tag_id) => ({ tag_id })) } : undefined,
       },
