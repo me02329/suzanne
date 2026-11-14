@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Circle, Pencil } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Circle, Info, Pencil } from 'lucide-react';
 import { CategoryHint, CategoryName } from './CategoryName';
 import { CategorySelect } from './CategorySelect';
 import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne/shared';
@@ -246,6 +246,9 @@ export function TransactionsTable({
                         onClick={() => onToggleCleared(tx)}
                       >
                         {tx.cleared ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                      </button>
+                      <button type="button" className="icon-ghost" aria-label={t('operations.detail.open')} title={t('operations.detail.open')} onClick={() => actions.onDetails(tx)}>
+                        <Info size={16} />
                       </button>
                       <button type="button" className="icon-ghost" aria-label={t('operations.edit')} title={t('operations.edit')} onClick={() => onEdit(tx)}>
                         <Pencil size={16} />

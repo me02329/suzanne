@@ -1,0 +1,25 @@
+/* Fiche d'une opération (TransactionDetailModal). */
+.txd { display: grid; gap: 16px; min-width: 0; }
+.txd-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 20px; flex-wrap: wrap; }
+.txd-head > div { min-width: 0; flex: 1 1 260px; }
+.txd-label { margin: 0 0 4px; font-size: 17px; font-weight: 650; overflow-wrap: anywhere; }
+.txd-head p.muted { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13.5px; }
+.txd-amount { font-size: 26px; font-family: var(--num-font); white-space: nowrap; }
+.txd-amount.income { color: var(--income); }
+.txd-amount.expense { color: var(--expense); }
+.txd-section { border-top: 1px solid var(--border); padding-top: 12px; }
+.txd-section h3 { margin: 0 0 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.txd-section dl { display: grid; grid-template-columns: minmax(120px, max-content) minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: 14px; }
+.txd-section dt { color: var(--muted); }
+.txd-section dd { margin: 0; min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.txd-pre { white-space: pre-wrap; font-family: var(--num-font); font-size: 13px; }
+.txd-lines { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; width: 100%; }
+.txd-lines li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; }
+.txd-lines small { grid-column: 1 / -1; }
+.txd-hint { margin: 0; font-size: 13px; }
+.txd-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.txd-actions button { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 640px) {
+  .txd-section dl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .txd-section dd { margin-bottom: 6px; }
+}

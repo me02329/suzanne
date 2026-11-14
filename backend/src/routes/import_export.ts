@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma, prismaBase } from '../prisma.js';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
@@ -201,6 +202,8 @@ export type ParsedImportRow = {
   fingerprint?: string;
   /** Note de la ligne (ex. libellé bancaire complet d'une synchro). */
   note?: string | null;
+  /** Données brutes de la banque (synchro) : ajoutées à transactions.bank_data. */
+  bank_data?: Record<string, unknown> | null;
   cleared?: boolean;
   line: number;
   user_id: number;
@@ -340,7 +343,10 @@ export async function dedupeAndInsert(user_id: number, account_id: number | null
           await tx.transactionLine.create({
             data: { user_id: row.user_id, transaction_id: counterpart, account_id: row.account_id, amount: row.type === 'income' ? row.amount : -row.amount, position: 1 },
           });
-          await tx.transaction.update({ where: { id: counterpart }, data: { kind: 'transfer', import_fingerprint: row.fingerprint ?? undefined } });
+          // Données bancaires : celles de ce côté s'ajoutent à celles de l'autre côté.
+          const previous = row.bank_data ? (await tx.transaction.findUnique({ where: { id: counterpart }, select: { bank_data: true } }))?.bank_data : null;
+          const bankData = row.bank_data ? [...(Array.isArray(previous) ? previous : []), row.bank_data] : undefined;
+          await tx.transaction.update({ where: { id: counterpart }, data: { kind: 'transfer', import_fingerprint: row.fingerprint ?? undefined, ...(bankData ? { bank_data: bankData as Prisma.InputJsonValue } : {}) } });
           continue;
         }
         await tx.transaction.create({
@@ -349,6 +355,7 @@ export async function dedupeAndInsert(user_id: number, account_id: number | null
             kind: 'standard',
             recurring_transaction_id: recurringLink.get(row) ?? null,
             import_fingerprint: row.fingerprint ?? null,
+            ...(row.bank_data ? { bank_data: [row.bank_data] as Prisma.InputJsonValue } : {}),
             cleared: row.cleared ?? false,
             date: row.date,
             description: row.description,

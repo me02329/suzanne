@@ -2,6 +2,7 @@
 // import des opérations par le pipeline existant (règles de catégorie,
 // virements entre comptes, projections de récurrents). Voir docs/ENABLE-BANKING.md.
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../prisma.js';
 import { HttpError } from '../middleware/errors.js';
 import { round2 } from './money.js';
@@ -174,10 +175,17 @@ function pickBalance(balances: BankBalance[]): BankBalance | null {
  */
 async function adoptExisting(user_id: number, account_id: number, rows: Array<ParsedImportRow & { fingerprint: string }>) {
   if (rows.length === 0) return { rest: rows, adopted: 0 };
-  const known = new Set((await prisma.transaction.findMany({
+  const knownRows = await prisma.transaction.findMany({
     where: { user_id, import_fingerprint: { in: rows.map((r) => r.fingerprint) } },
-    select: { import_fingerprint: true },
-  })).map((t) => t.import_fingerprint));
+    select: { id: true, import_fingerprint: true, bank_data: true },
+  });
+  const known = new Set(knownRows.map((t) => t.import_fingerprint));
+  // Déjà synchronisées avant que les données bancaires soient conservées : on les complète.
+  const rowByFingerprint = new Map(rows.map((r) => [r.fingerprint, r]));
+  for (const t of knownRows) {
+    const data = rowByFingerprint.get(t.import_fingerprint!)?.bank_data;
+    if (data && t.bank_data == null) await prisma.transaction.update({ where: { id: t.id }, data: { bank_data: [data] as Prisma.InputJsonValue } });
+  }
   const fresh = rows.filter((r) => !known.has(r.fingerprint));
   if (fresh.length === 0) return { rest: [], adopted: 0 };
   const times = fresh.map((r) => r.date.getTime());
@@ -192,7 +200,7 @@ async function adoptExisting(user_id: number, account_id: number, rows: Array<Pa
       lines: { some: { account_id } },
       OR: [{ import_fingerprint: null }, { NOT: { import_fingerprint: { startsWith: ownPrefix } } }],
     },
-    select: { id: true, date: true, description: true, import_fingerprint: true, lines: { select: { account_id: true, amount: true } } },
+    select: { id: true, date: true, description: true, import_fingerprint: true, bank_data: true, lines: { select: { account_id: true, amount: true } } },
   });
   const used = new Set<number>();
   const rest: typeof fresh = [];
@@ -209,13 +217,24 @@ async function adoptExisting(user_id: number, account_id: number, rows: Array<Pa
       if (!match) { rest.push(row); continue; }
       used.add(match.id);
       adopted += 1;
-      // Déjà synchronisée depuis l'autre compte du virement : on la garde telle quelle.
-      if (match.import_fingerprint?.startsWith('eb:')) continue;
+      // Déjà synchronisée depuis l'autre compte du virement : on ajoute seulement
+      // les données bancaires de ce côté-ci (une fois).
+      if (match.import_fingerprint?.startsWith('eb:')) {
+        const entries = Array.isArray(match.bank_data) ? match.bank_data as Array<Record<string, unknown>> : [];
+        if (row.bank_data && !entries.some((e) => e.account_id === account_id)) {
+          await prisma.transaction.update({ where: { id: match.id }, data: { bank_data: [...entries, row.bank_data] as Prisma.InputJsonValue } });
+        }
+        continue;
+      }
       const old = normalize(match.description ?? '');
       const upgrade = old.length > 0 && normalize(row.description).startsWith(old) && row.description.length > (match.description ?? '').length;
       await prisma.transaction.update({
         where: { id: match.id },
-        data: { import_fingerprint: row.fingerprint, ...(upgrade ? { description: row.description } : {}) },
+        data: {
+          import_fingerprint: row.fingerprint,
+          ...(upgrade ? { description: row.description } : {}),
+          ...(row.bank_data ? { bank_data: [row.bank_data] as Prisma.InputJsonValue } : {}),
+        },
       });
     }
   }
@@ -237,6 +256,38 @@ async function fetchWithinBankLimit(client: EnableBankingClient, uid: string, da
     if (!earliest || !/^\d{4}-\d{2}-\d{2}$/.test(earliest) || earliest <= dateFrom) throw error;
     return client.transactions(uid, { dateFrom: earliest });
   }
+}
+
+/**
+ * Données bancaires conservées pour la fiche de l'opération : tout ce que la
+ * banque fournit d'utile (dates, références, contrepartie, motif complet…),
+ * sans les champs vides.
+ */
+export function bankDataOf(tx: BankTransaction, bank: string, account_id: number): Record<string, unknown> {
+  const raw: Record<string, unknown> = {
+    source: 'enable_banking',
+    bank,
+    account_id,
+    synced_at: new Date().toISOString(),
+    entry_reference: tx.entry_reference,
+    transaction_id: tx.transaction_id,
+    status: tx.status,
+    booking_date: tx.booking_date,
+    value_date: tx.value_date,
+    transaction_date: tx.transaction_date,
+    remittance_information: tx.remittance_information,
+    creditor_name: tx.creditor?.name,
+    debtor_name: tx.debtor?.name,
+    creditor_iban: tx.creditor_account?.iban,
+    debtor_iban: tx.debtor_account?.iban,
+    bank_transaction_code: tx.bank_transaction_code?.description ?? tx.bank_transaction_code?.code,
+    merchant_category_code: tx.merchant_category_code,
+    reference_number: tx.reference_number,
+    note: tx.note,
+    balance_after: tx.balance_after_transaction ? Number(tx.balance_after_transaction.amount) : undefined,
+    exchange_rate: (tx as { exchange_rate?: unknown }).exchange_rate,
+  };
+  return Object.fromEntries(Object.entries(raw).filter(([, v]) => v != null && v !== '' && !(Array.isArray(v) && v.length === 0)));
 }
 
 export async function syncLink(user_id: number, linkId: number): Promise<SyncResult> {
@@ -273,6 +324,7 @@ export async function syncLink(user_id: number, linkId: number): Promise<SyncRes
       note,
       fingerprint: `eb:${link.remote_uid.slice(0, 8)}:${base.fingerprint.slice(3)}`.slice(0, 190),
       cleared: true,
+      bank_data: bankDataOf(tx, link.connection.aspsp_name, account_id),
     });
   });
   const { rest, adopted } = await adoptExisting(user_id, account_id, rows);

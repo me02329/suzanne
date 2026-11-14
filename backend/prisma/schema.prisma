@@ -251,6 +251,10 @@ model Transaction {
   // hash de la ligne CSV brute) : un relevé réimporté n'est jamais dupliqué,
   // même si l'opération a été renommée ou recatégorisée depuis.
   import_fingerprint String?
+  // Données brutes de la banque (synchro Enable Banking) : une entrée par côté
+  // synchronisé (un virement entre deux comptes liés en a deux). Affichées dans
+  // la fiche de l'opération ; absentes pour les saisies et les anciens imports.
+  bank_data  Json?
 
   user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   recurring_transaction RecurringTransaction? @relation(fields: [recurring_transaction_id], references: [id], onDelete: SetNull)

@@ -19,6 +19,7 @@ import { RefundModal } from '../components/transactions/RefundModal';
 import { RecurringLinkModal } from '../components/transactions/RecurringLinkModal';
 import { RowMenu, useTxMenuItems, type TxActionHandlers } from '../components/transactions/RowMenu';
 import { TransactionFormModal, type TxDraft, type TxFormMode } from '../components/transactions/TransactionFormModal';
+import { TransactionDetailModal } from '../components/transactions/TransactionDetailModal';
 import { useTransactionFilters } from '../components/transactions/useTransactionFilters';
 import { useSelection } from '../components/transactions/useSelection';
 import { formatTxDate, isReadOnly, useMediaQuery } from '../components/transactions/txUtils';
@@ -33,6 +34,7 @@ type Dialog =
   | { kind: 'bulkEdit' }
   | { kind: 'trash' }
   | { kind: 'refunded'; tx: Transaction; expenses: RefundedExpense[] }
+  | { kind: 'detail'; id: number }
   | null;
 
 // Dépense remboursée par un revenu (aperçu renvoyé par l'API).
@@ -182,6 +184,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
   }, [run, t, userId]);
 
   const handlers: TxActionHandlers = useMemo(() => ({
+    onDetails: (tx) => setDialog({ kind: 'detail', id: tx.id }),
     onCopy: (tx) => setDialog({ kind: 'form', mode: 'copy', tx }),
     onLink: (tx) => setDialog({ kind: 'recurring', tx }),
     onSplit: (tx) => setDialog({ kind: 'form', mode: 'split', tx }),
@@ -310,7 +313,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
             highlightId={highlightId}
             selection={selection}
             selecting={selecting}
-            onOpen={openEdit}
+            onOpen={(tx) => setDialog({ kind: 'detail', id: tx.id })}
           />
         ) : (
           <TransactionsTable
@@ -370,6 +373,18 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
       )}
       {dialog?.kind === 'recurring' && (
         <RecurringLinkModal tx={dialog.tx} userId={userId} recurring={recurring} accountById={accountById} categoryById={categoryById} run={run} onClose={closeDialog} />
+      )}
+      {dialog?.kind === 'detail' && (
+        <TransactionDetailModal
+          userId={userId}
+          transactionId={dialog.id}
+          categoryById={categoryById}
+          accountById={accountById}
+          onEdit={(tx) => setDialog(isReadOnly(tx) ? null : { kind: 'form', mode: 'edit', tx })}
+          onAttachments={(tx) => setDialog({ kind: 'attachments', tx })}
+          onGoTo={(id) => { setDialog(null); goToTx(id); }}
+          onClose={closeDialog}
+        />
       )}
       {dialog?.kind === 'attachments' && (
         <AttachmentsModal userId={userId} transactionId={dialog.tx.id} label={txLabel(dialog.tx, categoryById)} run={run} onClose={closeDialog} />

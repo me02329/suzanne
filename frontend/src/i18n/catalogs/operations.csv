@@ -402,3 +402,53 @@ operations.pro_badge,PRO,PRO
 operations.pro_badge_hint,Compte professionnel : hors de tes revenus et dépenses personnels,Business account: excluded from your personal income and expenses
 operations.pro_excluded,{{count}} pro hors totaux,"{{count}} business, not counted"
 operations.pro_excluded_hint,"Opérations de comptes professionnels (société) : affichées, mais pas comptées dans tes revenus et dépenses personnels.","Business account transactions: shown, but not counted in your personal income and expenses."
+operations.detail.open,Détails,Details
+operations.detail.title,Détails de l'opération,Transaction details
+operations.detail.loading,Chargement…,Loading…
+operations.detail.no_account,Sans compte,No account
+operations.detail.no_label,Sans libellé,No label
+operations.detail.type_expense,Dépense,Expense
+operations.detail.type_income,Revenu,Income
+operations.detail.type_transfer,Virement entre comptes,Transfer between accounts
+operations.detail.type_trade,Ordre de bourse,Trade
+operations.detail.type_adjustment,Ajustement,Adjustment
+operations.detail.section_operation,Opération,Transaction
+operations.detail.accounts,Comptes,Accounts
+operations.detail.account,Compte,Account
+operations.detail.split,Ventilation,Split
+operations.detail.uncategorized,Sans catégorie,Uncategorized
+operations.detail.category,Catégorie,Category
+operations.detail.purchase_date,Date d'achat (carte),Purchase date (card)
+operations.detail.tags,Tags,Tags
+operations.detail.cleared,Pointée,Cleared
+operations.detail.yes,Oui,Yes
+operations.detail.no,Non,No
+operations.detail.recurring,Récurrent,Recurring
+operations.detail.recurring_linked,Liée à une opération récurrente,Linked to a recurring item
+operations.detail.refunds,Rembourse,Refunds
+operations.detail.refunded_by,Remboursée par,Refunded by
+operations.detail.note,Note,Note
+operations.detail.section_bank,Données bancaires · {{bank}},Bank data · {{bank}}
+operations.detail.full_label,Libellé complet,Full label
+operations.detail.counterparty,Contrepartie,Counterparty
+operations.detail.transaction_date,Date de l'opération,Transaction date
+operations.detail.booking_date,Date de comptabilisation,Booking date
+operations.detail.value_date,Date de valeur,Value date
+operations.detail.bank_code,Code d'opération,Transaction code
+operations.detail.mcc,Code commerçant (MCC),Merchant category code
+operations.detail.balance_after,Solde après,Balance after
+operations.detail.exchange_rate,Taux de change,Exchange rate
+operations.detail.reference,Référence bancaire,Bank reference
+operations.detail.status,Statut à la banque,Bank status
+operations.detail.section_origin,Origine,Origin
+operations.detail.origin,Provenance,Source
+operations.detail.origin_sync,Synchronisation bancaire ({{bank}}),Bank sync ({{bank}})
+operations.detail.the_bank,la banque,the bank
+operations.detail.origin_import,"Import de relevé (CSV, OFX ou QIF)","Statement import (CSV, OFX or QIF)"
+operations.detail.origin_manual,"Saisie dans Suzanne, ou import ancien sans référence","Entered in Suzanne, or an older import without reference"
+operations.detail.synced_at,Synchronisée le,Synced on
+operations.detail.created_at,Ajoutée le,Added on
+operations.detail.id,Identifiant,ID
+operations.detail.no_bank_data,Pas de données bancaires pour cette opération (saisie ou importée avant la synchronisation) : elle en aura si elle passe par une synchro.,No bank data for this transaction (entered or imported before syncing): it will get some if a sync matches it.
+operations.detail.attachments,Pièces jointes,Attachments
+operations.detail.edit,Modifier,Edit

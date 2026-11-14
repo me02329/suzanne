@@ -102,6 +102,31 @@ export interface TagRule {
 
 // Opération. Les champs « historiques » (type, amount, account_id,
 // to_account_id, to_amount, category_id, splits) sont dérivés des lignes.
+/** Données d'une opération telles que fournies par la banque (synchro Enable Banking). */
+export interface BankDataEntry {
+  source: 'enable_banking';
+  bank: string;
+  account_id: number;
+  synced_at: string;
+  entry_reference?: string;
+  transaction_id?: string;
+  status?: string;
+  booking_date?: string;
+  value_date?: string;
+  transaction_date?: string;
+  remittance_information?: string[];
+  creditor_name?: string;
+  debtor_name?: string;
+  creditor_iban?: string;
+  debtor_iban?: string;
+  bank_transaction_code?: string;
+  merchant_category_code?: string;
+  reference_number?: string;
+  note?: string;
+  balance_after?: number;
+  exchange_rate?: unknown;
+}
+
 export interface Transaction {
   id: number;
   user_id: number;
@@ -124,6 +149,10 @@ export interface Transaction {
   // Pointage : la ligne a été rapprochée du relevé bancaire.
   cleared: boolean;
   created_at: string;
+  /** Origine : « eb:… » synchro bancaire, autre valeur import de relevé, absent = saisie. */
+  import_fingerprint?: string | null;
+  /** Données brutes de la banque (une entrée par côté synchronisé). */
+  bank_data?: BankDataEntry[] | null;
   tags: Tag[];
   splits: TransactionSplit[];
   refund_allocations: RefundAllocation[];

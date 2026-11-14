@@ -69,6 +69,9 @@ describe('synchronisation bancaire', () => {
     // L'opération CSV est reprise (pas dupliquée) et gagne le libellé complet, sans les références.
     expect(txs.find((t) => t.id === old)!.description).toBe('VIR SEPA MR DUPONT JEAN — Cadeau amenagement');
     expect(txs.map((t) => t.description)).toContain('PRLV SEPA BOUYGUES TELECOM');
+    // Données bancaires conservées pour la fiche de l'opération (même reprise d'un import CSV).
+    const detail = (await api.get(`/api/users/${u}/transactions/${old}`).expect(200)).body;
+    expect(detail.bank_data).toEqual([expect.objectContaining({ source: 'enable_banking', bank: 'Banque Test', account_id: acc, entry_reference: 'R2', booking_date: '2026-10-21', remittance_information: ['VIR SEPA MR DUPONT JEAN', expect.stringContaining('Cadeau amenagement')] })]);
 
     // Deuxième synchro : rien de nouveau.
     const [again] = (await api.post(`/api/users/${u}/bank/connections/${connection.id}/sync`).expect(200)).body.results;
