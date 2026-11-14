@@ -25,7 +25,7 @@ const lang = flag('--lang') ?? 'fr';
 const full = args.includes('--full');
 const month = flag('--month');
 const BASE = process.env.BASE ?? 'http://localhost:5174';
-const ALL = ['dashboard', 'health', 'alerts', 'transactions', 'anomalies', 'accounts', 'wealth', 'investments', 'goals', 'simulator',
+const ALL = ['dashboard', 'health', 'alerts', 'transactions', 'anomalies', 'accounts', 'wealth', 'investments', 'loans', 'goals', 'simulator',
   'budgets', 'recurring', 'bills', 'forecast', 'statistics', 'assistant', 'categories', 'tags', 'rules', 'tools', 'users', 'settings'];
 const pages = args[1] && !args[1].startsWith('--') ? args[1].split(',') : ALL;
 fs.mkdirSync(out, { recursive: true });

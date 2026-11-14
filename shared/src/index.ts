@@ -30,6 +30,7 @@ export type AccountType =
   | 'cash'
   | 'credit'
   | 'loan'
+  | 'receivable'
   | 'other';
 export type CategoryType = 'expense' | 'income';
 export type RecurringFrequency = 'weekly' | 'monthly' | 'yearly';
@@ -745,6 +746,8 @@ export const ACCOUNT_TYPES: ReadonlyArray<{ value: AccountType; label: string; g
   { value: 'crypto', label: 'Crypto', group: 'crypto' },
   { value: 'credit', label: 'Carte / crédit', group: 'liabilities' },
   { value: 'loan', label: 'Emprunt', group: 'liabilities' },
+  // Argent prêté à un tiers : une créance, donc un actif.
+  { value: 'receivable', label: 'Prêt accordé', group: 'other' },
   { value: 'other', label: 'Autre', group: 'other' },
 ];
 

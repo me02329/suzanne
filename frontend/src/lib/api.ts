@@ -122,6 +122,25 @@ export interface SnapshotSuggestion {
 
 export type AiChatHistoryMessage = { role: 'user' | 'assistant'; content: string };
 
+// Prêt (compte « Emprunt » ou « Prêt accordé ») résumé par le serveur.
+export interface LoanSummary {
+  account_id: number;
+  name: string;
+  direction: 'borrowed' | 'lent';
+  currency: string;
+  archived: boolean;
+  institution_id: number | null;
+  principal: number;
+  repaid: number;
+  outstanding: number;
+  status: 'active' | 'settled';
+  start_date: string | null;
+  last_repayment_date: string | null;
+  settled_date: string | null;
+  series: Array<{ date: string; outstanding: number }>;
+  movements: Array<{ transaction_id: number; date: string; description: string | null; kind: string; amount: number; category_id: number | null }>;
+}
+
 export const api = {
   users: () => http<User[]>('/users'),
   createUser: (body: { name: string }) => http<User>('/users', { method: 'POST', body: JSON.stringify(body) }),
@@ -133,6 +152,7 @@ export const api = {
   updateAccount: (userId: number, id: number, body: Partial<CreateAccountBody> & { archived?: boolean }) => http<Account>(`/users/${userId}/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteAccount: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/accounts/${id}`, { method: 'DELETE' }),
   institutions: (userId: number) => http<Institution[]>(`/users/${userId}/institutions`),
+  loans: (userId: number) => http<LoanSummary[]>(`/users/${userId}/loans`),
   createInstitution: (userId: number, body: CreateInstitutionBody) => http<Institution>(`/users/${userId}/institutions`, { method: 'POST', body: JSON.stringify(body) }),
   updateInstitution: (userId: number, id: number, body: CreateInstitutionBody) => http<Institution>(`/users/${userId}/institutions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteInstitution: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/institutions/${id}`, { method: 'DELETE' }),

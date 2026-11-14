@@ -56,6 +56,7 @@ const Recurring = lazy(() => import('./pages/Recurring').then((m) => ({ default:
 const Forecast = lazy(() => import('./pages/Forecast').then((m) => ({ default: m.Forecast })));
 const Health = lazy(() => import('./pages/Health').then((m) => ({ default: m.Health })));
 const Goals = lazy(() => import('./pages/Goals').then((m) => ({ default: m.Goals })));
+const Loans = lazy(() => import('./pages/Loans').then((m) => ({ default: m.Loans })));
 const Investments = lazy(() => import('./pages/Investments').then((m) => ({ default: m.Investments })));
 const Alerts = lazy(() => import('./pages/Alerts').then((m) => ({ default: m.Alerts })));
 const Anomalies = lazy(() => import('./pages/Anomalies').then((m) => ({ default: m.Anomalies })));
@@ -531,6 +532,7 @@ export default function App() {
           <Route path="/bills" element={userId ? <Bills userId={userId} month={month} billsStatus={billsStatus} accounts={accounts} categories={categories} accountById={accountById} run={run} /> : null} />
           <Route path="/forecast" element={userId ? <Forecast recurring={recurring} accounts={accounts} goals={goals} summary={summary} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
           <Route path="/health" element={userId ? <Health summary={summary} recurring={recurring} budgets={budgets} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
+          <Route path="/loans" element={userId ? <Loans userId={userId} accounts={accounts} institutions={institutions} categories={categories} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/goals" element={userId ? <Goals userId={userId} goals={goals} accounts={accounts} accountById={accountById} run={run} /> : null} />
           <Route path="/investments" element={userId ? <Investments userId={userId} holdings={holdings} accounts={accounts} accountById={accountById} reportCurrency={reportCurrency} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/alerts" element={userId ? <Alerts userId={userId} alerts={alerts} triggered={triggeredAlerts} accounts={accounts} goals={goals} accountById={accountById} run={run} /> : null} />

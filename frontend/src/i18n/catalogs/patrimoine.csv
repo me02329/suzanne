@@ -329,3 +329,67 @@ patrimoine.pea_tracking.friday_prices,cours du vendredi,Friday prices
 patrimoine.pea_tracking.week,Semaine,Week
 patrimoine.pea_tracking.cumulative_paid_in,Versé cumulé,Cumulative paid in
 patrimoine.pea_tracking.change,Variation,Change
+patrimoine.loans.amount,Montant,Amount
+patrimoine.loans.borrowed,Emprunt,Borrowed
+patrimoine.loans.close_when_settled,"Prêt soldé : le clore (archiver le compte, l'historique est conservé)","Loan settled: close it (archive the account, history is kept)"
+patrimoine.loans.date,Date,Date
+patrimoine.loans.error_account,Choisis ton compte.,Pick your account.
+patrimoine.loans.error_amount,Saisis un montant positif.,Enter a positive amount.
+patrimoine.loans.error_who,Indique qui prête ou à qui tu prêtes.,Say who lends or whom you lend to.
+patrimoine.loans.explain_borrowed,"Un virement du compte de prêt vers ton compte : l'argent arrive, ta dette apparaît, et ce n'est pas compté comme un revenu.","A transfer from the loan account to your account: the money arrives, your debt shows up, and it does not count as income."
+patrimoine.loans.explain_paid_for_me,"Une dépense payée depuis le compte de prêt : l'achat compte bien dans tes dépenses, ta dette apparaît, et ton compte bancaire ne bouge pas.","An expense paid from the loan account: the purchase counts in your expenses, your debt shows up, and your bank account does not move."
+patrimoine.loans.explain_lent,"Un virement de ton compte vers le compte de prêt : l'argent part, ce qu'on te doit apparaît, et ce n'est pas compté comme une dépense.","A transfer from your account to the loan account: the money leaves, what you are owed shows up, and it does not count as an expense."
+patrimoine.loans.from_my_account,Depuis mon compte,From my account
+patrimoine.loans.from_whom,Qui te prête ?,Who lends to you?
+patrimoine.loans.help_account,"Un compte par prêt (proche, banque…) : son solde indique ce qu'il reste à rembourser.","One account per loan (relative, bank…): its balance shows what is left to repay."
+patrimoine.loans.help_bank,"Prêt bancaire : chaque mensualité = un virement pour le capital + une dépense pour les intérêts et l'assurance (le vrai coût).","Bank loan: each instalment = a transfer for the principal + an expense for interest and insurance (the actual cost)."
+patrimoine.loans.help_not_income,"Recevoir ou rembourser un prêt n'est ni un revenu ni une dépense : ce sont des virements avec le compte de prêt.","Receiving or repaying a loan is neither income nor expense: they are transfers with the loan account."
+patrimoine.loans.help_paid_for_me,"Un proche paie un achat à ta place : la dépense est enregistrée sur le compte de prêt, puis tu le rembourses par virements.","A relative pays for something on your behalf: the expense is recorded on the loan account, then you repay them with transfers."
+patrimoine.loans.help_title,Comment Suzanne suit les prêts,How Suzanne tracks loans
+patrimoine.loans.history,Historique,History
+patrimoine.loans.i_owe,Je dois,I owe
+patrimoine.loans.i_owe_short,Je dois,I owe
+patrimoine.loans.institution,Banque ou organisme (facultatif),Bank or organisation (optional)
+patrimoine.loans.label,Libellé (facultatif),Label (optional)
+patrimoine.loans.label_lent,Prêt accordé,Loan granted
+patrimoine.loans.label_placeholder,ex. Apport pour un achat,e.g. Down payment
+patrimoine.loans.label_purchase_placeholder,ex. Canapé (payé par Papa),e.g. Sofa (paid by Dad)
+patrimoine.loans.label_received,Prêt reçu,Loan received
+patrimoine.loans.label_repayment,Remboursement {{name}},Repayment {{name}}
+patrimoine.loans.last_repayment,dernier remboursement le {{date}},last repayment on {{date}}
+patrimoine.loans.lent,Prêt accordé,Lent
+patrimoine.loans.loading,Chargement…,Loading…
+patrimoine.loans.mode_borrowed,On me prête de l'argent,Someone lends me money
+patrimoine.loans.mode_borrowed_hint,Un proche ou une banque me vire une somme.,A relative or a bank transfers me a sum.
+patrimoine.loans.mode_paid_for_me,On a payé quelque chose pour moi,Someone paid for something for me
+patrimoine.loans.mode_paid_for_me_hint,"Un proche a réglé un achat à ma place, je le rembourserai.","A relative paid for a purchase on my behalf, I will pay them back."
+patrimoine.loans.mode_lent,Je prête de l'argent,I lend money
+patrimoine.loans.mode_lent_hint,Je vire une somme à quelqu'un qui me la rendra.,I transfer a sum to someone who will pay it back.
+patrimoine.loans.name_borrowed,Prêt — {{who}},Loan — {{who}}
+patrimoine.loans.name_lent,Prêt à {{who}},Loan to {{who}}
+patrimoine.loans.new_loan,Nouveau prêt,New loan
+patrimoine.loans.new_loan_option,Nouveau prêt,New loan
+patrimoine.loans.no_active,"Aucun prêt en cours. Quand on te prête de l'argent, ou que tu en prêtes, enregistre-le ici : il ne faussera pas tes revenus et tes dépenses.","No active loan. When someone lends you money, or you lend some, record it here: it will not skew your income and expenses."
+patrimoine.loans.no_category,Choisir une catégorie,Pick a category
+patrimoine.loans.no_institution,"Aucune (un proche, un ami…)","None (a relative, a friend…)"
+patrimoine.loans.no_label,Sans libellé,No label
+patrimoine.loans.of_principal,restant sur {{amount}},left of {{amount}}
+patrimoine.loans.owed_to_me,On me doit,Owed to me
+patrimoine.loans.owed_to_me_short,On me doit,Owed to me
+patrimoine.loans.purchase_category,Catégorie de l'achat,Purchase category
+patrimoine.loans.record_repayment,Enregistrer un remboursement,Record a repayment
+patrimoine.loans.remaining,Reste dû,Remaining
+patrimoine.loans.remaining_is,Reste dû : {{amount}}.,Remaining: {{amount}}.
+patrimoine.loans.repaid_pct,{{pct}} % remboursé,{{pct}}% repaid
+patrimoine.loans.repay_title,Remboursement — {{name}},Repayment — {{name}}
+patrimoine.loans.repayment_saved,Remboursement enregistré,Repayment saved
+patrimoine.loans.save,Enregistrer,Save
+patrimoine.loans.saved,Prêt enregistré,Loan saved
+patrimoine.loans.settled_n,Prêts terminés ({{n}}),Settled loans ({{n}})
+patrimoine.loans.since,depuis le {{date}},since {{date}}
+patrimoine.loans.to_my_account,Vers mon compte,To my account
+patrimoine.loans.to_whom,À qui ?,To whom?
+patrimoine.loans.transactions,Opérations,Transactions
+patrimoine.loans.what_happened,Que s'est-il passé ?,What happened?
+patrimoine.loans.which_loan,Prêt concerné,Which loan
+patrimoine.loans.who_placeholder,"ex. Papa, Alex, ma banque","e.g. Dad, Alex, my bank"

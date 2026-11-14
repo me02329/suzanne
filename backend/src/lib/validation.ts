@@ -35,6 +35,7 @@ export const createAccountSchema = z.object({
     'cash',
     'credit',
     'loan',
+    'receivable',
     'other',
   ]).default('checking'),
   currency: currencyCode.default('EUR'),

@@ -23,10 +23,12 @@ import { aiRouter } from './ai.js';
 import { settingsRouter } from './settings.js';
 import { tagsRouter } from './tags.js';
 import { pricesRouter } from './prices.js';
+import { loansRouter } from './loans.js';
 
 export const apiRouter = Router();
 apiRouter.use(usersRouter);
 apiRouter.use(accountsRouter);
+apiRouter.use(loansRouter);
 apiRouter.use(categoriesRouter);
 apiRouter.use(transactionsRouter);
 apiRouter.use(budgetsRouter);

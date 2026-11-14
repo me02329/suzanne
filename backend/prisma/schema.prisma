@@ -33,6 +33,7 @@ enum AccountType {
   cash
   credit
   loan
+  receivable
   other
 }
 
