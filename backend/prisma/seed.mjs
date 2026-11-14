@@ -44,6 +44,8 @@ const categories = [
   ['Intérêts', 'income', '#7c3aed', 'percent'],
   ['Vente occasion', 'income', '#db2777', 'tag'],
   ['Cadeau reçu', 'income', '#f43f5e', 'gift'],
+  ['Prêt reçu', 'income', '#0f766e', 'landmark'],
+  ['Échange', 'income', '#ca8a04', 'arrow-left-right'],
   ['Autre revenu', 'income', '#64748b', 'plus-circle'],
 ];
 

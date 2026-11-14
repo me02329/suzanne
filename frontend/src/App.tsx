@@ -31,6 +31,7 @@ import { useGlobalShortcuts } from './lib/useGlobalShortcuts';
 import { Modal } from './components/Modal';
 import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
+import { SuzanneMark } from './components/SuzanneMark';
 import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
 import { TokenModal } from './components/TokenModal';
@@ -405,7 +406,7 @@ export default function App() {
     <div className="shell">
       <aside className="rail" aria-label={t('ui.app.main_navigation')}>
         <div className="rail-brand">
-          <span className="rail-mark" aria-hidden>S</span>
+          <span className="rail-mark" aria-hidden><SuzanneMark size={24} /></span>
           <span className="rail-name">Suzanne</span>{/* i18n-ignore : nom de l'application */}
         </div>
         <nav className="rail-nav">

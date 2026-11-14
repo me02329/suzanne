@@ -1,9 +1,9 @@
 // Bump CACHE_VERSION à chaque changement de stratégie : l'activate purge les
 // anciens caches. Les assets hashés s'accumuleraient sinon à chaque
 // déploiement, donc le cache runtime est aussi borné (MAX_RUNTIME_ENTRIES, FIFO).
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `suzanne-${CACHE_VERSION}`;
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon.svg'];
+const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png'];
 const MAX_RUNTIME_ENTRIES = 80;
 
 self.addEventListener('install', (event) => {
