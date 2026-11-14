@@ -24,6 +24,7 @@ import { DrilldownPopover } from '../components/DrilldownPopover';
 import { EmptyChart } from '../components/EmptyChart';
 import '../styles/pages/plan.css';
 import '../styles/pages/statistics.css';
+import { useTranslation } from 'react-i18next';
 
 // État du popover de drill-down : où il est ancré, ce qu'on a cliqué, et les
 // transactions correspondantes une fois chargées.
@@ -42,6 +43,7 @@ export function Statistics({ userId, reportCurrency, accountById }: {
   reportCurrency: string;
   accountById: Map<number, Account>;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [range, setRange] = usePersistedState('stats_range', '1y');
   const [excludeUncategorized, setExcludeUncategorized] = usePersistedState('stats_exclude_uncategorized', true);
@@ -154,22 +156,22 @@ export function Statistics({ userId, reportCurrency, accountById }: {
   return (
     <section className="pg stats-page">
       <div className="st-controls">
-        <select value={range} onChange={(e) => setRange(e.target.value)} aria-label="Période">
-          <option value="3m">3 mois</option>
-          <option value="6m">6 mois</option>
-          <option value="1y">12 mois</option>
-          <option value="2y">2 ans</option>
-          <option value="all">Tout</option>
-          <option value="custom">Personnalisée…</option>
+        <select value={range} onChange={(e) => setRange(e.target.value)} aria-label={t('analyses.statistics.period')}>
+          <option value="3m">{t('analyses.statistics.3_months')}</option>
+          <option value="6m">{t('analyses.statistics.6_months')}</option>
+          <option value="1y">{t('analyses.statistics.12_months')}</option>
+          <option value="2y">{t('analyses.statistics.2_years')}</option>
+          <option value="all">{t('analyses.statistics.all')}</option>
+          <option value="custom">{t('analyses.statistics.custom')}</option>
         </select>
         {isCustom && (
           <>
-            <label className="st-date">Du <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /></label>
-            <label className="st-date">Au <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></label>
+            <label className="st-date">{t('analyses.statistics.from')} <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /></label>
+            <label className="st-date">{t('analyses.statistics.to')} <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></label>
           </>
         )}
         <label className="st-check">
-          <input type="checkbox" checked={excludeUncategorized} onChange={(e) => setExcludeUncategorized(e.target.checked)} /> Exclure le non-catégorisé
+          <input type="checkbox" checked={excludeUncategorized} onChange={(e) => setExcludeUncategorized(e.target.checked)} />  {t('analyses.statistics.exclude_uncategorised')}
         </label>
       </div>
       {error && <div className="pg-alert" role="alert">{error}</div>}
@@ -177,26 +179,27 @@ export function Statistics({ userId, reportCurrency, accountById }: {
       <div className="pg-hero">
         <div>
           <span className="pg-kicker">
-            Dépenses · {isCustom && !customReady ? 'choisis une période' : data ? `${dateFr(data.from)} → ${dateFr(data.to)}` : loading ? 'chargement…' : '—'}
+            
+            {t('analyses.statistics.expenses')} {isCustom && !customReady ? 'choisis une période' : data ? `${dateFr(data.from)} → ${dateFr(data.to)}` : loading ? 'chargement…' : '—'}
           </span>
           <strong className="pg-hero-value">{money(totalDisplayed)}</strong>
           <p className="pg-hero-sub">
-            <strong>{money(averagePerMonth)}</strong> par mois en moyenne
-            {data && excludeUncategorized && data.total_uncategorized > 0 && <> · {money(data.total_uncategorized)} non catégorisés exclus</>}
+            <strong>{money(averagePerMonth)}</strong>  {t('analyses.statistics.per_month_on_average')}
+            {data && excludeUncategorized && data.total_uncategorized > 0 && <> · {money(data.total_uncategorized)}  {t('analyses.statistics.uncategorised_excluded')}</>}
           </p>
         </div>
       </div>
 
       <div className="pg-stats">
-        <div className="pg-stat"><span>Transactions</span><strong>{data?.transactions_count ?? 0}</strong></div>
-        <div className="pg-stat"><span>Catégories</span><strong>{byCategory.length}</strong></div>
-        <div className="pg-stat"><span>Mois couverts</span><strong>{monthsCount}</strong></div>
-        <div className="pg-stat"><span>Par jour</span><strong>{money(rangeDays > 0 ? totalDisplayed / rangeDays : 0)}</strong></div>
+        <div className="pg-stat"><span>{t('analyses.statistics.transactions')}</span><strong>{data?.transactions_count ?? 0}</strong></div>
+        <div className="pg-stat"><span>{t('analyses.statistics.categories')}</span><strong>{byCategory.length}</strong></div>
+        <div className="pg-stat"><span>{t('analyses.statistics.months_covered')}</span><strong>{monthsCount}</strong></div>
+        <div className="pg-stat"><span>{t('analyses.statistics.per_day')}</span><strong>{money(rangeDays > 0 ? totalDisplayed / rangeDays : 0)}</strong></div>
       </div>
 
       <div className="st-grid">
         <div className="pg-card">
-          <div className="pg-card-head"><h2>Par catégorie</h2></div>
+          <div className="pg-card-head"><h2>{t('analyses.statistics.by_category')}</h2></div>
           <div className="st-split">
             <div className="st-donut">
               {donutRows.length > 0 ? (
@@ -257,7 +260,7 @@ export function Statistics({ userId, reportCurrency, accountById }: {
         </div>
 
         <div className="pg-card">
-          <div className="pg-card-head"><h2>Top marchands</h2></div>
+          <div className="pg-card-head"><h2>{t('analyses.statistics.top_merchants')}</h2></div>
           {merchantRows.length > 0 ? (
             <ul className="st-bars">
               {merchantRows.map((row) => (
@@ -266,19 +269,19 @@ export function Statistics({ userId, reportCurrency, accountById }: {
                     <span className="st-bar-label" title={row.description}>{row.label}</span>
                     <strong>{money(row.amount)}</strong>
                     <span className="st-bar"><span style={{ width: `${maxMerchant > 0 ? (row.amount / maxMerchant) * 100 : 0}%` }} /></span>
-                    <small>{row.transactions_count} opération{row.transactions_count > 1 ? 's' : ''}</small>
+                    <small>{row.transactions_count}  {t('analyses.statistics.transaction')}{row.transactions_count > 1 ? 's' : ''}</small>
                   </button>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="pg-empty">Aucun marchand identifiable. Ajoute des libellés à tes transactions.</p>
+            <p className="pg-empty">{t('analyses.statistics.no_identifiable_merchant_add_labels')}</p>
           )}
         </div>
       </div>
 
       <div className="pg-card">
-        <div className="pg-card-head"><h2>Dépenses par mois</h2></div>
+        <div className="pg-card-head"><h2>{t('analyses.statistics.expenses_by_month')}</h2></div>
         <div className="pg-card-body">
           <div className="pg-chart">
             {monthly.length > 0 ? (
@@ -296,11 +299,11 @@ export function Statistics({ userId, reportCurrency, accountById }: {
               <EmptyChart message="Pas encore d'historique mensuel." />
             )}
           </div>
-          {averagePerMonth > 0 && <p className="pg-note">Pointillés : moyenne mensuelle ({money(averagePerMonth)}).</p>}
+          {averagePerMonth > 0 && <p className="pg-note">{t('analyses.statistics.dotted_line_monthly_average')}{money(averagePerMonth)}).</p>}
         </div>
       </div>
 
-      <h2 className="st-section">Cashflow &amp; épargne</h2>
+      <h2 className="st-section">{t('analyses.statistics.cashflow_savings')}</h2>
       <CashflowTrends summary={cashflowSummary} reportCurrency={reportCurrency} />
 
       {drill && (

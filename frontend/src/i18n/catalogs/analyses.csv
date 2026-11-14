@@ -37,3 +37,27 @@ analyses.simulator.beyond_this_monthly_deposits_stop,"Au-delà, les versements m
 analyses.simulator.cap_reached_in_year_n,plafond atteint en {{n}}e année,cap reached in year {{n}}
 analyses.simulator.amount_per_month,{{amount}}/mois,{{amount}}/month
 analyses.simulator.capital_only,capital seul,capital only
+analyses.statistics.period,Période,Period
+analyses.statistics.3_months,3 mois,3 months
+analyses.statistics.6_months,6 mois,6 months
+analyses.statistics.12_months,12 mois,12 months
+analyses.statistics.2_years,2 ans,2 years
+analyses.statistics.all,Tout,All
+analyses.statistics.custom,Personnalisée…,Custom…
+analyses.statistics.from,Du,From
+analyses.statistics.to,Au,To
+analyses.statistics.exclude_uncategorised,Exclure le non-catégorisé,Exclude uncategorised
+analyses.statistics.expenses,Dépenses ·,Expenses ·
+analyses.statistics.per_month_on_average,par mois en moyenne,per month on average
+analyses.statistics.uncategorised_excluded,non catégorisés exclus,uncategorised excluded
+analyses.statistics.transactions,Transactions,Transactions
+analyses.statistics.categories,Catégories,Categories
+analyses.statistics.months_covered,Mois couverts,Months covered
+analyses.statistics.per_day,Par jour,Per day
+analyses.statistics.by_category,Par catégorie,By category
+analyses.statistics.top_merchants,Top marchands,Top merchants
+analyses.statistics.transaction,opération,transaction
+analyses.statistics.no_identifiable_merchant_add_labels,Aucun marchand identifiable. Ajoute des libellés à tes transactions.,No identifiable merchant. Add labels to your transactions.
+analyses.statistics.expenses_by_month,Dépenses par mois,Expenses by month
+analyses.statistics.dotted_line_monthly_average,Pointillés : moyenne mensuelle (,Dotted line: monthly average (
+analyses.statistics.cashflow_savings,Cashflow & épargne,Cashflow & savings
