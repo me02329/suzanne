@@ -6,7 +6,7 @@
  * le relancer ne duplique rien).
  *
  *   NJORD_DATABASE_URL=postgresql://… npx tsx backend/scripts/import-njord.ts \
- *     --user "Démo" [--account "PEA"] [--from-account "Compte courant"] \
+ *     --user "Mon profil" [--account "PEA"] [--from-account "Compte courant"] \
  *     [--out njord-export.json] [--dry-run]
  *
  * Correspondance :
