@@ -169,6 +169,13 @@ describe('golden', () => {
       }
       return v;
     };
+    // Le « Compte courant » créé avec le profil est daté du jour de création :
+    // sa date dépend du jour où le test tourne, pas des calculs.
+    for (const side of [actual, expected]) {
+      for (const a of (side.accounts ?? []) as Array<{ name: string; initial_balance_date?: string }>) {
+        if (a.name === 'Compte courant') a.initial_balance_date = '(jour de création du profil)';
+      }
+    }
     for (const key of Object.keys(expected)) { normalize(actual[key]); normalize(expected[key]); }
     const mismatches = Object.keys(expected).filter((key) => JSON.stringify(actual[key]) !== JSON.stringify(expected[key]));
     for (const key of mismatches) {
