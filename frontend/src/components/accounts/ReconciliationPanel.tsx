@@ -34,7 +34,9 @@ export function ReconciliationPanel({ userId, accountId, currency, refreshKey, r
 
   if (!data || data.periods.length === 0) return null;
   const fmt = (v: number) => money(v, currency);
-  const periods = [...data.periods].reverse(); // plus récente d'abord
+  // Plus récente d'abord ; les périodes antérieures à l'historique d'opérations sont écartées.
+  const periods = data.periods.filter((p) => !p.no_history).reverse();
+  const beforeHistory = data.periods.length - periods.length;
   const withGap = periods.filter((p) => Math.abs(p.gap) >= 0.01);
   const visible = showAll ? periods : withGap.slice(0, 8);
 
@@ -97,6 +99,9 @@ export function ReconciliationPanel({ userId, accountId, currency, refreshKey, r
           <button type="button" className="secondary rc-more" onClick={() => setShowAll((v) => !v)}>
             {showAll ? 'Écarts seulement' : `Voir les ${periods.length} périodes`}
           </button>
+        )}
+        {beforeHistory > 0 && (
+          <p className="acc-muted rc-open">{beforeHistory} relevé{beforeHistory > 1 ? 's' : ''} plus ancien{beforeHistory > 1 ? 's' : ''} que ton historique d'opérations, non rapproché{beforeHistory > 1 ? 's' : ''}.</p>
         )}
         {data.open.count > 0 && (
           <p className="acc-muted rc-open">

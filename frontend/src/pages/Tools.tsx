@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { numberOrNull } from '../lib/forms';
 import { todayIso } from '../lib/format';
-import { guessColumn, parseCsvPreview } from '../lib/csv';
+import { guessColumn, isBoursoOperationsExport, parseCsvPreview } from '../lib/csv';
 import { saveBlob, summarizeBackupImport } from '../lib/download';
 import { Modal } from '../components/Modal';
 import { StatementImportModal } from '../components/StatementImportModal';
@@ -155,9 +155,9 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
   useEffect(() => {
     if (preview.headers.length === 0) return;
     setMapping((current) => ({
-      date: current.date || guessColumn(preview.headers, ['dateOp', 'dateVal', 'date']),
-      amount: current.amount || guessColumn(preview.headers, ['amount', 'montant']),
-      description: current.description || guessColumn(preview.headers, ['label', 'suggestedLabel', 'description', 'comment']),
+      date: current.date || guessColumn(preview.headers, ['dateOp', 'Date Opération', 'dateVal', 'date']),
+      amount: current.amount || guessColumn(preview.headers, ['amount', 'montant']) || (isBoursoOperationsExport(preview.headers) ? 'Solde' : ''),
+      description: current.description || guessColumn(preview.headers, ['label', 'Libellé', 'suggestedLabel', 'description', 'comment']),
       type: current.type || guessColumn(preview.headers, ['type']),
     }));
   }, [preview.headers.join('|')]);

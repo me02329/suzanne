@@ -7,7 +7,14 @@ export function parseCsvPreview(csv: string): CsvPreview {
   const lines = csv.split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length === 0) return { headers: [], rows: [] };
   const delimiter = detectCsvDelimiter(lines[0]!);
-  const headers = splitCsvLine(lines[0]!, delimiter);
+  // En-têtes homonymes (export Boursorama : deux « Solde ») rendus uniques :
+  // « Solde », « Solde (2) »… — le serveur comprend la même convention.
+  const seen = new Map<string, number>();
+  const headers = splitCsvLine(lines[0]!, delimiter).map((h) => {
+    const n = (seen.get(h) ?? 0) + 1;
+    seen.set(h, n);
+    return n === 1 ? h : `${h} (${n})`;
+  });
   const rows = lines.slice(1, 8).map((line) => {
     const cells = splitCsvLine(line, delimiter);
     return headers.reduce<Record<string, string>>((row, header, idx) => {
@@ -47,10 +54,18 @@ export function splitCsvLine(line: string, delimiter: string): string[] {
   return cells;
 }
 
+const norm = (v: string) => v.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** Export « opérations » Boursorama : le montant est la 1re colonne « Solde ». */
+export function isBoursoOperationsExport(headers: string[]): boolean {
+  return headers.some((h) => norm(h) === 'libellecompte') && headers.includes('Solde') && headers.includes('Solde (2)');
+}
+
 export function guessColumn(headers: string[], candidates: string[]): string {
-  const normalized = new Map(headers.map((header) => [header.trim().toLowerCase().replace(/[^a-z0-9]/g, ''), header]));
+  const normalized = new Map<string, string>();
+  for (const header of headers) if (!normalized.has(norm(header))) normalized.set(norm(header), header);
   for (const candidate of candidates) {
-    const header = normalized.get(candidate.trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const header = normalized.get(norm(candidate));
     if (header) return header;
   }
   return '';

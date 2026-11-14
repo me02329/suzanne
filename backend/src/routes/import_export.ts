@@ -130,6 +130,7 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
     const amountRaw = cell(cells, mapping.amount);
     const descriptionRaw = mapping.description != null ? cell(cells, mapping.description) : '';
     const typeRaw = mapping.type != null ? cell(cells, mapping.type) : undefined;
+    const clearedRaw = mapping.cleared != null ? cell(cells, mapping.cleared) : undefined;
     const date = parseDate(dateRaw, body.date_format);
     const signedAmount = parseSignedAmount(amountRaw);
     if (!date || signedAmount === null || signedAmount === 0) {
@@ -155,9 +156,10 @@ importExportRouter.post('/users/:user_id/import.csv', asyncHandler(async (req, r
       amount: round2(Math.abs(signedAmount)),
       description,
       fingerprint: fingerprintOf(body.account_id ?? null, `csv:${rawKey}#${occurrence}`),
+      cleared: clearedRaw != null && /^(oui|yes|true|1|x)$/i.test(clearedRaw.trim()),
     });
   }
-  if (!body.allow_balance_like) assertNotBalanceColumn(headers[mapping.amount] ?? '', parsedRows);
+  if (!body.allow_balance_like) assertNotBalanceColumn(mapping.amountIsBoursoSolde ? '' : headers[mapping.amount] ?? '', parsedRows);
   res.json(await dedupeAndInsert(user_id, body.account_id ?? null, parsedRows, skipped));
 }));
 
@@ -196,6 +198,7 @@ function fingerprintOf(account_id: number | null, raw: string): string {
 
 type ParsedImportRow = {
   fingerprint?: string;
+  cleared?: boolean;
   line: number;
   user_id: number;
   account_id: number | null;
@@ -267,9 +270,42 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
   });
   // Une seule insertion batch (au lieu d'un INSERT par ligne) : import atomique
   // et beaucoup plus rapide sur les gros relevés.
+  const linkedTransfers: Array<{ line: number; transaction_id: number; date: string; amount: number }> = [];
+  const transferLink = new Map<ParsedImportRow, number>();
+  if (account_id != null && toCreate.length > 0) {
+    const TRANSFER_RX = /(\bvir\b|virement|transfert|livret|ldds|secu\d)/i;
+    const ts = toCreate.map((r) => r.date.getTime()).sort((a, b) => a - b);
+    const pad = 3 * 86400000;
+    const candidates = await prisma.transaction.findMany({
+      where: {
+        user_id,
+        kind: 'standard',
+        date: { gte: new Date(ts[0]! - pad), lte: new Date(ts[ts.length - 1]! + pad) },
+        lines: { some: { account_id: { not: account_id } } },
+      },
+      select: { id: true, date: true, description: true, lines: { select: { id: true, account_id: true, amount: true } } },
+    });
+    const used = new Set<number>();
+    for (const row of toCreate) {
+      if (!TRANSFER_RX.test(row.description)) continue;
+      const signed = row.type === 'income' ? row.amount : -row.amount;
+      const match = candidates
+        .filter((c) => !used.has(c.id) && c.lines.length === 1 && c.lines[0]!.account_id != null && c.lines[0]!.account_id !== account_id
+          && Math.abs(c.lines[0]!.amount + signed) < 0.005
+          && Math.abs(c.date.getTime() - row.date.getTime()) <= pad
+          && TRANSFER_RX.test(c.description ?? ''))
+        .sort((a, b) => Math.abs(a.date.getTime() - row.date.getTime()) - Math.abs(b.date.getTime() - row.date.getTime()))[0];
+      if (!match) continue;
+      used.add(match.id);
+      transferLink.set(row, match.id);
+      linkedTransfers.push({ line: row.line, transaction_id: match.id, date: row.date.toISOString().slice(0, 10), amount: signed });
+    }
+  }
+
   // Chaque projection ne peut être remplacée qu'une fois, par la ligne la plus proche.
   const usedProjections = new Set<number>();
   for (const row of toCreate) {
+    if (transferLink.has(row)) continue;
     const signed = row.type === 'income' ? row.amount : -row.amount;
     const candidates = projections
       .filter((p) => !usedProjections.has(p.id) && Math.sign(p.amount) === Math.sign(signed)
@@ -287,12 +323,24 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
     await prisma.$transaction(async (tx) => {
       if (usedProjections.size > 0) await tx.transaction.deleteMany({ where: { id: { in: [...usedProjections] }, user_id } });
       for (const row of toCreate) {
+        const counterpart = transferLink.get(row);
+        if (counterpart != null) {
+          // L'opération existante devient le virement : on lui ajoute la ligne
+          // de ce compte et elle perd sa catégorie (ni dépense ni revenu).
+          await tx.transactionLine.updateMany({ where: { transaction_id: counterpart }, data: { category_id: null, refund: false } });
+          await tx.transactionLine.create({
+            data: { user_id: row.user_id, transaction_id: counterpart, account_id: row.account_id, amount: row.type === 'income' ? row.amount : -row.amount, position: 1 },
+          });
+          await tx.transaction.update({ where: { id: counterpart }, data: { kind: 'transfer', import_fingerprint: row.fingerprint ?? undefined } });
+          continue;
+        }
         await tx.transaction.create({
           data: {
             user_id: row.user_id,
             kind: 'standard',
             recurring_transaction_id: recurringLink.get(row) ?? null,
             import_fingerprint: row.fingerprint ?? null,
+            cleared: row.cleared ?? false,
             date: row.date,
             description: row.description,
             lines: {
@@ -324,7 +372,7 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
       before_reference = toCreate.filter((row) => row.date < ref).length;
     }
   }
-  return { imported: toCreate.length, skipped: baseSkipped + duplicates.length, duplicates_count: duplicates.length, duplicates, before_reference, reference_date, recurring_replaced: replaced };
+  return { imported: toCreate.length - linkedTransfers.length, skipped: baseSkipped + duplicates.length, duplicates_count: duplicates.length, duplicates, before_reference, reference_date, recurring_replaced: replaced, linked_transfers: linkedTransfers };
 }
 
 // Mappings CSV sauvegardés (« profils de banque »).
@@ -575,31 +623,52 @@ function resolveMapping(
   headers: string[],
   mapping: { date?: string; amount?: string; description?: string | null; type?: string | null } | null,
 ) {
-  const byName = new Map(headers.map((header, idx) => [normalizeHeader(header), idx]));
+  // Première occurrence d'un en-tête : l'export Boursorama a DEUX colonnes
+  // « Solde » (la 1re est le montant de l'opération, la 2e le solde du compte) ;
+  // garder la dernière faisait prendre le solde pour le montant.
+  const byName = new Map<string, number>();
+  headers.forEach((header, idx) => { const k = normalizeHeader(header); if (!byName.has(k)) byName.set(k, idx); });
+  const soldeColumns = headers.map((h, idx) => (normalizeHeader(h) === 'solde' ? idx : -1)).filter((i) => i >= 0);
+  const bourso = byName.has('libellecompte') && soldeColumns.length >= 2;
   const find = (names: string[]) => {
     for (const name of names) {
+      // « Solde (2) » : n-ième colonne homonyme (convention de l'aperçu du front).
+      const nth = name.match(/^(.*) \((\d+)\)$/);
+      if (nth) {
+        const base = normalizeHeader(nth[1]!);
+        const idx = headers.map((h, i) => (normalizeHeader(h) === base ? i : -1)).filter((i) => i >= 0)[Number(nth[2]) - 1];
+        if (idx != null) return idx;
+      }
       const idx = byName.get(normalizeHeader(name));
       if (idx != null) return idx;
     }
     return -1;
   };
   const mapped = {
-    date: mapping?.date ? find([mapping.date]) : find(['date', 'dateOp', 'dateVal']),
-    amount: mapping?.amount ? find([mapping.amount]) : find(['amount', 'montant']),
-    description: mapping?.description ? find([mapping.description]) : find(['description', 'label', 'suggestedLabel', 'comment']),
+    date: mapping?.date ? find([mapping.date]) : find(['date', 'dateOp', 'Date Opération', 'dateVal', 'Date Valeur']),
+    amount: mapping?.amount ? find([mapping.amount]) : (() => {
+      const named = find(['amount', 'montant']);
+      return named >= 0 ? named : bourso ? soldeColumns[0]! : -1;
+    })(),
+    description: mapping?.description ? find([mapping.description]) : find(['description', 'label', 'Libellé', 'suggestedLabel', 'Libellé Suggéré', 'comment']),
     type: mapping?.type ? find([mapping.type]) : find(['type']),
   };
+  const cleared = find(['Pointage', 'cleared']);
   if (mapped.date < 0 || mapped.amount < 0) throw new HttpError(400, 'Colonnes date et montant introuvables dans le CSV');
   return {
     date: mapped.date,
     amount: mapped.amount,
     description: mapped.description >= 0 ? mapped.description : null,
     type: mapped.type >= 0 ? mapped.type : null,
+    cleared: cleared >= 0 ? cleared : null,
+    // Montant = 1re colonne « Solde » d'un export Boursorama : le nom trompe
+    // le garde-fou par en-tête, seule la signature des valeurs compte.
+    amountIsBoursoSolde: bourso && mapped.amount === soldeColumns[0],
   };
 }
 
 function normalizeHeader(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function cell(cells: string[], index: number | null): string | undefined {

@@ -34,6 +34,8 @@ export interface ReconciliationPeriod {
   movements: number;
   gap: number;
   count: number;
+  /** Période antérieure à la première opération du compte (rien à rapprocher). */
+  no_history?: boolean;
   adjustments: number;
 }
 export interface Reconciliation {

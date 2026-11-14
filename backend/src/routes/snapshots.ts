@@ -165,6 +165,10 @@ snapshotsRouter.get('/users/:user_id/accounts/:account_id/reconciliation', async
   const moves = lines.map((l) => ({ p: pos(l.transaction.date, 1), amount: l.amount, adjustment: l.transaction.kind === 'adjustment' }));
   const between = (from: number, to: number) => moves.filter((m) => m.p > from && m.p <= to);
   const day = (d: Date) => d.toISOString().slice(0, 10);
+  // Périodes antérieures à la première opération du compte : pas d'historique
+  // à rapprocher (relevés plus anciens que les données) — signalées, pas
+  // comptées comme écarts.
+  const firstMove = moves.reduce((m, x) => Math.min(m, x.p), Number.POSITIVE_INFINITY);
   const periods = [];
   for (let i = 0; i + 1 < anchors.length; i += 1) {
     const a = anchors[i]!; const b = anchors[i + 1]!;
@@ -178,6 +182,7 @@ snapshotsRouter.get('/users/:user_id/accounts/:account_id/reconciliation', async
       movements,
       gap: round2(expected - movements),
       count: inside.length,
+      no_history: pos(b.date, b.order) < firstMove,
       adjustments: round2(inside.filter((m) => m.adjustment).reduce((s, m) => s + m.amount, 0)),
     });
   }
@@ -188,8 +193,8 @@ snapshotsRouter.get('/users/:user_id/accounts/:account_id/reconciliation', async
     currency: account.currency,
     periods,
     open: { from: { date: day(last.date), kind: last.kind, value: last.value }, movements: round2(open.reduce((s, m) => s + m.amount, 0)), count: open.length },
-    unreconciled: periods.filter((p) => Math.abs(p.gap) >= 0.01).length,
-    total_gap: round2(periods.reduce((s, p) => s + Math.abs(p.gap), 0)),
+    unreconciled: periods.filter((p) => !p.no_history && Math.abs(p.gap) >= 0.01).length,
+    total_gap: round2(periods.filter((p) => !p.no_history).reduce((s, p) => s + Math.abs(p.gap), 0)),
   });
 }));
 

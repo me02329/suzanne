@@ -62,3 +62,50 @@ describe('import CSV : garde-fous', () => {
     expect(salaries[0]!.lines[0]!.amount).toBe(2319.32);
   });
 });
+
+// Export « opérations » Boursorama : la colonne du montant s'appelle « Solde »
+// et une 2e colonne « Solde » contient le solde du compte.
+const BOURSO_OPS = [
+  '"Date Opération";"Date Valeur";Libellé;"Libellé Suggéré";Catégorie;"Catégorie Parente";Solde;Commentaire;"Numéro Compte";"Libellé Compte";Solde;Pointage',
+  '2026-07-09;2026-07-09;"PRLV SEPA BOUYGUES TELECOM";"Bouygues Telecom";"Téléphonie";"Abonnements";-9,99;;0004;BoursoBank;2582.15;Non',
+  '2026-07-07;2026-07-07;"TDF EMIS VIA CB WESTERN";"Tdf";"Transfert";"Services";-969,99;;0004;BoursoBank;2592.14;Oui',
+  '2026-07-06;2026-07-06;"CARTE 04/07/26 IKEA VELIZY 4 CB*8344";IKEA;"Mobilier";"Vie quotidienne";-149,65;;0004;BoursoBank;3975.12;Non',
+  '2026-07-06;2026-07-04;"VIR Secu2";"Vir Secu2";"Virements reçus de comptes à comptes";"Mouvements internes créditeurs";"1 600,00";;0004;BoursoBank;524.77;Non',
+  '2026-07-06;2026-07-04;"VIR Secu1 - LIVRET DEVELOPPEMENT DUR";"Vir";"Virements reçus";"Mouvements internes créditeurs";"2 000,00";;0004;BoursoBank;524.77;Non',
+].join('\n');
+const LIVRET_OPS = [
+  '"Date Opération";"Date Valeur";Libellé;"Libellé Suggéré";Catégorie;"Catégorie Parente";Solde;Commentaire;"Numéro Compte";"Libellé Compte";Solde;Pointage',
+  '2026-07-06;2026-07-06;"VIR Secu2";"Vir Secu2";"Virements émis de comptes à comptes";"Mouvements internes débiteurs";"-1 600,00";;0002;"LIVRET A";300;Non',
+].join('\n');
+
+describe('import CSV : export « opérations » Boursorama', () => {
+  it('prend la 1re colonne « Solde » comme montant, le pointage, et relie les virements entre comptes', async () => {
+    const { u, acc } = await setup();
+    const livret = (await api.post(`/api/users/${u}/accounts`).send({ name: 'Livret A', type: 'livret_a', currency: 'EUR', initial_balance: 0, initial_balance_date: '2026-01-01' }).expect(201)).body.id as number;
+
+    const r1 = (await api.post(`/api/users/${u}/import.csv`).send({ csv: BOURSO_OPS, account_id: acc }).expect(200)).body;
+    expect(r1.imported).toBe(5);
+    const lines = await db.transactionLine.findMany({ where: { user_id: u, account_id: acc }, include: { transaction: true } });
+    expect(Math.round(lines.reduce((s, l) => s + l.amount, 0) * 100) / 100).toBe(2470.37); // -9,99 -969,99 -149,65 +1600 +2000
+    expect(lines.find((l) => l.amount === -969.99)?.transaction.cleared).toBe(true);
+
+    const r2 = (await api.post(`/api/users/${u}/import.csv`).send({ csv: LIVRET_OPS, account_id: livret }).expect(200)).body;
+    expect(r2.linked_transfers).toHaveLength(1);
+    expect(r2.imported).toBe(0);
+    const secu2 = await db.transaction.findFirst({ where: { user_id: u, description: 'VIR Secu2' }, include: { lines: true } });
+    expect(secu2?.kind).toBe('transfer');
+    expect(secu2?.lines.map((l) => [l.account_id, l.amount]).sort()).toEqual([[acc, 1600], [livret, -1600]].sort());
+    // Ni revenu ni dépense : le virement disparaît des flux du mois.
+    const dash = (await api.get(`/api/users/${u}/dashboard?month=2026-07&currency=EUR`).expect(200)).body;
+    expect(dash.income).toBe(2000); // Secu1 (contrepartie LDDS non importée) reste un revenu
+  });
+
+  it('« Solde (2) » désigne la 2e colonne Solde (le solde du compte), refusée comme montant', async () => {
+    const { acc } = await setup();
+    const u = (await db.account.findUniqueOrThrow({ where: { id: acc } })).user_id;
+    const res = await api.post(`/api/users/${u}/import.csv`)
+      .send({ csv: BOURSO_OPS, account_id: acc, mapping: { date: 'Date Opération', amount: 'Solde (2)', description: 'Libellé' } })
+      .expect(400);
+    expect(res.body.error).toMatch(/ressemble à un solde/);
+  });
+});
