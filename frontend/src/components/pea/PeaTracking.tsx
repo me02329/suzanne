@@ -7,6 +7,7 @@ import { useChartTheme, useIsNarrow } from '../../lib/chartTheme';
 import { formatDateFr, formatPct } from '../../lib/pea';
 import { EmptyChart } from '../EmptyChart';
 import type { InsightProps } from './insightTypes';
+import { useTranslation } from 'react-i18next';
 
 const signed = (v: number, fmt: (v: number) => string) => `${v >= 0 ? '+' : '−'}${fmt(Math.abs(v))}`;
 const tone = (v: number | null) => (v == null ? '' : v >= 0 ? 'income' : 'expense');
@@ -14,6 +15,7 @@ const tone = (v: number | null) => (v == null ? '' : v >= 0 ? 'income' : 'expens
 // Onglet « Suivi » : versements par mois, valeur vs versements, tableau
 // hebdomadaire (njord : PaymentsChart, PortfolioChart, WeeklyTrackingTable).
 export function PeaTracking({ flows, history, ccy, asOf, fmt }: InsightProps) {
+  const { t } = useTranslation();
   const theme = useChartTheme();
   const narrow = useIsNarrow();
   const [showAll, setShowAll] = useState(false);
@@ -31,11 +33,11 @@ export function PeaTracking({ flows, history, ccy, asOf, fmt }: InsightProps) {
     <div className="pi">
       {last && (
         <div className="kpis">
-          <div className="kpi"><span>Valeur</span><strong>{fmt(last.value)}</strong><small>au {formatDateFr(last.date)}</small></div>
-          <div className="kpi"><span>Versé (net)</span><strong>{fmt(last.cumulatedDeposits)}</strong><small>{flows.length} mouvement{flows.length > 1 ? 's' : ''}</small></div>
-          <div className="kpi"><span>+/- value</span><strong className={tone(last.gain)}>{signed(last.gain, fmt)}</strong><small className="num">{formatPct(last.gainPct)}</small></div>
+          <div className="kpi"><span>{t('patrimoine.pea_tracking.value')}</span><strong>{fmt(last.value)}</strong><small>{t('patrimoine.pea_tracking.on')} {formatDateFr(last.date)}</small></div>
+          <div className="kpi"><span>{t('patrimoine.pea_tracking.paid_in_net')}</span><strong>{fmt(last.cumulatedDeposits)}</strong><small>{flows.length}  {t('patrimoine.pea_tracking.movement')}{flows.length > 1 ? 's' : ''}</small></div>
+          <div className="kpi"><span>{t('patrimoine.pea_tracking.value_2')}</span><strong className={tone(last.gain)}>{signed(last.gain, fmt)}</strong><small className="num">{formatPct(last.gainPct)}</small></div>
           <div className="kpi">
-            <span>Dernière semaine</span>
+            <span>{t('patrimoine.pea_tracking.last_week')}</span>
             <strong className={tone(lastWeek?.change ?? null)}>{lastWeek?.change != null ? signed(lastWeek.change, fmt) : '—'}</strong>
             <small className="num">{lastWeek ? `${formatPct(lastWeek.changePct)} · hors versements` : 'hors versements'}</small>
           </div>
@@ -43,7 +45,7 @@ export function PeaTracking({ flows, history, ccy, asOf, fmt }: InsightProps) {
       )}
 
       <section className="pg-section">
-        <div className="pg-section-head"><h2>Versements par mois</h2></div>
+        <div className="pg-section-head"><h2>{t('patrimoine.pea_tracking.deposits_by_month')}</h2></div>
         <div className="pi-chart">
           {months.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
@@ -62,7 +64,7 @@ export function PeaTracking({ flows, history, ccy, asOf, fmt }: InsightProps) {
       </section>
 
       <section className="pg-section">
-        <div className="pg-section-head"><h2>Valeur et versements</h2></div>
+        <div className="pg-section-head"><h2>{t('patrimoine.pea_tracking.value_and_deposits')}</h2></div>
         <div className="pi-chart">
           {rows.length > 1 ? (
             <ResponsiveContainer width="100%" height="100%">
@@ -86,7 +88,7 @@ export function PeaTracking({ flows, history, ccy, asOf, fmt }: InsightProps) {
       </section>
 
       <section className="pg-section">
-        <div className="pg-section-head"><h2>Suivi hebdomadaire</h2><span className="acc-muted">cours du vendredi</span></div>
+        <div className="pg-section-head"><h2>{t('patrimoine.pea_tracking.weekly_tracking')}</h2><span className="acc-muted">{t('patrimoine.pea_tracking.friday_prices')}</span></div>
         {rows.length === 0 ? (
           <p className="acc-muted">{history.status === 'loading' ? 'Chargement…' : 'Pas encore de suivi.'}</p>
         ) : (
@@ -94,16 +96,16 @@ export function PeaTracking({ flows, history, ccy, asOf, fmt }: InsightProps) {
             <div className="pea-table-wrap">
               <table className="pea-table pi-week">
                 <thead>
-                  <tr><th>Semaine</th><th className="r">Valeur</th><th className="r">Versé cumulé</th><th className="r">+/- value</th><th className="r">Variation</th></tr>
+                  <tr><th>{t('patrimoine.pea_tracking.week')}</th><th className="r">{t('patrimoine.pea_tracking.value')}</th><th className="r">{t('patrimoine.pea_tracking.cumulative_paid_in')}</th><th className="r">{t('patrimoine.pea_tracking.value_2')}</th><th className="r">{t('patrimoine.pea_tracking.change')}</th></tr>
                 </thead>
                 <tbody>
                   {visible.map((r) => (
                     <tr key={r.date}>
                       <td className="pea-title"><strong>{r.date === asOf ? 'Aujourd’hui' : formatDateFr(r.date)}</strong>{r.flow !== 0 && <span>{r.flow > 0 ? 'versement ' : 'retrait '}{signed(r.flow, fmt)}</span>}</td>
-                      <td className="r num pea-value" data-label="Valeur">{fmt(r.value)}</td>
-                      <td className="r num" data-label="Versé cumulé">{fmt(r.cumulatedDeposits)}</td>
-                      <td className={`r num ${tone(r.gain)}`} data-label="+/- value">{signed(r.gain, fmt)} <small>{formatPct(r.gainPct)}</small></td>
-                      <td className={`r num ${tone(r.change)}`} data-label="Variation">{r.change == null ? '—' : <>{signed(r.change, fmt)} <small>{formatPct(r.changePct)}</small></>}</td>
+                      <td className="r num pea-value" data-label={t('patrimoine.pea_tracking.value')}>{fmt(r.value)}</td>
+                      <td className="r num" data-label={t('patrimoine.pea_tracking.cumulative_paid_in')}>{fmt(r.cumulatedDeposits)}</td>
+                      <td className={`r num ${tone(r.gain)}`} data-label={t('patrimoine.pea_tracking.value_2')}>{signed(r.gain, fmt)} <small>{formatPct(r.gainPct)}</small></td>
+                      <td className={`r num ${tone(r.change)}`} data-label={t('patrimoine.pea_tracking.change')}>{r.change == null ? '—' : <>{signed(r.change, fmt)} <small>{formatPct(r.changePct)}</small></>}</td>
                     </tr>
                   ))}
                 </tbody>

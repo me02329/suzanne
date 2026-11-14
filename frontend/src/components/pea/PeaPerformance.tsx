@@ -19,6 +19,7 @@ import { formatDateFr, formatPct } from '../../lib/pea';
 import { EmptyChart } from '../EmptyChart';
 import type { InsightProps } from './insightTypes';
 import { localeTag } from '../../i18n';
+import { useTranslation } from 'react-i18next';
 
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 const MONTHS_LONG = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -34,6 +35,7 @@ function heat(r: number | null): CSSProperties | undefined {
 // Onglet « Performance » : TWR (versements neutralisés), heatmap mensuelle,
 // drawdown, comparaison à un indice (njord : PerfHeatmap, analytics, benchmark).
 export function PeaPerformance({ flows, history, currentValue, asOf, ccy, fmt }: InsightProps) {
+  const { t } = useTranslation();
   const theme = useChartTheme();
   const rows = useMemo(() => buildTracking(history.values, flows), [history.values, flows]);
   const index = useMemo(() => twrIndex(trackingToFlowPoints(rows)), [rows]);
@@ -55,38 +57,38 @@ export function PeaPerformance({ flows, history, currentValue, asOf, ccy, fmt }:
   if (history.status !== 'ready' && rows.length === 0) {
     return <p className="acc-muted">{history.status === 'error' ? 'Historique indisponible.' : 'Valorisation de l’historique…'}</p>;
   }
-  if (index.length < 2) return <p className="acc-muted">Pas encore assez d’historique pour mesurer la performance.</p>;
+  if (index.length < 2) return <p className="acc-muted">{t('patrimoine.pea_performance.not_enough_history_yet_to')}</p>;
 
   const chart = index.map((p) => ({ date: p.date, base: p.index * 100 }));
 
   return (
     <div className="pi">
       <div className="pi-hero">
-        <span className="acc-kicker">Performance depuis le {formatDateFr(index[0]!.date)}</span>
+        <span className="acc-kicker">{t('patrimoine.pea_performance.performance_since')} {formatDateFr(index[0]!.date)}</span>
         <strong className={`pi-hero-value num ${tone(cumulative)}`}>{formatPct(cumulative)}</strong>
-        <span className="acc-muted">pondérée par le temps : les versements et retraits ne comptent pas comme des gains.</span>
+        <span className="acc-muted">{t('patrimoine.pea_performance.time_weighted_deposits_and_withdrawals')}</span>
       </div>
       <div className="kpis">
-        <div className="kpi"><span>Annualisée</span><strong className={tone(annualized)}>{formatPct(annualized)}</strong><small>{annualized == null ? 'moins d’un an' : 'TWR par an'}</small></div>
+        <div className="kpi"><span>{t('patrimoine.pea_performance.annualised')}</span><strong className={tone(annualized)}>{formatPct(annualized)}</strong><small>{annualized == null ? 'moins d’un an' : 'TWR par an'}</small></div>
         <div className="kpi">
-          <span>Baisse maximale</span>
+          <span>{t('patrimoine.pea_performance.maximum_drawdown')}</span>
           <strong className={dd.maxDrawdownPct > 0 ? 'expense' : ''}>{dd.maxDrawdownPct > 0 ? formatPct(-dd.maxDrawdownPct) : '0 %'}</strong>
           <small>{dd.peakDate && dd.troughDate ? `${formatDateFr(dd.peakDate, { month: 'short', year: 'numeric' })} → ${formatDateFr(dd.troughDate, { month: 'short', year: 'numeric' })}` : 'aucune'}</small>
         </div>
         <div className="kpi">
-          <span>Rétablie</span>
+          <span>{t('patrimoine.pea_performance.recovered')}</span>
           <strong>{dd.maxDrawdownPct === 0 ? '—' : dd.recoveryDate ? formatDateFr(dd.recoveryDate, { month: 'short', year: 'numeric' }) : 'Pas encore'}</strong>
-          <small>retour au plus haut</small>
+          <small>{t('patrimoine.pea_performance.back_to_high')}</small>
         </div>
         <div className="kpi">
-          <span>Sous le plus haut</span>
+          <span>{t('patrimoine.pea_performance.below_high')}</span>
           <strong className={dd.currentDrawdownPct > 0.05 ? 'expense' : ''}>{dd.currentDrawdownPct > 0.05 ? formatPct(-dd.currentDrawdownPct) : 'Au plus haut'}</strong>
-          <small>aujourd’hui</small>
+          <small>{t('patrimoine.pea_performance.today')}</small>
         </div>
       </div>
 
       <section className="pg-section">
-        <div className="pg-section-head"><h2>Indice de performance</h2><span className="acc-muted">base 100</span></div>
+        <div className="pg-section-head"><h2>{t('patrimoine.pea_performance.performance_index')}</h2><span className="acc-muted">{t('patrimoine.pea_performance.base_100')}</span></div>
         <div className="pi-chart">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -101,12 +103,12 @@ export function PeaPerformance({ flows, history, currentValue, asOf, ccy, fmt }:
       </section>
 
       <section className="pg-section">
-        <div className="pg-section-head"><h2>Performance mensuelle</h2></div>
-        <div className="pi-heat" role="table" aria-label="Performance mensuelle">
+        <div className="pg-section-head"><h2>{t('patrimoine.pea_performance.monthly_performance')}</h2></div>
+        <div className="pi-heat" role="table" aria-label={t('patrimoine.pea_performance.monthly_performance')}>
           <div className="pi-heat-row pi-heat-head" role="row">
             <span role="columnheader" />
             {MONTHS.map((m, i) => <span key={i} role="columnheader" title={MONTHS_LONG[i]}>{m}</span>)}
-            <span role="columnheader">Année</span>
+            <span role="columnheader">{t('patrimoine.pea_performance.year')}</span>
           </div>
           {years.map((y) => (
             <div key={y.year} className="pi-heat-row" role="row">
@@ -117,11 +119,11 @@ export function PeaPerformance({ flows, history, currentValue, asOf, ccy, fmt }:
                   {r == null ? '' : (r >= 0 ? '+' : '−') + Math.abs(r).toLocaleString(localeTag(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })}
                 </span>
               ))}
-              <span role="cell" className={`pi-heat-total num ${tone(y.total)}`}>{formatPct(y.total)}{y.partial && <small> partiel</small>}</span>
+              <span role="cell" className={`pi-heat-total num ${tone(y.total)}`}>{formatPct(y.total)}{y.partial && <small>  {t('patrimoine.pea_performance.partial')}</small>}</span>
             </div>
           ))}
         </div>
-        <p className="pea-foot">En %, sur l’indice pondéré par le temps (cours du vendredi).</p>
+        <p className="pea-foot">{t('patrimoine.pea_performance.in_on_time_weighted_index')}</p>
       </section>
 
       <Benchmark flows={flows} values={history.values} currentValue={currentValue} asOf={asOf} ccy={ccy} fmt={fmt} />
@@ -130,6 +132,7 @@ export function PeaPerformance({ flows, history, currentValue, asOf, ccy, fmt }:
 }
 
 function Benchmark({ flows, values, currentValue, asOf, ccy, fmt }: Pick<InsightProps, 'flows' | 'currentValue' | 'asOf' | 'ccy' | 'fmt'> & { values: Array<{ date: string; value: number }> }) {
+  const { t } = useTranslation();
   const theme = useChartTheme();
   const [symbol, setSymbol] = usePersistedState('pea_benchmark_symbol', 'CW8.PA');
   const [draft, setDraft] = useState(symbol);
@@ -162,28 +165,29 @@ function Benchmark({ flows, values, currentValue, asOf, ccy, fmt }: Pick<Insight
   return (
     <section className="pg-section">
       <div className="pg-section-head">
-        <h2>Face à un indice</h2>
+        <h2>{t('patrimoine.pea_performance.against_index')}</h2>
         <form className="pi-bench-form" onSubmit={submit}>
-          <input aria-label="Symbole de l’indice (Yahoo)" value={draft} onChange={(e) => setDraft(e.target.value)} autoCapitalize="characters" autoComplete="off" spellCheck={false} />
-          <button type="submit" className="secondary">Comparer</button>
+          <input aria-label={t('patrimoine.pea_performance.index_symbol_yahoo')} value={draft} onChange={(e) => setDraft(e.target.value)} autoCapitalize="characters" autoComplete="off" spellCheck={false} />
+          <button type="submit" className="secondary">{t('patrimoine.pea_performance.compare')}</button>
         </form>
       </div>
-      {!first ? <p className="acc-muted">Aucun versement à comparer.</p>
-        : prices === null ? <p className="acc-muted">Chargement des cours de {symbol}…</p>
-          : prices === 'error' || !result ? <p className="acc-muted">Cours de {symbol} indisponibles.</p>
+      {!first ? <p className="acc-muted">{t('patrimoine.pea_performance.no_deposits_to_compare')}</p>
+        : prices === null ? <p className="acc-muted">{t('patrimoine.pea_performance.loading_prices_for')} {symbol}…</p>
+          : prices === 'error' || !result ? <p className="acc-muted">{t('patrimoine.pea_performance.prices_for')} {symbol}  {t('patrimoine.pea_performance.unavailable')}</p>
             : (
               <>
                 <p className="pi-bench-lead">
-                  Si chaque versement avait acheté <b>{symbol}</b> le jour même, tu aurais{' '}
-                  <b className="num">{fmt(result.benchmark.value)}</b> au lieu de <b className="num">{fmt(result.portfolio.value)}</b> :{' '}
+                  
+                  {t('patrimoine.pea_performance.if_each_deposit_had_bought')} <b>{symbol}</b>  {t('patrimoine.pea_performance.the_same_day_you_would')}{' '}
+                  <b className="num">{fmt(result.benchmark.value)}</b>  {t('patrimoine.pea_performance.instead')} <b className="num">{fmt(result.portfolio.value)}</b> :{' '}
                   <b className={`num ${tone(diff)}`}>{diff >= 0 ? '+' : '−'}{fmt(Math.abs(diff))}</b> {diff >= 0 ? 'en ta faveur' : 'pour l’indice'}.
                 </p>
                 <div className="pi-bench">
                   {([['Ton enveloppe', result.portfolio], [symbol, result.benchmark]] as const).map(([label, side]) => (
                     <dl key={label} className="pea-dl pi-bench-side">
                       <div className="pea-total"><dt>{label}</dt><dd className="num">{fmt(side.value)}</dd></div>
-                      <div><dt>Gain</dt><dd className={`num ${tone(side.gain)}`}>{side.gain >= 0 ? '+' : '−'}{fmt(Math.abs(side.gain))} <small>{formatPct(side.gainPct)}</small></dd></div>
-                      <div><dt>Rendement annualisé</dt><dd className="num">{formatPct(side.xirr)}</dd></div>
+                      <div><dt>{t('patrimoine.pea_performance.gain')}</dt><dd className={`num ${tone(side.gain)}`}>{side.gain >= 0 ? '+' : '−'}{fmt(Math.abs(side.gain))} <small>{formatPct(side.gainPct)}</small></dd></div>
+                      <div><dt>{t('patrimoine.pea_performance.annualised_return')}</dt><dd className="num">{formatPct(side.xirr)}</dd></div>
                     </dl>
                   ))}
                 </div>
@@ -203,9 +207,10 @@ function Benchmark({ flows, values, currentValue, asOf, ccy, fmt }: Pick<Insight
                   ) : <EmptyChart />}
                 </div>
                 <p className="pea-foot">
-                  Même capital des deux côtés : {fmt(result.capital)} depuis le {formatDateFr(result.start)}.
+                  
+                  {t('patrimoine.pea_performance.same_capital_on_both_sides')} {fmt(result.capital)}  {t('patrimoine.pea_performance.since')} {formatDateFr(result.start)}.
                   {result.absorbedFlows > 0 && ` Les ${result.absorbedFlows} versements antérieurs à l’historique de ${symbol} sont repris via la valeur de l’enveloppe à cette date (${fmt(result.startValue)}), des deux côtés.`}
-                  {' '}Cours en devise de cotation, sans frais.
+                  {' '}{t('patrimoine.pea_performance.prices_in_quote_currency_without')}
                 </p>
               </>
             )}

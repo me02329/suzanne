@@ -243,3 +243,89 @@ patrimoine.goals.total,· total,· total
 patrimoine.goals.cancelling_deposit_lowers_progress_linke,. Annuler un versement décrémente la progression ; le virement lié reste dans les opérations.,. Cancelling a deposit lowers the progress; the linked transfer stays in the transactions.
 patrimoine.goals.linked_transfer,virement lié,linked transfer
 patrimoine.goals.close,Fermer,Close
+patrimoine.pea_performance.not_enough_history_yet_to,Pas encore assez d’historique pour mesurer la performance.,Not enough history yet to measure performance.
+patrimoine.pea_performance.performance_since,Performance depuis le,Performance since
+patrimoine.pea_performance.time_weighted_deposits_and_withdrawals,pondérée par le temps : les versements et retraits ne comptent pas comme des gains.,time-weighted: deposits and withdrawals do not count as gains.
+patrimoine.pea_performance.annualised,Annualisée,Annualised
+patrimoine.pea_performance.maximum_drawdown,Baisse maximale,Maximum drawdown
+patrimoine.pea_performance.recovered,Rétablie,Recovered
+patrimoine.pea_performance.back_to_high,retour au plus haut,back to the high
+patrimoine.pea_performance.below_high,Sous le plus haut,Below the high
+patrimoine.pea_performance.today,aujourd’hui,today
+patrimoine.pea_performance.performance_index,Indice de performance,Performance index
+patrimoine.pea_performance.base_100,base 100,base 100
+patrimoine.pea_performance.monthly_performance,Performance mensuelle,Monthly performance
+patrimoine.pea_performance.year,Année,Year
+patrimoine.pea_performance.partial,partiel,partial
+patrimoine.pea_performance.in_on_time_weighted_index,"En %, sur l’indice pondéré par le temps (cours du vendredi).","In %, on the time-weighted index (Friday prices)."
+patrimoine.pea_performance.against_index,Face à un indice,Against an index
+patrimoine.pea_performance.index_symbol_yahoo,Symbole de l’indice (Yahoo),Index symbol (Yahoo)
+patrimoine.pea_performance.compare,Comparer,Compare
+patrimoine.pea_performance.no_deposits_to_compare,Aucun versement à comparer.,No deposits to compare.
+patrimoine.pea_performance.loading_prices_for,Chargement des cours de,Loading prices for
+patrimoine.pea_performance.prices_for,Cours de,Prices for
+patrimoine.pea_performance.unavailable,indisponibles.,unavailable.
+patrimoine.pea_performance.if_each_deposit_had_bought,Si chaque versement avait acheté,If each deposit had bought
+patrimoine.pea_performance.the_same_day_you_would,"le jour même, tu aurais","the same day, you would have"
+patrimoine.pea_performance.instead,au lieu de,instead of
+patrimoine.pea_performance.gain,Gain,Gain
+patrimoine.pea_performance.annualised_return,Rendement annualisé,Annualised return
+patrimoine.pea_performance.same_capital_on_both_sides,Même capital des deux côtés :,Same capital on both sides:
+patrimoine.pea_performance.since,depuis le,since
+patrimoine.pea_performance.prices_in_quote_currency_without,"Cours en devise de cotation, sans frais.","Prices in the quote currency, without fees."
+patrimoine.pea_recap.preparing_summary,Préparation du récapitulatif…,Preparing the summary…
+patrimoine.pea_recap.nothing_to_summarise_yet,Rien à récapituler pour l’instant.,Nothing to summarise yet.
+patrimoine.pea_recap.year,Année,Year
+patrimoine.pea_recap.print,Imprimer,Print
+patrimoine.pea_recap.summary,· récap,· summary
+patrimoine.pea_recap.performance_for_year_deposits_neutralise,"Performance de l’année, versements neutralisés","Performance for the year, deposits neutralised"
+patrimoine.pea_recap.paid_in,Versé,Paid in
+patrimoine.pea_recap.deposit,versement,deposit
+patrimoine.pea_recap.gain_for_year,Gain de l’année,Gain for the year
+patrimoine.pea_recap.excluding_deposits,hors versements,excluding deposits
+patrimoine.pea_recap.realised,+/- réalisée,Realised +/-
+patrimoine.pea_recap.sale,vente,sale
+patrimoine.pea_recap.income,Revenus,Income
+patrimoine.pea_recap.dividends_coupons,"dividendes, coupons","dividends, coupons"
+patrimoine.pea_recap.value,Valeur,Value
+patrimoine.pea_recap.on_1_january,Au 1er janvier,On 1 January
+patrimoine.pea_recap.net_deposits,Versements nets,Net deposits
+patrimoine.pea_recap.incl_withdrawals,dont retraits,incl. withdrawals
+patrimoine.pea_recap.gain,Gain,Gain
+patrimoine.pea_recap.orders,Ordres,Orders
+patrimoine.pea_recap.buys,Achats (,Buys (
+patrimoine.pea_recap.sells,Ventes (,Sells (
+patrimoine.pea_recap.fees,Frais,Fees
+patrimoine.pea_recap.by_security,Par titre,By security
+patrimoine.pea_recap.realised_2,réalisé,realised
+patrimoine.pea_orders.loading_orders,Chargement des ordres…,Loading orders…
+patrimoine.pea_orders.no_orders_on_this_account,Aucun ordre sur ce compte.,No orders on this account.
+patrimoine.pea_orders.enter_order_in_investments,Saisir un ordre dans Placements,Enter an order in Investments
+patrimoine.pea_orders.security,Titre,Security
+patrimoine.pea_orders.all_securities,Tous les titres,All securities
+patrimoine.pea_orders.side,Sens,Side
+patrimoine.pea_orders.buys,Achats,Buys
+patrimoine.pea_orders.order,ordre,order
+patrimoine.pea_orders.sells,Ventes,Sells
+patrimoine.pea_orders.fees,Frais,Fees
+patrimoine.pea_orders.brokerage,courtage,brokerage
+patrimoine.pea_orders.realised,+/- réalisée,Realised +/-
+patrimoine.pea_orders.at_avg_cost,au PRU,at avg. cost
+patrimoine.pea_orders.no_orders_for_this_filter,Aucun ordre pour ce filtre.,No orders for this filter.
+patrimoine.pea_orders.realised_2,réalisé,realised
+patrimoine.pea_orders.show_more,Afficher plus,Show more
+patrimoine.pea_orders.realised_gain_net_proceeds_average,Plus-value réalisée = produit net − prix de revient moyen (frais d’achat inclus) × quantité vendue. Pour saisir ou corriger un ordre :,Realised gain = net proceeds − average cost price (purchase fees included) × quantity sold. To enter or correct an order:
+patrimoine.pea_orders.investments,Placements,Investments
+patrimoine.pea_tracking.value,Valeur,Value
+patrimoine.pea_tracking.on,au,on
+patrimoine.pea_tracking.paid_in_net,Versé (net),Paid in (net)
+patrimoine.pea_tracking.movement,mouvement,movement
+patrimoine.pea_tracking.value_2,+/- value,+/- value
+patrimoine.pea_tracking.last_week,Dernière semaine,Last week
+patrimoine.pea_tracking.deposits_by_month,Versements par mois,Deposits by month
+patrimoine.pea_tracking.value_and_deposits,Valeur et versements,Value and deposits
+patrimoine.pea_tracking.weekly_tracking,Suivi hebdomadaire,Weekly tracking
+patrimoine.pea_tracking.friday_prices,cours du vendredi,Friday prices
+patrimoine.pea_tracking.week,Semaine,Week
+patrimoine.pea_tracking.cumulative_paid_in,Versé cumulé,Cumulative paid in
+patrimoine.pea_tracking.change,Variation,Change

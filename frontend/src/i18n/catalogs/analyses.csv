@@ -61,3 +61,60 @@ analyses.statistics.no_identifiable_merchant_add_labels,Aucun marchand identifia
 analyses.statistics.expenses_by_month,Dépenses par mois,Expenses by month
 analyses.statistics.dotted_line_monthly_average,Pointillés : moyenne mensuelle (,Dotted line: monthly average (
 analyses.statistics.cashflow_savings,Cashflow & épargne,Cashflow & savings
+analyses.forecast.liquid_balance_in,Solde liquide dans,Liquid balance in
+analyses.forecast.today,Aujourd’hui,Today
+analyses.forecast.net_flow,· flux net,· net flow
+analyses.forecast.projection_horizon,Horizon de projection,Projection horizon
+analyses.forecast.recurring,Récurrents,Recurring
+analyses.forecast.low_point,Point bas,Low point
+analyses.forecast.inflows,Entrées,Inflows
+analyses.forecast.outflows,Sorties,Outflows
+analyses.forecast.due_dates,Échéances,Due dates
+analyses.forecast.your_liquid_balance_would_drop,Ton solde liquide passerait sous zéro le,Your liquid balance would drop below zero on
+analyses.forecast.trajectory,Trajectoire,Trajectory
+analyses.forecast.projection_active_recurring_items_on,Projection des récurrents actifs sur tes comptes courants et d’épargne réglementée — hors dépenses variables.,Projection of active recurring items on your current and regulated savings accounts — excluding variable expenses.
+analyses.forecast.upcoming_due_dates,Échéances à venir,Upcoming due dates
+analyses.forecast.no_recurring_due_dates_in,Aucune échéance récurrente sur cette période.,No recurring due dates in this period.
+analyses.forecast.manage_this_recurring_item,Gérer ce récurrent,Manage this recurring item
+analyses.forecast.balance,solde,balance
+analyses.forecast.goals_with_deadline,Objectifs à échéance,Goals with a deadline
+analyses.forecast.view,Voir,View
+analyses.forecast.reached,Atteint,Reached
+analyses.forecast.to_save,à épargner,to save
+analyses.health.loading_data,Chargement des données…,Loading data…
+analyses.health.financial_health_last_12_months,Santé financière · 12 derniers mois,Financial health · last 12 months
+analyses.health.healthy_indicators,indicateurs sains,healthy indicators
+analyses.health.savings_rate,Taux d'épargne,Savings rate
+analyses.health.emergency_fund,Fonds d'urgence,Emergency fund
+analyses.health.fixed_charges,Charges fixes,Fixed charges
+analyses.health.budgets_kept,Budgets tenus,Budgets kept
+analyses.health.fixed_or_variable,Fixes ou variables ?,Fixed or variable?
+analyses.health.fixed,Fixes,Fixed
+analyses.health.variable,Variables,Variable
+analyses.health.on_average_monthly_spend,Sur une dépense mensuelle moyenne de,On an average monthly spend of
+analyses.health.fixed_charges_come_from_active,. Les charges fixes viennent des récurrents actifs.,. Fixed charges come from active recurring items.
+analyses.health.no_expenses_to_split_yet,Pas encore de dépenses à répartir.,No expenses to split yet.
+analyses.alerts.alert,alerte,alert
+analyses.alerts.triggered,déclenchée,triggered
+analyses.alerts.active,active,active
+analyses.alerts.of,sur,of
+analyses.alerts.new_alert,Nouvelle alerte,New alert
+analyses.alerts.triggered_2,Déclenchées,Triggered
+analyses.alerts.my_alerts,Mes alertes,My alerts
+analyses.alerts.no_alerts,Aucune alerte,No alerts
+analyses.alerts.get_notified_when_balance_drops,"Sois prévenu quand un solde passe sous un seuil, qu’une grosse dépense arrive ou qu’un relevé manque.","Get notified when a balance drops below a threshold, a big expense comes in or a statement is missing."
+analyses.alerts.type,Type,Type
+analyses.alerts.account,Compte,Account
+analyses.alerts.condition,Condition,Condition
+analyses.alerts.below,en dessous de,below
+analyses.alerts.above,au-dessus de,above
+analyses.alerts.threshold,Seuil,Threshold
+analyses.alerts.the_threshold_is_compared_in,Le seuil est comparé dans la devise du compte,The threshold is compared in the account's currency
+analyses.alerts.without_conversion,", sans conversion.",", without conversion."
+analyses.alerts.for_credit_card_or_loan,"Pour une carte de crédit ou un prêt, on compare le montant dû (valeur absolue du solde)","For a credit card or a loan, the amount owed is compared (absolute value of the balance)"
+analyses.alerts.each_transaction_s_amount_is,Le montant de chaque transaction est comparé dans la devise de son compte.,Each transaction's amount is compared in its account's currency.
+analyses.alerts.days_without_statement,Jours sans relevé,Days without a statement
+analyses.alerts.goal,Objectif,Goal
+analyses.alerts.choose,Choisir…,Choose…
+analyses.alerts.cancel,Annuler,Cancel
+analyses.alerts.create_alert,Créer l’alerte,Create the alert

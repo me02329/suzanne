@@ -19,6 +19,7 @@ import { isLiquidRecurring, liquidBalance } from '../lib/balances';
 import { buildForecast, groupForecastEvents } from '../lib/forecast';
 import { EmptyChart } from '../components/EmptyChart';
 import '../styles/pages/plan.css';
+import { useTranslation } from 'react-i18next';
 
 const HORIZONS: Array<{ value: string; label: string }> = [
   { value: '30', label: '30 jours' },
@@ -42,6 +43,7 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
   categoryById: Map<number, Category>;
   accountById: Map<number, Account>;
 }) {
+  const { t } = useTranslation();
   const [horizon, setHorizon] = usePersistedState('forecast_horizon', '90');
   const chartTheme = useChartTheme();
   const narrow = useIsNarrow();
@@ -103,36 +105,37 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
     <section className="pg forecast-page">
       <div className="pg-hero">
         <div>
-          <span className="pg-kicker">Solde liquide dans {HORIZONS.find((h) => h.value === horizon)?.label ?? `${horizon} jours`}</span>
+          <span className="pg-kicker">{t('analyses.forecast.liquid_balance_in')} {HORIZONS.find((h) => h.value === horizon)?.label ?? `${horizon} jours`}</span>
           <strong className={`pg-hero-value ${forecast.endingBalance < 0 ? 'expense' : ''}`}>{money(forecast.endingBalance)}</strong>
           <p className="pg-hero-sub">
-            Aujourd’hui <strong>{money(forecast.startingBalance)}</strong> · flux net <strong className={netFlow < 0 ? 'expense' : 'income'}>{signed(netFlow)}</strong>
+            
+            {t('analyses.forecast.today')} <strong>{money(forecast.startingBalance)}</strong>  {t('analyses.forecast.net_flow')} <strong className={netFlow < 0 ? 'expense' : 'income'}>{signed(netFlow)}</strong>
           </p>
         </div>
         <div className="pg-toolbar-actions">
-          <select value={horizon} onChange={(e) => setHorizon(e.target.value)} aria-label="Horizon de projection">
+          <select value={horizon} onChange={(e) => setHorizon(e.target.value)} aria-label={t('analyses.forecast.projection_horizon')}>
             {HORIZONS.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
           </select>
-          <Link className="secondary pg-link-btn" to="/recurring">Récurrents <ArrowRight size={14} /></Link>
+          <Link className="secondary pg-link-btn" to="/recurring">{t('analyses.forecast.recurring')} <ArrowRight size={14} /></Link>
         </div>
       </div>
 
       <div className="pg-stats">
         <div className="pg-stat">
-          <span>Point bas</span>
+          <span>{t('analyses.forecast.low_point')}</span>
           <strong className={goesNegative ? 'expense' : undefined}>{money(forecast.lowestBalance)}</strong>
           <small>{forecast.lowestDate ? formatRelativeDate(forecast.lowestDate).label : 'Jamais sous le départ'}</small>
         </div>
         <div className="pg-stat">
-          <span>Entrées</span>
+          <span>{t('analyses.forecast.inflows')}</span>
           <strong className={forecast.totalIncome > 0 ? 'income' : undefined}>{forecast.totalIncome > 0 ? '+' : ''}{money(forecast.totalIncome)}</strong>
         </div>
         <div className="pg-stat">
-          <span>Sorties</span>
+          <span>{t('analyses.forecast.outflows')}</span>
           <strong className={forecast.totalExpenses > 0 ? 'expense' : undefined}>{forecast.totalExpenses > 0 ? '−' : ''}{money(forecast.totalExpenses)}</strong>
         </div>
         <div className="pg-stat">
-          <span>Échéances</span>
+          <span>{t('analyses.forecast.due_dates')}</span>
           <strong>{forecast.events.length}</strong>
           <small>{shortDate(forecast.from)} → {shortDate(forecast.to)}</small>
         </div>
@@ -141,12 +144,12 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
       {goesNegative && forecast.lowestDate && (
         <div className="pg-alert" role="status">
           <AlertTriangle size={16} />
-          <span>Ton solde liquide passerait sous zéro le {formatRelativeDate(forecast.lowestDate).label} ({money(forecast.lowestBalance)}).</span>
+          <span>{t('analyses.forecast.your_liquid_balance_would_drop')} {formatRelativeDate(forecast.lowestDate).label} ({money(forecast.lowestBalance)}).</span>
         </div>
       )}
 
       <div className="pg-card">
-        <div className="pg-card-head"><h2>Trajectoire</h2></div>
+        <div className="pg-card-head"><h2>{t('analyses.forecast.trajectory')}</h2></div>
         <div className="pg-card-body">
           <div className="pg-chart">
             {forecast.series.length > 1 ? (
@@ -170,13 +173,13 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
               <EmptyChart message="Aucun récurrent actif à projeter." />
             )}
           </div>
-          <p className="pg-note">Projection des récurrents actifs sur tes comptes courants et d’épargne réglementée — hors dépenses variables.</p>
+          <p className="pg-note">{t('analyses.forecast.projection_active_recurring_items_on')}</p>
         </div>
       </div>
 
       <div className="pg-card">
         <div className="pg-card-head">
-          <h2>Échéances à venir</h2>
+          <h2>{t('analyses.forecast.upcoming_due_dates')}</h2>
           {eventGroups.length > 1 && (
             <button type="button" className="ghost-button" onClick={toggleAll}>
               {allExpanded ? 'Tout replier' : 'Tout déplier'}
@@ -184,7 +187,7 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
           )}
         </div>
         {forecast.events.length === 0 ? (
-          <p className="pg-empty">Aucune échéance récurrente sur cette période.</p>
+          <p className="pg-empty">{t('analyses.forecast.no_recurring_due_dates_in')}</p>
         ) : eventGroups.map((group, groupIndex) => {
           const open = isExpanded(group.key, groupIndex);
           return (
@@ -208,13 +211,13 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
                       <li className="lrow two" key={`${event.recurringId}-${event.date}-${index}`}>
                         <div className="lrow-main">
                           <div className="lrow-title">
-                            <Link className="lrow-link" to="/recurring" title="Gérer ce récurrent">{event.description}</Link>
+                            <Link className="lrow-link" to="/recurring" title={t('analyses.forecast.manage_this_recurring_item')}>{event.description}</Link>
                           </div>
                           <span className="lrow-sub">{formatRelativeDate(event.date).label}{meta && ` · ${meta}`}</span>
                         </div>
                         <div className="lrow-amount">
                           <span className={event.type === 'income' ? 'income' : 'expense'}>{event.type === 'income' ? '+' : '−'}{money(event.amount)}</span>
-                          <small className={event.runningBalance < 0 ? 'expense' : undefined}>solde {money(event.runningBalance)}</small>
+                          <small className={event.runningBalance < 0 ? 'expense' : undefined}>{t('analyses.forecast.balance')} {money(event.runningBalance)}</small>
                         </div>
                       </li>
                     );
@@ -229,8 +232,8 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
       {forecast.goalDeadlines.length > 0 && (
         <div className="pg-card">
           <div className="pg-card-head">
-            <h2>Objectifs à échéance</h2>
-            <Link className="panel-link" to="/goals">Voir <ArrowRight size={14} /></Link>
+            <h2>{t('analyses.forecast.goals_with_deadline')}</h2>
+            <Link className="panel-link" to="/goals">{t('analyses.forecast.view')} <ArrowRight size={14} /></Link>
           </div>
           <ul className="lrows">
             {forecast.goalDeadlines.map((goal) => (
@@ -240,8 +243,8 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
                   <span className="lrow-sub">{formatRelativeDate(goal.deadline).label}</span>
                 </div>
                 <div className="lrow-amount">
-                  {goal.remaining > 0 ? money(goal.remaining) : <span className="income">Atteint</span>}
-                  {goal.remaining > 0 && <small>à épargner</small>}
+                  {goal.remaining > 0 ? money(goal.remaining) : <span className="income">{t('analyses.forecast.reached')}</span>}
+                  {goal.remaining > 0 && <small>{t('analyses.forecast.to_save')}</small>}
                 </div>
               </li>
             ))}

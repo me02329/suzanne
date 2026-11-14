@@ -11,6 +11,7 @@ import { parseAmount } from '../components/home/amount';
 import type { Run } from '../lib/run';
 import '../styles/pages/plan.css';
 import '../styles/pages/home.css';
+import { useTranslation } from 'react-i18next';
 
 const TYPE_LABEL: Record<AlertType, string> = {
   account_balance: 'Solde de compte',
@@ -54,6 +55,7 @@ export function Alerts({ userId, alerts, triggered, accounts, goals, accountById
   accountById: Map<number, Account>;
   run: Run;
 }) {
+  const { t } = useTranslation();
   const [creating, setCreating] = useState(false);
   const activeCount = alerts.filter((a) => a.active).length;
 
@@ -75,19 +77,19 @@ export function Alerts({ userId, alerts, triggered, accounts, goals, accountById
       <div className="pg-toolbar">
         <p className="pg-note">
           {triggered.length > 0
-            ? <><strong className="home-count">{triggered.length}</strong> alerte{triggered.length > 1 ? 's' : ''} déclenchée{triggered.length > 1 ? 's' : ''} · {activeCount} active{activeCount > 1 ? 's' : ''} sur {alerts.length}</>
+            ? <><strong className="home-count">{triggered.length}</strong>  {t('analyses.alerts.alert')}{triggered.length > 1 ? 's' : ''}  {t('analyses.alerts.triggered')}{triggered.length > 1 ? 's' : ''} · {activeCount}  {t('analyses.alerts.active')}{activeCount > 1 ? 's' : ''}  {t('analyses.alerts.of')} {alerts.length}</>
             : alerts.length > 0 ? `Rien à signaler · ${activeCount} alerte${activeCount > 1 ? 's' : ''} active${activeCount > 1 ? 's' : ''}` : 'Aucune alerte configurée.'}
         </p>
         <div className="pg-toolbar-actions">
           <button type="button" className="primary accent" onClick={() => setCreating(true)}>
-            <Plus size={16} /> Nouvelle alerte
+            <Plus size={16} />  {t('analyses.alerts.new_alert')}
           </button>
         </div>
       </div>
 
       {triggered.length > 0 && (
         <div className="pg-card">
-          <div className="pg-card-head"><h2>Déclenchées</h2></div>
+          <div className="pg-card-head"><h2>{t('analyses.alerts.triggered_2')}</h2></div>
           <ul className="home-alerts">
             {triggered.map((t, i) => (
               <li key={`${t.id}-${i}`} className={`home-alert ${t.severity}`}>
@@ -100,11 +102,12 @@ export function Alerts({ userId, alerts, triggered, accounts, goals, accountById
       )}
 
       <div className="pg-card">
-        <div className="pg-card-head"><h2>Mes alertes</h2></div>
+        <div className="pg-card-head"><h2>{t('analyses.alerts.my_alerts')}</h2></div>
         {alerts.length === 0 ? (
           <p className="pg-empty">
-            <strong>Aucune alerte</strong>
-            Sois prévenu quand un solde passe sous un seuil, qu’une grosse dépense arrive ou qu’un relevé manque.
+            <strong>{t('analyses.alerts.no_alerts')}</strong>
+            
+            {t('analyses.alerts.get_notified_when_balance_drops')}
           </p>
         ) : (
           <ul className="lrows">
@@ -149,6 +152,7 @@ function AlertFormModal({ userId, accounts, goals, run, onClose }: {
   run: Run;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [type, setType] = useState<AlertType>('account_balance');
   const [accountId, setAccountId] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -175,16 +179,16 @@ function AlertFormModal({ userId, accounts, goals, run, onClose }: {
   };
 
   return (
-    <Modal title="Nouvelle alerte" onClose={onClose}>
+    <Modal title={t('analyses.alerts.new_alert')} onClose={onClose}>
       <form className="pg-form" onSubmit={submit} onInput={() => setError(null)}>
-        <label className="full">Type
+        <label className="full">{t('analyses.alerts.type')}
           <select value={type} onChange={(e) => setType(e.target.value as AlertType)}>
             {(Object.keys(TYPE_LABEL) as AlertType[]).map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
           </select>
         </label>
 
         {type !== 'goal_behind' && (
-          <label className="full">Compte
+          <label className="full">{t('analyses.alerts.account')}
             <select value={accountId} onChange={(e) => setAccountId(e.target.value)} required={type === 'account_balance'}>
               <option value="" disabled={type === 'account_balance'}>{type === 'account_balance' ? 'Choisir…' : 'Tous les comptes'}</option>
               {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name} · {a.currency}</option>)}
@@ -194,38 +198,39 @@ function AlertFormModal({ userId, accounts, goals, run, onClose }: {
 
         {(type === 'account_balance' || type === 'transaction_amount') && (
           <>
-            <label>Condition
+            <label>{t('analyses.alerts.condition')}
               <select name="operator" defaultValue={type === 'account_balance' ? 'lt' : 'gt'} key={type}>
-                <option value="lt">en dessous de</option>
-                <option value="gt">au-dessus de</option>
+                <option value="lt">{t('analyses.alerts.below')}</option>
+                <option value="gt">{t('analyses.alerts.above')}</option>
               </select>
             </label>
-            <label>Seuil{account ? ` (${account.currency})` : ''}
+            <label>{t('analyses.alerts.threshold')}{account ? ` (${account.currency})` : ''}
               <input name="threshold" inputMode="decimal" autoComplete="off" required />
             </label>
             {type === 'account_balance' && (
               <p className="hint full">
-                Le seuil est comparé dans la devise du compte{account ? ` (${account.currency})` : ''}, sans conversion.
-                {' '}Pour une carte de crédit ou un prêt, on compare le montant dû (valeur absolue du solde)
+                
+                {t('analyses.alerts.the_threshold_is_compared_in')}{account ? ` (${account.currency})` : ''}{t('analyses.alerts.without_conversion')}
+                {' '}{t('analyses.alerts.for_credit_card_or_loan')}
                 {isLiability ? ' : « au-dessus de 1 000 » = plus de 1 000 dus.' : '.'}
               </p>
             )}
             {type === 'transaction_amount' && (
-              <p className="hint full">Le montant de chaque transaction est comparé dans la devise de son compte.</p>
+              <p className="hint full">{t('analyses.alerts.each_transaction_s_amount_is')}</p>
             )}
           </>
         )}
 
         {type === 'stale_snapshot' && (
-          <label className="full">Jours sans relevé
+          <label className="full">{t('analyses.alerts.days_without_statement')}
             <input name="threshold" type="number" inputMode="numeric" min="1" step="1" defaultValue="30" required />
           </label>
         )}
 
         {type === 'goal_behind' && (
-          <label className="full">Objectif
+          <label className="full">{t('analyses.alerts.goal')}
             <select name="goal_id" required defaultValue="">
-              <option value="" disabled>Choisir…</option>
+              <option value="" disabled>{t('analyses.alerts.choose')}</option>
               {goals.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </label>
@@ -233,8 +238,8 @@ function AlertFormModal({ userId, accounts, goals, run, onClose }: {
 
         {error && <p className="hint full expense" role="alert">{error}</p>}
         <div className="pg-form-actions">
-          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
-          <button type="submit" className="primary">Créer l’alerte</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('analyses.alerts.cancel')}</button>
+          <button type="submit" className="primary">{t('analyses.alerts.create_alert')}</button>
         </div>
       </form>
     </Modal>
