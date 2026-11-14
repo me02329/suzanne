@@ -108,6 +108,8 @@ model User {
   sinking_funds           SinkingFund[]
   duplicate_dismissals    DuplicateDismissal[]
   tag_rules               TagRule[]
+  bank_connections        BankConnection[]
+  bank_links              BankLink[]
 
   @@map("users")
 }
@@ -163,6 +165,7 @@ model Account {
   bills                  Bill[]
   holdings               Holding[]
   alerts                 Alert[]
+  bank_links             BankLink[]
 
   @@unique([user_id, name])
   @@index([user_id])
@@ -770,4 +773,54 @@ model TagRule {
   @@unique([user_id, pattern, tag_id])
   @@index([user_id])
   @@map("tag_rules")
+}
+
+// Synchronisation bancaire DSP2 via Enable Banking (docs/ENABLE-BANKING.md).
+// Une connexion = un consentement donné à une banque (session Enable Banking,
+// valable jusqu'à valid_until) ; chaque compte distant autorisé est un lien,
+// associé (ou non) à un compte Suzanne. Aucun identifiant bancaire n'est stocké :
+// la session ne sert qu'avec la clé privée de l'application (hors base).
+// Non inclus dans les sauvegardes.
+model BankConnection {
+  id            Int       @id @default(autoincrement())
+  user_id       Int
+  aspsp_name    String
+  aspsp_country String
+  session_id    String    @unique
+  valid_until   DateTime  @db.Timestamptz(6)
+  // active | expired | revoked | error
+  status        String    @default("active")
+  last_sync_at  DateTime? @db.Timestamptz(6)
+  last_error    String?
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  user  User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  links BankLink[]
+
+  @@index([user_id])
+  @@map("bank_connections")
+}
+
+model BankLink {
+  id            Int       @id @default(autoincrement())
+  user_id       Int
+  connection_id Int
+  remote_uid    String
+  remote_name   String?
+  iban_last4    String?
+  currency      String?
+  account_id    Int?
+  // Première date synchronisée (évite de réimporter l'historique déjà importé en CSV).
+  sync_from     DateTime? @db.Date
+  last_sync_at  DateTime? @db.Timestamptz(6)
+  last_result   Json?
+
+  user       User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  connection BankConnection @relation(fields: [connection_id], references: [id], onDelete: Cascade)
+  account    Account?       @relation(fields: [account_id], references: [id], onDelete: SetNull)
+
+  @@unique([connection_id, remote_uid])
+  @@index([user_id])
+  @@index([account_id])
+  @@map("bank_links")
 }

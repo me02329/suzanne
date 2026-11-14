@@ -163,3 +163,70 @@ reglages.rules_tag.choose_tag,Choisir un tag…,Choose a tag…
 reglages.rules_tag.form_note,"S’applique aux imports de relevés, et aux opérations existantes avec « Appliquer ». Les tags déjà posés ne sont jamais retirés.","Applies to statement imports, and to existing transactions with “Apply”. Tags already set are never removed."
 reglages.rules_tag.cancel,Annuler,Cancel
 reglages.rules_tag.save,Enregistrer,Save
+reglages.bank.account,Compte,Account
+reglages.bank.app_active,application active,application active
+reglages.bank.app_id,Application,Application
+reglages.bank.app_inactive,application inactive : lie tes comptes dans le Control Panel,application inactive: link your accounts in the Control Panel
+reglages.bank.balance,solde {{amount}} au {{date}},balance {{amount}} on {{date}}
+reglages.bank.bank_account,Compte bancaire,Bank account
+reglages.bank.beta,bêta,beta
+reglages.bank.callback_error,La banque n'a pas autorisé l'accès : {{error}},The bank did not grant access: {{error}}
+reglages.bank.check,Vérifier la configuration,Check configuration
+reglages.bank.confirm_disconnect,Déconnecter {{bank}} ? La synchronisation s'arrête et le consentement est révoqué ; les opérations déjà importées restent.,Disconnect {{bank}}? Syncing stops and the consent is revoked; imported transactions stay.
+reglages.bank.connect_bank,Connecter une banque,Connect a bank
+reglages.bank.connect_intro,"Choisis ta banque : tu seras redirigé vers elle pour te connecter et autoriser la lecture de tes comptes, puis renvoyé ici.","Pick your bank: you will be redirected to it to sign in and allow read access to your accounts, then sent back here."
+reglages.bank.connected,Banque connectée : associe maintenant chaque compte à un compte Suzanne.,Bank connected: now map each account to a Suzanne account.
+reglages.bank.connection_1,banque connectée,connected bank
+reglages.bank.connections_n,banques connectées,connected banks
+reglages.bank.consent_days,consentement {{n}} j,{{n}}-day consent
+reglages.bank.consent_until,accès jusqu'au {{date}} ({{n}} j),access until {{date}} ({{n}} d)
+reglages.bank.copy,Copier,Copy
+reglages.bank.country,Pays,Country
+reglages.bank.disconnect,Déconnecter,Disconnect
+reglages.bank.disconnected,Banque déconnectée,Bank disconnected
+reglages.bank.guide_intro,"Suzanne peut récupérer chaque jour les opérations et le solde de tes comptes, avec les libellés complets, grâce à Enable Banking (agrégateur DSP2 agréé, gratuit pour un usage personnel). L'activation se fait une fois, sur le serveur.","Suzanne can fetch your transactions and balances every day, with full labels, through Enable Banking (a licensed PSD2 aggregator, free for personal use). Set it up once, on the server."
+reglages.bank.guide_title,Activer la synchronisation bancaire,Enable bank sync
+reglages.bank.last_result,Dernière synchro,Last sync
+reglages.bank.last_sync,Dernière synchronisation : {{date}},Last sync: {{date}}
+reglages.bank.link_first,Associe d'abord un compte bancaire à un compte Suzanne.,First map a bank account to a Suzanne account.
+reglages.bank.link_saved,Association enregistrée,Mapping saved
+reglages.bank.loading,Chargement…,Loading…
+reglages.bank.loading_banks,Chargement des banques…,Loading banks…
+reglages.bank.never_synced,Jamais synchronisée,Never synced
+reglages.bank.no_bank_found,Aucune banque trouvée.,No bank found.
+reglages.bank.no_connection,"Aucune banque connectée. Connecte ta banque : tes opérations arriveront toutes seules, chaque jour.","No bank connected. Connect your bank: your transactions will arrive on their own, every day."
+reglages.bank.not_synced,— Ne pas synchroniser —,— Do not sync —
+reglages.bank.paste_label,La banque t'a renvoyé sur une autre adresse (URL de retour d'un autre environnement) ? Colle-la ici :,The bank sent you back to another address (a redirect URL from another environment)? Paste it here:
+reglages.bank.paste_submit,Valider,Submit
+reglages.bank.redirect_elsewhere,"L'URL de retour configurée n'est pas celle de cette page ({{expected}}) : après la banque, colle l'adresse de retour ci-dessous.","The configured redirect URL is not this page ({{expected}}): after the bank, paste the return address below."
+reglages.bank.redirect_not_registered,URL de retour non déclarée sur l'application,redirect URL not registered on the application
+reglages.bank.redirect_url,URL de retour,Redirect URL
+reglages.bank.renew,Renouveler l'accès,Renew access
+reglages.bank.result,"{{imported}} importée(s), {{adopted}} reconnue(s), {{pending}} en attente","{{imported}} imported, {{adopted}} matched, {{pending}} pending"
+reglages.bank.search_bank,Rechercher une banque,Search a bank
+reglages.bank.security_consent,"Le consentement est limité dans le temps (souvent 180 jours) et révocable à tout moment, ici (« Déconnecter ») ou depuis ta banque.","Consent is time-limited (often 180 days) and can be revoked at any time, here (« Disconnect ») or from your bank."
+reglages.bank.security_credentials,Tes identifiants bancaires ne passent jamais par Suzanne : tu te connectes sur le site ou l'appli de ta banque.,Your bank credentials never go through Suzanne: you sign in on your bank's own site or app.
+reglages.bank.security_key,"La clé privée de l'application reste sur le serveur (fichier hors base, hors sauvegardes, hors git). Sans elle, la session stockée ne permet rien.","The application's private key stays on the server (outside the database, backups and git). Without it, the stored session is useless."
+reglages.bank.security_provider,"Les données transitent par Enable Banking (Finlande), prestataire agréé et supervisé par l'autorité financière finlandaise.","Data goes through Enable Banking (Finland), a licensed provider supervised by the Finnish financial authority."
+reglages.bank.security_read_only,Lecture seule : l'application n'a que le service « Account Information ». Elle ne peut ni faire de virement ni rien modifier sur tes comptes.,Read-only: the application only has the « Account Information » service. It cannot make transfers or change anything on your accounts.
+reglages.bank.security_title,Sécurité et confidentialité,Security and privacy
+reglages.bank.server_title,Configuration du serveur,Server configuration
+reglages.bank.status_error,Erreur de synchronisation,Sync error
+reglages.bank.status_expired,Accès expiré : renouvelle-le,Access expired: renew it
+reglages.bank.step_account,Crée un compte Enable Banking,Create an Enable Banking account
+reglages.bank.step_account_hint,Inscription gratuite sur le,Free sign-up on the
+reglages.bank.step_app,Ajoute une application « Production »,Add a « Production » application
+reglages.bank.step_app_hint,"Clé générée dans le navigateur. Garde le fichier .pem téléchargé : c'est la clé privée (son nom est l'identifiant de l'application). Remplis description, e-mail, URL de confidentialité et de CGU (le lien du dépôt suffit pour un usage perso).","Key generated in the browser. Keep the downloaded .pem file: it is the private key (its name is the application ID). Fill in description, e-mail, privacy and terms URLs (the repository link is enough for personal use)."
+reglages.bank.step_link,Lie tes propres comptes,Link your own accounts
+reglages.bank.step_link_hint,"Dans le Control Panel, lie tes comptes pour activer l'application en mode restreint (gratuit, limité à tes comptes).","In the Control Panel, link your accounts to activate the application in restricted mode (free, limited to your accounts)."
+reglages.bank.step_redirect,Déclare l'URL de retour,Register the redirect URL
+reglages.bank.step_redirect_hint,"Elle doit être identique, au caractère près, et joignable depuis ton navigateur (en HTTPS) :",It must match exactly and be reachable from your browser (over HTTPS):
+reglages.bank.step_restart,Redémarre Suzanne,Restart Suzanne
+reglages.bank.step_restart_hint,Cette page affichera alors le bouton « Connecter une banque ».,This page will then show the « Connect a bank » button.
+reglages.bank.step_server,Configure le serveur,Configure the server
+reglages.bank.step_server_hint,"Copie le .pem sur le serveur (lecture seule pour Suzanne, jamais dans git) et ajoute ces variables d'environnement :","Copy the .pem to the server (read-only for Suzanne, never in git) and add these environment variables:"
+reglages.bank.suzanne_account,Compte Suzanne,Suzanne account
+reglages.bank.sync_from,Depuis le,From
+reglages.bank.sync_from_hint,"Première date importée. Les opérations déjà présentes (import CSV) sont reconnues, pas dupliquées.","First imported date. Transactions already present (CSV import) are matched, not duplicated."
+reglages.bank.sync_now,Synchroniser,Sync now
+reglages.bank.synced,"Synchronisé : {{imported}} nouvelle(s) opération(s), {{adopted}} reconnue(s)","Synced: {{imported}} new transaction(s), {{adopted}} matched"

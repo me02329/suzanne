@@ -141,7 +141,42 @@ export interface LoanSummary {
   movements: Array<{ transaction_id: number; date: string; description: string | null; kind: string; amount: number; category_id: number | null }>;
 }
 
+// Connexions bancaires (Enable Banking).
+export interface BankLink {
+  id: number;
+  remote_uid: string;
+  remote_name: string | null;
+  iban_last4: string | null;
+  currency: string | null;
+  account_id: number | null;
+  sync_from: string | null;
+  last_sync_at: string | null;
+  last_result: { imported: number; adopted: number; duplicates: number; pending: number; linked_transfers: number; balance: { amount: number; date: string; type: string } | null; from: string } | null;
+}
+export interface BankConnection {
+  id: number;
+  aspsp_name: string;
+  aspsp_country: string;
+  valid_until: string;
+  status: 'active' | 'expired' | 'revoked' | 'error';
+  expired: boolean;
+  last_sync_at: string | null;
+  last_error: string | null;
+  links: BankLink[];
+}
+export interface BankStatus { configured: boolean; config_error: string | null; redirect_url: string | null; app_id: string | null; connections: BankConnection[] }
+export interface BankAspsp { name: string; country: string; bic: string | null; beta: boolean; logo: string | null; consent_days: number | null }
+export interface BankCheck { ok: boolean; error?: string; name?: string | null; active?: boolean | null; environment?: string | null; redirect_url_registered?: boolean | null }
+
 export const api = {
+  bank: (userId: number) => http<BankStatus>(`/users/${userId}/bank`),
+  bankCheck: (userId: number) => http<BankCheck>(`/users/${userId}/bank/check`),
+  bankAspsps: (userId: number, country: string) => http<BankAspsp[]>(`/users/${userId}/bank/aspsps?country=${encodeURIComponent(country)}`),
+  bankAuth: (userId: number, aspsp_name: string, country: string) => http<{ url: string }>(`/users/${userId}/bank/auth`, { method: 'POST', body: JSON.stringify({ aspsp_name, country }) }),
+  bankCallback: (userId: number, code: string, state: string) => http<BankConnection>(`/users/${userId}/bank/callback`, { method: 'POST', body: JSON.stringify({ code, state }) }),
+  updateBankLink: (userId: number, id: number, body: { account_id?: number | null; sync_from?: string | null }) => http<BankLink>(`/users/${userId}/bank/links/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  syncBankConnection: (userId: number, id: number) => http<{ results: Array<NonNullable<BankLink['last_result']>> }>(`/users/${userId}/bank/connections/${id}/sync`, { method: 'POST' }),
+  deleteBankConnection: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/bank/connections/${id}`, { method: 'DELETE' }),
   users: () => http<User[]>('/users'),
   createUser: (body: { name: string }) => http<User>('/users', { method: 'POST', body: JSON.stringify(body) }),
   deleteUser: (id: number) => http<{ deleted: boolean }>(`/users/${id}`, { method: 'DELETE' }),

@@ -197,8 +197,10 @@ function fingerprintOf(account_id: number | null, raw: string): string {
   return createHash('sha256').update(`${account_id ?? '-'}|${raw}`).digest('hex').slice(0, 40);
 }
 
-type ParsedImportRow = {
+export type ParsedImportRow = {
   fingerprint?: string;
+  /** Note de la ligne (ex. libellé bancaire complet d'une synchro). */
+  note?: string | null;
   cleared?: boolean;
   line: number;
   user_id: number;
@@ -237,7 +239,7 @@ async function recurringProjections(user_id: number, account_id: number | null, 
     .map((t) => ({ id: t.id, date: t.date.getTime(), amount: t.lines[0]!.amount, recurring_transaction_id: t.recurring_transaction_id!, description: t.description ?? '' }));
 }
 
-async function dedupeAndInsert(user_id: number, account_id: number | null, parsedRows: ParsedImportRow[], baseSkipped: number) {
+export async function dedupeAndInsert(user_id: number, account_id: number | null, parsedRows: ParsedImportRow[], baseSkipped: number) {
   const tagRules = await loadTagRules(user_id);
   const duplicateKeys = await existingCsvDuplicateKeys(user_id, account_id, parsedRows);
   const fingerprints = parsedRows.map((r) => r.fingerprint).filter((f): f is string => Boolean(f));
@@ -353,6 +355,7 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
                 account_id: row.account_id,
                 category_id: row.category_id,
                 amount: row.type === 'income' ? row.amount : -row.amount,
+                note: row.note ?? null,
               }],
             },
           },
@@ -575,13 +578,13 @@ function unescapeCsvText(value: string): string {
   return /^'[=+\-@\t\r]/.test(value) ? value.slice(1) : value;
 }
 
-async function loadRules(user_id: number) {
+export async function loadRules(user_id: number) {
   const rules = await prisma.categoryRule.findMany({ where: { user_id } });
   // Le motif le plus long (le plus spécifique) gagne, de façon déterministe.
   return rules.sort((a, b) => b.pattern.length - a.pattern.length || a.id - b.id);
 }
 
-function matchRule<T extends { pattern: string }>(rules: T[], description: string): T | undefined {
+export function matchRule<T extends { pattern: string }>(rules: T[], description: string): T | undefined {
   const upper = description.toUpperCase();
   return rules.find((r) => upper.includes(r.pattern));
 }

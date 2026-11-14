@@ -21,3 +21,4 @@ CLAUDE.md
 
 # Enable Banking : clés privées
 *.pem
+secrets/

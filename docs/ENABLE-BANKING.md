@@ -1,60 +1,67 @@
-# Synchronisation bancaire Enable Banking — preuve de concept
+# Synchronisation bancaire (Enable Banking)
 
-Statut : **POC** (branche `dev`, issue #2). Rien n'est encore écrit dans la base : le POC sert à vérifier la couverture des banques et la qualité des données (libellés complets, soldes, identifiants) avant de brancher la synchronisation sur l'import.
+Suzanne peut récupérer chaque jour les opérations et le solde de tes comptes bancaires, **avec les libellés complets** (les exports CSV/OFX de Boursorama coupent à 40 caractères), via [Enable Banking](https://enablebanking.com) : agrégateur DSP2 agréé (Finlande), gratuit en mode « restreint » pour un usage personnel. Issue #2.
 
-## Ce que contient le POC
+## Sécurité
 
-- `backend/src/lib/enableBanking.ts` : client de l'API (JWT RS256 signé avec `node:crypto`, banques, autorisation, session, soldes, opérations paginées) et conversion d'une opération bancaire vers le format d'import de Suzanne (`toBankRow`).
-- `tools/enable-banking.mts` : outil en ligne de commande pour tester avec ses vrais comptes.
-- Tests unitaires : `backend/src/lib/enableBanking.test.ts`.
+- **Lecture seule** : l'application n'a que le service « Account Information ». Elle ne peut ni faire de virement ni modifier quoi que ce soit (l'initiation de paiement est un autre service, non demandé, qui exigerait ta validation forte à chaque paiement).
+- **Tes identifiants bancaires ne passent jamais par Suzanne** : tu te connectes sur le site ou l'appli de ta banque, qui délivre un consentement.
+- Le consentement est **limité dans le temps** (180 jours chez Boursorama) et **révocable** : bouton « Déconnecter » dans Suzanne, ou depuis ta banque.
+- La **clé privée** de l'application reste sur le serveur, dans un fichier hors base, hors sauvegardes et hors git. Suzanne ne stocke que l'identifiant de session, inutilisable sans la clé.
+- Les données transitent par Enable Banking (prestataire agréé, supervisé par l'autorité financière finlandaise). Mode restreint : seuls les comptes que tu as liés toi-même sont accessibles.
 
-## 1. Créer l'application (une fois)
+## Activation (une fois)
+
+L'écran **Réglages → Banque** affiche ces étapes tant que le serveur n'est pas configuré.
 
 1. Créer un compte sur le [Control Panel Enable Banking](https://enablebanking.com/cp/).
-2. **Applications → Ajouter une application**, environnement **Production** (le mode « restreint », gratuit pour un particulier, ne donne accès qu'aux comptes que tu lies toi-même ; l'environnement Sandbox ne propose que des banques fictives).
-3. Clé : laisser le Control Panel générer la paire de clés dans le navigateur. Le fichier téléchargé `<id-de-l-application>.pem` est la **clé privée** : à garder hors du dépôt (ex. `~/.config/suzanne/enablebanking.pem`). Son nom donne l'id de l'application.
-4. URL de retour (*redirect URL*) : pour le POC, une adresse qui n'a pas besoin d'exister, par ex. `https://localhost/enablebanking/callback`. Après validation à la banque, le navigateur y est renvoyé avec `?code=…` dans la barre d'adresse : c'est ce code que l'outil utilise. Elle doit être **identique** à celle de la configuration ci-dessous.
-5. Remplir les champs demandés (description, e-mail, URL de confidentialité et de CGU : des pages simples suffisent pour un usage personnel).
-6. **Lier ses propres comptes** depuis le Control Panel pour activer l'application en mode restreint (statut « Restricted / Active »).
+2. **Ajouter une application « Production »**, clé générée dans le navigateur. Le fichier `<id-application>.pem` téléchargé est la **clé privée**. Description, e-mail, URL de confidentialité et de CGU sont obligatoires (le lien du dépôt suffit pour un usage perso).
+3. **URL de retour** : `https://<ton-instance>/bank/callback`, identique au caractère près et joignable depuis ton navigateur (en HTTPS ; sur le VPN, il suffit d'y être connecté au moment de l'autorisation). Une application peut déclarer plusieurs URL de retour (instance + dev).
+4. **Lier ses propres comptes** dans le Control Panel : l'application passe « Active » (mode restreint).
+5. **Serveur** (Docker, `compose.yml`) :
+   ```bash
+   mkdir -p secrets && cp <id-application>.pem secrets/enablebanking.pem
+   # Lisible par l'utilisateur du conteneur (app), pas par les autres :
+   sudo chown "$(docker compose run --rm --no-deps --entrypoint id suzanne -u)" secrets/enablebanking.pem
+   chmod 400 secrets/enablebanking.pem
+   ```
+   et dans le `.env` du serveur :
+   ```dotenv
+   ENABLE_BANKING_APP_ID=<id-application>
+   ENABLE_BANKING_REDIRECT_URL=https://<ton-instance>/bank/callback
+   ```
+   En dev (hors Docker), `ENABLE_BANKING_KEY_PATH` donne le chemin du `.pem`.
+6. `docker compose up -d` : l'écran propose alors « Connecter une banque ».
 
-## 2. Configurer l'outil
+## Utilisation
 
-Créer `.env.enablebanking` à la racine du dépôt (ignoré par git, comme tous les `.env.*`) :
+1. **Connecter une banque** : choisir le pays et la banque → redirection vers la banque → validation → retour sur Suzanne (`/bank/callback`). Une connexion par banque : refaire l'opération pour Fortuneo, Revolut… (chacune avec son propre consentement). Si l'URL de retour configurée n'est pas celle de la page ouverte (dev), coller l'adresse de retour dans « Configuration du serveur ».
+2. **Associer** chaque compte bancaire à un compte Suzanne (ou « Ne pas synchroniser ») et choisir la date de début.
+3. **Synchroniser** (bouton, puis automatiquement toutes les ~24 h).
 
-```dotenv
-ENABLE_BANKING_APP_ID=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
-ENABLE_BANKING_KEY_PATH=C:/Users/<toi>/.config/suzanne/enablebanking.pem
-ENABLE_BANKING_REDIRECT_URL=https://localhost/enablebanking/callback
-```
+Ce que fait une synchro, pour chaque compte associé :
 
-## 3. Tester
+- Récupère les opérations **comptabilisées** depuis la dernière synchro (avec 10 jours de recouvrement) ou depuis la date de début ; les opérations **en attente** sont ignorées jusqu'à leur comptabilisation (leur identifiant change entre-temps chez certaines banques).
+- **Reconnaît les opérations déjà présentes** (import CSV/OFX, saisie) : même compte, même montant, même date (puis ±3 jours). Elles ne sont pas dupliquées ; elles reçoivent l'identifiant bancaire et, si leur libellé était le début tronqué du libellé complet, le libellé complet (un libellé modifié à la main est conservé).
+- Importe le reste par le pipeline d'import habituel : règles de catégorie et de tag, virements entre tes comptes reliés, projections de récurrents remplacées.
+- Libellé = 1re ligne bancaire + motif, sans les références techniques (Réf, RUM, n° de mandat) ; le texte bancaire complet est gardé en **note de ligne**.
+- Enregistre le **solde comptabilisé** (`CLBD`) comme relevé daté : le rapprochement compare aux opérations.
 
-```bash
-npm run bank:poc -- check                         # l'application et la clé sont reconnues
-npm run bank:poc -- banks FR bourso               # BoursoBank est-elle couverte ? (idem fortuneo, revolut…)
-npm run bank:poc -- auth "BoursoBank" FR          # affiche l'URL d'autorisation de la banque
-npm run bank:poc -- session "https://localhost/enablebanking/callback?code=…&state=…"
-npm run bank:poc -- accounts                      # comptes autorisés, numérotés
-npm run bank:poc -- balances 1
-npm run bank:poc -- transactions 1 --from 2026-10-01 [--raw]
-```
+Le consentement expire (180 jours) : la carte de la banque passe en « bientôt » 7 jours avant, puis « expiré » ; « Renouveler l'accès » relance l'autorisation.
 
-`transactions` affiche le libellé reconstruit (contrepartie + motif SEPA complet) et indique combien dépassent les 40 caractères des exports CSV. `--raw` enregistre la réponse brute dans `.data/` pour voir tous les champs renvoyés par la banque. La session et ces fichiers contiennent des **données bancaires réelles** : `.data/` est ignoré par git, ne rien en copier ailleurs.
+## Architecture
 
-## Ce qu'on cherche à valider
+- `backend/src/lib/enableBanking.ts` : client API sans dépendance (JWT RS256 via `node:crypto`, banques, autorisation, session, soldes, opérations paginées).
+- `backend/src/lib/bankSync.ts` : `state` signé (HMAC, lié au profil, 1 h), connexions, reprise de l'existant, import via `dedupeAndInsert`, relevé de solde, planificateur.
+- `backend/src/routes/bank.ts` : `/users/:user_id/bank` (état), `/bank/check`, `/bank/aspsps`, `/bank/auth`, `/bank/callback`, `PATCH /bank/links/:id`, `/bank/connections/:id/sync`, `DELETE /bank/connections/:id`.
+- Tables `bank_connections` et `bank_links` (migration `20261117000000_bank_connections`), hors sauvegardes.
+- Front : `frontend/src/pages/Bank.tsx` (Réglages → Banque, `/bank`, `/bank/callback`).
+- Outil de diagnostic : `npm run bank:poc -- check | banks FR bourso | auth | session | accounts | balances | transactions` (`tools/enable-banking.mts`, configuration dans `.env.enablebanking`, réponses brutes dans `.data/`).
+- Tests : `backend/src/lib/enableBanking.test.ts`, `backend/src/test/bank.integration.test.ts`.
 
-- [ ] Couverture : BoursoBank, Fortuneo, Revolut, BNP (`banks`).
-- [ ] Durée de consentement réelle par banque (affichée par `banks`).
-- [ ] Motif complet des virements (`remittance_information`) et nom de la contrepartie.
-- [ ] Identifiant stable par opération (`entry_reference` / `transaction_id`) : sert d'empreinte d'import, pour ne jamais créer de doublon d'une synchro à l'autre.
-- [ ] Opérations en attente (`PDNG`) : présentes ? deviennent-elles `BOOK` avec le même identifiant ?
-- [ ] Types de solde renvoyés (`CLBD`, `ITAV`…) pour créer les relevés de solde (rapprochement, ADR 0002).
-- [ ] Profondeur d'historique disponible (`--from` lointain).
+## Constats sur Boursorama (novembre 2026)
 
-## Étape suivante (après validation)
-
-Brancher sur la base comme décrit dans l'issue #2 : tables `bank_connections` / `bank_links`, routes `/users/:user_id/bank/…` (autorisation avec `state` signé, callback, association compte distant ↔ compte Suzanne), synchronisation via le pipeline d'import existant (`dedupeAndInsert`, empreinte `eb:<id banque>`, date de début pour ne pas réimporter l'historique déjà importé en CSV), relevé de solde à chaque synchro, planificateur quotidien, écran dans Réglages, alerte avant expiration du consentement, ADR.
-
-## Confidentialité
-
-Les données transitent par Enable Banking (prestataire DSP2 agréé, Finlande). La clé privée ne doit jamais être commitée ni sauvegardée avec les données de Suzanne.
+- Couvert (« Boursorama Banque », consentement 180 jours), ainsi que Fortuneo (bêta), Revolut, BNP Paribas (bêta), Hello Bank.
+- Champs remplis : `entry_reference` (unique, stable), montant, sens, statut, dates, `remittance_information` (libellé complet + motif SEPA). Pas de nom de contrepartie séparé, pas de code commerçant ni de catégorie.
+- Soldes : `CLBD` (comptabilisé) et `XPCD` (temps réel, avec les opérations en attente).
+- À surveiller : les paiements carte en attente ont un identifiant provisoire (`avis-…`) ; vérifier qu'ils ne reviennent pas en double une fois comptabilisés (ils ne sont pas importés tant qu'ils sont en attente).
