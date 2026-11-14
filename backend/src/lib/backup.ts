@@ -539,7 +539,7 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
           category_id: resolveCategory(l.category_id, l.category_ref),
           amount: num(l.amount, NaN),
           refund: Boolean(l.refund),
-          note: str(l.note, 160),
+          note: str(l.note, 1000),
         }))
         .filter((l: Line) => Number.isFinite(l.amount));
       // Une ligne dont le compte n'a pas pu être résolu fausserait les soldes.
@@ -618,6 +618,9 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
         date,
         description,
         cleared: Boolean(raw.cleared ?? false),
+        // Données bancaires de la synchro (fiche de l'opération), telles qu'exportées.
+        ...(Array.isArray(raw.bank_data) && raw.bank_data.length > 0 && JSON.stringify(raw.bank_data).length < 20_000
+          ? { bank_data: raw.bank_data as Prisma.InputJsonValue } : {}),
         lines: { create: lines.map((l, position) => ({ user_id, ...l, position })) },
         tags: tagIds.size > 0 ? { create: Array.from(tagIds).map((tag_id) => ({ tag_id })) } : undefined,
       },
