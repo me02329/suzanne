@@ -181,14 +181,18 @@ async function adoptExisting(user_id: number, account_id: number, rows: Array<Pa
   const fresh = rows.filter((r) => !known.has(r.fingerprint));
   if (fresh.length === 0) return { rest: [], adopted: 0 };
   const times = fresh.map((r) => r.date.getTime());
+  // Empreintes de ce compte bancaire : « eb:<compte>:<id> ». Une opération déjà
+  // synchronisée depuis un AUTRE compte (virement entre deux comptes liés) reste
+  // reconnaissable ; seules celles de ce compte-ci sont exclues (déjà connues).
+  const ownPrefix = fresh[0]!.fingerprint.split(':').slice(0, 2).join(':') + ':';
   const candidates = await prisma.transaction.findMany({
     where: {
       user_id,
       date: { gte: new Date(Math.min(...times) - 3 * DAY), lte: new Date(Math.max(...times) + 3 * DAY) },
       lines: { some: { account_id } },
-      OR: [{ import_fingerprint: null }, { NOT: { import_fingerprint: { startsWith: 'eb:' } } }],
+      OR: [{ import_fingerprint: null }, { NOT: { import_fingerprint: { startsWith: ownPrefix } } }],
     },
-    select: { id: true, date: true, description: true, lines: { select: { account_id: true, amount: true } } },
+    select: { id: true, date: true, description: true, import_fingerprint: true, lines: { select: { account_id: true, amount: true } } },
   });
   const used = new Set<number>();
   const rest: typeof fresh = [];
@@ -205,6 +209,8 @@ async function adoptExisting(user_id: number, account_id: number, rows: Array<Pa
       if (!match) { rest.push(row); continue; }
       used.add(match.id);
       adopted += 1;
+      // Déjà synchronisée depuis l'autre compte du virement : on la garde telle quelle.
+      if (match.import_fingerprint?.startsWith('eb:')) continue;
       const old = normalize(match.description ?? '');
       const upgrade = old.length > 0 && normalize(row.description).startsWith(old) && row.description.length > (match.description ?? '').length;
       await prisma.transaction.update({
@@ -214,6 +220,23 @@ async function adoptExisting(user_id: number, account_id: number, rows: Array<Pa
     }
   }
   return { rest, adopted };
+}
+
+/**
+ * Les banques limitent l'historique accessible (Boursorama : 90 jours). Une
+ * date trop ancienne est refusée (422 WRONG_TRANSACTIONS_PERIOD) avec la date
+ * la plus ancienne autorisée : on recommence à partir de celle-ci.
+ */
+async function fetchWithinBankLimit(client: EnableBankingClient, uid: string, dateFrom: string): Promise<BankTransaction[]> {
+  try {
+    return await client.transactions(uid, { dateFrom });
+  } catch (error) {
+    if (!(error instanceof EnableBankingError) || error.status !== 422) throw error;
+    let earliest: string | undefined;
+    try { earliest = (JSON.parse(error.body) as { detail?: { date_from?: string } }).detail?.date_from; } catch { /* corps non JSON */ }
+    if (!earliest || !/^\d{4}-\d{2}-\d{2}$/.test(earliest) || earliest <= dateFrom) throw error;
+    return client.transactions(uid, { dateFrom: earliest });
+  }
 }
 
 export async function syncLink(user_id: number, linkId: number): Promise<SyncResult> {
@@ -227,7 +250,7 @@ export async function syncLink(user_id: number, linkId: number): Promise<SyncRes
     ? new Date(Math.max(link.last_sync_at.getTime() - OVERLAP_DAYS * DAY, link.sync_from?.getTime() ?? 0))
     : link.sync_from ?? new Date(today.getTime() - DEFAULT_HISTORY_DAYS * DAY);
   const [txs, balances] = await Promise.all([
-    client.transactions(link.remote_uid, { dateFrom: isoDay(from) }),
+    fetchWithinBankLimit(client, link.remote_uid, isoDay(from)),
     client.balances(link.remote_uid).catch(() => [] as BankBalance[]),
   ]);
   const rules = await loadRules(user_id);
