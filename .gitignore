@@ -9,6 +9,7 @@ docs/audit-*.md
 docs/improvement-ideas.md
 frontend/dist
 backend/dist
+backend/public
 
 *.tsbuildinfo
 DESIGN.md

@@ -1,7 +1,7 @@
 // Captures de l'interface (desktop 1440 / mobile 390) + contrôles automatiques.
 // Prérequis : serveurs de dev lancés (front http://localhost:5174 par défaut).
 //
-//   node tools/screenshots.mjs <dossier> [page1,page2,…] [--theme dark] [--month 2026-04]
+//   node tools/screenshots.mjs <dossier> [page1,page2,…] [--theme dark] [--month 2026-04] [--lang en]
 //
 // Échoue (code 1) si une page lève une erreur JavaScript ou déborde
 // horizontalement (scrollWidth > largeur de l'écran) — régression mobile la plus
@@ -13,14 +13,16 @@ import { chromium } from 'playwright';
 const args = process.argv.slice(2);
 const out = args[0];
 if (!out) {
-  console.error('usage : node tools/screenshots.mjs <dossier> [pages] [--theme dark] [--month AAAA-MM]');
+  console.error('usage : node tools/screenshots.mjs <dossier> [pages] [--theme dark] [--month AAAA-MM] [--lang fr|en]');
   process.exit(2);
 }
 const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 const theme = flag('--theme') ?? 'light';
+// Langue de l'interface (le navigateur automatisé est en anglais : on impose fr par défaut).
+const lang = flag('--lang') ?? 'fr';
 const month = flag('--month');
 const BASE = process.env.BASE ?? 'http://localhost:5174';
-const ALL = ['dashboard', 'health', 'alerts', 'transactions', 'anomalies', 'accounts', 'wealth', 'investments', 'goals',
+const ALL = ['dashboard', 'health', 'alerts', 'transactions', 'anomalies', 'accounts', 'wealth', 'investments', 'goals', 'simulator',
   'budgets', 'recurring', 'bills', 'forecast', 'statistics', 'assistant', 'categories', 'tags', 'rules', 'tools', 'users', 'settings'];
 const pages = args[1] && !args[1].startsWith('--') ? args[1].split(',') : ALL;
 fs.mkdirSync(out, { recursive: true });
@@ -37,7 +39,7 @@ const problems = [];
 const browser = await chromium.launch();
 for (const [label, viewport, mobile] of [['desk', { width: 1440, height: 900 }, false], ['mob', { width: 390, height: 844 }, true]]) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: mobile ? 2 : 1, isMobile: mobile, hasTouch: mobile, colorScheme: theme === 'dark' ? 'dark' : 'light' });
-  await ctx.addInitScript((t) => { try { localStorage.setItem('suzanne_theme', JSON.stringify(t)); } catch { /* ignore */ } }, theme);
+  await ctx.addInitScript((t) => { try { localStorage.setItem('suzanne_theme', JSON.stringify(t.theme)); localStorage.setItem('suzanne_lang', t.lang); } catch { /* ignore */ } }, { theme, lang });
   const page = await ctx.newPage();
   let current = '';
   page.on('pageerror', (e) => problems.push(`[${label}] ${current} : erreur JS — ${e.message}`));
