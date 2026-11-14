@@ -230,3 +230,10 @@ reglages.bank.sync_from,Depuis le,From
 reglages.bank.sync_from_hint,"Première date importée. Les opérations déjà présentes (import CSV) sont reconnues, pas dupliquées.","First imported date. Transactions already present (CSV import) are matched, not duplicated."
 reglages.bank.sync_now,Synchroniser,Sync now
 reglages.bank.synced,"Synchronisé : {{imported}} nouvelle(s) opération(s), {{adopted}} reconnue(s)","Synced: {{imported}} new transaction(s), {{adopted}} matched"
+reglages.bank.map_first,"Pour synchroniser, choisis ci-dessous le compte Suzanne où importer chaque compte bancaire (au moins un), puis clique « Synchroniser ».","To sync, pick below the Suzanne account each bank account should import into (at least one), then click « Sync now »."
+reglages.bank.waiting_title,Connexion à {{bank}},Connecting to {{bank}}
+reglages.bank.waiting_intro,Ta banque s'est ouverte dans un nouvel onglet : connecte-toi et autorise l'accès. Cette page se mettra à jour toute seule une fois la connexion créée.,Your bank opened in a new tab: sign in and allow access. This page updates on its own once the connection is created.
+reglages.bank.waiting_tab_closed,Onglet bloqué ou fermé ?,Tab blocked or closed?
+reglages.bank.waiting_reopen,Rouvrir la page de la banque,Reopen the bank's page
+reglages.bank.waiting_paste,"Si la page de retour ne s'affiche pas correctement (URL d'un autre environnement), copie son adresse complète et colle-la ici :","If the return page doesn't display properly (a redirect URL from another environment), copy its full address and paste it here:"
+reglages.bank.waiting_done,J'ai terminé,I'm done

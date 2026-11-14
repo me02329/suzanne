@@ -21,6 +21,19 @@ const DAY = 86400_000;
 const CONTROL_PANEL_URL = 'https://enablebanking.com/cp/';
 const CONTROL_PANEL_NAME = 'Enable Banking Control Panel';
 const CALLBACK_PLACEHOLDER = 'https://…/callback?code=…&state=…';
+const BANK_CHANNEL = 'suzanne-bank';
+
+/** code et state d'une adresse de retour collée ; null si elle n'en contient pas. */
+function parseReturnUrl(value: string): { code: string; state: string } | null {
+  try {
+    const url = new URL(value.trim());
+    const code = url.searchParams.get('code');
+    const state = url.searchParams.get('state');
+    return code && state ? { code, state } : null;
+  } catch {
+    return null;
+  }
+}
 
 export function Bank({ userId, accounts, run }: { userId: number; accounts: Account[]; run: Run }) {
   const { t } = useTranslation();
@@ -38,11 +51,25 @@ export function Bank({ userId, accounts, run }: { userId: number; accounts: Acco
     return () => { cancelled = true; };
   }, [userId, version]);
 
+  // La banque s'ouvre dans un autre onglet : quand la connexion y est créée
+  // (retour sur /bank/callback), cet onglet-ci est prévenu et se met à jour.
+  useEffect(() => {
+    const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(BANK_CHANNEL);
+    if (channel) channel.onmessage = () => { setConnecting(null); refresh(); };
+    const onFocus = () => refresh();
+    window.addEventListener('focus', onFocus);
+    return () => { channel?.close(); window.removeEventListener('focus', onFocus); };
+  }, [refresh]);
+
   // Retour de la banque : /bank/callback?code=…&state=… (ou ?error=…).
   const handled = useRef(false);
   const completeCallback = useCallback(async (code: string, state: string) => {
     const ok = await run(() => api.bankCallback(userId, code, state), t('reglages.bank.connected'));
-    if (ok) refresh();
+    if (ok) {
+      refresh();
+      setConnecting(null);
+      try { const channel = new BroadcastChannel(BANK_CHANNEL); channel.postMessage('connected'); channel.close(); } catch { /* navigateur ancien */ }
+    }
     return ok;
   }, [run, t, userId, refresh]);
   useEffect(() => {
@@ -95,7 +122,7 @@ export function Bank({ userId, accounts, run }: { userId: number; accounts: Acco
 
       <SecurityNote />
 
-      {connecting && <ConnectModal userId={userId} initial={connecting} onClose={() => setConnecting(null)} />}
+      {connecting && <ConnectModal userId={userId} initial={connecting} onPasted={completeCallback} onClose={() => { setConnecting(null); refresh(); }} />}
     </section>
   );
 }
@@ -189,12 +216,8 @@ function ServerPanel({ userId, status, onPasted }: { userId: number; status: Ban
     try { setCheck(await api.bankCheck(userId)); } catch (error) { setCheck({ ok: false, error: error instanceof Error ? error.message : String(error) }); } finally { setChecking(false); }
   };
   const submitPasted = async () => {
-    try {
-      const url = new URL(pasted.trim());
-      const code = url.searchParams.get('code');
-      const state = url.searchParams.get('state');
-      if (code && state && await onPasted(code, state)) setPasted('');
-    } catch { /* adresse invalide : rien */ }
+    const parsed = parseReturnUrl(pasted);
+    if (parsed && await onPasted(parsed.code, parsed.state)) setPasted('');
   };
   return (
     <details className="pg-card bank-server" open={elsewhere || undefined}>
@@ -228,13 +251,18 @@ function ServerPanel({ userId, status, onPasted }: { userId: number; status: Ban
 
 // ---- Connexion d'une banque --------------------------------------------------
 
-function ConnectModal({ userId, initial, onClose }: { userId: number; initial: { country: string; bank?: string }; onClose: () => void }) {
+function ConnectModal({ userId, initial, onPasted, onClose }: {
+  userId: number; initial: { country: string; bank?: string }; onPasted: (code: string, state: string) => Promise<boolean>; onClose: () => void;
+}) {
   const { t } = useTranslation();
   const [country, setCountry] = useState(initial.country);
   const [banks, setBanks] = useState<BankAspsp[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState(initial.bank ?? '');
   const [redirecting, setRedirecting] = useState<string | null>(null);
+  // Banque ouverte dans un autre onglet : on attend son retour.
+  const [waiting, setWaiting] = useState<{ bank: string; url: string } | null>(null);
+  const [pasted, setPasted] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -252,16 +280,53 @@ function ConnectModal({ userId, initial, onClose }: { userId: number; initial: {
   }, [banks, query]);
 
   const go = async (bank: BankAspsp) => {
+    // L'onglet est ouvert tout de suite (dans le clic) pour ne pas être bloqué
+    // comme popup, puis dirigé vers la banque quand l'URL est connue.
+    const tab = window.open('about:blank', '_blank');
     setRedirecting(bank.name);
     setError(null);
     try {
       const { url } = await api.bankAuth(userId, bank.name, country);
-      window.location.assign(url);
+      if (tab && !tab.closed) {
+        tab.opener = null;
+        tab.location.href = url;
+        setWaiting({ bank: bank.name, url });
+      } else {
+        window.location.assign(url);
+      }
     } catch (e) {
-      setRedirecting(null);
+      tab?.close();
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRedirecting(null);
     }
   };
+
+  const parsed = parseReturnUrl(pasted);
+
+  if (waiting) {
+    return (
+      <Modal title={t('reglages.bank.waiting_title', { bank: waiting.bank })} onClose={onClose}>
+        <div className="bank-connect">
+          <p>{t('reglages.bank.waiting_intro')}</p>
+          <p className="muted">
+            {t('reglages.bank.waiting_tab_closed')}{' '}
+            <a href={waiting.url} target="_blank" rel="noreferrer">{t('reglages.bank.waiting_reopen')} <ExternalLink size={12} /></a>
+          </p>
+          <label className="bank-paste">
+            <span>{t('reglages.bank.waiting_paste')}</span>
+            <div className="bank-row">
+              <input type="url" value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder={CALLBACK_PLACEHOLDER} />
+              <button type="button" className="primary" disabled={!parsed} onClick={() => { if (parsed) void onPasted(parsed.code, parsed.state); }}>{t('reglages.bank.paste_submit')}</button>
+            </div>
+          </label>
+          <div className="bank-row">
+            <button type="button" className="secondary" onClick={onClose}>{t('reglages.bank.waiting_done')}</button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal title={t('reglages.bank.connect_bank')} onClose={onClose}>
@@ -334,6 +399,9 @@ function ConnectionCard({ userId, connection: c, accounts, run, onChanged, onRen
         </span>
       </header>
       {c.last_error && state !== 'active' && <div className="bank-alert error"><TriangleAlert size={16} /> <span>{c.last_error}</span></div>}
+      {linked === 0 && state !== 'expired' && (
+        <div className="bank-alert info"><Link2 size={16} /> <span>{t('reglages.bank.map_first')}</span></div>
+      )}
 
       <table className="bank-links">
         <thead>

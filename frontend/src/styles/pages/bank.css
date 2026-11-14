@@ -68,3 +68,6 @@
   .bank-links td { border-top: 0; padding: 0; }
   .bank-links select, .bank-links input { width: 100%; }
 }
+.bank-alert.info { color: var(--text); background: var(--warn-soft); border: 1px solid var(--warn-border); }
+.bank-alert.info svg { color: var(--warn); }
+.bank-actions button:disabled { opacity: 0.45; cursor: not-allowed; }

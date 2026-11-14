@@ -108,7 +108,7 @@ export async function completeAuthorization(user_id: number, code: string, state
           remote_uid: acc.uid,
           remote_name: acc.name ?? acc.product ?? acc.details ?? null,
           iban_last4: acc.account_id?.iban ? acc.account_id.iban.slice(-4) : null,
-          currency: acc.currency && /^[A-Z]{3}$/.test(acc.currency) ? acc.currency : null,
+          currency: acc.currency && /^[A-Z]{3}$/.test(acc.currency) && acc.currency !== 'XXX' ? acc.currency : null,
         })),
       },
     },
