@@ -103,7 +103,10 @@ export function computeHealth({
   const withIncome = monthlyCashflow.filter((m) => m.income > 0);
   const series: SavingsRatePoint[] = withIncome.map((m) => ({ month: m.month, rate: m.net / m.income }));
   const currentRate = series.length ? series[series.length - 1]!.rate : null;
-  const averageRate = mean(series.map((p) => p.rate));
+  // Moyenne pondérée (épargne totale / revenus totaux) : un mois presque sans
+  // revenu (taux de −1 000 %) ne fausse pas la moyenne.
+  const totalIncome = withIncome.reduce((s, m) => s + m.income, 0);
+  const averageRate = totalIncome > 0 ? withIncome.reduce((s, m) => s + m.net, 0) / totalIncome : null;
 
   // --- Emergency fund: liquid balance / average monthly expenses ---
   const avgMonthlyExpenses = mean(monthlyCashflow.filter((m) => m.expenses > 0).map((m) => m.expenses)) ?? 0;

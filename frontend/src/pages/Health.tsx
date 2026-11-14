@@ -14,7 +14,7 @@ const RATING_LABEL: Record<HealthRating, string> = {
   unknown: '—',
 };
 
-const pct = (value: number | null) => (value === null ? '—' : `${Math.round(value * 100)} %`);
+const pct = (value: number | null) => (value === null ? '—' : value < -1 ? '< −100 %' : `${Math.round(value * 100)} %`);
 
 export function Health({ summary, recurring, budgets, reportCurrency, categoryById, accountById }: {
   summary: DashboardSummary | null;

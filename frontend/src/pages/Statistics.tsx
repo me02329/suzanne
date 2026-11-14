@@ -17,6 +17,7 @@ import type { Account, StatisticsSummary, Transaction } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { seriesColor, useChartTheme, useIsNarrow } from '../lib/chartTheme';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, truncate } from '../lib/format';
+import { timeAxisProps, timeTooltipLabel } from '../lib/timeAxis';
 import { usePersistedState } from '../lib/storage';
 import { CashflowTrends } from '../components/CashflowTrends';
 import { DrilldownPopover } from '../components/DrilldownPopover';
@@ -284,9 +285,9 @@ export function Statistics({ userId, reportCurrency, accountById }: {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthly} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={chartGrid} vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={chartTheme.tick} minTickGap={narrow ? 8 : 4} interval="preserveStartEnd" />
+                  <XAxis dataKey="month" {...timeAxisProps(monthly.map((m) => m.month), chartTheme.tick, 'month')} minTickGap={narrow ? 8 : 4} interval="preserveStartEnd" />
                   <YAxis tickFormatter={(value) => moneyCompact(Number(value))} tickLine={false} axisLine={false} width={narrow ? 50 : 66} tick={chartTheme.tick} />
-                  <Tooltip formatter={(value) => money(Number(value))} contentStyle={chartTheme.tooltip.contentStyle} labelStyle={chartTheme.tooltip.labelStyle} itemStyle={chartTheme.tooltip.itemStyle} cursor={chartTheme.tooltip.cursor} />
+                  <Tooltip formatter={(value) => money(Number(value))} labelFormatter={timeTooltipLabel('month')} contentStyle={chartTheme.tooltip.contentStyle} labelStyle={chartTheme.tooltip.labelStyle} itemStyle={chartTheme.tooltip.itemStyle} cursor={chartTheme.tooltip.cursor} />
                   {averagePerMonth > 0 && <ReferenceLine y={averagePerMonth} stroke={chartTheme.axis} strokeDasharray="4 4" />}
                   <Bar dataKey="amount" name="Dépenses" fill={chartTheme.total} radius={[4, 4, 0, 0]} maxBarSize={36} isAnimationActive={false} />
                 </BarChart>

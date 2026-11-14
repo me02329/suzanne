@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { timeAxisProps } from '../../lib/timeAxis';
 import { Area, Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { buildTracking, monthlyFlows } from '@suzanne/shared';
 import { moneyCompact } from '../../lib/format';
@@ -48,7 +49,7 @@ export function PeaTracking({ flows, history, ccy, asOf, fmt }: InsightProps) {
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={months} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke={theme.grid} vertical={false} />
-                <XAxis dataKey="month" tickFormatter={monthLabel} tick={theme.tick} tickLine={false} axisLine={false} minTickGap={24} />
+                <XAxis dataKey="month" {...timeAxisProps(months.map((m) => m.month), theme.tick, 'month')} minTickGap={24} />
                 <YAxis yAxisId="m" tickFormatter={(v) => compact(Number(v))} tick={theme.tick} tickLine={false} axisLine={false} width={56} />
                 <YAxis yAxisId="c" orientation="right" hide={narrow} tickFormatter={(v) => compact(Number(v))} tick={theme.tick} tickLine={false} axisLine={false} width={60} />
                 <Tooltip {...theme.tooltip} labelFormatter={(m) => formatDateFr(`${String(m)}-01`, { month: 'long', year: 'numeric' })} formatter={(v, name) => [fmt(Number(v)), name]} />

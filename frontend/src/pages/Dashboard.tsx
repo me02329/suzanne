@@ -198,8 +198,10 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
         </Link>
         <div className="pg-stat">
           <span>{t('Taux d\'épargne')}</span>
-          <strong>{savingRate == null ? '—' : `${savingRate} %`}</strong>
-          {savingRate != null && prevSavingRate != null && (
+          <strong title={savingRate != null && savingRate < -100 ? t('Dépenses bien supérieures aux revenus du mois ({{n}} %)', { n: savingRate }) : undefined}>
+            {savingRate == null ? '—' : savingRate < -100 ? '< −100 %' : `${savingRate} %`}
+          </strong>
+          {savingRate != null && prevSavingRate != null && savingRate >= -100 && prevSavingRate >= -100 && (
             <small>
               <span className={savingRate >= prevSavingRate ? 'income' : 'expense'}>
                 {savingRate === prevSavingRate ? '=' : savingRate > prevSavingRate ? '↑' : '↓'} {Math.abs(savingRate - prevSavingRate)} pts

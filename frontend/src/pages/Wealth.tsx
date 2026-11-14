@@ -31,6 +31,7 @@ import {
   moneyCompact as moneyCompactFmt,
   todayIso,
 } from '../lib/format';
+import { timeAxisProps, timeTooltipLabel } from '../lib/timeAxis';
 import { localeTag } from '../i18n';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
@@ -349,7 +350,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={displayedWealthRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={chartGrid} vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                  <XAxis dataKey="date" {...timeAxisProps(displayedWealthRows.map((r) => String(r.date)), chartTheme.tick, wealthGranularity === 'day' || wealthGranularity === 'week' ? 'day' : 'month')} minTickGap={24} />
                   <YAxis
                     domain={wealthDomain}
                     tickFormatter={(value) => wealthTickFormatter(Number(value))}
@@ -357,7 +358,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                     axisLine={false}
                     width={70}
                   />
-                  <Tooltip formatter={wealthTooltipFormatter} />
+                  <Tooltip formatter={wealthTooltipFormatter} labelFormatter={timeTooltipLabel(wealthGranularity === 'day' || wealthGranularity === 'week' ? 'day' : 'month')} />
                   <Legend />
                   {wealthSeriesConfig.map(({ key, label, color, width }) => {
                     if (!wealthSeries[key]) return null;
