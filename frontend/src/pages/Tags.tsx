@@ -1,8 +1,9 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Tag } from '@suzanne/shared';
-import { api } from '../lib/api';
+import { api, http } from '../lib/api';
+import { money } from '../lib/format';
 import { localeTag } from '../i18n';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
@@ -44,10 +45,21 @@ function TagForm({ initial, onSubmit, onCancel, submitLabel }: {
   );
 }
 
+interface TagSummary { tag_id: number; count: number; expenses: number; income: number; first_date: string | null; last_date: string | null }
+
 export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: Run }) {
   const { t } = useTranslation();
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Tag | null>(null);
+  // Résumé par tag (toutes périodes), rechargé quand la liste change.
+  const [summary, setSummary] = useState<Map<number, TagSummary>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    http<TagSummary[]>(`/users/${userId}/tags/summary`)
+      .then((rows) => { if (!cancelled) setSummary(new Map(rows.map((r) => [r.tag_id, r]))); })
+      .catch(() => { /* résumé facultatif */ });
+    return () => { cancelled = true; };
+  }, [userId, tags]);
 
   const create = (body: { name: string; color: string }) => {
     void run(() => api.createTag(userId, body), t('Tag ajouté')).then((ok) => { if (ok) setCreating(false); });
@@ -62,7 +74,7 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
       <div className="st-toolbar">
         <p className="st-summary">
           <strong>{tags.length}</strong> {tags.length > 1 ? t('tags') : t('tag')}
-          <span className="st-sub">{t('étiquettes libres, en plus des catégories')}</span>
+          <span className="st-sub">{t('2e classement, en plus de la catégorie : ex. un séminaire = catégorie Transport + tag « Travail ». Une opération peut porter plusieurs tags.')}</span>
         </p>
         <button type="button" className="primary accent" onClick={() => setCreating(true)}>
           <Plus size={16} /> {t('Nouveau tag')}
@@ -71,13 +83,17 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
 
       <div className="panel st-list">
         <DataTable empty={tags.length === 0 ? t('Aucun tag pour l\'instant.') : null}>
-          <thead><tr><th>{t('Nom')}</th><th>{t('Couleur')}</th><th>{t('Créé le')}</th><th className="actions-cell"><span className="sr-only">{t('Actions')}</span></th></tr></thead>
+          <thead><tr><th>{t('Nom')}</th><th className="r">{t('Opérations')}</th><th className="r">{t('Dépensé')}</th><th className="r">{t('Reçu')}</th><th>{t('Période')}</th><th className="actions-cell"><span className="sr-only">{t('Actions')}</span></th></tr></thead>
           <tbody>
             {tags.map((tag) => (
               <tr key={tag.id}>
                 <td className="cell-primary"><span className="tag-chip" style={{ background: tag.color }} title={tag.name}>{tag.name}</span></td>
-                <td className="st-muted" data-label={t('Couleur')}><code>{tag.color}</code></td>
-                <td className="st-muted" data-label={t('Créé le')}>{new Date(tag.created_at).toLocaleDateString(localeTag())}</td>
+                <td className="r num" data-label={t('Opérations')}>{summary.get(tag.id)?.count ?? 0}</td>
+                <td className="r num expense" data-label={t('Dépensé')}>{summary.get(tag.id)?.expenses ? money(summary.get(tag.id)!.expenses) : '—'}</td>
+                <td className="r num income" data-label={t('Reçu')}>{summary.get(tag.id)?.income ? money(summary.get(tag.id)!.income) : '—'}</td>
+                <td className="st-muted" data-label={t('Période')}>{summary.get(tag.id)?.first_date
+                  ? `${new Date(summary.get(tag.id)!.first_date!).toLocaleDateString(localeTag())} → ${new Date(summary.get(tag.id)!.last_date!).toLocaleDateString(localeTag())}`
+                  : t('Créé le {{d}}', { d: new Date(tag.created_at).toLocaleDateString(localeTag()) })}</td>
                 <td className="actions-cell">
                   <IconButton label={t('Modifier')} tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(tag)} />
                   <RowMenu items={[{
