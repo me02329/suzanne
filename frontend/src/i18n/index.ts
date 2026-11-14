@@ -1,9 +1,10 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import data from './i18n_data.json';
+import { buildResources, parseCatalog } from './catalog';
 
 // Langues disponibles. Pour en ajouter une : ajouter son code ici ET une
-// propriété (ex. "de") sur chaque entrée de i18n_data.json.
+// colonne (ex. "de") dans chaque catalogue `catalogs/*.csv`.
 export const LANGUAGES = [
   { code: 'fr', name: 'Français' },
   { code: 'en', name: 'English' },
@@ -13,16 +14,14 @@ export type Lang = (typeof LANGUAGES)[number]['code'];
 const STORAGE_KEY = 'suzanne_lang';
 const SUPPORTED = LANGUAGES.map((l) => l.code) as readonly string[];
 
-// i18n_data.json : { "<clé française>": { "fr": "...", "en": "...", … } }. On le
-// transpose vers le format par langue attendu par react-i18next. Source unique,
-// facile à étendre (une langue = une propriété par entrée).
-const dict = data as Record<string, Record<string, string>>;
-const resources = Object.fromEntries(
-  SUPPORTED.map((lang) => [
-    lang,
-    { translation: Object.fromEntries(Object.entries(dict).map(([key, langs]) => [key, langs[lang] ?? key])) },
-  ]),
-);
+// Source des textes : les catalogues `catalogs/*.csv` (format `keys,fr,en`, clés
+// stables `domaine.partie.nom`, un fichier par domaine), lus au build par Vite.
+// L'ancien dictionnaire i18n_data.json (clé = phrase française) reste chargé
+// tant que tous les écrans ne sont pas passés aux clés stables
+// (`node tools/i18n-migrate.mjs`), puis il sera supprimé.
+const csvFiles = import.meta.glob('./catalogs/*.csv', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const catalogs = Object.entries(csvFiles).map(([file, text]) => parseCatalog(text, file.replace('./catalogs/', '')));
+const resources = buildResources(catalogs, data as Record<string, Record<string, string>>, SUPPORTED);
 
 function initialLang(): Lang {
   try {
@@ -34,9 +33,10 @@ function initialLang(): Lang {
   return 'fr';
 }
 
-// Clés en langage naturel : la chaîne FRANÇAISE sert de clé (t('Enregistrer')).
 // Une clé absente d'une langue retombe sur le français. keySeparator /
-// nsSeparator désactivés pour que les « : » et « . » des phrases ne cassent rien.
+// nsSeparator désactivés : les clés stables sont plates (`budgets.hero.remaining`
+// est une clé, pas un chemin), et les « : » / « . » des anciennes clés-phrases
+// ne cassent rien.
 void i18n
   .use(initReactI18next)
   .init({
