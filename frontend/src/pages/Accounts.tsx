@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Archive, ArchiveRestore, CalendarCheck, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   accountGroupLabel,
-  accountTypeGroup,
+  accountGroupOf,
   accountTypeLabel,
   type Account,
   type AccountSnapshot,
@@ -23,7 +23,7 @@ import type { Run } from '../lib/run';
 import '../styles/pages/accounts.css';
 import { useTranslation } from 'react-i18next';
 
-const ORDERED_GROUPS = ['cash', 'regulated_savings', 'investments', 'crypto', 'liabilities', 'other'];
+const ORDERED_GROUPS = ['cash', 'regulated_savings', 'investments', 'crypto', 'liabilities', 'other', 'business'];
 
 interface Group { key: string; title: string; accounts: Account[] }
 
@@ -62,7 +62,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       return list;
     }
     return ORDERED_GROUPS
-      .map((g) => ({ key: g, title: accountGroupLabel(g), accounts: sorted.filter((a) => accountTypeGroup(a.type) === g) }))
+      .map((g) => ({ key: g, title: accountGroupLabel(g), accounts: sorted.filter((a) => accountGroupOf(a) === g) }))
       .filter((g) => g.accounts.length > 0);
   }, [accounts, institutions, institutionById, groupBy]);
 
@@ -89,7 +89,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       undo: () => accountsApi.create(userId, {
         name: a.name, type: a.type, currency: a.currency, institution_id: a.institution_id,
         initial_balance: a.initial_balance, initial_balance_date: a.initial_balance_date.slice(0, 10),
-        orders_affect_cash: a.orders_affect_cash, fiscal_start_date: a.fiscal_start_date?.slice(0, 10) ?? null,
+        orders_affect_cash: a.orders_affect_cash, fiscal_start_date: a.fiscal_start_date?.slice(0, 10) ?? null, professional: a.professional ?? false,
       }),
     });
   };

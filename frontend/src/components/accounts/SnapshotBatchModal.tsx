@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Wand2 } from 'lucide-react';
-import { accountGroupLabel, accountTypeGroup, type Account, type DashboardSummary } from '@suzanne/shared';
+import { accountGroupLabel, accountGroupOf, type Account, type DashboardSummary } from '@suzanne/shared';
 import { api } from '../../lib/api';
 import { lastDayOfPreviousMonthIso, money } from '../../lib/format';
 import { parseDecimal } from '../../lib/pea';
@@ -77,7 +77,7 @@ export function SnapshotBatchModal({ userId, accounts, summary, run, onClose }: 
         ) : (
           <div className="acc-batch-list">
             {ORDERED_GROUPS.flatMap((group) => {
-              const list = active.filter((a) => accountTypeGroup(a.type) === group).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+              const list = active.filter((a) => accountGroupOf(a) === group).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
               if (list.length === 0) return [];
               return [
                 <h3 key={`h-${group}`} className="acc-batch-group">{accountGroupLabel(group)}</h3>,

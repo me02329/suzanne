@@ -39,7 +39,7 @@ alertsRouter.get('/users/:user_id/alerts/triggered', asyncHandler(async (req, re
       where: { user_id },
       select: { ...LEDGER_TX_SELECT, description: true, lines: { select: LINE_SELECT, ...LINES_ORDERED } },
     }),
-    prisma.account.findMany({ where: { user_id }, select: { id: true, name: true, type: true, currency: true, initial_balance: true, initial_balance_date: true } }),
+    prisma.account.findMany({ where: { user_id }, select: { id: true, name: true, type: true, currency: true, initial_balance: true, initial_balance_date: true, professional: true } }),
     prisma.accountSnapshot.findMany({ where: { user_id }, select: { account_id: true, date: true, balance: true } }),
     prisma.holding.findMany({ where: { user_id }, select: { id: true, account_id: true, symbol: true, name: true, asset_class: true, currency: true, orders: { select: { id: true, side: true, date: true, quantity: true, unit_price: true, fee: true } } } }),
     prisma.savingsGoal.findMany({ where: { user_id }, select: { id: true, name: true, current_amount: true, target_amount: true, deadline: true } }),
@@ -56,13 +56,16 @@ alertsRouter.get('/users/:user_id/alerts/triggered', asyncHandler(async (req, re
     const cur = latestSnapshotByAccount.get(s.account_id);
     if (!cur || s.date > cur) latestSnapshotByAccount.set(s.account_id, s.date);
   }
+  const proIds = new Set(accounts.filter((a) => a.professional).map((a) => a.id));
   const monthTransactions = transactions
     .filter((t) => t.date >= start && t.date < end)
     .map((t) => {
       const view = legacyView(t);
       // trade / adjustment : le genre sert de type (exclus des flux).
       const type = t.kind === 'standard' || t.kind === 'transfer' ? view.type : t.kind;
-      return { amount: view.amount, type, account_id: view.account_id, description: t.description ?? '' };
+      // Compte pro : pas un flux perso (seule une alerte ciblée sur ce compte le voit).
+      const professional = view.account_id != null && proIds.has(view.account_id);
+      return { amount: view.amount, type, account_id: view.account_id, description: t.description ?? '', professional };
     });
 
   const triggered = evaluateAlerts(alerts as AlertConfig[], {

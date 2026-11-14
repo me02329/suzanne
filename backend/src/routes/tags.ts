@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { createTagSchema, idParam, updateTagSchema } from '../lib/validation.js';
-import { categoryTypeLookup, LINE_SELECT, txFlows } from '../lib/ledger.js';
+import { categoryTypeLookup, LINE_SELECT, professionalAccountFilter, txFlows } from '../lib/ledger.js';
 import { round2 } from '../lib/money.js';
 
 export const tagsRouter = Router();
@@ -30,11 +30,12 @@ tagsRouter.get('/users/:user_id/tags/summary', asyncHandler(async (req, res) => 
     prisma.category.findMany({ where: { user_id }, select: { id: true, type: true } }),
   ]);
   const typeOf = categoryTypeLookup(categories);
+  const excluded = await professionalAccountFilter(user_id);
   const out = new Map<number, { tag_id: number; count: number; expenses: number; income: number; first_date: string | null; last_date: string | null }>();
   for (const link of links) {
     const row = out.get(link.tag_id) ?? { tag_id: link.tag_id, count: 0, expenses: 0, income: 0, first_date: null, last_date: null };
     row.count += 1;
-    for (const f of txFlows(link.transaction, typeOf)) {
+    for (const f of txFlows(link.transaction, typeOf, excluded)) {
       if (f.side === 'expense') row.expenses += f.value;
       else row.income += f.value;
     }

@@ -151,6 +151,10 @@ model Account {
   // d'espèces (opération kind=trade). Désactivé par défaut pour ne pas
   // modifier rétroactivement les soldes des comptes existants.
   orders_affect_cash   Boolean  @default(false)
+  // Compte professionnel (ex. SASU) : visible (trésorerie, virements avec les
+  // comptes perso) mais ses opérations ne comptent jamais dans les dépenses,
+  // revenus, budgets et statistiques personnels. Groupe « Société » du patrimoine.
+  professional         Boolean  @default(false)
   // Date fiscale (PEA : date du premier versement, règle des 5 ans ;
   // assurance-vie : 8 ans). Null = date d'ouverture.
   fiscal_start_date    DateTime? @db.Date

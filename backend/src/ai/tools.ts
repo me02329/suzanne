@@ -30,6 +30,7 @@ import {
   linesCreateData,
   mergeLegacy,
   patchTouchesLines,
+  professionalAccountFilter,
   txFlows,
   type LegacyInput,
 } from '../lib/ledger.js';
@@ -811,10 +812,11 @@ async function dashboardSummary(userId: number, rawArgs: unknown) {
   // faite (montants sommés dans la devise de chaque compte) ; `currency` n'est
   // qu'une étiquette. Le dashboard REST, lui, convertit.
   const categoryType = categoryTypeLookup(categories);
+  const excluded = await professionalAccountFilter(userId);
   let income = 0;
   let expenses = 0;
   for (const tx of transactions) {
-    for (const flow of txFlows(tx, categoryType)) {
+    for (const flow of txFlows(tx, categoryType, excluded)) {
       if (flow.side === 'income') income += flow.value;
       else expenses += flow.value;
     }

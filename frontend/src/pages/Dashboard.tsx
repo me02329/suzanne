@@ -141,7 +141,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
   const topCategories = categoryRows.slice(0, 6);
   const maxCategory = topCategories[0]?.amount ?? 0;
   const otherCategories = categoryRows.slice(6).reduce((sum, row) => sum + row.amount, 0);
-  const topExpenses = transactions.filter((tx) => tx.type === 'expense').sort((a, b) => b.amount - a.amount).slice(0, 5);
+  const topExpenses = transactions.filter((tx) => tx.type === 'expense' && !accountById.get(tx.account_id ?? -1)?.professional).sort((a, b) => b.amount - a.amount).slice(0, 5);
 
   return (
     <section className="pg home">

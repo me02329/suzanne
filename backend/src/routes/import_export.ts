@@ -289,12 +289,17 @@ export async function dedupeAndInsert(user_id: number, account_id: number | null
       },
       select: { id: true, date: true, description: true, lines: { select: { id: true, account_id: true, amount: true } } },
     });
+    // Société → perso (salaire, dividendes) : un revenu personnel, pas un
+    // virement neutre ; on ne relie pas automatiquement (perso → société, oui).
+    const proIds = new Set((await prisma.account.findMany({ where: { user_id, professional: true }, select: { id: true } })).map((a) => a.id));
+    const fromCompany = (signed: number, other: number) => (signed > 0 ? proIds.has(other) && !proIds.has(account_id) : proIds.has(account_id) && !proIds.has(other));
     const used = new Set<number>();
     for (const row of toCreate) {
       if (!TRANSFER_RX.test(row.description)) continue;
       const signed = row.type === 'income' ? row.amount : -row.amount;
       const match = candidates
         .filter((c) => !used.has(c.id) && c.lines.length === 1 && c.lines[0]!.account_id != null && c.lines[0]!.account_id !== account_id
+          && !fromCompany(signed, c.lines[0]!.account_id)
           && Math.abs(c.lines[0]!.amount + signed) < 0.005
           && Math.abs(c.date.getTime() - row.date.getTime()) <= pad
           && TRANSFER_RX.test(c.description ?? ''))

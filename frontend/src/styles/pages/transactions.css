@@ -391,3 +391,5 @@ button.jr-badge-link:hover { color: var(--text); border-color: var(--text); }
 .refunded-date { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .refunded-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jr-quick .cat-select.jr-quick-extra { align-self: stretch; }
+/* Opération d'un compte professionnel (société) : hors des totaux perso. */
+.jr-badge-pro { color: #0f766e; border-color: rgba(15, 118, 110, 0.35); background: rgba(15, 118, 110, 0.08); font-weight: 700; letter-spacing: 0.04em; }

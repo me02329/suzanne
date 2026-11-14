@@ -95,6 +95,7 @@ accountsRouter.post('/users/:user_id/accounts', asyncHandler(async (req, res) =>
       user_id,
       initial_balance_date: new Date(body.initial_balance_date),
       orders_affect_cash: extra.orders_affect_cash ?? investment,
+      professional: extra.professional ?? false,
       fiscal_start_date: extra.fiscal_start_date ? new Date(extra.fiscal_start_date) : null,
     },
   });
@@ -117,6 +118,7 @@ accountsRouter.patch('/users/:user_id/accounts/:id', asyncHandler(async (req, re
     where: { id },
     data: {
       ...(extra.orders_affect_cash !== undefined ? { orders_affect_cash: extra.orders_affect_cash } : {}),
+      ...(extra.professional !== undefined ? { professional: extra.professional } : {}),
       ...(extra.fiscal_start_date !== undefined ? { fiscal_start_date: extra.fiscal_start_date ? new Date(extra.fiscal_start_date) : null } : {}),
       ...(body.name != null ? { name: body.name } : {}),
       ...(body.institution_id !== undefined ? { institution_id: body.institution_id ?? null } : {}),

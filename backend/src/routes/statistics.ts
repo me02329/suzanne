@@ -6,7 +6,7 @@ import { currencyQuery, dateString, idParam } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { buildFx } from '../lib/fxHelper.js';
 import { addMonthsUtc, startOfUtcDay } from '../lib/dates.js';
-import { categoryTypeLookup, LINE_SELECT, txFlows, type Flow } from '../lib/ledger.js';
+import { categoryTypeLookup, LINE_SELECT, professionalAccountFilter, txFlows, type Flow } from '../lib/ledger.js';
 
 export const statisticsRouter = Router();
 
@@ -59,6 +59,7 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const categoryType = categoryTypeLookup(categories);
+  const excluded = await professionalAccountFilter(user_id);
 
   // Montant d'un flux en devise de reporting : devise du compte de la ligne
   // (EUR quand la ligne n'a pas de compte).
@@ -73,7 +74,7 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
     date: t.date,
     description: t.description,
     refunds_description: null,
-    flows: txFlows(t, categoryType).map((f) => ({
+    flows: txFlows(t, categoryType, excluded).map((f) => ({
       ...f,
       reported: f.value * rateOf(f.account_id),
       refunded_description: f.refund ? refundedDescription.get(f.refund_of_id ?? t.refunds_transaction_id ?? -1) : undefined,

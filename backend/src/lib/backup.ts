@@ -380,6 +380,7 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
           initial_balance_date: parseDay(raw.initial_balance_date) ?? parseDay(new Date().toISOString())!,
           archived: Boolean(raw.archived ?? false),
           orders_affect_cash: Boolean(raw.orders_affect_cash ?? false),
+          professional: Boolean(raw.professional ?? false),
           fiscal_start_date: parseDay(raw.fiscal_start_date),
         },
       })).id;

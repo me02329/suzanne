@@ -49,6 +49,8 @@ export const updateAccountSchema = createAccountSchema.partial().extend({
 export const investmentAccountFields = z.object({
   orders_affect_cash: z.preprocess((v) => (v === 'false' || v === '0' ? false : v), z.coerce.boolean()).optional(),
   fiscal_start_date: dateString.nullish(),
+  // Compte professionnel (société) : hors des finances personnelles.
+  professional: z.preprocess((v) => (v === 'false' || v === '0' ? false : v), z.coerce.boolean()).optional(),
 });
 
 export const createCategorySchema = z.object({

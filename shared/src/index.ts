@@ -51,6 +51,8 @@ export interface Account {
   initial_balance: number;
   initial_balance_date: string;
   archived: boolean;
+  /** Compte professionnel (société) : hors des finances personnelles. */
+  professional?: boolean;
   created_at: string;
 }
 
@@ -728,7 +730,7 @@ export interface StatisticsSummary {
 // dashboard, alertes). Ne pas dupliquer ailleurs.
 // ---------------------------------------------------------------------------
 
-export type AccountGroup = 'cash' | 'regulated_savings' | 'investments' | 'crypto' | 'liabilities' | 'other';
+export type AccountGroup = 'cash' | 'regulated_savings' | 'investments' | 'crypto' | 'liabilities' | 'other' | 'business';
 
 export const ACCOUNT_TYPES: ReadonlyArray<{ value: AccountType; label: string; group: AccountGroup }> = [
   { value: 'checking', label: 'Compte courant', group: 'cash' },
@@ -758,6 +760,8 @@ export const ACCOUNT_GROUPS: ReadonlyArray<{ value: AccountGroup; label: string;
   { value: 'crypto', label: 'Crypto', color: '#f59e0b' },
   { value: 'liabilities', label: 'Passifs', color: '#dc2626' },
   { value: 'other', label: 'Autres', color: '#64748b' },
+  // Comptes professionnels (société) : leur trésorerie, à part du reste.
+  { value: 'business', label: 'Société', color: '#0f766e' },
 ];
 
 const ACCOUNT_TYPE_INDEX = new Map(ACCOUNT_TYPES.map((entry) => [entry.value, entry]));
@@ -769,6 +773,11 @@ export function accountTypeLabel(type: AccountType): string {
 
 export function accountTypeGroup(type: AccountType): AccountGroup {
   return ACCOUNT_TYPE_INDEX.get(type)?.group ?? 'other';
+}
+
+/** Groupe d'un compte : « Société » pour un compte professionnel, sinon celui de son type. */
+export function accountGroupOf(account: { type: AccountType | string; professional?: boolean | null }): AccountGroup {
+  return account.professional ? 'business' : accountTypeGroup(account.type as AccountType);
 }
 
 export function accountGroupLabel(group: string): string {

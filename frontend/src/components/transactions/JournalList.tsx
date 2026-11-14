@@ -55,6 +55,7 @@ export function JournalList({ rows, grouped, emptyMessage, categoryById, account
             <span className="jr-item-meta">
               {!grouped && <span className="jr-item-day">{formatTxDay(tx.date)}</span>}
               {readOnly && <span className="jr-badge">{t('operations.stock_market')}</span>}
+              {tx.type !== 'transfer' && accountById.get(tx.account_id ?? -1)?.professional && <span className="jr-badge jr-badge-pro">{t('operations.pro_badge')}</span>}
               {category && (
                 <span className="jr-chip">
                   {color && <i style={{ background: color }} />}

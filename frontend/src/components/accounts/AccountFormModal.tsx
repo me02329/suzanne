@@ -55,6 +55,7 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
       initial_balance_date: String(data.get('initial_balance_date')),
       ...(showOrdersCash ? { orders_affect_cash: data.get('orders_affect_cash') === 'on' } : {}),
       ...(showFiscal ? { fiscal_start_date: String(data.get('fiscal_start_date') || '') || null } : {}),
+      professional: data.get('professional') === 'on',
     };
     void run(async () => {
       let institution_id: number | null = institution && institution !== NEW_INSTITUTION ? Number(institution) : null;
@@ -107,6 +108,13 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
             <span>{t('comptes.account_form_modal.stock_orders_debit_credit_this')}</span>
           </label>
         )}
+        <label className="acc-check full">
+          <input type="checkbox" name="professional" defaultChecked={Boolean((account as { professional?: boolean } | null | undefined)?.professional)} />
+          <span>
+            {t('comptes.account_form_modal.professional')}
+            <small className="acc-hint">{t('comptes.account_form_modal.professional_hint')}</small>
+          </span>
+        </label>
         {error && <p className="acc-error full" role="alert">{error}</p>}
         <div className="acc-form-actions full">
           <button type="button" className="secondary" onClick={onClose}>{t('comptes.account_form_modal.cancel')}</button>

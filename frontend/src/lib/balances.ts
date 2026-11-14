@@ -1,4 +1,4 @@
-import { accountTypeGroup, type Account, type DashboardSummary, type RecurringTransaction } from '@suzanne/shared';
+import { accountGroupOf, type Account, type DashboardSummary, type RecurringTransaction } from '@suzanne/shared';
 
 // Liquid accounts whose balance the recurring income/expenses actually move,
 // and the base for the emergency-fund metric. Investments, crypto and
@@ -13,7 +13,7 @@ export const LIQUID_GROUPS = new Set<string>(['cash', 'regulated_savings']);
 export function isLiquidRecurring(r: RecurringTransaction, accountById: Map<number, Account>): boolean {
   if (r.account_id == null) return true;
   const account = accountById.get(r.account_id);
-  return account ? LIQUID_GROUPS.has(accountTypeGroup(account.type)) : true;
+  return account ? LIQUID_GROUPS.has(accountGroupOf(account)) : true;
 }
 
 // Sum of the liquid accounts' balances, already converted to the report

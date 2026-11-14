@@ -137,6 +137,7 @@ export function TransactionsTable({
                   <span className="jr-label" title={label}>{label}</span>
                   <span className="jr-badges">
                     {readOnly && <span className="jr-badge">{t('operations.stock_market')}</span>}
+                    {tx.type !== 'transfer' && accountById.get(tx.account_id ?? -1)?.professional && <span className="jr-badge jr-badge-pro" title={t('operations.pro_badge_hint')}>{t('operations.pro_badge')}</span>}
                     {linked && <span className="jr-badge" title={t('operations.linked_to_recurring_item')}>↻ {t('operations.recurring_2')}</span>}
                     {refunded > 0 && (
                       <span className="jr-badge" title={t('operations.refunded_b', { a: money(refunded, srcCurrency), b: money(tx.amount, srcCurrency) })}>

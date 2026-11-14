@@ -265,6 +265,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
               </span>
             )}
             {totals.transfers > 0 && <span className="jr-num jr-muted" title={t('operations.transfers')}>⇄ {money(totals.transfers)}</span>}
+            {totals.professional > 0 && <span className="jr-num jr-muted" title={t('operations.pro_excluded_hint')}>{t('operations.pro_excluded', { count: totals.professional })}</span>}
           </span>
           <span className="jr-spacer" />
           {issueFilter === null && (
