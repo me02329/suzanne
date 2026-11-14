@@ -25,8 +25,8 @@ export interface ChartTheme {
   tick: { fill: string; fontSize: number; fontFamily: string };
 }
 
-const SERIES_LIGHT = ['#2f2c25', '#6b7a2e', '#b5603a', '#4f6d8f', '#c0922a', '#7d4e6e', '#8c9a7e', '#a8987a'];
-const SERIES_DARK = ['#e3ddcd', '#aab86c', '#e08d66', '#8eaacb', '#e2b955', '#bb8bab', '#a5b39a', '#c2b597'];
+const SERIES_LIGHT = ['#2f2c25', '#6b7a2e', '#b5603a', '#4f6d8f', '#c0922a', '#7d4e6e', '#8c9a7e', '#a8987a', '#3f7f78', '#b04a62', '#5b5fa0', '#6aa6b8'];
+const SERIES_DARK = ['#e3ddcd', '#aab86c', '#e08d66', '#8eaacb', '#e2b955', '#bb8bab', '#a5b39a', '#c2b597', '#7cc0b6', '#e08a9e', '#9ea2dc', '#9fd0de'];
 
 const FALLBACK_LIGHT = {
   border: '#e0d9c8', muted: '#6d6758', text: '#17150f', income: '#1d7a4c', expense: '#c0422c',
