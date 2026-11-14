@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CheckSquare, ChevronLeft, ChevronRight, Rows2, Rows3, Trash2 } from 'lucide-react';
+import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, Rows2, Rows3, Trash2 } from 'lucide-react';
 import type { Account, Category, RecurringTransaction, Tag, Transaction } from '@suzanne/shared';
 import { api, http } from '../lib/api';
 import { money, txLabel } from '../lib/format';
@@ -67,10 +67,28 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
   const quickAmountRef = useRef<HTMLInputElement>(null);
   const menuItems = useTxMenuItems();
 
-  const source = issueFilter === 'unassigned_account' ? unassignedTransactions : transactions;
+  // « Toutes les périodes » : la page charge elle-même tout l'historique (les
+  // filtres s'appliquent côté client comme pour un mois). Rechargé quand App
+  // recharge le mois (prop transactions), c.-à-d. après chaque modification.
+  const [allPeriods, setAllPeriods] = useState(false);
+  const [allTxs, setAllTxs] = useState<Transaction[] | null>(null);
+  useEffect(() => {
+    if (!allPeriods) { setAllTxs(null); return; }
+    let cancelled = false;
+    api.transactions(userId).then((rows) => { if (!cancelled) setAllTxs(rows); }).catch(() => { if (!cancelled) setAllTxs([]); });
+    return () => { cancelled = true; };
+  }, [allPeriods, userId, transactions]);
+  // Changer de mois (sélecteur du haut) revient à la vue mensuelle.
+  const shownMonth = useRef(month);
+  useEffect(() => {
+    if (shownMonth.current !== month) setAllPeriods(false);
+    shownMonth.current = month;
+  }, [month]);
+
+  const source = issueFilter === 'unassigned_account' ? unassignedTransactions : allPeriods ? (allTxs ?? []) : transactions;
   // Le mois n'est connu que via le prop (optionnel) ; à défaut, la liste
   // source elle-même sert de clé de remise à zéro.
-  const scopeKey = `${month ?? ''}|${issueFilter ?? ''}`;
+  const scopeKey = `${allPeriods ? 'all' : month ?? ''}|${issueFilter ?? ''}`;
   const filters = useTransactionFilters(source, categoryById, accountById, scopeKey);
   const selection = useSelection(source, filters.signature);
 
@@ -90,13 +108,16 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
     const typeParam = searchParams.get('type');
     const focusParam = searchParams.get('focus');
     const accountParam = searchParams.get('account');
-    if ([category, q, monthParam, txParam, typeParam, focusParam, accountParam].every((v) => v === null)) return;
+    const periodParam = searchParams.get('period');
+    if ([category, q, monthParam, txParam, typeParam, focusParam, accountParam, periodParam].every((v) => v === null)) return;
+    if (periodParam === 'all') setAllPeriods(true);
+    else if (monthParam !== null) setAllPeriods(false);
     if (focusParam === 'quick') {
       const input = quickAmountRef.current;
       input?.scrollIntoView({ block: 'center' });
       input?.focus();
     }
-    if (category !== null || q !== null || monthParam !== null || txParam !== null || typeParam !== null || accountParam !== null) {
+    if (category !== null || q !== null || monthParam !== null || txParam !== null || typeParam !== null || accountParam !== null || periodParam !== null) {
       filters.reset();
       if (accountParam !== null && /^\d+$/.test(accountParam)) filters.setAccountGroup(`account:${accountParam}`);
       if (typeParam === 'income' || typeParam === 'expense' || typeParam === 'transfer') filters.setType(typeParam);
@@ -204,7 +225,9 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
   const { totals, page, totalPages, pageStart, pageEnd, sorted, paged } = filters;
   const emptyMessage = issueFilter === 'unassigned_account'
     ? t('operations.no_transactions_without_account')
-    : filters.activeCount > 0 ? t('operations.no_transactions_match_filters') : t('operations.no_transactions_this_month');
+    : allPeriods && allTxs === null ? t('operations.loading_history')
+    : filters.activeCount > 0 ? t('operations.no_transactions_match_filters')
+    : allPeriods ? t('operations.no_transactions') : t('operations.no_transactions_this_month');
 
   return (
     <section className="stack journal">
@@ -244,6 +267,17 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
             {totals.transfers > 0 && <span className="jr-num jr-muted" title={t('operations.transfers')}>⇄ {money(totals.transfers)}</span>}
           </span>
           <span className="jr-spacer" />
+          {issueFilter === null && (
+            <button
+              type="button"
+              className={`jr-tool${allPeriods ? ' on' : ''}`}
+              aria-pressed={allPeriods}
+              title={t('operations.all_periods_hint')}
+              onClick={() => setAllPeriods(!allPeriods)}
+            >
+              <CalendarRange size={16} /> {mobile ? <span className="jr-sr">{t('operations.all_periods')}</span> : t('operations.all_periods')}
+            </button>
+          )}
           {mobile ? (
             <button
               type="button"

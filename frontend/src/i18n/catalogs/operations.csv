@@ -394,3 +394,7 @@ operations.refund_link.show_expenses,Voir les {{n}} dépenses remboursées,View 
 operations.refund_link.category_follows_expense,"Catégorie de la dépense remboursée : pour la changer, modifie la dépense ou délie le remboursement","Category of the refunded expense: to change it, edit the expense or unlink the refund"
 operations.refund_link.refunded_expenses,Dépenses remboursées,Refunded expenses
 operations.refund_link.pick_expense,"« {{label}} » rembourse ces dépenses. Choisis celle à afficher :","“{{label}}” refunds these expenses. Pick the one to show:"
+operations.all_periods,Toutes les périodes,All periods
+operations.all_periods_hint,"Afficher les opérations de tous les mois (les filtres restent actifs)","Show transactions from every month (filters still apply)"
+operations.loading_history,Chargement de tout l'historique…,Loading the full history…
+operations.no_transactions,Aucune opération.,No transactions.

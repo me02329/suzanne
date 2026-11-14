@@ -20,6 +20,12 @@ import '../styles/pages/loans.css';
 // deux actions guidées qui créent les bons comptes et virements.
 type Mode = 'borrowed' | 'paid_for_me' | 'lent';
 
+// Opérations du prêt sur toutes les périodes (un prêt ancien ou soldé n'a
+// souvent rien sur le mois affiché).
+function loanTransactionsLink(loan: LoanSummary): string {
+  return `/transactions?account=${loan.account_id}&period=all`;
+}
+
 // Clés écrites en toutes lettres (vérifiées par i18n:check).
 const MODE_TEXT: Record<Mode, { title: string; hint: string; explain: string }> = {
   borrowed: { title: 'patrimoine.loans.mode_borrowed', hint: 'patrimoine.loans.mode_borrowed_hint', explain: 'patrimoine.loans.explain_borrowed' },
@@ -99,7 +105,7 @@ export function Loans({ userId, accounts, institutions, categories, dataVersion,
                 <span className="loans-dir">{loan.direction === 'borrowed' ? t('patrimoine.loans.borrowed') : t('patrimoine.loans.lent')}</span>
                 <span className="num">{money(loan.principal, loan.currency)}</span>
                 <span className="muted">{loan.start_date ? formatTxDate(loan.start_date) : '—'} → {loan.settled_date ? formatTxDate(loan.settled_date) : '—'}</span>
-                <Link to={`/transactions?account=${loan.account_id}`}>{t('patrimoine.loans.transactions')}</Link>
+                <Link to={loanTransactionsLink(loan)}>{t('patrimoine.loans.transactions')}</Link>
               </li>
             ))}
           </ul>
@@ -154,7 +160,7 @@ function LoanCard({ loan, institution, open, onToggle, onRepay }: {
         <button type="button" className="secondary" aria-expanded={open} onClick={onToggle}>
           {t('patrimoine.loans.history')} <ChevronDown size={14} className={open ? 'loan-chevron open' : 'loan-chevron'} aria-hidden />
         </button>
-        <Link className="loan-link" to={`/transactions?account=${loan.account_id}`}>{t('patrimoine.loans.transactions')}</Link>
+        <Link className="loan-link" to={loanTransactionsLink(loan)}>{t('patrimoine.loans.transactions')}</Link>
       </div>
       {open && (
         <div className="loan-history">
