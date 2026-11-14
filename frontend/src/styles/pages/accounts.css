@@ -169,3 +169,7 @@ a.acc-row-main:hover .acc-row-name { text-decoration: underline; text-underline-
     padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
   }
 }
+/* Comptes pro (société) d'une même banque : séparés des comptes perso par une barre légère. */
+.acc-pro-sep { display: flex; align-items: center; gap: 10px; padding: 10px 10px 2px 18px; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; }
+.acc-pro-sep::after { content: ''; flex: 1; border-top: 1px dashed var(--border-strong); }
+.acc-pro-sep + .acc-row { border-top: 0; }

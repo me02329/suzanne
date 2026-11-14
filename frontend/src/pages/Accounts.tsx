@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Archive, ArchiveRestore, CalendarCheck, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
@@ -54,7 +54,8 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
     const sorted = [...active].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     if (groupBy === 'institution') {
       const list: Group[] = institutions
-        .map((i) => ({ key: `i${i.id}`, title: i.name, accounts: sorted.filter((a) => a.institution_id === i.id) }))
+        // Dans une même banque : comptes perso d'abord, puis les comptes pro (société).
+        .map((i) => ({ key: `i${i.id}`, title: i.name, accounts: sorted.filter((a) => a.institution_id === i.id).sort((a, b) => Number(Boolean(a.professional)) - Number(Boolean(b.professional))) }))
         .filter((g) => g.accounts.length > 0)
         .sort((a, b) => a.title.localeCompare(b.title, 'fr'));
       const none = sorted.filter((a) => a.institution_id == null || !institutionById.has(a.institution_id));
@@ -178,7 +179,16 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                     <h2>{group.title}</h2>
                     <span className={`num${total < 0 ? ' expense' : ''}`}>{money(total, reportCurrency)}</span>
                   </header>
-                  <ul className="acc-list">{group.accounts.map(row)}</ul>
+                  <ul className="acc-list">
+                    {group.accounts.map((a, i) => (
+                      <Fragment key={a.id}>
+                        {a.professional && i > 0 && !group.accounts[i - 1]!.professional && (
+                          <li className="acc-pro-sep" role="separator"><span>{t('comptes.accounts.pro_section')}</span></li>
+                        )}
+                        {row(a)}
+                      </Fragment>
+                    ))}
+                  </ul>
                 </section>
               );
             })}
