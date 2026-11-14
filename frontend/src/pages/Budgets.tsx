@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Lightbulb, PiggyBank, Pencil, Plus, Repeat, RotateCcw, Trash2, Wallet } from 'lucide-react';
-import type { Category } from '@suzanne/shared';
+import type { Category, Tag } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { budgetsApi, PACE_LABEL, type BudgetHistoryPoint, type BudgetOverview, type BudgetSuggestions, type BudgetWithPace, type Pace, type SinkingFundStatus } from '../lib/api-budgets';
 import { currentMonthIso, formatMonthLong, money } from '../lib/format';
@@ -12,6 +12,7 @@ import '../styles/pages/plan.css';
 import '../styles/pages/budgets.css';
 import { localeTag } from '../i18n';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
 // Budgets du mois : budget global (reste à vivre), enveloppes par catégorie
 // avec leur rythme de dépense, suggestions de plafonds, provisions pour
@@ -41,10 +42,12 @@ function PaceChip({ pace, currency }: { pace: Pace; currency: string }) {
   return <span className={`tag ${tone}`} title={title}>{PACE_LABEL[pace.status]}</span>;
 }
 
-export function Budgets({ userId, month, categories, run, reportCurrency = 'EUR', dataVersion = 0 }: {
+export function Budgets({ userId, month, categories, tags = [], run, reportCurrency = 'EUR', dataVersion = 0 }: {
   userId: number;
   month: string;
   categories: Category[];
+  /** Tags : ceux marqués « hors budgets » sont rappelés en tête de page. */
+  tags?: Tag[];
   /** Conservé pour compatibilité (la page charge sa propre vue d'ensemble). */
   budgets?: unknown;
   run: Run;
@@ -120,6 +123,12 @@ export function Budgets({ userId, month, categories, run, reportCurrency = 'EUR'
 
   return (
     <section className="pg budgets-page">
+      {tags.some((tag) => tag.exclude_from_budgets) && (
+        <p className="bg-excluded-tags">
+          {t('budgets.excluded_tags.note', { names: tags.filter((tag) => tag.exclude_from_budgets).map((tag) => `« ${tag.name} »`).join(', ') })}{' '}
+          <Link to="/tags">{t('budgets.excluded_tags.manage')}</Link>
+        </p>
+      )}
       {/* Reste à vivre */}
       <div className="pg-hero">
         <div>

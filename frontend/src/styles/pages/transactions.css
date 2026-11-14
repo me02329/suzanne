@@ -356,3 +356,24 @@
 .jr-setfilter-foot { display: flex; justify-content: space-between; align-items: center; }
 .jr-filter-stack .jr-setfilter-btn { max-width: none; }
 .jr-filter-stack .jr-setfilter-pop { position: static; width: auto; box-shadow: none; }
+
+.jr-quick-tag { flex: 0 1 104px; min-width: 0; }
+.jr-quick-tag.on { box-shadow: inset 0 0 0 1px var(--text); }
+@media (max-width: 640px) {
+  .jr-quick .jr-quick-tag { display: none; width: 100%; }
+  .jr-quick.expanded.has-tags {
+    grid-template-areas:
+      "type type type type more more"
+      "amt amt label label label add"
+      "cat cat cat acct acct acct"
+      "date date date tag tag tag";
+  }
+  .jr-quick.expanded .jr-quick-tag { display: block; grid-area: tag; }
+}
+/* Avec le tag, la saisie rapide reste sur une ligne en grand écran. */
+@media (min-width: 1181px) {
+  .jr-quick.has-tags .jr-quick-label { flex-basis: 60px; }
+  .jr-quick.has-tags select.jr-quick-extra { flex-basis: 100px; }
+  .jr-quick.has-tags input.jr-quick-extra { flex-basis: 124px; }
+  .jr-quick.has-tags .jr-quick-tag { flex-basis: 88px; }
+}

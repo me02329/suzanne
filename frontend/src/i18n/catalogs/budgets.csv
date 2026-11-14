@@ -101,3 +101,5 @@ budgets.bills.search_expense_label,Chercher la dépense (libellé)…,Search the
 budgets.bills.searching,Recherche…,Searching…
 budgets.bills.no_expenses_found,Aucune dépense trouvée.,No expenses found.
 budgets.bills.close,Fermer,Close
+budgets.excluded_tags.note,Hors budgets : les opérations taguées {{names}} ne sont pas comptées.,Excluded from budgets: transactions tagged {{names}} aren’t counted.
+budgets.excluded_tags.manage,Gérer dans Tags,Manage in Tags

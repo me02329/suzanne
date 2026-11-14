@@ -83,7 +83,7 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
 
       <div className="panel st-list">
         <DataTable empty={tags.length === 0 ? t('operations.no_tags_yet') : null}>
-          <thead><tr><th>{t('commun.name')}</th><th className="r">{t('operations.transactions')}</th><th className="r">{t('operations.spent')}</th><th className="r">{t('operations.received')}</th><th>{t('operations.period')}</th><th className="actions-cell"><span className="sr-only">{t('operations.actions')}</span></th></tr></thead>
+          <thead><tr><th>{t('commun.name')}</th><th className="r">{t('operations.transactions')}</th><th className="r">{t('operations.spent')}</th><th className="r">{t('operations.received')}</th><th>{t('operations.period')}</th><th>{t('reglages.tags.budgets')}</th><th className="actions-cell"><span className="sr-only">{t('operations.actions')}</span></th></tr></thead>
           <tbody>
             {tags.map((tag) => (
               <tr key={tag.id}>
@@ -94,6 +94,19 @@ export function Tags({ userId, tags, run }: { userId: number; tags: Tag[]; run: 
                 <td className="st-muted" data-label={t('operations.period')}>{summary.get(tag.id)?.first_date
                   ? `${new Date(summary.get(tag.id)!.first_date!).toLocaleDateString(localeTag())} → ${new Date(summary.get(tag.id)!.last_date!).toLocaleDateString(localeTag())}`
                   : t('operations.created_on_d', { d: new Date(tag.created_at).toLocaleDateString(localeTag()) })}</td>
+                <td data-label={t('reglages.tags.budgets')}>
+                  <label className="st-toggle" title={t('reglages.tags.exclude_hint')}>
+                    <input
+                      type="checkbox"
+                      checked={tag.exclude_from_budgets === true}
+                      onChange={(e) => void run(
+                        () => api.updateTag(userId, tag.id, { exclude_from_budgets: e.target.checked }),
+                        e.target.checked ? t('reglages.tags.excluded_toast', { name: tag.name }) : t('reglages.tags.included_toast', { name: tag.name }),
+                      )}
+                    />
+                    <span>{t('reglages.tags.exclude_label')}</span>
+                  </label>
+                </td>
                 <td className="actions-cell">
                   <IconButton label={t('operations.edit')} tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(tag)} />
                   <RowMenu items={[{

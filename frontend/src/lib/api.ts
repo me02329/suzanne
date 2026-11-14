@@ -49,6 +49,7 @@ import type {
   Transaction,
   User,
   WealthHistoryPoint,
+  TagRule,
 } from '@suzanne/shared';
 
 import { authHeaders, notifyUnauthorized } from './authToken.js';
@@ -199,6 +200,10 @@ export const api = {
   createTag: (userId: number, body: CreateTagBody) => http<Tag>(`/users/${userId}/tags`, { method: 'POST', body: JSON.stringify(body) }),
   updateTag: (userId: number, id: number, body: Partial<CreateTagBody>) => http<Tag>(`/users/${userId}/tags/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteTag: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/tags/${id}`, { method: 'DELETE' }),
+  tagRules: (userId: number) => http<TagRule[]>(`/users/${userId}/tag-rules`),
+  createTagRule: (userId: number, body: { pattern: string; tag_id: number }) => http<TagRule>(`/users/${userId}/tag-rules`, { method: 'POST', body: JSON.stringify(body) }),
+  deleteTagRule: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/tag-rules/${id}`, { method: 'DELETE' }),
+  applyTagRules: (userId: number) => http<{ tagged: number; links: number; scanned: number }>(`/users/${userId}/tag-rules/apply`, { method: 'POST' }),
   goals: (userId: number) => http<SavingsGoal[]>(`/users/${userId}/savings-goals`),
   createGoal: (userId: number, body: CreateSavingsGoalBody) => http<SavingsGoal>(`/users/${userId}/savings-goals`, { method: 'POST', body: JSON.stringify(body) }),
   updateGoal: (userId: number, id: number, body: Partial<CreateSavingsGoalBody>) => http<SavingsGoal>(`/users/${userId}/savings-goals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
@@ -300,10 +305,11 @@ export const api = {
   importJson: (userId: number, payload: unknown) =>
     http<BackupImportSummary>(`/users/${userId}/import.json`, { method: 'POST', body: JSON.stringify({ payload }) }),
   search: (userId: number, q: string) => http<SearchResult[]>(`/users/${userId}/search?q=${encodeURIComponent(q)}`),
-  statistics: (userId: number, range: string, currency: string, excludeUncategorized: boolean, from?: string | null, to?: string | null) => {
+  statistics: (userId: number, range: string, currency: string, excludeUncategorized: boolean, from?: string | null, to?: string | null, tag?: { id: number; mode: 'include' | 'exclude' } | null) => {
     const params = new URLSearchParams({ range, currency, exclude_uncategorized: String(excludeUncategorized) });
     if (from) params.set('from', from);
     if (to) params.set('to', to);
+    if (tag) { params.set('tag_id', String(tag.id)); params.set('tag_mode', tag.mode); }
     return http<StatisticsSummary>(`/users/${userId}/statistics?${params.toString()}`);
   },
   aiHealth: () => http<AiHealthStatus>('/ai/health'),

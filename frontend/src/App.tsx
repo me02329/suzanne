@@ -521,11 +521,11 @@ export default function App() {
             ) : null}
           />
           <Route path="/tags" element={userId ? <Tags userId={userId} tags={tags} run={run} /> : null} />
-          <Route path="/statistics" element={userId ? <Statistics userId={userId} reportCurrency={reportCurrency} accountById={accountById} /> : null} />
+          <Route path="/statistics" element={userId ? <Statistics userId={userId} reportCurrency={reportCurrency} accountById={accountById} tags={tags} /> : null} />
           <Route path="/accounts" element={userId ? <Accounts userId={userId} accounts={accounts} institutions={institutions} snapshots={snapshots} institutionById={institutionById} summary={summary} run={run} /> : null} />
           <Route path="/accounts/:id" element={userId ? <AccountDetail userId={userId} accounts={accounts} summary={summary} snapshots={snapshots} categoryById={categoryById} reportCurrency={reportCurrency} run={run} /> : null} />
           <Route path="/categories" element={userId ? <Categories userId={userId} categories={categories} run={run} /> : null} />
-          <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} run={run} reportCurrency={reportCurrency} dataVersion={dataVersion} /> : null} />
+          <Route path="/budgets" element={userId ? <Budgets userId={userId} month={month} categories={categories} tags={tags} run={run} reportCurrency={reportCurrency} dataVersion={dataVersion} /> : null} />
           <Route path="/recurring" element={userId ? <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} summary={summary} reportCurrency={reportCurrency} run={run} /> : null} />
           <Route path="/bills" element={userId ? <Bills userId={userId} month={month} billsStatus={billsStatus} accounts={accounts} categories={categories} accountById={accountById} run={run} /> : null} />
           <Route path="/forecast" element={userId ? <Forecast recurring={recurring} accounts={accounts} goals={goals} summary={summary} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
@@ -534,7 +534,7 @@ export default function App() {
           <Route path="/investments" element={userId ? <Investments userId={userId} holdings={holdings} accounts={accounts} accountById={accountById} reportCurrency={reportCurrency} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/alerts" element={userId ? <Alerts userId={userId} alerts={alerts} triggered={triggeredAlerts} accounts={accounts} goals={goals} accountById={accountById} run={run} /> : null} />
           <Route path="/anomalies" element={userId ? <Anomalies userId={userId} accounts={accounts} accountById={accountById} categories={categories} categoryById={categoryById} dataVersion={dataVersion} run={run} /> : null} />
-          <Route path="/rules" element={userId ? <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} run={run} /> : null} />
+          <Route path="/rules" element={userId ? <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} tags={tags} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/tools" element={userId ? <Tools userId={userId} accounts={accounts} run={run} /> : null} />
           <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} />} />
           <Route path="/simulator" element={userId ? <Simulator summary={summary} reportCurrency={reportCurrency} /> : null} />

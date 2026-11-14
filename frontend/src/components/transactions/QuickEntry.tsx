@@ -1,7 +1,7 @@
 import { forwardRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
-import type { Account, Category } from '@suzanne/shared';
+import type { Account, Category, Tag } from '@suzanne/shared';
 import { api } from '../../lib/api';
 import { pickableAccounts } from '../../lib/account';
 import { todayIso } from '../../lib/format';
@@ -18,15 +18,18 @@ export const QuickEntry = forwardRef<HTMLInputElement, {
   userId: number;
   accounts: Account[];
   categories: Category[];
+  tags?: Tag[];
   run: Run;
   onMore: (draft: TxDraft) => void;
-}>(function QuickEntry({ userId, accounts, categories, run, onMore }, amountRef) {
+}>(function QuickEntry({ userId, accounts, categories, tags = [], run, onMore }, amountRef) {
   const { t } = useTranslation();
   const [type, setType] = useState<QuickType>('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [accountId, setAccountId] = useState('');
+  // Tag gardé d'une saisie à l'autre (série de frais pro, par exemple).
+  const [tagId, setTagId] = useState('');
   const [date, setDate] = useState(todayIso());
   const [invalid, setInvalid] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,6 +61,7 @@ export const QuickEntry = forwardRef<HTMLInputElement, {
       category_id: categoryId ? Number(categoryId) : null,
       account_id: accountId ? Number(accountId) : null,
       date: date || todayIso(),
+      ...(tagId ? { tag_ids: [Number(tagId)] } : {}),
     }), t('operations.transaction_added'));
     setBusy(false);
     if (!ok) return;
@@ -71,7 +75,7 @@ export const QuickEntry = forwardRef<HTMLInputElement, {
 
   return (
     <form
-      className={`jr-quick${expanded ? ' expanded' : ''}`}
+      className={`jr-quick${expanded ? ' expanded' : ''}${tags.length > 0 ? ' has-tags' : ''}`}
       onSubmit={submit}
       onFocus={() => setEngaged(true)}
       aria-label={t('operations.quick_entry')}
@@ -102,11 +106,17 @@ export const QuickEntry = forwardRef<HTMLInputElement, {
         {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
       </select>
       <input className="jr-quick-extra" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t('operations.date')} />
+      {tags.length > 0 && (
+        <select className={`jr-quick-tag${tagId ? ' on' : ''}`} value={tagId} onChange={(e) => setTagId(e.target.value)} aria-label={t('operations.quick_tag.label')} title={t('operations.quick_tag.hint')}>
+          <option value="">{t('operations.quick_tag.none')}</option>
+          {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+        </select>
+      )}
       <button className="primary accent jr-quick-add" disabled={busy}><Plus size={16} /> <span>{t('operations.add')}</span></button>
       <button
         type="button"
         className="jr-link jr-quick-more"
-        onClick={() => onMore({ type, amount, description, category_id: categoryId, account_id: accountId, date })}
+        onClick={() => onMore({ type, amount, description, category_id: categoryId, account_id: accountId, date, tag_ids: tagId ? [Number(tagId)] : [] })}
       >
         {t('operations.more_options')}
       </button>

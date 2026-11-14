@@ -137,3 +137,29 @@ reglages.assistant.send,Envoyer,Send
 reglages.assistant.live_reading_any_change_asks,Lecture en direct · toute modification demande ta confirmation · Ctrl+Entrée pour envoyer,Live reading · any change asks for your confirmation · Ctrl+Enter to send
 reglages.assistant.what_can_i_ask,Que puis-je demander ?,What can I ask?
 reglages.assistant.click_example_to_run_it,Clique un exemple pour le lancer. Toute écriture passe par un bouton « Confirmer ».,Click an example to run it. Any write goes through a “Confirm” button.
+reglages.tags.budgets,Budgets,Budgets
+reglages.tags.exclude_label,Hors budgets,Excluded from budgets
+reglages.tags.exclude_hint,Les opérations portant ce tag ne comptent pas dans les budgets (ex. frais pro remboursés).,Transactions with this tag don’t count towards budgets (e.g. reimbursed work expenses).
+reglages.tags.excluded_toast,« {{name}} » ne compte plus dans les budgets,“{{name}}” no longer counts towards budgets
+reglages.tags.included_toast,« {{name}} » compte de nouveau dans les budgets,“{{name}}” counts towards budgets again
+reglages.rules_tag.count_one,règle de tag,tag rule
+reglages.rules_tag.count_other,règles de tag,tag rules
+reglages.rules_tag.explain,Le mot-clé trouvé dans le libellé ajoute un tag (en plus de la catégorie). Plusieurs règles peuvent poser plusieurs tags.,A keyword found in the label adds a tag (on top of the category). Several rules can add several tags.
+reglages.rules_tag.apply,Appliquer aux opérations existantes,Apply to existing transactions
+reglages.rules_tag.applied_one,{{count}} opération taguée,{{count}} transaction tagged
+reglages.rules_tag.applied_other,{{count}} opérations taguées,{{count}} transactions tagged
+reglages.rules_tag.applied_none,Aucune opération à taguer,No transaction to tag
+reglages.rules_tag.new,Nouvelle règle de tag,New tag rule
+reglages.rules_tag.no_tag_yet,Crée d’abord un tag dans Réglages › Tags,Create a tag first in Settings › Tags
+reglages.rules_tag.empty,Aucune règle de tag. Ex. SNCF → Travail pour taguer tes trajets pro à l’import.,No tag rules. E.g. SNCF → Work to tag your work trips on import.
+reglages.rules_tag.keyword,Mot-clé,Keyword
+reglages.rules_tag.tag,Tag,Tag
+reglages.rules_tag.actions,Actions,Actions
+reglages.rules_tag.delete,Supprimer,Delete
+reglages.rules_tag.saved,Règle de tag enregistrée,Tag rule saved
+reglages.rules_tag.deleted,Règle de tag supprimée,Tag rule deleted
+reglages.rules_tag.then_add_tag,alors ajouter le tag,then add the tag
+reglages.rules_tag.choose_tag,Choisir un tag…,Choose a tag…
+reglages.rules_tag.form_note,"S’applique aux imports de relevés, et aux opérations existantes avec « Appliquer ». Les tags déjà posés ne sont jamais retirés.","Applies to statement imports, and to existing transactions with “Apply”. Tags already set are never removed."
+reglages.rules_tag.cancel,Annuler,Cancel
+reglages.rules_tag.save,Enregistrer,Save

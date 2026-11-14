@@ -66,3 +66,6 @@
   .bg-suggest li { grid-template-columns: minmax(0, 1fr) 96px; }
   .bg-suggest .bg-spark { display: none; }
 }
+
+.bg-excluded-tags { margin: 0 0 12px; padding: 8px 12px; border: 1px dashed var(--border-strong); border-radius: 10px; color: var(--muted); font-size: 13.5px; }
+.bg-excluded-tags a { color: var(--text); }

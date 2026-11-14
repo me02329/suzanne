@@ -1,6 +1,6 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { ArrowRight, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
-import type { Category, CategoryRule } from '@suzanne/shared';
+import type { Category, CategoryRule, Tag, TagRule } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
@@ -49,11 +49,13 @@ function RuleForm({ initial, categories, onSubmit, onCancel, submitLabel }: {
   );
 }
 
-export function Rules({ userId, rules, categories, categoryById, run }: {
+export function Rules({ userId, rules, categories, categoryById, tags = [], dataVersion = 0, run }: {
   userId: number;
   rules: CategoryRule[];
   categories: Category[];
   categoryById: Map<number, Category>;
+  tags?: Tag[];
+  dataVersion?: number;
   run: Run;
 }) {
   const { t } = useTranslation();
@@ -88,6 +90,8 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
 
   return (
     <section className="st-page">
+      <TagRulesPanel userId={userId} tags={tags} dataVersion={dataVersion} run={run} />
+
       <div className="st-toolbar">
         <p className="st-summary">
           <strong>{rules.length}</strong>  {t('operations.rules.rule')}{rules.length > 1 ? 's' : ''}
@@ -143,5 +147,103 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
         </Modal>
       )}
     </section>
+  );
+}
+
+// Règles de tag : libellé contenant le mot-clé → tag. Plusieurs règles peuvent
+// poser plusieurs tags ; appliquées à l'import et via « Appliquer ».
+function TagRulesPanel({ userId, tags, dataVersion, run }: { userId: number; tags: Tag[]; dataVersion: number; run: Run }) {
+  const { t } = useTranslation();
+  const [rules, setRules] = useState<TagRule[]>([]);
+  const [creating, setCreating] = useState(false);
+  const tagById = new Map(tags.map((tag) => [tag.id, tag]));
+
+  useEffect(() => {
+    let cancelled = false;
+    api.tagRules(userId).then((rows) => { if (!cancelled) setRules(rows); }).catch(() => { /* liste facultative */ });
+    return () => { cancelled = true; };
+  }, [userId, dataVersion]);
+
+  const create = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const pattern = String(data.get('pattern')).trim();
+    const tag_id = Number(data.get('tag_id'));
+    if (!pattern || !(tag_id > 0)) return;
+    void run(() => api.createTagRule(userId, { pattern, tag_id }), t('reglages.rules_tag.saved')).then((ok) => { if (ok) setCreating(false); });
+  };
+  const remove = (rule: TagRule) => {
+    void run(() => api.deleteTagRule(userId, rule.id), t('reglages.rules_tag.deleted'), {
+      undo: () => api.createTagRule(userId, { pattern: rule.pattern, tag_id: rule.tag_id }),
+    });
+  };
+  const applyAll = () => {
+    void run(
+      () => api.applyTagRules(userId),
+      (result) => {
+        const { tagged } = result as { tagged: number };
+        return tagged > 0 ? t('reglages.rules_tag.applied', { count: tagged }) : t('reglages.rules_tag.applied_none');
+      },
+    );
+  };
+
+  return (
+    <div className="panel st-list st-tag-rules">
+      <div className="st-toolbar">
+        <p className="st-summary">
+          <strong>{rules.length}</strong> {t('reglages.rules_tag.count', { count: rules.length })}
+          <span className="st-sub">{t('reglages.rules_tag.explain')}</span>
+        </p>
+        <div className="st-toolbar-actions">
+          {rules.length > 0 && (
+            <button type="button" className="secondary" onClick={applyAll}>
+              <Wand2 size={16} /> {t('reglages.rules_tag.apply')}
+            </button>
+          )}
+          <button type="button" className="secondary" onClick={() => setCreating(true)} disabled={tags.length === 0} title={tags.length === 0 ? t('reglages.rules_tag.no_tag_yet') : undefined}>
+            <Plus size={16} /> {t('reglages.rules_tag.new')}
+          </button>
+        </div>
+      </div>
+      <DataTable empty={rules.length === 0 ? t('reglages.rules_tag.empty') : null}>
+        <thead><tr><th>{t('reglages.rules_tag.keyword')}</th><th>{t('reglages.rules_tag.tag')}</th><th className="actions-cell"><span className="sr-only">{t('reglages.rules_tag.actions')}</span></th></tr></thead>
+        <tbody>
+          {rules.map((r) => {
+            const tag = tagById.get(r.tag_id);
+            return (
+              <tr key={r.id}>
+                <td className="cell-primary"><code className="st-pattern" title={r.pattern}>{r.pattern}</code><ArrowRight size={14} className="st-arrow" aria-hidden="true" /></td>
+                <td data-label={t('reglages.rules_tag.tag')}>
+                  {tag ? <span className="tag-chip" style={{ background: tag.color }}>{tag.name}</span> : <span className="st-muted">—</span>}
+                </td>
+                <td className="actions-cell">
+                  <IconButton label={t('reglages.rules_tag.delete')} icon={<Trash2 size={16} />} onClick={() => remove(r)} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </DataTable>
+      {creating && (
+        <Modal title={t('reglages.rules_tag.new')} onClose={() => setCreating(false)}>
+          <form className="form st-form" onSubmit={create}>
+            <label className="full">{t('operations.rules.if_label_contains')}
+              <input name="pattern" placeholder="SNCF" /* i18n-ignore */ required autoComplete="off" autoCapitalize="characters" autoFocus />
+            </label>
+            <label className="full">{t('reglages.rules_tag.then_add_tag')}
+              <select name="tag_id" defaultValue="" required>
+                <option value="" disabled>{t('reglages.rules_tag.choose_tag')}</option>
+                {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+              </select>
+            </label>
+            <p className="panel-note full">{t('reglages.rules_tag.form_note')}</p>
+            <div className="modal-actions full">
+              <button type="button" className="secondary" onClick={() => setCreating(false)}>{t('reglages.rules_tag.cancel')}</button>
+              <button className="primary">{t('reglages.rules_tag.save')}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
   );
 }

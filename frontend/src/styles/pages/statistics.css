@@ -67,3 +67,5 @@ button.st-legend-row:hover { background: var(--surface-muted); }
   .st-grid, .st-trends, .st-trends-row { gap: 14px; }
   .st-trends .pg-chart.small { height: 220px; }
 }
+.st-controls select.st-tag-filter { max-width: 220px; }
+.st-controls select.st-tag-active { box-shadow: inset 0 0 0 1px var(--text); }

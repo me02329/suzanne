@@ -217,3 +217,8 @@
 .tools-page .form .checkbox-row { display: flex; flex-direction: row; align-items: center; gap: 10px; color: var(--text); font-weight: 500; font-size: 14px; }
 .st-desc { max-width: 420px; white-space: normal; font-size: 13px; }
 .st-form textarea { width: 100%; resize: vertical; font: inherit; }
+
+.st-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+.st-toggle input { width: 18px; height: 18px; min-height: 0; accent-color: var(--text); }
+.st-tag-rules { margin-bottom: 18px; }
+.st-tag-rules .panel-note { margin: 0 0 10px; }

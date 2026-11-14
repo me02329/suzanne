@@ -201,6 +201,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
         userId={userId}
         accounts={accounts}
         categories={categories}
+        tags={tags}
         run={run}
         onMore={(draft) => setDialog({ kind: 'form', mode: 'create', draft })}
       />

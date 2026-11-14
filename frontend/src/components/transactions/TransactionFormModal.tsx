@@ -28,6 +28,7 @@ export interface TxDraft {
   category_id: string;
   account_id: string;
   date: string;
+  tag_ids?: number[];
 }
 
 const idOrNull = (value: string): number | null => {
@@ -60,7 +61,7 @@ export function TransactionFormModal({ mode, tx, draft, userId, accounts, catego
   const [toAccountId, setToAccountId] = useState(String(source?.to_account_id ?? ''));
   const [categoryId, setCategoryId] = useState(String(source?.category_id ?? draft?.category_id ?? ''));
   const [description, setDescription] = useState(source?.description ?? draft?.description ?? '');
-  const [tagIds, setTagIds] = useState<number[]>(() => (source?.tags ?? []).map((tag) => tag.id));
+  const [tagIds, setTagIds] = useState<number[]>(() => (source ? (source.tags ?? []).map((tag) => tag.id) : draft?.tag_ids ?? []));
   const [cleared, setCleared] = useState(mode === 'edit' || mode === 'split' ? source?.cleared ?? false : false);
   const hasSplits = (source?.splits ?? []).length > 0;
   const [splitEnabled, setSplitEnabled] = useState(mode === 'split' || hasSplits);

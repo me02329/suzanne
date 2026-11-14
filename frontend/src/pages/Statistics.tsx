@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { Account, StatisticsSummary, Transaction } from '@suzanne/shared';
+import type { Account, StatisticsSummary, Transaction, Tag } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { seriesColor, useChartTheme, useIsNarrow } from '../lib/chartTheme';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, truncate } from '../lib/format';
@@ -38,10 +38,11 @@ interface DrillState {
 }
 
 // "Statistiques" — dépenses et cashflow sur une même plage libre.
-export function Statistics({ userId, reportCurrency, accountById }: {
+export function Statistics({ userId, reportCurrency, accountById, tags = [] }: {
   userId: number;
   reportCurrency: string;
   accountById: Map<number, Account>;
+  tags?: Tag[];
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -49,6 +50,14 @@ export function Statistics({ userId, reportCurrency, accountById }: {
   const [excludeUncategorized, setExcludeUncategorized] = usePersistedState('stats_exclude_uncategorized', true);
   const [customFrom, setCustomFrom] = usePersistedState('stats_custom_from', '');
   const [customTo, setCustomTo] = usePersistedState('stats_custom_to', '');
+  // Filtre par tag : '' = tous, 'in:<id>' = seulement ce tag, 'ex:<id>' = tout sauf.
+  const [tagFilter, setTagFilter] = usePersistedState('stats_tag', '');
+  const tagParam = (() => {
+    const m = /^(in|ex):(\d+)$/.exec(tagFilter);
+    if (!m || !tags.some((tag) => tag.id === Number(m[2]))) return null;
+    return { id: Number(m[2]), mode: m[1] === 'in' ? 'include' as const : 'exclude' as const };
+  })();
+  const tagKey = tagParam ? `${tagParam.mode}:${tagParam.id}` : '';
   const [data, setData] = useState<StatisticsSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,12 +75,12 @@ export function Statistics({ userId, reportCurrency, accountById }: {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    api.statistics(userId, range, reportCurrency, excludeUncategorized, effectiveFrom, effectiveTo)
+    api.statistics(userId, range, reportCurrency, excludeUncategorized, effectiveFrom, effectiveTo, tagParam)
       .then((row) => { if (!cancelled) setData(row); })
       .catch((e) => { if (!cancelled) setError((e as Error).message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [userId, range, reportCurrency, excludeUncategorized, effectiveFrom, effectiveTo, customReady]);
+  }, [userId, range, reportCurrency, excludeUncategorized, effectiveFrom, effectiveTo, customReady, tagKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currency = data?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, currency);
@@ -169,6 +178,17 @@ export function Statistics({ userId, reportCurrency, accountById }: {
             <label className="st-date">{t('analyses.statistics.from')} <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /></label>
             <label className="st-date">{t('analyses.statistics.to')} <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></label>
           </>
+        )}
+        {tags.length > 0 && (
+          <select value={tagParam ? tagFilter : ''} onChange={(e) => setTagFilter(e.target.value)} aria-label={t('analyses.tags.filter')} className={tagParam ? 'st-tag-filter st-tag-active' : 'st-tag-filter'}>
+            <option value="">{t('analyses.tags.all')}</option>
+            <optgroup label={t('analyses.tags.only')}>
+              {tags.map((tag) => <option key={`in-${tag.id}`} value={`in:${tag.id}`}>{t('analyses.tags.only_tag', { name: tag.name })}</option>)}
+            </optgroup>
+            <optgroup label={t('analyses.tags.except')}>
+              {tags.map((tag) => <option key={`ex-${tag.id}`} value={`ex:${tag.id}`}>{t('analyses.tags.except_tag', { name: tag.name })}</option>)}
+            </optgroup>
+          </select>
         )}
         <label className="st-check">
           <input type="checkbox" checked={excludeUncategorized} onChange={(e) => setExcludeUncategorized(e.target.checked)} />  {t('analyses.statistics.exclude_uncategorised')}

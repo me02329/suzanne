@@ -118,3 +118,9 @@ analyses.alerts.goal,Objectif,Goal
 analyses.alerts.choose,Choisir…,Choose…
 analyses.alerts.cancel,Annuler,Cancel
 analyses.alerts.create_alert,Créer l’alerte,Create the alert
+analyses.tags.filter,Filtre par tag,Tag filter
+analyses.tags.all,Tous les tags,All tags
+analyses.tags.only,Seulement,Only
+analyses.tags.except,Tout sauf,All except
+analyses.tags.only_tag,Seulement « {{name}} »,Only “{{name}}”
+analyses.tags.except_tag,Tout sauf « {{name}} »,All except “{{name}}”
