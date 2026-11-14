@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChartLine, Layers, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   accountTypeGroup,
   type Account,
@@ -14,6 +14,7 @@ import { pickableAccounts } from '../lib/account';
 import { money, todayIso } from '../lib/format';
 import { formatDateFr, formatPct, formatQuantity, parseDecimal } from '../lib/pea';
 import { Modal } from '../components/Modal';
+import { SymbolSearch, assetClassFromYahoo } from '../components/SymbolSearch';
 import { RowMenu } from '../components/accounts/RowMenu';
 import type { Run } from '../lib/run';
 import '../styles/pages/accounts.css';
@@ -120,7 +121,14 @@ export function Investments({ userId, holdings, accounts, accountById, reportCur
         <section className="pg-section" key={g.id}>
           <div className="pg-section-head">
             <h2>{g.account ? <Link className="inv-acc-link" to={`/accounts/${g.id}`}>{g.account.name}</Link> : 'Compte inconnu'}</h2>
-            <span className="num acc-muted">{money(g.value, reportCurrency)}</span>
+            <span className="inv-head-side">
+              <span className="num acc-muted">{money(g.value, reportCurrency)}</span>
+              {g.account && (
+                <Link className="secondary inv-analysis" to={`/accounts/${g.id}`} title="Performance, heatmap mensuelle, intérêts composés, plafond, fiscalité, suivi hebdo">
+                  <ChartLine size={15} /> {g.account.type === 'pea' ? 'Analyse du PEA' : 'Analyse'}
+                </Link>
+              )}
+            </span>
           </div>
           <div className="pea-table-wrap">
             <table className="pea-table inv-table">
@@ -193,17 +201,25 @@ export function Investments({ userId, holdings, accounts, accountById, reportCur
 }
 
 function HoldingModal({ userId, holding, accounts, run, onClose }: { userId: number; holding: Holding | null; accounts: Account[]; run: Run; onClose: () => void }) {
+  const choices = investmentAccounts(accounts);
+  // Par défaut : le PEA s'il y en a un (enveloppe la plus courante), sinon le 1er compte.
+  const [accountId, setAccountId] = useState(String(holding?.account_id ?? (choices.find((a) => a.type === 'pea') ?? choices[0])?.id ?? ''));
+  const [symbol, setSymbol] = useState(holding?.symbol ?? '');
+  const [name, setName] = useState(holding?.name ?? '');
+  const [currency, setCurrency] = useState(holding?.currency ?? 'EUR');
+  const [assetClass, setAssetClass] = useState<AssetClass>(holding?.asset_class ?? 'etf');
+  const [lastPrice, setLastPrice] = useState<{ price: number; currency: string } | null>(null);
+  const isPea = accounts.find((a) => String(a.id) === accountId)?.type === 'pea';
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
     const body = {
-      symbol: String(data.get('symbol')).trim(),
-      name: String(data.get('name')).trim(),
-      asset_class: String(data.get('asset_class')) as AssetClass,
-      currency: String(data.get('currency') || 'EUR').trim().toUpperCase(),
+      symbol: symbol.trim().toUpperCase(),
+      name: name.trim() || symbol.trim().toUpperCase(),
+      asset_class: assetClass,
+      currency: (currency || 'EUR').trim().toUpperCase(),
     };
     void run(
-      () => (holding ? api.updateHolding(userId, holding.id, body) : api.createHolding(userId, { ...body, account_id: Number(data.get('account_id')) })),
+      () => (holding ? api.updateHolding(userId, holding.id, body) : api.createHolding(userId, { ...body, account_id: Number(accountId) })),
       holding ? 'Position modifiée' : 'Position ajoutée',
     ).then((ok) => { if (ok) onClose(); });
   };
@@ -212,20 +228,33 @@ function HoldingModal({ userId, holding, accounts, run, onClose }: { userId: num
       <form className="form acc-form sheet-ok" onSubmit={submit}>
         {!holding && (
           <label className="full">Compte
-            <select name="account_id" required>
-              {investmentAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            <select name="account_id" required value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              {choices.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
         )}
-        <label>Symbole<input name="symbol" defaultValue={holding?.symbol ?? ''} placeholder="CW8.PA" required autoCapitalize="characters" /></label>
-        <label>Devise<input name="currency" defaultValue={holding?.currency ?? 'EUR'} maxLength={3} required /></label>
-        <label className="full">Nom<input name="name" defaultValue={holding?.name ?? ''} placeholder="Amundi MSCI World" required /></label>
-        <label className="full">Classe
-          <select name="asset_class" defaultValue={holding?.asset_class ?? 'etf'}>
+        <label className="full">Titre
+          <SymbolSearch
+            value={symbol}
+            pea={isPea}
+            onChange={(v) => { setSymbol(v); setLastPrice(null); }}
+            onPick={(hit, quote) => {
+              setName(quote?.name ?? hit.name);
+              if (quote?.currency) setCurrency(quote.currency.toUpperCase());
+              setAssetClass(assetClassFromYahoo(quote?.type ?? hit.type));
+              setLastPrice(quote?.price != null && quote.currency ? { price: quote.price, currency: quote.currency } : null);
+            }}
+          />
+        </label>
+        {lastPrice && <p className="acc-muted full">Dernier cours : {money(lastPrice.price, lastPrice.currency)}</p>}
+        <label>Devise<input name="currency" value={currency} onChange={(e) => setCurrency(e.target.value)} maxLength={3} required /></label>
+        <label>Classe
+          <select name="asset_class" value={assetClass} onChange={(e) => setAssetClass(e.target.value as AssetClass)}>
             {ASSET_CLASSES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
         </label>
-        <p className="acc-muted full">Le symbole est le ticker du cours (ex. CW8.PA, AAPL, BTC-EUR), la devise celle de cotation.</p>
+        <label className="full">Nom<input name="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Amundi MSCI World" required /></label>
+        <p className="acc-muted full">Tape un nom, un ticker ou un ISIN : les titres trouvés sur Yahoo Finance s'affichent ; le choix remplit nom, devise et classe.</p>
         <div className="acc-form-actions full">
           <button type="button" className="secondary" onClick={onClose}>Annuler</button>
           <button className="primary">{holding ? 'Enregistrer' : 'Ajouter'}</button>

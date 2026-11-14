@@ -13,6 +13,7 @@ import {
 import { api } from '../lib/api';
 import { accountsApi, type AccountWithInvestment } from '../lib/api-accounts';
 import { formatMonth, money as moneyFmt, moneyCompact as moneyCompactFmt, todayIso } from '../lib/format';
+import { timeAxisProps, timeTooltipLabel } from '../lib/timeAxis';
 import { useChartTheme } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
 import { accountSignedAmount, livretCeiling } from '../lib/account';
@@ -69,7 +70,8 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const [storedTab, setPeaTab] = usePersistedState<string>('account_detail_pea_tab', 'overview');
   const peaTab: PeaTab = PEA_TABS.some((t) => t.id === storedTab) ? (storedTab as PeaTab) : 'overview';
   const [historyWanted, setHistoryWanted] = useState(false);
-  useEffect(() => { if (peaTab !== 'overview') setHistoryWanted(true); }, [peaTab]);
+  // L'historique sert aussi la vue d'ensemble (courbe des intérêts composés).
+  useEffect(() => { if (isEnvelope) setHistoryWanted(true); }, [isEnvelope]);
 
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (v: number) => moneyFmt(v, displayCurrency);
@@ -153,7 +155,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const accountSnapshots = snapshots.filter((s) => s.account_id === account.id).sort((a, b) => b.date.localeCompare(a.date));
 
   const accountStart = [account.initial_balance_date, ...accountSnapshots.map((s) => s.date)].map((d) => d.slice(0, 10)).reduce((m, d) => (d < m ? d : m));
-  const chartData = (history ?? []).filter((p) => p.date.slice(0, 10) >= accountStart).map((p) => ({ ...p, label: formatMonth(p.date.slice(0, 7)) }));
+  const chartData = (history ?? []).filter((p) => p.date.slice(0, 10) >= accountStart).map((p) => ({ ...p, day: p.date.slice(0, 10), label: formatMonth(p.date.slice(0, 7)) }));
   const domain = fitDomain(chartData.map((p) => p.balance).filter((v) => Number.isFinite(v)));
 
   const statement = parseDecimal(statementBalance);
@@ -217,7 +219,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
       )}
 
       {isEnvelope && !envelope && <p className="acc-muted"><Loader2 className="spin-icon" size={14} /> Chargement des positions…</p>}
-      {isEnvelope && envelope && peaTab === 'overview' && <PeaView account={account} data={envelope} asOf={asOf} />}
+      {isEnvelope && envelope && peaTab === 'overview' && <PeaView account={account} data={envelope} asOf={asOf} history={envelopeHistory} />}
       {insight && peaTab === 'tracking' && <PeaTracking {...insight} />}
       {insight && peaTab === 'performance' && <PeaPerformance {...insight} />}
       {insight && peaTab === 'orders' && <PeaOrders {...insight} />}
@@ -244,9 +246,9 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={20} />
+                <XAxis dataKey="day" {...timeAxisProps(chartData.map((p) => p.day), chartTheme.tick, 'month')} minTickGap={28} />
                 <YAxis domain={domain} tickFormatter={(v) => moneyCompactFmt(Number(v), displayCurrency)} tickLine={false} axisLine={false} width={60} />
-                <Tooltip formatter={(v) => [money(Number(v)), 'Solde']} />
+                <Tooltip formatter={(v) => [money(Number(v)), 'Solde']} labelFormatter={timeTooltipLabel('day')} />
                 <Area type="monotone" dataKey="balance" name="Solde" stroke={chartTheme.net} strokeWidth={2} fill="url(#adFill)" dot={false} isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>

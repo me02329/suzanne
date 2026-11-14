@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { getPriceHistory } from '../lib/priceHistory.js';
+import { quoteSymbol, searchSymbols } from '../lib/symbolSearch.js';
 
 export const pricesRouter = Router();
 
@@ -25,5 +26,27 @@ pricesRouter.get('/prices/:symbol/history', asyncHandler(async (req, res) => {
     res.json(await getPriceHistory(symbol, from, to > today ? today : to));
   } catch {
     throw new HttpError(502, 'Cours indisponibles pour le moment');
+  }
+}));
+
+// GET /api/prices/search?q=world → titres proposés par Yahoo (autocomplétion).
+pricesRouter.get('/prices/search', asyncHandler(async (req, res) => {
+  const q = String(req.query.q ?? '').trim().slice(0, 60);
+  if (!q) { res.json([]); return; }
+  try {
+    res.json(await searchSymbols(q));
+  } catch {
+    throw new HttpError(502, 'Recherche de titres indisponible pour le moment');
+  }
+}));
+
+// GET /api/prices/:symbol/quote → nom, devise de cotation et dernier cours.
+pricesRouter.get('/prices/:symbol/quote', asyncHandler(async (req, res) => {
+  const symbol = String(req.params.symbol ?? '');
+  if (!SYMBOL_RX.test(symbol)) throw new HttpError(400, 'Symbole invalide');
+  try {
+    res.json(await quoteSymbol(symbol));
+  } catch {
+    throw new HttpError(502, 'Cours indisponible pour ce symbole');
   }
 }));

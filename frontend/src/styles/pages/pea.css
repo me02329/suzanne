@@ -76,3 +76,11 @@
   .pea-flows .num { grid-column: 2; grid-row: 1 / span 2; }
   .pea-more { justify-self: stretch; }
 }
+
+/* ---- Intérêts composés ---------------------------------------------------- */
+.pea-growth-kpis { margin-bottom: 12px; }
+.pea-growth-params { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 14px; margin-bottom: 12px; }
+.pea-growth-params label { display: grid; gap: 4px; color: var(--muted); font-size: 12.5px; font-weight: 650; }
+.pea-growth-params input { width: 140px; font-family: var(--num-font); }
+.pea-growth-params p { flex: 1 1 260px; margin: 0; font-size: 12.5px; }
+.pea-growth-foot { margin: 8px 0 0; font-size: 12.5px; }

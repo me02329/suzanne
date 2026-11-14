@@ -13,6 +13,8 @@ import { money } from '../../lib/format';
 import { formatDateFr, formatPct, formatQuantity, parseDecimal, type EnvelopeFlow } from '../../lib/pea';
 import type { AccountWithInvestment } from '../../lib/api-accounts';
 import { CompositionChart } from './CompositionChart';
+import { PeaGrowth } from './PeaGrowth';
+import type { EnvelopeHistory } from './useEnvelopeHistory';
 import '../../styles/pages/pea.css';
 
 export interface PeaData {
@@ -35,7 +37,7 @@ function ageLabel(fromIso: string, toIso: string): string {
 
 // Vue « enveloppe » d'un compte d'investissement : positions, espèces,
 // versements, performance ; pour un PEA, plafond et fiscalité en plus.
-export function PeaView({ account, data, asOf }: { account: AccountWithInvestment; data: PeaData; asOf: string }) {
+export function PeaView({ account, data, asOf, history }: { account: AccountWithInvestment; data: PeaData; asOf: string; history?: EnvelopeHistory }) {
   const ccy = account.currency;
   const fmt = (v: number) => money(v, ccy);
   const isPea = account.type === 'pea';
@@ -54,6 +56,11 @@ export function PeaView({ account, data, asOf }: { account: AccountWithInvestmen
 
   const perf = useMemo(() => envelopePerformance(flows, value, asOf), [flows, value, asOf]);
   const latentPct = costBasis > 0 ? ((securities - costBasis) / costBasis) * 100 : null;
+  const firstDate = firstDeposit ?? asOf;
+  const elapsedMonths = monthsBetween(firstDate, asOf) + 1;
+  const recentPace = recentMonthlyAverage(deposits, asOf, 12, elapsedMonths);
+  // Rythme récent, ou moyenne depuis l'ouverture si presque rien versé sur 12 mois.
+  const pace12 = recentPace >= 10 ? recentPace : Math.max(recentPace, gross / elapsedMonths);
 
   return (
     <div className="pea">
@@ -129,6 +136,19 @@ export function PeaView({ account, data, asOf }: { account: AccountWithInvestmen
         </section>
       )}
 
+      {history && flows.length > 0 && (
+        <PeaGrowth
+          history={history}
+          flows={flows}
+          value={value}
+          asOf={asOf}
+          rate={perf.kind === 'xirr' && perf.rate != null ? perf.rate / 100 : null}
+          pace={pace12}
+          ccy={ccy}
+          fmt={fmt}
+        />
+      )}
+
       {isPea && (
         <div className="pea-grid">
           <CeilingCard gross={gross} deposits={deposits} firstDeposit={firstDeposit} asOf={asOf} fmt={fmt} />
@@ -175,21 +195,36 @@ function CeilingCard({ gross, deposits, firstDeposit, asOf, fmt }: {
 }) {
   const pct = Math.min(100, (gross / PEA_CEILING) * 100);
   const elapsed = firstDeposit ? monthsBetween(firstDeposit, asOf) + 1 : undefined;
-  const pace = recentMonthlyAverage(deposits, asOf, 12, elapsed);
+  const recent = recentMonthlyAverage(deposits, asOf, 12, elapsed);
+  // Moyenne depuis le premier versement : repli quand rien n'a été versé
+  // récemment, et repère utile à côté du rythme récent.
+  const overall = elapsed ? gross / elapsed : 0;
+  const pace = recent > 0 ? recent : overall;
   const projection = projectCeilingDate(gross, pace, asOf);
+  const tooFar = projection != null && projection.monthsNeeded > 80 * 12;
   return (
     <section className="pea-card">
       <h2>Plafond</h2>
       <p className="pea-big num">{fmt(gross)} <span>/ {fmt(PEA_CEILING)}</span></p>
+      <p className="acc-muted num">{pct.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} % du plafond légal</p>
       <div className="pea-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label="Versements bruts sur le plafond">
         <i style={{ width: `${pct}%` }} className={pct >= 100 ? 'full' : ''} />
       </div>
       <dl className="pea-dl">
         <div><dt>Encore versable</dt><dd className="num">{fmt(Math.max(0, PEA_CEILING - gross))}</dd></div>
-        <div><dt>Rythme (12 mois)</dt><dd className="num">{pace > 0 ? `${fmt(pace)}/mois` : '—'}</dd></div>
+        <div><dt>Rythme (12 mois)</dt><dd className="num">{recent > 0 ? `${fmt(recent)}/mois` : '—'}</dd></div>
+        <div><dt>Moyenne depuis l’ouverture</dt><dd className="num">{overall > 0 ? `${fmt(overall)}/mois` : '—'}</dd></div>
         <div>
           <dt>Plafond atteint</dt>
-          <dd>{gross >= PEA_CEILING ? 'Atteint' : projection ? `${formatDateFr(projection.date, { month: 'long', year: 'numeric' })}` : 'Pas de versement récent'}</dd>
+          <dd>
+            {gross >= PEA_CEILING
+              ? 'Atteint'
+              : !projection
+                ? 'Aucun versement'
+                : tooFar
+                  ? 'Hors d’atteinte (> 80 ans)'
+                  : `${formatDateFr(projection.date, { month: 'long', year: 'numeric' })} (~${Math.max(1, Math.round(projection.monthsNeeded / 12))} ans)`}
+          </dd>
         </div>
       </dl>
       <p className="pea-foot">Le plafond porte sur les versements bruts : les gains et les retraits ne le modifient pas.</p>
