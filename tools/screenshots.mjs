@@ -1,7 +1,7 @@
 // Captures de l'interface (desktop 1440 / mobile 390) + contrôles automatiques.
 // Prérequis : serveurs de dev lancés (front http://localhost:5174 par défaut).
 //
-//   node tools/screenshots.mjs <dossier> [page1,page2,…] [--theme dark] [--month 2026-04] [--lang en]
+//   node tools/screenshots.mjs <dossier> [page1,page2,…] [--theme dark] [--month 2026-04] [--lang en] [--full]
 //
 // Échoue (code 1) si une page lève une erreur JavaScript ou déborde
 // horizontalement (scrollWidth > largeur de l'écran) — régression mobile la plus
@@ -20,6 +20,9 @@ const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : und
 const theme = flag('--theme') ?? 'light';
 // Langue de l'interface (le navigateur automatisé est en anglais : on impose fr par défaut).
 const lang = flag('--lang') ?? 'fr';
+// Par défaut : la taille de l'écran (une page plus haute que l'écran laisserait
+// un vide sous le menu latéral). --full : page entière.
+const full = args.includes('--full');
 const month = flag('--month');
 const BASE = process.env.BASE ?? 'http://localhost:5174';
 const ALL = ['dashboard', 'health', 'alerts', 'transactions', 'anomalies', 'accounts', 'wealth', 'investments', 'goals', 'simulator',
@@ -57,7 +60,7 @@ for (const [label, viewport, mobile] of [['desk', { width: 1440, height: 900 }, 
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     if (width > viewport.width) problems.push(`[${label}] ${p} : débordement horizontal (${width}px > ${viewport.width}px)`);
     const file = `${out}/${label}-${p.replace(/[/?=&]/g, '_')}.png`;
-    await page.screenshot({ path: file, fullPage: !mobile });
+    await page.screenshot({ path: file, fullPage: full });
   }
   await ctx.close();
 }
