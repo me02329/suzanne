@@ -29,3 +29,24 @@ ui.tab.tools,Import / Export,Import / Export
 ui.tab.transactions,Journal,Journal
 ui.tab.users,Profils,Profiles
 ui.tab.wealth,Patrimoine,Net worth
+ui.modal.close,Fermer,Close
+ui.toast.close,Fermer,Close
+ui.row.delete,Supprimer,Delete
+ui.limit_picker.number_rows_shown,Nombre de lignes affichées,Number of rows shown
+ui.tag_picker.no_tags,Aucun tag,No tags
+ui.tag_picker.add_tag,+ Ajouter un tag…,+ Add a tag…
+ui.search_box.search,Rechercher,Search
+ui.search_box.search_transaction_category_account,"Rechercher une opération, une catégorie, un compte","Search a transaction, a category, an account"
+ui.search_box.clear_search,Effacer la recherche,Clear search
+ui.search_box.no_results,Aucun résultat.,No results.
+ui.month_picker.displayed_month,Mois affiché,Displayed month
+ui.month_picker.previous_month,Mois précédent,Previous month
+ui.month_picker.month,Mois,Month
+ui.month_picker.year,Année,Year
+ui.month_picker.next_month,Mois suivant,Next month
+ui.month_picker.back_to_current_month,Revenir au mois courant,Back to current month
+ui.drilldown_popover.close,Fermer,Close
+ui.drilldown_popover.loading,Chargement…,Loading…
+ui.drilldown_popover.no_transactions_found_in_this,Aucune transaction trouvée sur cette plage.,No transactions found in this range.
+ui.drilldown_popover.transaction,transaction,transaction
+ui.drilldown_popover.click_to_open_right_month,— clique pour ouvrir au bon mois.,— click to open the right month.

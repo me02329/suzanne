@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 // Durée de l'animation de sortie : doit rester alignée sur `modal-out` /
 // `backdrop-out` (on démonte après ce délai pour laisser le fondu se jouer).
@@ -31,6 +32,7 @@ export function Modal({ title, children, onClose, wide = false, footer }: {
   wide?: boolean;
   footer?: ReactNode;
 }) {
+  const { t } = useTranslation();
   const [closing, setClosing] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -111,7 +113,7 @@ export function Modal({ title, children, onClose, wide = false, footer }: {
         <div className="modal-header">
           <span className="modal-grip" aria-hidden="true" />
           <h2 id={titleId}>{title}</h2>
-          <button className="icon-ghost modal-close" type="button" aria-label="Fermer" onClick={requestClose}>
+          <button className="icon-ghost modal-close" type="button" aria-label={t('ui.modal.close')} onClick={requestClose}>
             <X size={18} />
           </button>
         </div>

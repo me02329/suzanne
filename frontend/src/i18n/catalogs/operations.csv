@@ -258,3 +258,4 @@ operations.unclear,Dépointer,Unclear
 operations.uncleared,Non pointées,Uncleared
 operations.view_n_transactions,Voir {{n}} opérations,View {{n}} transactions
 operations.what_category_covers_e_g,"Ce que couvre la catégorie, ex. « Séminaires, salons, déplacements pro remboursés ou non »","What the category covers, e.g. “Seminars, trade fairs, business travel, reimbursed or not”"
+operations.transaction_list.no_transactions,Aucune transaction.,No transactions.

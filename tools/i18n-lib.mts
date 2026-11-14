@@ -157,3 +157,44 @@ export function hardcodedTexts(file: string, text = fs.readFileSync(file, 'utf8'
 export function isStableKey(key: string): boolean {
   return KEY_RX.test(key);
 }
+
+/** Domaine (= nom du catalogue) d'un fichier source, d'après son chemin sous frontend/src. */
+const DOMAINS: Array<[RegExp, string]> = [
+  [/^pages\/(Dashboard)\.tsx$|^components\/(home\/|DashboardSection|CashflowTrends)/, 'accueil'],
+  [/^pages\/(Transactions|Recurring|Anomalies|Rules|Categories|Tags)\.tsx$|^components\/(transactions\/|Transaction|TrashModal|AttachmentsModal|StatementImportModal)/, 'operations'],
+  [/^pages\/(Accounts|AccountDetail)\.tsx$|^components\/accounts\//, 'comptes'],
+  [/^pages\/(Wealth|Investments|Goals)\.tsx$|^components\/(pea\/|SymbolSearch)/, 'patrimoine'],
+  [/^pages\/(Budgets|Bills)\.tsx$/, 'budgets'],
+  [/^pages\/(Statistics|Forecast|Health|Simulator|Alerts)\.tsx$/, 'analyses'],
+  [/^pages\/(Settings|Users|Tools|Assistant)\.tsx$|^components\/(BackupsPanel|AuditLogPanel|TokenModal)/, 'reglages'],
+];
+export function domainOf(file: string): string {
+  const p = path.relative(SRC, file).split(path.sep).join('/');
+  return DOMAINS.find(([rx]) => rx.test(p))?.[1] ?? 'ui';
+}
+
+/** Mots de la phrase en identifiant : sans accents ni ponctuation, 5 mots au plus. */
+export function slug(text: string): string {
+  const words = text
+    .replace(/\{\{\s*(\w+)\s*\}\}/g, ' $1 ')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/['’]/g, ' ')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .filter((w, i) => i === 0 || !['the', 'a', 'an', 'of', 'le', 'la', 'les', 'de', 'des', 'du', 'un', 'une'].includes(w));
+  return words.slice(0, 5).join('_').slice(0, 40).replace(/_+$/, '') || 'texte';
+}
+
+export function csvField(value: string): string {
+  return /[",\n\r]|^\s|\s$/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+/** Ajoute des lignes en fin de catalogue (sans retrier : fusion facile entre sessions). */
+export function appendCatalogRows(domain: string, rows: Array<{ key: string; fr: string; en: string }>): void {
+  const file = path.join(CATALOG_DIR, `${domain}.csv`);
+  let text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : 'keys,fr,en\n';
+  if (!text.endsWith('\n')) text += '\n';
+  text += rows.map((r) => [r.key, r.fr, r.en].map(csvField).join(',')).join('\n') + (rows.length ? '\n' : '');
+  fs.writeFileSync(file, text);
+}

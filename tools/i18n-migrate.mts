@@ -27,44 +27,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Catalog } from '../frontend/src/i18n/catalog.ts';
 import {
-  CATALOG_DIR, LEGACY_FILE, ROOT, SRC, type KeyUse, isStableKey, loadCatalogs, loadLegacy, rel, scanFile, sourceFiles,
+  CATALOG_DIR, LEGACY_FILE, ROOT, type KeyUse, csvField, domainOf, isStableKey, loadCatalogs, loadLegacy, rel, scanFile, slug, sourceFiles,
 } from './i18n-lib.mts';
 
 const args = new Set(process.argv.slice(2));
 const write = args.has('--write');
 const translationsArg = process.argv.slice(2).find((a) => a.startsWith('--translations='))?.split('=')[1];
 
-/** Domaine (= nom du catalogue) d'un fichier source, d'après son chemin sous frontend/src. */
-const DOMAINS: Array<[RegExp, string]> = [
-  [/^pages\/(Dashboard)\.tsx$|^components\/(home\/|DashboardSection|CashflowTrends)/, 'accueil'],
-  [/^pages\/(Transactions|Recurring|Anomalies|Rules|Categories|Tags)\.tsx$|^components\/(transactions\/|Transaction|TrashModal|AttachmentsModal|StatementImportModal)/, 'operations'],
-  [/^pages\/(Accounts|AccountDetail)\.tsx$|^components\/accounts\//, 'comptes'],
-  [/^pages\/(Wealth|Investments|Goals)\.tsx$|^components\/(pea\/|SymbolSearch)/, 'patrimoine'],
-  [/^pages\/(Budgets|Bills)\.tsx$/, 'budgets'],
-  [/^pages\/(Statistics|Forecast|Health|Simulator|Alerts)\.tsx$/, 'analyses'],
-  [/^pages\/(Settings|Users|Tools|Assistant)\.tsx$|^components\/(BackupsPanel|AuditLogPanel|TokenModal)/, 'reglages'],
-];
-function domainOf(file: string): string {
-  const p = path.relative(SRC, file).split(path.sep).join('/');
-  return DOMAINS.find(([rx]) => rx.test(p))?.[1] ?? 'ui';
-}
-
-/** Mots de la phrase en identifiant : sans accents ni ponctuation, 5 mots au plus. */
-export function slug(text: string): string {
-  const words = text
-    .replace(/\{\{\s*(\w+)\s*\}\}/g, ' $1 ')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/['’]/g, ' ')
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean)
-    .filter((w, i) => i === 0 || !['the', 'a', 'an', 'of', 'le', 'la', 'les', 'de', 'des', 'du', 'un', 'une'].includes(w));
-  return words.slice(0, 5).join('_').slice(0, 40).replace(/_+$/, '') || 'texte';
-}
-
-function csvField(value: string): string {
-  return /[",\n\r]|^\s|\s$/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-}
 function writeCatalog(file: string, langs: string[], rows: Array<{ key: string; values: Record<string, string> }>) {
   const lines = [['keys', ...langs].join(',')];
   for (const r of [...rows].sort((a, b) => a.key.localeCompare(b.key))) {

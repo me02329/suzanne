@@ -30,7 +30,8 @@
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "screenshots": "node tools/screenshots.mjs",
     "i18n:check": "tsx tools/i18n-check.mts",
-    "i18n:migrate": "tsx tools/i18n-migrate.mts"
+    "i18n:migrate": "tsx tools/i18n-migrate.mts",
+    "i18n:extract": "tsx tools/i18n-extract.mts"
   },
   "engines": {
     "node": ">=20"

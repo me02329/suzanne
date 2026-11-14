@@ -1,6 +1,7 @@
 import type { Account, Category, Transaction } from '@suzanne/shared';
 import { money, txLabel } from '../lib/format';
 import { formatTxDate } from './transactions/txUtils';
+import { useTranslation } from 'react-i18next';
 
 export function TransactionList({ transactions, categoryById, accountById, onPick }: {
   transactions: Transaction[];
@@ -9,7 +10,8 @@ export function TransactionList({ transactions, categoryById, accountById, onPic
   // Si fourni, chaque ligne devient cliquable (drill-down vers la transaction).
   onPick?: (transaction: Transaction) => void;
 }) {
-  if (transactions.length === 0) return <p className="empty">Aucune transaction.</p>;
+  const { t } = useTranslation();
+  if (transactions.length === 0) return <p className="empty">{t('operations.transaction_list.no_transactions')}</p>;
   return (
     <div className="transactions">
       {transactions.map((t) => {

@@ -42,14 +42,17 @@ for (const file of sourceFiles()) {
   for (const h of hardcodedTexts(file)) hardcoded.push({ file, ...h });
 }
 
-const known = (key: string) => catalogKeys.has(key) || key in legacy;
+// Pluriels i18next : t('x', { count }) se résout en x_one / x_other (… selon la langue).
+const PLURAL_RX = /_(zero|one|two|few|many|other)$/;
+const pluralBases = new Set([...catalogKeys].filter((k) => PLURAL_RX.test(k)).map((k) => k.replace(PLURAL_RX, '')));
+const known = (key: string) => catalogKeys.has(key) || pluralBases.has(key) || key in legacy;
 const missing = uses.filter((u) => !known(u.key));
 const usedKeys = new Set(uses.map((u) => u.key));
 // Clé stable écrite comme donnée (libellés de navigation, options…) puis passée
 // à t() par une variable : la chaîne littérale dans le code suffit.
 const allSource = sourceFiles().map((f) => fs.readFileSync(f, 'utf8')).join('\n');
 for (const m of allSource.matchAll(/['"`]([a-z0-9_]+(?:\.[a-z0-9_]+)+)['"`]/g)) usedKeys.add(m[1]!);
-const unusedCatalog = [...catalogKeys].filter((k) => !usedKeys.has(k));
+const unusedCatalog = [...catalogKeys].filter((k) => !usedKeys.has(k) && !usedKeys.has(k.replace(PLURAL_RX, '')));
 const unusedLegacy = Object.keys(legacy).filter((k) => !usedKeys.has(k));
 const legacyUses = uses.filter((u) => !isStableKey(u.key));
 

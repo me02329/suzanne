@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // Limite d'affichage des tableaux qui grandissent sans borne (relevés,
 // mouvements, versements…). `limit === 0` signifie « tout afficher » ;
@@ -22,10 +23,11 @@ export function LimitPicker({ limit, onChange, options = [10, 25, 50], total, al
   // null = pas d'option « Tout » (ex. la limite est appliquée côté serveur).
   allLabel?: string | null;
 }) {
+  const { t } = useTranslation();
   if (total !== undefined && total <= (options[0] ?? 10)) return null;
   const visibleOptions = options.filter((option) => total === undefined || option < total || option === limit);
   return (
-    <div className="limit-picker" role="group" aria-label="Nombre de lignes affichées">
+    <div className="limit-picker" role="group" aria-label={t('ui.limit_picker.number_rows_shown')}>
       {visibleOptions.map((option) => (
         <button
           key={option}

@@ -1,11 +1,13 @@
 import { X } from 'lucide-react';
 import type { Tag } from '@suzanne/shared';
+import { useTranslation } from 'react-i18next';
 
 export function TagPicker({ value, tags, onChange }: {
   value: number[];
   tags: Tag[];
   onChange: (ids: number[]) => void;
 }) {
+  const { t } = useTranslation();
   const selected = new Set(value);
   const available = tags.filter((t) => !selected.has(t.id));
 
@@ -30,7 +32,7 @@ export function TagPicker({ value, tags, onChange }: {
             </span>
           );
         })}
-        {value.length === 0 && <span className="tag-picker-placeholder">Aucun tag</span>}
+        {value.length === 0 && <span className="tag-picker-placeholder">{t('ui.tag_picker.no_tags')}</span>}
       </div>
       {available.length > 0 && (
         <select
@@ -42,7 +44,7 @@ export function TagPicker({ value, tags, onChange }: {
             e.target.value = '';
           }}
         >
-          <option value="">+ Ajouter un tag…</option>
+          <option value="">{t('ui.tag_picker.add_tag')}</option>
           {available.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       )}

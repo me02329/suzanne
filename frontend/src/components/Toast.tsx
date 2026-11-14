@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export type ToastKind = 'success' | 'error';
 
@@ -14,6 +15,7 @@ export function Toast({ kind, message, action, onDismiss }: {
   action?: { label: string; onClick: () => void };
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation();
   const dismissRef = useRef(onDismiss);
   dismissRef.current = onDismiss;
   const hasAction = Boolean(action);
@@ -31,7 +33,7 @@ export function Toast({ kind, message, action, onDismiss }: {
           {action.label}
         </button>
       )}
-      <button type="button" className="toast-close" aria-label="Fermer" onClick={onDismiss}>
+      <button type="button" className="toast-close" aria-label={t('ui.toast.close')} onClick={onDismiss}>
         <X size={14} />
       </button>
     </div>

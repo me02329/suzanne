@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { Account, Transaction } from '@suzanne/shared';
 import { money } from '../lib/format';
+import { useTranslation } from 'react-i18next';
 
 // Bulle ancrée au point cliqué dans un graphique : liste les transactions
 // correspondant à la part/barre cliquée (déjà récupérées par l'appelant) et
@@ -17,6 +18,7 @@ export function DrilldownPopover({ x, y, title, loading, transactions, accountBy
   onPick: (transaction: Transaction) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -32,17 +34,17 @@ export function DrilldownPopover({ x, y, title, loading, transactions, accountBy
 
   return (
     <>
-      <button type="button" className="drilldown-backdrop" aria-label="Fermer" onClick={onClose} />
+      <button type="button" className="drilldown-backdrop" aria-label={t('ui.drilldown_popover.close')} onClick={onClose} />
       <div className="drilldown-popover" role="dialog" aria-label={title} style={{ left, top, width }}>
         <div className="drilldown-head">
           <strong title={title}>{title}</strong>
-          <button type="button" className="ghost-button" aria-label="Fermer" onClick={onClose}><X size={15} /></button>
+          <button type="button" className="ghost-button" aria-label={t('ui.drilldown_popover.close')} onClick={onClose}><X size={15} /></button>
         </div>
-        {loading && <p className="empty">Chargement…</p>}
-        {!loading && transactions.length === 0 && <p className="empty">Aucune transaction trouvée sur cette plage.</p>}
+        {loading && <p className="empty">{t('ui.drilldown_popover.loading')}</p>}
+        {!loading && transactions.length === 0 && <p className="empty">{t('ui.drilldown_popover.no_transactions_found_in_this')}</p>}
         {!loading && transactions.length > 0 && (
           <>
-            <p className="drilldown-hint">{transactions.length} transaction{transactions.length > 1 ? 's' : ''} — clique pour ouvrir au bon mois.</p>
+            <p className="drilldown-hint">{transactions.length}  {t('ui.drilldown_popover.transaction')}{transactions.length > 1 ? 's' : ''}  {t('ui.drilldown_popover.click_to_open_right_month')}</p>
             <div className="drilldown-list">
               {transactions.map((t) => {
                 const currency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';

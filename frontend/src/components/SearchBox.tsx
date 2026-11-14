@@ -4,6 +4,7 @@ import { Search, X } from 'lucide-react';
 import type { SearchResult } from '@suzanne/shared';
 import { searchAnnulable } from '../lib/searchApi';
 import { tabForSearchResult, type Tab } from '../lib/nav';
+import { useTranslation } from 'react-i18next';
 
 // Recherche de la barre du haut : saisie temporisée, résultats navigables au
 // clavier. Chaque nouvelle frappe annule la requête précédente (une réponse
@@ -11,6 +12,7 @@ import { tabForSearchResult, type Tab } from '../lib/nav';
 // jamais la liste. Une opération ouvre /transactions?tx=<id> ; les autres
 // types passent par `onNavigate(tab)`.
 export function SearchBox({ userId, onNavigate }: { userId: number; onNavigate: (tab: Tab) => void }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -97,8 +99,8 @@ export function SearchBox({ userId, onNavigate }: { userId: number; onNavigate: 
       <input
         type="search"
         enterKeyHint="search"
-        placeholder="Rechercher"
-        aria-label="Rechercher une opération, une catégorie, un compte"
+        placeholder={t('ui.search_box.search')}
+        aria-label={t('ui.search_box.search_transaction_category_account')}
         role="combobox"
         aria-expanded={showList}
         aria-controls={listId}
@@ -113,13 +115,13 @@ export function SearchBox({ userId, onNavigate }: { userId: number; onNavigate: 
         onFocus={() => { if (results.length > 0 && query.trim().length >= 2) setOpen(true); }}
       />
       {query && (
-        <button type="button" className="search-clear" aria-label="Effacer la recherche" onClick={clear}>
+        <button type="button" className="search-clear" aria-label={t('ui.search_box.clear_search')} onClick={clear}>
           <X size={14} />
         </button>
       )}
       {showList && (
         <div className="search-results" role="listbox" id={listId}>
-          {results.length === 0 && <p className="search-empty">Aucun résultat.</p>}
+          {results.length === 0 && <p className="search-empty">{t('ui.search_box.no_results')}</p>}
           {results.map((r, idx) => (
             <button
               type="button"
