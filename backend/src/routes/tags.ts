@@ -54,7 +54,7 @@ tagsRouter.post('/users/:user_id/tags', asyncHandler(async (req, res) => {
     res.status(409).json({ error: 'Un tag avec ce nom existe déjà.' });
     return;
   }
-  const row = await prisma.tag.create({ data: { user_id, name: body.name, color: body.color } });
+  const row = await prisma.tag.create({ data: { user_id, name: body.name, color: body.color, exclude_from_budgets: body.exclude_from_budgets ?? false } });
   res.status(201).json(row);
 }));
 
@@ -76,6 +76,7 @@ tagsRouter.patch('/users/:user_id/tags/:id', asyncHandler(async (req, res) => {
     data: {
       ...(body.name != null ? { name: body.name } : {}),
       ...(body.color != null ? { color: body.color } : {}),
+      ...(body.exclude_from_budgets != null ? { exclude_from_budgets: body.exclude_from_budgets } : {}),
     },
   });
   res.json(row);

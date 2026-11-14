@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
-import { createCategoryRuleSchema, idParam, updateCategoryRuleSchema } from '../lib/validation.js';
+import { createCategoryRuleSchema, createTagRuleSchema, idParam, updateCategoryRuleSchema } from '../lib/validation.js';
 import { applyRulesToUncategorized } from '../lib/categoryRules.js';
+import { applyTagRules } from '../lib/tagRules.js';
 
 export const rulesRouter = Router();
 
@@ -67,5 +68,40 @@ rulesRouter.delete('/users/:user_id/category-rules/:id', asyncHandler(async (req
     res.status(404).json({ error: 'Not found' });
     return;
   }
+  res.json({ deleted: true });
+}));
+
+// ---- Règles de tag (libellé → tag) ------------------------------------------
+
+rulesRouter.get('/users/:user_id/tag-rules', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  res.json(await prisma.tagRule.findMany({ where: { user_id }, orderBy: [{ pattern: 'asc' }, { id: 'asc' }] }));
+}));
+
+rulesRouter.post('/users/:user_id/tag-rules', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const body = createTagRuleSchema.parse(req.body);
+  const tag = await prisma.tag.findFirst({ where: { id: body.tag_id, user_id }, select: { id: true } });
+  if (!tag) throw new HttpError(400, 'Tag introuvable');
+  const pattern = body.pattern.toUpperCase();
+  const row = await prisma.tagRule.upsert({
+    where: { user_id_pattern_tag_id: { user_id, pattern, tag_id: body.tag_id } },
+    create: { user_id, pattern, tag_id: body.tag_id },
+    update: {},
+  });
+  res.json(row);
+}));
+
+// Ajoute les tags des règles aux opérations existantes (n'enlève rien).
+rulesRouter.post('/users/:user_id/tag-rules/apply', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  res.json(await applyTagRules(user_id));
+}));
+
+rulesRouter.delete('/users/:user_id/tag-rules/:id', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const id = idParam.parse(req.params.id);
+  const result = await prisma.tagRule.deleteMany({ where: { id, user_id } });
+  if (result.count === 0) throw new HttpError(404, 'Règle introuvable');
   res.json({ deleted: true });
 }));

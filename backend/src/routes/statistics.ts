@@ -35,10 +35,14 @@ statisticsRouter.get('/users/:user_id/statistics', asyncHandler(async (req, res)
   const excludeUncategorized = String(req.query.exclude_uncategorized ?? 'true') === 'true';
   const fromParam = optionalDate.parse(req.query.from ?? undefined);
   const toParam = optionalDate.parse(req.query.to ?? undefined);
+  // Filtre par tag : seulement les opérations qui le portent, ou tout sauf elles.
+  const tagId = req.query.tag_id ? z.coerce.number().int().positive().parse(req.query.tag_id) : null;
+  const tagMode = z.enum(['include', 'exclude']).parse(req.query.tag_mode ?? 'include');
+  const tagFilter = tagId == null ? {} : tagMode === 'include' ? { tags: { some: { tag_id: tagId } } } : { tags: { none: { tag_id: tagId } } };
 
   const [rows, accounts, categories] = await Promise.all([
     prisma.transaction.findMany({
-      where: { user_id, kind: 'standard' },
+      where: { user_id, kind: 'standard', ...tagFilter },
       // Projection minimale : seules les colonnes utilisées par les agrégations.
       select: {
         kind: true,

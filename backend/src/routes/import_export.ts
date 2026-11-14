@@ -9,6 +9,7 @@ import { assertAccountOwned } from '../lib/transactionHelpers.js';
 import { parseOfx, parseQif } from '../lib/statementParsers.js';
 import { legacyView, LINES_ORDERED } from '../lib/ledger.js';
 import { backupPayloadSchema, buildExportPayload, EXPORT_ENTITIES, importPayload } from '../lib/backup.js';
+import { loadTagRules, tagsForDescription } from '../lib/tagRules.js';
 
 export { buildExportPayload, EXPORT_ENTITIES, importPayload };
 
@@ -237,6 +238,7 @@ async function recurringProjections(user_id: number, account_id: number | null, 
 }
 
 async function dedupeAndInsert(user_id: number, account_id: number | null, parsedRows: ParsedImportRow[], baseSkipped: number) {
+  const tagRules = await loadTagRules(user_id);
   const duplicateKeys = await existingCsvDuplicateKeys(user_id, account_id, parsedRows);
   const fingerprints = parsedRows.map((r) => r.fingerprint).filter((f): f is string => Boolean(f));
   const knownFingerprints = new Set(fingerprints.length > 0
@@ -343,6 +345,8 @@ async function dedupeAndInsert(user_id: number, account_id: number | null, parse
             cleared: row.cleared ?? false,
             date: row.date,
             description: row.description,
+            // Règles de tag : toutes celles qui correspondent au libellé.
+            tags: { create: tagsForDescription(tagRules, row.description).map((tag_id) => ({ tag_id })) },
             lines: {
               create: [{
                 user_id: row.user_id,

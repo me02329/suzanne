@@ -36,7 +36,13 @@ async function loadSpend(user_id: number, reportCurrency: string, untilMonth: st
     prisma.account.findMany({ where: { user_id }, select: { id: true, currency: true } }),
     prisma.category.findMany({ where: { user_id }, select: { id: true, type: true, name: true, color: true } }),
     prisma.transaction.findMany({
-      where: { user_id, kind: 'standard', date: { lt: monthEnd, ...(fromMonth ? { gte: new Date(fromMonth + '-01T00:00:00.000Z') } : {}) } },
+      where: {
+        user_id,
+        kind: 'standard',
+        date: { lt: monthEnd, ...(fromMonth ? { gte: new Date(fromMonth + '-01T00:00:00.000Z') } : {}) },
+        // Tags « hors budgets » (ex. frais pro) : leurs opérations ne comptent pas.
+        tags: { none: { tag: { exclude_from_budgets: true } } },
+      },
       select: LEDGER_TX_SELECT,
     }),
   ]);

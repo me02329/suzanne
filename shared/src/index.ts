@@ -77,12 +77,24 @@ export interface Tag {
   user_id: number;
   name: string;
   color: string;
+  /** Opérations portant ce tag ignorées par les budgets. */
+  exclude_from_budgets?: boolean;
   created_at: string;
 }
 
 export interface CreateTagBody {
   name: string;
   color?: string;
+  exclude_from_budgets?: boolean;
+}
+
+/** Règle de tag : un libellé contenant `pattern` reçoit le tag. */
+export interface TagRule {
+  id: number;
+  user_id: number;
+  pattern: string;
+  tag_id: number;
+  created_at: string;
 }
 
 // Opération. Les champs « historiques » (type, amount, account_id,

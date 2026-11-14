@@ -63,6 +63,7 @@ export const backupPayloadSchema = z.object({
   bills: looseArray,
   snapshots: looseArray,
   tags: looseArray,
+  tag_rules: looseArray,
   holdings: looseArray,
   alerts: looseArray,
   import_mappings: looseArray,
@@ -93,6 +94,8 @@ export async function buildExportPayload(user_id: number, entities: readonly Exp
   // Les comptes et catégories sont toujours lus (même non exportés) pour
   // embarquer leurs noms dans les références : un export partiel reste ainsi
   // ré-importable sur un autre profil.
+  // Règles de tag : exportées avec les tags (référence par nom).
+  const tagRules = want.has('tags') ? await prisma.tagRule.findMany({ where: { user_id }, include: { tag: { select: { name: true } } }, orderBy: { id: 'asc' } }) : [];
   const [globalBudgets, sinkingFunds] = await Promise.all([
     want.has('global_budgets') ? prisma.globalBudget.findMany({ where: { user_id, ...(monthRange ? { month: monthRange } : {}) }, orderBy: { month: 'asc' } }) : Promise.resolve([]),
     want.has('sinking_funds') ? prisma.sinkingFund.findMany({ where: { user_id }, orderBy: { id: 'asc' } }) : Promise.resolve([]),
@@ -179,6 +182,7 @@ export async function buildExportPayload(user_id: number, entities: readonly Exp
     })),
     snapshots: snapshots.map((s) => ({ ...s, date: day(s.date), account_name: refAccount(s.account_id) })),
     tags,
+    tag_rules: tagRules.map(({ tag, ...r }) => ({ ...r, tag_name: tag.name })),
     holdings: holdings.map(({ orders, ...h }) => ({
       ...h,
       account_name: refAccount(h.account_id),
@@ -205,6 +209,7 @@ export interface ImportSummary {
   categories: Counter;
   rules: Counter;
   tags: Counter;
+  tag_rules: Counter;
   recurring: Counter;
   transactions: Counter;
   budgets: Counter & { updated: number };
@@ -277,7 +282,7 @@ export async function importPayload(user_id: number, payload: BackupPayload): Pr
 
 async function importInTransaction(db: Prisma.TransactionClient, user_id: number, payload: BackupPayload): Promise<ImportSummary> {
   const summary: ImportSummary = {
-    institutions: counter(), accounts: counter(), categories: counter(), rules: counter(), tags: counter(),
+    institutions: counter(), accounts: counter(), categories: counter(), rules: counter(), tags: counter(), tag_rules: counter(),
     recurring: counter(), transactions: counter(), budgets: { ...counter(), updated: 0 }, goals: counter(),
     goal_contributions: counter(), bills: counter(), bill_matches: counter(), snapshots: { ...counter(), updated: 0 },
     holdings: counter(), holding_orders: counter(), alerts: counter(), import_mappings: counter(), attachments: counter(),
@@ -312,11 +317,24 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
     let id = tagsByName.get(n);
     if (id) summary.tags.reused += 1;
     else {
-      id = (await db.tag.create({ data: { user_id, name: n, color: str(raw.color, 20) ?? '#6366f1', ...withUid(hit) } })).id;
+      id = (await db.tag.create({ data: { user_id, name: n, color: str(raw.color, 20) ?? '#6366f1', exclude_from_budgets: raw.exclude_from_budgets === true, ...withUid(hit) } })).id;
       tagsByName.set(n, id);
       summary.tags.created += 1;
     }
     tagMap.set(num(raw.id, -1), id);
+  }
+
+  // Règles de tag : tag retrouvé par id d'origine puis par nom ; idempotent.
+  const existingTagRules = new Set((await db.tagRule.findMany({ where: { user_id }, select: { pattern: true, tag_id: true } })).map((r) => `${r.pattern}|${r.tag_id}`));
+  for (const raw of payload.tag_rules ?? []) {
+    const pattern = String(raw.pattern ?? '').trim().toUpperCase().slice(0, 160);
+    const tag_id = tagMap.get(num(raw.tag_id, -1)) ?? tagsByName.get(name(raw.tag_name));
+    if (!pattern || !tag_id) { summary.tag_rules.skipped += 1; continue; }
+    const key = `${pattern}|${tag_id}`;
+    if (existingTagRules.has(key)) { summary.tag_rules.reused += 1; continue; }
+    await db.tagRule.create({ data: { user_id, pattern, tag_id } });
+    existingTagRules.add(key);
+    summary.tag_rules.created += 1;
   }
 
   const institutionMap = new Map<number, number>();

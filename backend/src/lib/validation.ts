@@ -157,6 +157,11 @@ export const updateTransactionSchema = z.object({
 export const createTagSchema = z.object({
   name: z.string().trim().min(1).max(40),
   color: z.string().trim().min(1).max(20).default('#6366f1'),
+  exclude_from_budgets: z.boolean().optional(),
+});
+export const createTagRuleSchema = z.object({
+  pattern: z.string().trim().min(1).max(120),
+  tag_id: z.coerce.number().int().positive(),
 });
 export const updateTagSchema = createTagSchema.partial();
 
