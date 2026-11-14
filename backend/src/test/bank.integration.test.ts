@@ -11,11 +11,11 @@ const api = request(app);
 
 // Banque simulée : une session avec deux comptes, des opérations et un solde.
 const transactions = [
-  { entry_reference: 'R1', transaction_amount: { amount: '42.35', currency: 'EUR' }, credit_debit_indicator: 'DBIT', status: 'BOOK', booking_date: '2026-10-12', remittance_information: ['CARTE 10/10/26 BIGEM INTERMARCHE CB*3277'] },
-  { entry_reference: 'R2', transaction_amount: { amount: '500.00', currency: 'EUR' }, credit_debit_indicator: 'CRDT', status: 'BOOK', booking_date: '2026-10-21', remittance_information: ['VIR SEPA MR DUPONT JEAN', 'Cadeau amenagement 032026293829854280000001 Réf 03494NA202679312208580'] },
-  { entry_reference: 'R3', transaction_amount: { amount: '9.99', currency: 'EUR' }, credit_debit_indicator: 'DBIT', status: 'BOOK', booking_date: '2026-10-25', remittance_information: ['PRLV SEPA BOUYGUES TELECOM', 'FR26100763394118 RUM BT1150W8WVC16'] },
+  { entry_reference: 'R1', transaction_amount: { amount: '31.20', currency: 'EUR' }, credit_debit_indicator: 'DBIT', status: 'BOOK', booking_date: '2026-10-12', remittance_information: ['CARTE 10/10/26 EPICERIE DU COIN CB*0000'] },
+  { entry_reference: 'R2', transaction_amount: { amount: '500.00', currency: 'EUR' }, credit_debit_indicator: 'CRDT', status: 'BOOK', booking_date: '2026-10-21', remittance_information: ['VIR SEPA MR DUPONT JEAN', 'Cadeau anniversaire 012026000000000000000001 Réf 00000NA000000000000000000'] },
+  { entry_reference: 'R3', transaction_amount: { amount: '14.99', currency: 'EUR' }, credit_debit_indicator: 'DBIT', status: 'BOOK', booking_date: '2026-10-25', remittance_information: ['PRLV SEPA OPERATEUR MOBILE', 'FR00000000000000 RUM AB0000000000'] },
   { entry_reference: 'R4', transaction_amount: { amount: '120.00', currency: 'EUR' }, credit_debit_indicator: 'DBIT', status: 'BOOK', booking_date: '2026-10-16', remittance_information: ['VIR Virement vers compte pro'] },
-  { entry_reference: 'avis-1', transaction_amount: { amount: '57.63', currency: 'EUR' }, credit_debit_indicator: 'DBIT', status: 'PDNG', transaction_date: '2026-11-13', remittance_information: ['AMAZON PAYMENTS\\PARIS\\ FR'] },
+  { entry_reference: 'avis-1', transaction_amount: { amount: '48.10', currency: 'EUR' }, credit_debit_indicator: 'DBIT', status: 'PDNG', transaction_date: '2026-11-13', remittance_information: ['BOUTIQUE EN LIGNE\\PARIS\\ FR'] },
 ];
 // Compte 2 (ex. compte pro) : reçoit le virement de 120 € envoyé depuis le compte 1 (R4).
 const transactionsAcc2 = [
@@ -31,7 +31,7 @@ const fakeFetch = async (url: string) => {
     ? { session_id: 'sess-1', access: { valid_until: '2027-05-01T00:00:00Z' }, aspsp: { name: 'Banque Test', country: 'FR' }, accounts: [{ uid: 'acc-1', name: 'Compte courant', account_id: { iban: 'FR7600001111' }, currency: 'EUR' }, { uid: 'acc-2', name: 'Carte' }] }
     : path === '/accounts/acc-2/transactions' ? { transactions: transactionsAcc2, continuation_key: null }
     : path.endsWith('/transactions') ? { transactions, continuation_key: null }
-    : path.endsWith('/balances') ? { balances: [{ balance_type: 'XPCD', balance_amount: { amount: '37.31', currency: 'EUR' } }, { balance_type: 'CLBD', balance_amount: { amount: '132.64', currency: 'EUR' }, reference_date: '2026-11-14' }] }
+    : path.endsWith('/balances') ? { balances: [{ balance_type: 'XPCD', balance_amount: { amount: '1180.00', currency: 'EUR' } }, { balance_type: 'CLBD', balance_amount: { amount: '1250.00', currency: 'EUR' }, reference_date: '2026-11-14' }] }
     : {};
   return { ok: true, status: 200, text: async () => JSON.stringify(body) };
 };
@@ -62,16 +62,16 @@ describe('synchronisation bancaire', () => {
     await api.patch(`/api/users/${u}/bank/links/${connection.links[1].id}`).send({ account_id: acc }).expect(409);
 
     const [result] = (await api.post(`/api/users/${u}/bank/connections/${connection.id}/sync`).expect(200)).body.results;
-    expect(result).toMatchObject({ fetched: 5, pending: 1, adopted: 1, imported: 3, balance: { amount: 132.64, date: '2026-11-14', type: 'CLBD' } });
+    expect(result).toMatchObject({ fetched: 5, pending: 1, adopted: 1, imported: 3, balance: { amount: 1250, date: '2026-11-14', type: 'CLBD' } });
 
     const txs = (await api.get(`/api/users/${u}/transactions?account_id=${acc}`).expect(200)).body as Array<{ id: number; description: string; amount: number }>;
     expect(txs).toHaveLength(4);
     // L'opération CSV est reprise (pas dupliquée) et gagne le libellé complet, sans les références.
-    expect(txs.find((t) => t.id === old)!.description).toBe('VIR SEPA MR DUPONT JEAN — Cadeau amenagement');
-    expect(txs.map((t) => t.description)).toContain('PRLV SEPA BOUYGUES TELECOM');
+    expect(txs.find((t) => t.id === old)!.description).toBe('VIR SEPA MR DUPONT JEAN — Cadeau anniversaire');
+    expect(txs.map((t) => t.description)).toContain('PRLV SEPA OPERATEUR MOBILE');
     // Données bancaires conservées pour la fiche de l'opération (même reprise d'un import CSV).
     const detail = (await api.get(`/api/users/${u}/transactions/${old}`).expect(200)).body;
-    expect(detail.bank_data).toEqual([expect.objectContaining({ source: 'enable_banking', bank: 'Banque Test', account_id: acc, entry_reference: 'R2', booking_date: '2026-10-21', remittance_information: ['VIR SEPA MR DUPONT JEAN', expect.stringContaining('Cadeau amenagement')] })]);
+    expect(detail.bank_data).toEqual([expect.objectContaining({ source: 'enable_banking', bank: 'Banque Test', account_id: acc, entry_reference: 'R2', booking_date: '2026-10-21', remittance_information: ['VIR SEPA MR DUPONT JEAN', expect.stringContaining('Cadeau anniversaire')] })]);
 
     // Deuxième synchro : rien de nouveau.
     const [again] = (await api.post(`/api/users/${u}/bank/connections/${connection.id}/sync`).expect(200)).body.results;

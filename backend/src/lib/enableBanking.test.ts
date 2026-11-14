@@ -65,12 +65,12 @@ describe('EnableBankingClient', () => {
 });
 
 describe('toBankRow', () => {
-  const base: BankTransaction = { transaction_amount: { amount: '385.12', currency: 'EUR' }, credit_debit_indicator: 'DBIT', booking_date: '2026-10-16', status: 'BOOK' };
+  const base: BankTransaction = { transaction_amount: { amount: '250.40', currency: 'EUR' }, credit_debit_indicator: 'DBIT', booking_date: '2026-10-16', status: 'BOOK' };
 
   it('virement émis : bénéficiaire + motif complet, montant positif, dépense', () => {
     const row = toBankRow({ ...base, entry_reference: 'E1', creditor: { name: 'ACME SAS' }, remittance_information: ['Apport en capital', 'octobre 2026 - facture 12'] });
     expect(row).toMatchObject({
-      fingerprint: 'eb:E1', date: '2026-10-16', type: 'expense', amount: 385.12, pending: false,
+      fingerprint: 'eb:E1', date: '2026-10-16', type: 'expense', amount: 250.40, pending: false,
       description: 'ACME SAS — Apport en capital octobre 2026 - facture 12',
     });
   });
