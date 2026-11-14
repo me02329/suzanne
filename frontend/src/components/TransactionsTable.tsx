@@ -31,6 +31,7 @@ export function TransactionsTable({
   onToggleCleared,
   actions,
   highlightId = null,
+  onShowRefunded,
 }: {
   transactions: Transaction[];
   emptyMessage: string;
@@ -50,6 +51,8 @@ export function TransactionsTable({
   actions: TxActionHandlers;
   // Transaction ciblée par un deep link : la ligne flashe et défile en vue.
   highlightId?: number | null;
+  // Clic sur le badge « remboursement » : aller à la dépense remboursée (ou en choisir une).
+  onShowRefunded?: (transaction: Transaction) => void;
 }) {
   const { t } = useTranslation();
   const menuItems = useTxMenuItems();
@@ -104,8 +107,15 @@ export function TransactionsTable({
             const refunded = tx.type === 'expense' ? refundedAmount(tx) : 0;
             const allocationCount = tx.refund_allocations?.length ?? 0;
             const isRefundIncome = tx.type === 'income' && (allocationCount > 0 || tx.refunds_transaction_id != null);
+            // Remboursement entièrement relié : ses lignes portent la catégorie de la
+            // (des) dépense(s) remboursée(s) ; elle n'est pas modifiable ici.
+            const refundLines = (tx.lines ?? []).filter((l) => l.refund);
+            const refundOnly = isRefundIncome && refundLines.length > 0 && refundLines.length === (tx.lines ?? []).length;
+            const refundCategories = Array.from(new Set(refundLines.map((l) => l.category_id)))
+              .map((id) => categoryById.get(id ?? -1))
+              .filter((c): c is Category => c != null);
             const selected = selectedIds.has(tx.id);
-            const category = categoryById.get(tx.category_id ?? -1);
+            const category = refundOnly ? refundCategories[0] : categoryById.get(tx.category_id ?? -1);
             const accent = categoryById.get(splits[0]?.category_id ?? -1)?.color ?? category?.color ?? 'transparent';
             const label = txLabel(tx, categoryById);
             const accountName = (id: number | null) => accountById.get(id ?? -1)?.name ?? t('operations.no_account');
@@ -133,9 +143,18 @@ export function TransactionsTable({
                       </span>
                     )}
                     {isRefundIncome && (
-                      <span className="jr-badge" title={tx.refunds_transaction ? t('operations.refunds_label_date', { label: tx.refunds_transaction.description ?? `#${tx.refunds_transaction.id}`, date: formatTxDate(tx.refunds_transaction.date) }) : undefined}>
+                      <button
+                        type="button"
+                        className="jr-badge jr-badge-link"
+                        title={allocationCount > 1
+                          ? t('operations.refund_link.show_expenses', { n: allocationCount })
+                          : tx.refunds_transaction
+                            ? t('operations.refunds_label_date', { label: tx.refunds_transaction.description ?? `#${tx.refunds_transaction.id}`, date: formatTxDate(tx.refunds_transaction.date) })
+                            : t('operations.refund_link.show_expense')}
+                        onClick={() => onShowRefunded?.(tx)}
+                      >
                         {allocationCount > 1 ? t('operations.n_expenses', { n: allocationCount }) : t('operations.refund_4')}
-                      </span>
+                      </button>
                     )}
                     {(tx.tags ?? []).map((tag) => (
                       <span key={tag.id} className="tag-chip mini" style={{ background: tag.color }}>{tag.name}</span>
@@ -174,6 +193,19 @@ export function TransactionsTable({
                 <td>
                   {tx.type === 'transfer' || readOnly ? (
                     <CategoryName className="jr-muted" category={category} />
+                  ) : refundOnly ? (
+                    // Catégorie imposée par la dépense remboursée : liste grisée, non modifiable.
+                    <select
+                      className="inline-select"
+                      disabled
+                      value={refundCategories.length === 1 ? refundCategories[0]!.id : ''}
+                      aria-label={t('commun.category')}
+                      title={t('operations.refund_link.category_follows_expense')}
+                    >
+                      {refundCategories.length === 1
+                        ? <option value={refundCategories[0]!.id}>{refundCategories[0]!.name}</option>
+                        : <option value="">{refundCategories.map((c) => c.name).join(' · ') || t('operations.no_category')}</option>}
+                    </select>
                   ) : splits.length > 0 ? (
                     <div className="jr-splits">
                       {splits.map((split, i) => {

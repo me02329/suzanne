@@ -9,6 +9,7 @@ import { usePersistedState } from '../lib/storage';
 import type { Run } from '../lib/run';
 import { AttachmentsModal } from '../components/AttachmentsModal';
 import { TrashModal } from '../components/TrashModal';
+import { Modal } from '../components/Modal';
 import { TransactionsTable } from '../components/TransactionsTable';
 import { QuickEntry } from '../components/transactions/QuickEntry';
 import { FilterBar } from '../components/transactions/FilterBar';
@@ -20,7 +21,7 @@ import { RowMenu, useTxMenuItems, type TxActionHandlers } from '../components/tr
 import { TransactionFormModal, type TxDraft, type TxFormMode } from '../components/transactions/TransactionFormModal';
 import { useTransactionFilters } from '../components/transactions/useTransactionFilters';
 import { useSelection } from '../components/transactions/useSelection';
-import { isReadOnly, useMediaQuery } from '../components/transactions/txUtils';
+import { formatTxDate, isReadOnly, useMediaQuery } from '../components/transactions/txUtils';
 import '../styles/pages/transactions.css';
 
 // Une seule modale ouverte à la fois.
@@ -31,7 +32,11 @@ type Dialog =
   | { kind: 'attachments'; tx: Transaction }
   | { kind: 'bulkEdit' }
   | { kind: 'trash' }
+  | { kind: 'refunded'; tx: Transaction; expenses: RefundedExpense[] }
   | null;
+
+// Dépense remboursée par un revenu (aperçu renvoyé par l'API).
+type RefundedExpense = { id: number; amount: number; date: string; description: string | null };
 
 export function Transactions({ userId, month, transactions, unassignedTransactions, issueFilter, onClearIssueFilter, recurring, accounts, categories, tags, categoryById, accountById, onMonthChange, run }: {
   userId: number;
@@ -164,6 +169,23 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
     onDelete: deleteTx,
   }), [deleteTx]);
 
+  // Aller à une opération (même hors du mois affiché) : filtres remis à zéro,
+  // bascule sur son mois puis surlignage (même mécanisme que ?tx=…).
+  const goToTx = (id: number) => {
+    filters.reset();
+    lookedUpTx.current = null;
+    setPendingTxId(id);
+  };
+
+  // Badge « remboursement » : une dépense → on y va ; plusieurs → on choisit.
+  const showRefunded = (tx: Transaction) => {
+    const expenses: RefundedExpense[] = (tx.refund_allocations ?? [])
+      .map((a) => a.expense_transaction ?? { id: a.expense_transaction_id, amount: a.amount, date: '', description: null });
+    if (expenses.length === 0 && tx.refunds_transaction) expenses.push(tx.refunds_transaction);
+    if (expenses.length === 1) goToTx(expenses[0]!.id);
+    else if (expenses.length > 1) setDialog({ kind: 'refunded', tx, expenses });
+  };
+
   const openEdit = (tx: Transaction) => {
     if (!isReadOnly(tx)) setDialog({ kind: 'form', mode: 'edit', tx });
   };
@@ -274,6 +296,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
             onToggleCleared={toggleCleared}
             actions={handlers}
             highlightId={highlightId}
+            onShowRefunded={showRefunded}
           />
         )}
 
@@ -321,6 +344,22 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
       )}
       {dialog?.kind === 'trash' && (
         <TrashModal userId={userId} categoryById={categoryById} run={run} onClose={closeDialog} />
+      )}
+      {dialog?.kind === 'refunded' && (
+        <Modal title={t('operations.refund_link.refunded_expenses')} onClose={closeDialog}>
+          <p className="muted">{t('operations.refund_link.pick_expense', { label: txLabel(dialog.tx, categoryById) })}</p>
+          <ul className="refunded-list">
+            {dialog.expenses.map((e) => (
+              <li key={e.id}>
+                <button type="button" className="refunded-item" onClick={() => { closeDialog(); goToTx(e.id); }}>
+                  <span className="refunded-date">{e.date ? formatTxDate(e.date) : ''}</span>
+                  <span className="refunded-label">{e.description ?? `#${e.id}`}</span>
+                  <span className="jr-num">{money(e.amount)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Modal>
       )}
     </section>
   );

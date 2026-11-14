@@ -5,7 +5,7 @@ import { prisma, prismaBase } from '../prisma.js';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { createTransactionSchema, dateString, idParam, linkRecurringSchema, monthString, updateTransactionSchema } from '../lib/validation.js';
 import { resolveTagIds } from '../lib/transactionHelpers.js';
-import { buildLines, legacyView, LINES_ORDERED, linesCreateData, mergeLegacy, patchTouchesLines, type LegacyInput } from '../lib/ledger.js';
+import { buildLines, legacyView, LINES_ORDERED, linesCreateData, mergeLegacy, patchTouchesLines, resyncRefundLines, type LegacyInput } from '../lib/ledger.js';
 import { round2 } from '../lib/money.js';
 
 export const transactionsRouter = Router();
@@ -171,6 +171,8 @@ transactionsRouter.patch('/users/:user_id/transactions/:id', asyncHandler(async 
     if (built) {
       await tx.transactionLine.deleteMany({ where: { transaction_id: id } });
       await tx.transactionLine.createMany({ data: linesCreateData(user_id, built).map((l) => ({ ...l, transaction_id: id })) });
+      // Dépense : ses remboursements suivent sa (nouvelle) ventilation.
+      await resyncRefundLines(tx, user_id, [id]);
     }
     if (tagIds) {
       await tx.transactionTag.deleteMany({ where: { transaction_id: id } });
@@ -312,7 +314,7 @@ transactionsRouter.post('/users/:user_id/transactions/bulk-update', asyncHandler
   const ownedRemoveTag = body.remove_tag_id != null && tagIds.includes(body.remove_tag_id);
   const targets = await prisma.transaction.findMany({
     where: { id: { in: body.ids }, user_id },
-    select: { id: true, kind: true, lines: { select: { id: true, amount: true, account_id: true } } },
+    select: { id: true, kind: true, lines: { select: { id: true, amount: true, account_id: true, refund: true } } },
   });
   const ids = targets.map((t) => t.id);
   let updated = 0;
@@ -332,9 +334,11 @@ transactionsRouter.post('/users/:user_id/transactions/bulk-update', asyncHandler
     }
     if (body.category_id !== undefined) {
       // Une opération ventilée (plusieurs lignes) garde sa ventilation.
-      const single = targets.filter((t) => t.kind === 'standard' && t.lines.length === 1);
+      // Un remboursement relié garde la catégorie de sa dépense.
+      const single = targets.filter((t) => t.kind === 'standard' && t.lines.length === 1 && !t.lines[0]!.refund);
       await tx.transactionLine.updateMany({ where: { id: { in: single.map((t) => t.lines[0]!.id) } }, data: { category_id: body.category_id ?? null } });
       updated = Math.max(updated, single.length);
+      await resyncRefundLines(tx, user_id, single.map((t) => t.id));
     }
     if (body.cleared !== undefined) {
       const r = await tx.transaction.updateMany({ where: { id: { in: ids } }, data: { cleared: body.cleared } });

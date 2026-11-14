@@ -377,3 +377,16 @@
   .jr-quick.has-tags input.jr-quick-extra { flex-basis: 124px; }
   .jr-quick.has-tags .jr-quick-tag { flex-basis: 88px; }
 }
+
+/* Badge « remboursement » cliquable : mène à la dépense remboursée. */
+button.jr-badge-link { background: none; font: inherit; font-size: 11.5px; font-weight: 650; cursor: pointer; }
+button.jr-badge-link:hover { color: var(--text); border-color: var(--text); }
+/* Catégorie d'un remboursement : imposée par la dépense, liste grisée. */
+.jr-table .inline-select:disabled { color: var(--muted); cursor: not-allowed; opacity: 1; }
+
+/* Modale « dépenses remboursées » : une ligne par dépense, cliquable. */
+.refunded-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 4px; }
+.refunded-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.refunded-item:hover { background: var(--surface-muted); }
+.refunded-date { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.refunded-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

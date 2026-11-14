@@ -405,3 +405,62 @@ function capAllocations(allocations: Array<{ expense_transaction_id: number; amo
     return { ...a, amount: round2(amount) };
   }).filter((a) => a.amount > 0);
 }
+
+// ---------------------------------------------------------------------------
+// Remboursements : toujours dans la (les) catégorie(s) de la dépense
+// ---------------------------------------------------------------------------
+
+/**
+ * Réaligne les lignes de remboursement qui pointent vers ces dépenses sur leur
+ * ventilation actuelle : même montant remboursé par opération, réparti au
+ * prorata des lignes de la dépense, dans leurs catégories. À appeler (dans la
+ * même transaction SQL) après toute modification des lignes d'une dépense —
+ * sinon un remboursement resterait déduit de l'ancienne catégorie.
+ */
+// Client Prisma ou transaction interactive (client étendu compris).
+type RefundDb = Pick<typeof prisma, 'transaction' | 'transactionLine'>;
+export async function resyncRefundLines(db: RefundDb, user_id: number, expenseIds: number[]): Promise<number> {
+  const ids = Array.from(new Set(expenseIds));
+  if (ids.length === 0) return 0;
+  const expenses = await db.transaction.findMany({
+    where: { id: { in: ids }, user_id, deleted_at: null },
+    select: { id: true, kind: true, lines: { select: { category_id: true, amount: true }, orderBy: { position: 'asc' } } },
+  });
+  let changed = 0;
+  for (const expense of expenses) {
+    const parts = expense.kind === 'standard' ? expense.lines.filter((l) => l.amount < 0) : [];
+    const spent = -parts.reduce((s, l) => s + l.amount, 0);
+    if (!(spent > 0)) continue;
+    const refundLines = await db.transactionLine.findMany({
+      where: {
+        user_id,
+        refund: true,
+        OR: [{ refund_of_id: expense.id }, { refund_of_id: null, transaction: { refunds_transaction_id: expense.id } }],
+        transaction: { deleted_at: null },
+      },
+      select: { id: true, transaction_id: true, account_id: true, category_id: true, amount: true, position: true },
+      orderBy: [{ transaction_id: 'asc' }, { position: 'asc' }],
+    });
+    const byTx = new Map<number, typeof refundLines>();
+    for (const l of refundLines) byTx.set(l.transaction_id, [...(byTx.get(l.transaction_id) ?? []), l]);
+    for (const [transaction_id, lines] of byTx) {
+      const allocated = round2(lines.reduce((s, l) => s + l.amount, 0));
+      // Répartition au prorata, l'arrondi restant sur la dernière ligne.
+      const wanted = parts.map((p) => ({ category_id: p.category_id, amount: round2(allocated * (-p.amount / spent)) }));
+      const drift = round2(allocated - wanted.reduce((s, w) => s + w.amount, 0));
+      if (wanted.length > 0) wanted[wanted.length - 1]!.amount = round2(wanted[wanted.length - 1]!.amount + drift);
+      const same = wanted.length === lines.length
+        && wanted.every((w, i) => w.category_id === lines[i]!.category_id && Math.abs(w.amount - round2(lines[i]!.amount)) < 0.005);
+      if (same) continue;
+      await db.transactionLine.deleteMany({ where: { id: { in: lines.map((l) => l.id) } } });
+      await db.transactionLine.createMany({
+        data: wanted.map((w, i) => ({
+          user_id, transaction_id, account_id: lines[0]!.account_id, category_id: w.category_id, amount: w.amount,
+          refund: true, refund_of_id: expense.id, position: lines[0]!.position + i,
+        })),
+      });
+      changed += 1;
+    }
+  }
+  return changed;
+}

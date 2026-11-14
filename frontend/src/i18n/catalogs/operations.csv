@@ -389,3 +389,8 @@ operations.rules.edit_rule,Modifier la règle,Edit the rule
 operations.quick_tag.label,Tag,Tag
 operations.quick_tag.none,Tag,Tag
 operations.quick_tag.hint,Tag posé sur l’opération ; il reste sélectionné pour les saisies suivantes,Tag added to the transaction; it stays selected for the next entries
+operations.refund_link.show_expense,Voir la dépense remboursée,View the refunded expense
+operations.refund_link.show_expenses,Voir les {{n}} dépenses remboursées,View the {{n}} refunded expenses
+operations.refund_link.category_follows_expense,"Catégorie de la dépense remboursée : pour la changer, modifie la dépense ou délie le remboursement","Category of the refunded expense: to change it, edit the expense or unlink the refund"
+operations.refund_link.refunded_expenses,Dépenses remboursées,Refunded expenses
+operations.refund_link.pick_expense,"« {{label}} » rembourse ces dépenses. Choisis celle à afficher :","“{{label}}” refunds these expenses. Pick the one to show:"
