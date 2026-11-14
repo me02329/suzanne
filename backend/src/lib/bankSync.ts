@@ -363,3 +363,25 @@ export function startBankSyncScheduler(): void {
   setTimeout(() => void run(), 60_000).unref?.();
   setInterval(() => void run(), 6 * 3600_000).unref?.();
 }
+
+/**
+ * Alertes automatiques (non configurables) des connexions bancaires : accès
+ * expiré, expirant dans 7 jours, ou synchronisation en erreur. Identifiants
+ * négatifs comme les alertes de budget.
+ */
+export async function bankAlerts(user_id: number): Promise<Array<{ id: number; type: 'bank'; severity: 'warning' | 'info'; message: string }>> {
+  const connections = await prisma.bankConnection.findMany({ where: { user_id }, select: { id: true, aspsp_name: true, valid_until: true, status: true } });
+  const out: Array<{ id: number; type: 'bank'; severity: 'warning' | 'info'; message: string }> = [];
+  for (const c of connections) {
+    const days = Math.ceil((c.valid_until.getTime() - Date.now()) / DAY);
+    const id = -100_000 - c.id;
+    if (days <= 0 || c.status === 'expired') {
+      out.push({ id, type: 'bank', severity: 'warning', message: `L'accès à ${c.aspsp_name} a expiré : plus de synchronisation. Renouvelle-le dans Réglages → Banque.` });
+    } else if (days <= 7) {
+      out.push({ id, type: 'bank', severity: 'info', message: `L'accès à ${c.aspsp_name} expire dans ${days} jour${days > 1 ? 's' : ''} : renouvelle-le dans Réglages → Banque.` });
+    } else if (c.status === 'error') {
+      out.push({ id, type: 'bank', severity: 'warning', message: `La synchronisation de ${c.aspsp_name} a échoué : détails dans Réglages → Banque.` });
+    }
+  }
+  return out;
+}

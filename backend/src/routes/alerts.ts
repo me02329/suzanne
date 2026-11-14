@@ -6,6 +6,7 @@ import { createAlertSchema, currencyQuery, idParam, updateAlertSchema, monthStri
 import { securitiesByAccountNow } from '../lib/holdingsValuation.js';
 import { computeAccountBalances } from './dashboard.js';
 import { evaluateAlerts, type AlertConfig } from '../lib/alerts.js';
+import { bankAlerts } from '../lib/bankSync.js';
 import { LEDGER_TX_SELECT, legacyView, LINE_SELECT, LINES_ORDERED } from '../lib/ledger.js';
 
 export const alertsRouter = Router();
@@ -25,10 +26,13 @@ alertsRouter.get('/users/:user_id/alerts/triggered', asyncHandler(async (req, re
   const start = new Date(`${month}-01T00:00:00.000Z`);
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
 
-  const [alerts, budgetTriggered] = await Promise.all([
+  const [alerts, budgetOnly, bankTriggered] = await Promise.all([
     prisma.alert.findMany({ where: { user_id, active: true } }),
     budgetAlerts(user_id, month, reportCurrency).catch(() => []),
+    bankAlerts(user_id).catch(() => []),
   ]);
+  // Alertes automatiques : budgets et connexions bancaires (accès qui expire).
+  const budgetTriggered = [...budgetOnly, ...bankTriggered];
   if (alerts.length === 0) {
     res.json(budgetTriggered);
     return;

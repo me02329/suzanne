@@ -324,8 +324,9 @@ export interface CreateAlertBody {
 
 export interface TriggeredAlert {
   id: number;
-  // 'budget' : alerte automatique de budget (id négatif, non configurable).
-  type: AlertType | 'budget';
+  // 'budget' / 'bank' : alertes automatiques (budget, accès bancaire qui expire ;
+  // id négatif, non configurables).
+  type: AlertType | 'budget' | 'bank';
   severity: 'warning' | 'info';
   message: string;
 }

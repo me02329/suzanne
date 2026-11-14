@@ -437,6 +437,7 @@ function LinkRow({ userId, link: l, accounts, run, onChanged }: { userId: number
       <td>
         <strong>{l.remote_name ?? t('reglages.bank.account')}</strong>
         <span className="muted">{l.iban_last4 ? ` ···${l.iban_last4}` : ''}{l.currency ? ` · ${l.currency}` : ''}</span>
+        {/^(carte|card)\b/i.test(l.remote_name ?? '') && l.account_id == null && <small className="bank-card-hint">{t('reglages.bank.card_hint')}</small>}
       </td>
       <td>
         <select value={l.account_id ?? ''} onChange={(e) => void update({ account_id: e.target.value ? Number(e.target.value) : null })} aria-label={t('reglages.bank.suzanne_account')}>

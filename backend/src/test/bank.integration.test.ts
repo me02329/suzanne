@@ -4,6 +4,7 @@ import request from 'supertest';
 import { createApp } from '../app';
 import { EnableBankingClient } from '../lib/enableBanking';
 import { setBankClientForTests, signState } from '../lib/bankSync';
+import { prisma } from '../prisma';
 
 const app = createApp();
 const api = request(app);
@@ -84,6 +85,12 @@ describe('synchronisation bancaire', () => {
     await api.post(`/api/users/${u}/bank/connections/${connection.id}/sync`).expect(200);
     const all = (await api.get(`/api/users/${u}/transactions`).expect(200)).body as Array<{ type: string; amount: number }>;
     expect(all.filter((t) => Math.abs(t.amount) === 120)).toEqual([expect.objectContaining({ type: 'transfer' })]);
+
+    // Alerte automatique quand l'accès expire bientôt (et aucune avant).
+    const bankAlertsOf = async () => ((await api.get(`/api/users/${u}/alerts/triggered?month=2026-11`).expect(200)).body as Array<{ type: string; message: string }>).filter((a) => a.type === 'bank');
+    expect(await bankAlertsOf()).toEqual([]);
+    await prisma.bankConnection.update({ where: { id: connection.id }, data: { valid_until: new Date(Date.now() + 3 * 86400_000) } });
+    expect((await bankAlertsOf())[0]!.message).toMatch(/expire dans 3 jours/);
 
     await api.delete(`/api/users/${u}/bank/connections/${connection.id}`).expect(200);
     expect((await api.get(`/api/users/${u}/bank`).expect(200)).body.connections).toEqual([]);
