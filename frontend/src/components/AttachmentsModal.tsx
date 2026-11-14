@@ -7,6 +7,7 @@ import { IconButton } from './IconButton';
 import { Modal } from './Modal';
 import type { Run } from '../lib/run';
 import { useTranslation } from 'react-i18next';
+import { localeTag } from '../i18n';
 
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
@@ -96,7 +97,7 @@ export function AttachmentsModal({ userId, transactionId, label, run, onClose }:
                   {a.mime_type.startsWith('image/') ? <ImageIcon size={14} /> : <FileText size={14} />} {a.filename}
                 </td>
                 <td className="amount-cell" data-label={t('operations.attachments_modal.size')}>{humanSize(a.size)}</td>
-                <td data-label={t('operations.attachments_modal.added_on')}>{new Date(a.created_at).toLocaleDateString('fr-FR')}</td>
+                <td data-label={t('operations.attachments_modal.added_on')}>{new Date(a.created_at).toLocaleDateString(localeTag())}</td>
                 <td className="actions-cell">
                   <IconButton label={t('operations.attachments_modal.open_download')} tone="neutral" icon={<Download size={16} />} onClick={() => void open(a)} />
                   <IconButton label={t('operations.attachments_modal.delete')} confirm={t('operations.attachments_modal.delete_this_attachment')} onClick={() => remove(a)} />

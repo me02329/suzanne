@@ -8,6 +8,7 @@ import { Modal } from '../components/Modal';
 import { RowMenu } from '../components/ui/RowMenu';
 import type { Run } from '../lib/run';
 import '../styles/pages/settings.css';
+import { localeTag } from '../i18n';
 
 type RuleBody = { pattern: string; category_id: number };
 
@@ -116,7 +117,7 @@ export function Rules({ userId, rules, categories, categoryById, run }: {
                       {category?.name ?? 'Catégorie supprimée'}
                     </span>
                   </td>
-                  <td className="st-muted" data-label="Créée le">{new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
+                  <td className="st-muted" data-label="Créée le">{new Date(r.created_at).toLocaleDateString(localeTag())}</td>
                   <td className="actions-cell">
                     <IconButton label="Modifier" tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(r)} />
                     <RowMenu items={[{ label: 'Supprimer', icon: <Trash2 />, danger: true, onSelect: () => remove(r) }]} />

@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { DataTable } from './DataTable';
 import { Panel } from './Panel';
 import { useTranslation } from 'react-i18next';
+import { localeTag } from '../i18n';
 
 const ACTION_LABEL: Record<string, string> = { POST: 'Création', PATCH: 'Modification', PUT: 'Modification', DELETE: 'Suppression' };
 const ENTITY_LABEL: Record<string, string> = {
@@ -43,7 +44,7 @@ export function AuditLogPanel({ userId, dataVersion = 0 }: { userId: number; dat
               <tr key={e.id}>
                 <td className="cell-primary"><strong>{ENTITY_LABEL[e.entity] ?? e.entity}{e.entity_id != null ? ` #${e.entity_id}` : ''}</strong></td>
                 <td data-label={t('reglages.audit_log_panel.action')}>{ACTION_LABEL[e.action] ?? e.action}</td>
-                <td className="st-muted" data-label={t('reglages.audit_log_panel.when')}>{new Date(e.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                <td className="st-muted" data-label={t('reglages.audit_log_panel.when')}>{new Date(e.created_at).toLocaleString(localeTag(), { dateStyle: 'short', timeStyle: 'short' })}</td>
               </tr>
             ))}
           </tbody>

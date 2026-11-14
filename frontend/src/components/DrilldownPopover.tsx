@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import type { Account, Transaction } from '@suzanne/shared';
 import { money } from '../lib/format';
 import { useTranslation } from 'react-i18next';
+import { localeTag } from '../i18n';
 
 // Bulle ancrée au point cliqué dans un graphique : liste les transactions
 // correspondant à la part/barre cliquée (déjà récupérées par l'appelant) et
@@ -50,7 +51,7 @@ export function DrilldownPopover({ x, y, title, loading, transactions, accountBy
                 const currency = accountById.get(t.account_id ?? -1)?.currency ?? 'EUR';
                 return (
                   <button type="button" className="drilldown-item" key={t.id} onClick={() => onPick(t)}>
-                    <span className="drilldown-date">{new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
+                    <span className="drilldown-date">{new Date(t.date).toLocaleDateString(localeTag(), { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
                     <span className="drilldown-label" title={t.description ?? undefined}>{t.description || 'Sans description'}</span>
                     <strong className={t.type === 'income' ? 'income' : 'expense'}>
                       {t.type === 'income' ? '+' : '-'}{money(t.amount, currency)}

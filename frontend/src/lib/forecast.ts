@@ -1,4 +1,5 @@
 import { nextRecurringOccurrence, type RecurringTransaction, type SavingsGoal } from '@suzanne/shared';
+import { localeTag } from '../i18n';
 
 // Forward-looking cashflow projection. Everything else in the app is
 // backward-looking (statistics) or present-state (dashboard); this projects the
@@ -106,7 +107,7 @@ function mondayOf(date: string): string {
 
 function groupLabel(key: string, mode: 'week' | 'month'): string {
   if (mode === 'month') {
-    const formatted = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' })
+    const formatted = new Intl.DateTimeFormat(localeTag(), { month: 'long', year: 'numeric' })
       .format(new Date(`${key}-01T00:00:00.000Z`));
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }

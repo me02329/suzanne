@@ -1,5 +1,6 @@
 import type { AccountSnapshot, Holding, HoldingsValuation, Transaction, ValuedHolding } from '@suzanne/shared';
 import type { AccountWithInvestment } from './api-accounts';
+import { localeTag } from '../i18n';
 
 // Versement (+) ou retrait (−) d'une enveloppe : ligne d'un virement (kind
 // 'transfer') sur le compte. La ligne source peut manquer (versement importé
@@ -104,18 +105,19 @@ export function parseDecimal(raw: FormDataEntryValue | string | null | undefined
 
 // Affichage d'une quantité (jusqu'à 8 décimales, sans zéros inutiles).
 export function formatQuantity(value: number): string {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 8 }).format(value);
+  return new Intl.NumberFormat(localeTag(), { maximumFractionDigits: 8 }).format(value);
 }
 
 export function formatPct(value: number | null, signed = true, digits = 1): string {
   if (value == null || !Number.isFinite(value)) return '—';
-  const text = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Math.abs(value));
+  const text = new Intl.NumberFormat(localeTag(), { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Math.abs(value));
   const sign = value > 0 && signed ? '+' : value < 0 ? '−' : '';
-  return `${sign}${text} %`;
+  // Espace avant % en français (« 38,8 % »), collé en anglais (« 38.8% »).
+  return `${sign}${text}${localeTag() === 'fr-FR' ? ' %' : '%'}`;
 }
 
 export function formatDateFr(iso: string | null | undefined, opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }): string {
   if (!iso) return '—';
   const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
-  return new Intl.DateTimeFormat('fr-FR', { ...opts, timeZone: 'UTC' }).format(new Date(Date.UTC(y!, m! - 1, d)));
+  return new Intl.DateTimeFormat(localeTag(), { ...opts, timeZone: 'UTC' }).format(new Date(Date.UTC(y!, m! - 1, d)));
 }

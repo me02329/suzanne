@@ -9,6 +9,7 @@ import { Panel } from './Panel';
 import { RowMenu } from './ui/RowMenu';
 import type { Run } from '../lib/run';
 import { useTranslation } from 'react-i18next';
+import { localeTag } from '../i18n';
 
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
@@ -76,7 +77,7 @@ export function BackupsPanel({ userId, run }: { userId: number; run: Run }) {
                     <span title={b.label}>{b.label}</span>
                   </span>
                 </td>
-                <td className="st-muted" data-label={t('reglages.backups_panel.date')}>{new Date(b.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                <td className="st-muted" data-label={t('reglages.backups_panel.date')}>{new Date(b.created_at).toLocaleString(localeTag(), { dateStyle: 'short', timeStyle: 'short' })}</td>
                 <td className="amount-cell st-muted" data-label={t('reglages.backups_panel.size')}>{humanSize(b.size)}</td>
                 <td className="actions-cell">
                   <IconButton label={t('reglages.backups_panel.download')} tone="neutral" icon={<Download size={16} />} onClick={() => void download(b)} />

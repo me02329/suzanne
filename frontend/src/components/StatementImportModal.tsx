@@ -6,6 +6,7 @@ import { pickableAccounts } from '../lib/account';
 import { Modal } from './Modal';
 import type { Run } from '../lib/run';
 import { useTranslation } from 'react-i18next';
+import { localeTag } from '../i18n';
 
 // Import d'un relevé bancaire OFX ou QIF. Le format OFX porte sa propre date
 // (AAAAMMJJ) ; pour QIF, la date est ambiguë → on laisse choisir le format.
@@ -65,7 +66,7 @@ export function StatementImportModal({ userId, accounts, run, onClose }: {
           <Upload size={20} />
           <span>
             {fileName
-              ? <><strong>{fileName}</strong> · {content.length.toLocaleString('fr-FR')}  {t('operations.statement_import_modal.characters_key_to_change')}</>
+              ? <><strong>{fileName}</strong> · {content.length.toLocaleString(localeTag())}  {t('operations.statement_import_modal.characters_key_to_change')}</>
               : 'Dépose le fichier .ofx ou .qif ici, ou touche pour parcourir'}
           </span>
         </div>

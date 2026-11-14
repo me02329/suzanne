@@ -9,6 +9,7 @@ import { parseDecimal } from '../lib/pea';
 import '../styles/pages/accounts.css';
 import '../styles/pages/pea.css';
 import '../styles/pages/simulator.css';
+import { localeTag } from '../i18n';
 
 type Mode = 'simulator' | 'scenarios';
 
@@ -107,7 +108,7 @@ function SingleSimulator({ fmt, ccy, peaBalance }: { fmt: (v: number) => string;
           <span className="acc-hero-sub">
             <span>Net d’impôt <b className="num">{fmt(tax.net)}</b></span>
             <span>Versé <b className="num">{fmt(result.finalContributed)}</b></span>
-            {multiplier != null && <span>×<b className="num">{multiplier.toLocaleString('fr-FR', { maximumFractionDigits: 2 })}</b></span>}
+            {multiplier != null && <span>×<b className="num">{multiplier.toLocaleString(localeTag(), { maximumFractionDigits: 2 })}</b></span>}
           </span>
         </div>
       </header>
@@ -130,7 +131,7 @@ function SingleSimulator({ fmt, ccy, peaBalance }: { fmt: (v: number) => string;
         <div className="kpi"><span>Intérêts</span><strong className={result.finalInterest >= 0 ? 'income' : 'expense'}>{fmt(result.finalInterest)}</strong><small>{result.finalTotal > 0 ? `${Math.round((result.finalInterest / result.finalTotal) * 100)} % du capital` : '—'}</small></div>
         <div className="kpi">
           <span>Impôt à la sortie</span><strong>{fmt(tax.total)}</strong>
-          <small>{tax.incomeRate > 0 ? `PFU ${(tax.incomeRate * 100).toLocaleString('fr-FR')} % + ` : ''}PS {(tax.socialRate * 100).toLocaleString('fr-FR')} %</small>
+          <small>{tax.incomeRate > 0 ? `PFU ${(tax.incomeRate * 100).toLocaleString(localeTag())} % + ` : ''}PS {(tax.socialRate * 100).toLocaleString(localeTag())} %</small>
         </div>
         <div className="kpi"><span>Net perçu</span><strong>{fmt(tax.net)}</strong><small>retrait total</small></div>
       </div>

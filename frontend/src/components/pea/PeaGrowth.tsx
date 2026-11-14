@@ -8,6 +8,7 @@ import { formatDateFr, formatPct, parseDecimal, type EnvelopeFlow } from '../../
 import { timeAxisProps, timeTooltipLabel } from '../../lib/timeAxis';
 import { EmptyChart } from '../EmptyChart';
 import type { EnvelopeHistory } from './useEnvelopeHistory';
+import { localeTag } from '../../i18n';
 
 const HORIZONS = [0, 5, 10, 20, 30] as const;
 
@@ -43,7 +44,7 @@ export function PeaGrowth({ history, flows, value, asOf, rate, pace, ccy, fmt }:
   // Hypothèse prudente par défaut (≈ moyenne long terme des actions monde) ;
   // le rendement réel, souvent flatteur sur peu d'années, est rappelé à côté.
   const defaultRate = 0.07;
-  const [rateRaw, setRateRaw] = useState(() => (defaultRate * 100).toLocaleString('fr-FR', { maximumFractionDigits: 1 }));
+  const [rateRaw, setRateRaw] = useState(() => (defaultRate * 100).toLocaleString(localeTag(), { maximumFractionDigits: 1 }));
   const [paceRaw, setPaceRaw] = useState(() => String(Math.round(pace)));
   const projRate = (() => { const n = parseDecimal(rateRaw); return Number.isFinite(n) ? n / 100 : defaultRate; })();
   const projPace = (() => { const n = parseDecimal(paceRaw); return Number.isFinite(n) && n >= 0 ? n : 0; })();

@@ -18,6 +18,7 @@ import { pricesApi } from '../../lib/api-pea';
 import { formatDateFr, formatPct } from '../../lib/pea';
 import { EmptyChart } from '../EmptyChart';
 import type { InsightProps } from './insightTypes';
+import { localeTag } from '../../i18n';
 
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 const MONTHS_LONG = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -113,7 +114,7 @@ export function PeaPerformance({ flows, history, currentValue, asOf, ccy, fmt }:
               {y.cells.map((r, i) => (
                 <span key={i} role="cell" className="pi-heat-cell num" style={heat(r)} title={`${MONTHS_LONG[i]} ${y.year}`}>
                   <small>{MONTHS_LONG[i]}</small>
-                  {r == null ? '' : (r >= 0 ? '+' : '−') + Math.abs(r).toLocaleString('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 })}
+                  {r == null ? '' : (r >= 0 ? '+' : '−') + Math.abs(r).toLocaleString(localeTag(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })}
                 </span>
               ))}
               <span role="cell" className={`pi-heat-total num ${tone(y.total)}`}>{formatPct(y.total)}{y.partial && <small> partiel</small>}</span>

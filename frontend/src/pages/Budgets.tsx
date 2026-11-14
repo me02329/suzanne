@@ -10,6 +10,7 @@ import { amountInputValue, positiveAmount } from '../components/home/amount';
 import type { Run } from '../lib/run';
 import '../styles/pages/plan.css';
 import '../styles/pages/budgets.css';
+import { localeTag } from '../i18n';
 
 // Budgets du mois : budget global (reste à vivre), enveloppes par catégorie
 // avec leur rythme de dépense, suggestions de plafonds, provisions pour
@@ -30,7 +31,7 @@ function meterTone(ratio: number | null): string {
 
 const pctLabel = (ratio: number | null) => (ratio == null ? '—' : ratio === Infinity ? '∞' : `${Math.round(ratio * 100)} %`);
 const shortMonth = (month: string) =>
-  new Intl.DateTimeFormat('fr-FR', { month: 'short', timeZone: 'UTC' }).format(new Date(`${month}-01T00:00:00.000Z`));
+  new Intl.DateTimeFormat(localeTag(), { month: 'short', timeZone: 'UTC' }).format(new Date(`${month}-01T00:00:00.000Z`));
 const width = (ratio: number | null) => `${Math.max(0, Math.min(100, (ratio ?? 0) * 100))}%`;
 
 function PaceChip({ pace, currency }: { pace: Pace; currency: string }) {
