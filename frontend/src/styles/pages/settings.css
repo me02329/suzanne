@@ -222,3 +222,12 @@
 .st-toggle input { width: 18px; height: 18px; min-height: 0; accent-color: var(--text); }
 .st-tag-rules { margin-bottom: 18px; }
 .st-tag-rules .panel-note { margin: 0 0 10px; }
+
+/* Choix d'icône de catégorie : grille d'icônes cliquables. */
+.st-field-label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 4px; max-height: 196px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 10px; }
+.icon-picker-item { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
+.icon-picker-item:hover { background: var(--surface-muted); color: var(--text); }
+.icon-picker-item.selected { border-color: var(--icon-picker-color, var(--text)); color: var(--icon-picker-color, var(--text)); background: var(--surface-muted); }
+.icon-picker-none { font-size: 16px; line-height: 1; }
+.st-cat-icon { flex: none; color: var(--muted); }

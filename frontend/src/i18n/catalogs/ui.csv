@@ -72,3 +72,5 @@ ui.app.goals,Objectifs,Goals
 ui.app.new_transaction_2,Nouvelle transaction,New transaction
 ui.app.previous_next_month,Mois précédent / suivant,Previous / next month
 ui.app.this_help,Cette aide,This help
+ui.icon_picker.none,Aucune icône,No icon
+ui.icon_picker.unknown,"Icône actuelle « {{name}} » inconnue : choisis-en une dans la liste.","Current icon “{{name}}” is unknown: pick one from the list."

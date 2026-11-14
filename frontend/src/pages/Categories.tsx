@@ -6,6 +6,8 @@ import { api } from '../lib/api';
 import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Modal } from '../components/Modal';
+import { IconPicker } from '../components/IconPicker';
+import { CategoryIcon } from '../lib/categoryIcons';
 import { RowMenu } from '../components/ui/RowMenu';
 import type { Run } from '../lib/run';
 import '../styles/pages/settings.css';
@@ -41,7 +43,10 @@ function CategoryForm({ initial, onSubmit, onCancel, submitLabel }: {
         <button type="button" className={type === 'income' ? 'active' : ''} aria-pressed={type === 'income'} onClick={() => setType('income')}>{t('operations.income')}</button>
       </fieldset>
       <label>{t('operations.color')}<input name="color" type="color" defaultValue={initial?.color ?? DEFAULT_COLOR} /></label>
-      <label>{t('operations.icon')}<input name="icon" defaultValue={initial?.icon ?? ''} placeholder="shopping-cart" /* i18n-ignore : nom d'icône */ autoComplete="off" /></label>
+      <div className="full">
+        <span className="st-field-label">{t('operations.icon')}</span>
+        <IconPicker name="icon" defaultValue={initial?.icon} color={initial?.color} />
+      </div>
       <label className="full">{t('operations.description')}
         <textarea name="description" defaultValue={initial?.description ?? ''} rows={3} maxLength={500} placeholder={t('operations.what_category_covers_e_g')} />
         <small className="st-muted">{t('operations.shown_when_hovering_category_name')}</small>
@@ -98,6 +103,7 @@ export function Categories({ userId, categories, run }: { userId: number; catego
             <td className="cell-primary">
               <span className="st-name">
                 <span className="dot" style={{ background: c.color }} aria-hidden="true" />
+                <CategoryIcon name={c.icon} className="st-cat-icon" />
                 <strong title={c.name}>{c.name}</strong>
               </span>
             </td>
