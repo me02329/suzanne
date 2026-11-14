@@ -124,3 +124,4 @@ analyses.tags.only,Seulement,Only
 analyses.tags.except,Tout sauf,All except
 analyses.tags.only_tag,Seulement « {{name}} »,Only “{{name}}”
 analyses.tags.except_tag,Tout sauf « {{name}} »,All except “{{name}}”
+analyses.statistics.other_categories_n,Autres ({{n}}),Other ({{n}})

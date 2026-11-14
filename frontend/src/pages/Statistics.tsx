@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bar,
@@ -104,6 +105,8 @@ export function Statistics({ userId, reportCurrency, accountById, tags = [] }: {
   // listant les transactions correspondantes sur la plage affichée — les
   // agrégats couvrent plusieurs mois, on ne peut pas deviner lequel ouvrir.
   const [drill, setDrill] = useState<DrillState | null>(null);
+  // Détail des petites catégories regroupées sous « Autres ».
+  const [othersOpen, setOthersOpen] = useState(false);
   const drillSeq = useRef(0);
   const openDrilldown = (
     at: { clientX: number; clientY: number },
@@ -150,12 +153,22 @@ export function Statistics({ userId, reportCurrency, accountById, tags = [] }: {
   const rangeDays = data ? Math.max(1, Math.round((new Date(data.to).getTime() - new Date(data.from).getTime()) / 86_400_000)) : 0;
   const pieRows = byCategory.filter((row) => row.amount > 0);
   const pieTotal = pieRows.reduce((sum, row) => sum + row.amount, 0);
-  const visibleCategories = pieRows.slice(0, 7);
-  const otherCategories = pieRows.slice(7);
+  // Regroupe seulement les petites catégories (< 3 % du total, ou au-delà du
+  // nombre de couleurs de la palette : deux parts de même couleur se
+  // confondraient). Le regroupement n'a lieu que s'il réunit au moins 2 catégories ;
+  // le détail se déplie depuis la légende ou la part « Autres ».
+  const MAX_VISIBLE = chartTheme.series.length;
+  const SMALL_SHARE = 0.03;
+  const isSmall = (row: { amount: number }, index: number) => index >= MAX_VISIBLE || (pieTotal > 0 && row.amount / pieTotal < SMALL_SHARE);
+  const smallCount = pieRows.filter(isSmall).length;
+  const visibleCategories = smallCount >= 2 ? pieRows.filter((row, i) => !isSmall(row, i)) : pieRows;
+  const otherCategories = smallCount >= 2 ? pieRows.filter(isSmall) : [];
   const otherAmount = otherCategories.reduce((sum, row) => sum + row.amount, 0);
+  const OTHERS = '__others__';
   const donutRows = otherAmount > 0
-    ? [...visibleCategories, { category_id: null, name: 'Autres', color: '', amount: otherAmount, transactions_count: 0 }]
+    ? [...visibleCategories, { category_id: null, name: OTHERS, color: '', amount: otherAmount, transactions_count: 0 }]
     : visibleCategories;
+  const isOthersRow = (row: { category_id: number | null; name: string }) => row.category_id == null && row.name === OTHERS;
   const maxMerchant = merchantRows[0]?.amount ?? 0;
   const dateFr = (iso: string) => {
     const [y, m, d] = iso.slice(0, 10).split('-');
@@ -239,13 +252,20 @@ export function Statistics({ userId, reportCurrency, accountById, tags = [] }: {
                       onClick={(entry, _index, event) => {
                         const payload = (entry as { payload?: { category_id?: number | null; name?: string } })?.payload;
                         if (payload?.category_id != null) {
-                          openDrilldown(clickPoint(event), payload.name ?? 'Catégorie', { category: payload.category_id });
+                          openDrilldown(clickPoint(event), payload.name ?? '', { category: payload.category_id });
+                        } else if (payload?.name === OTHERS) {
+                          setOthersOpen((open) => !open);
                         }
                       }}
                     >
-                      {donutRows.map((row, index) => <Cell key={row.category_id ?? row.name} fill={row.category_id == null && row.name === 'Autres' ? chartTheme.grid : seriesColor(chartTheme, index)} />)}
+                      {donutRows.map((row, index) => <Cell key={row.category_id ?? row.name} fill={isOthersRow(row) ? chartTheme.grid : seriesColor(chartTheme, index)} />)}
                     </Pie>
-                    <Tooltip formatter={(value) => money(Number(value))} contentStyle={chartTheme.tooltip.contentStyle} labelStyle={chartTheme.tooltip.labelStyle} itemStyle={chartTheme.tooltip.itemStyle} />
+                    <Tooltip
+                      formatter={(value, name) => [money(Number(value)), name === OTHERS ? t('analyses.statistics.other_categories_n', { n: otherCategories.length }) : name]}
+                      contentStyle={chartTheme.tooltip.contentStyle}
+                      labelStyle={chartTheme.tooltip.labelStyle}
+                      itemStyle={chartTheme.tooltip.itemStyle}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -255,13 +275,16 @@ export function Statistics({ userId, reportCurrency, accountById, tags = [] }: {
             {donutRows.length > 0 && (
               <ul className="st-legend">
                 {donutRows.map((row, index) => {
-                  const isOther = row.category_id == null && row.name === 'Autres' && otherAmount > 0;
+                  const isOther = isOthersRow(row);
                   const color = isOther ? chartTheme.grid : seriesColor(chartTheme, index);
                   const share = pieTotal > 0 ? Math.round((row.amount / pieTotal) * 100) : 0;
                   const inner = (
                     <>
                       <span className="st-swatch" style={{ background: color }} />
-                      <span className="st-legend-name" title={row.name}>{isOther ? `Autres (${otherCategories.length})` : row.name}</span>
+                      <span className="st-legend-name" title={isOther ? undefined : row.name}>
+                        {isOther ? t('analyses.statistics.other_categories_n', { n: otherCategories.length }) : row.name}
+                        {isOther && <ChevronDown size={14} className={othersOpen ? 'st-legend-chevron open' : 'st-legend-chevron'} aria-hidden />}
+                      </span>
                       <span className="st-legend-share">{share} %</span>
                       <strong>{money(row.amount)}</strong>
                     </>
@@ -270,7 +293,30 @@ export function Statistics({ userId, reportCurrency, accountById, tags = [] }: {
                     <li key={`${row.category_id ?? row.name}-${index}`}>
                       {row.category_id != null ? (
                         <button type="button" className="st-legend-row" onClick={(e) => openDrilldown(e, row.name, { category: row.category_id! })}>{inner}</button>
+                      ) : isOther ? (
+                        <button type="button" className="st-legend-row" aria-expanded={othersOpen} onClick={() => setOthersOpen((open) => !open)}>{inner}</button>
                       ) : <div className="st-legend-row">{inner}</div>}
+                      {isOther && othersOpen && (
+                        <ul className="st-legend st-legend-sub">
+                          {otherCategories.map((sub) => (
+                            <li key={`${sub.category_id ?? sub.name}-sub`}>
+                              {sub.category_id != null ? (
+                                <button type="button" className="st-legend-row" onClick={(e) => openDrilldown(e, sub.name, { category: sub.category_id! })}>
+                                  <span className="st-legend-name" title={sub.name}>{sub.name}</span>
+                                  <span className="st-legend-share">{pieTotal > 0 ? Math.round((sub.amount / pieTotal) * 1000) / 10 : 0} %</span>
+                                  <strong>{money(sub.amount)}</strong>
+                                </button>
+                              ) : (
+                                <div className="st-legend-row">
+                                  <span className="st-legend-name">{sub.name}</span>
+                                  <span className="st-legend-share">{pieTotal > 0 ? Math.round((sub.amount / pieTotal) * 1000) / 10 : 0} %</span>
+                                  <strong>{money(sub.amount)}</strong>
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </li>
                   );
                 })}
