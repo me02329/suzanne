@@ -52,3 +52,167 @@ patrimoine.total,Total,Total
 patrimoine.view_and_fix,Voir et corriger,View and fix
 patrimoine.week,Semaine,Week
 patrimoine.ytd,YTD,YTD
+patrimoine.growth.title,Intérêts composés,Compound interest
+patrimoine.growth.projection,Projection,Projection
+patrimoine.growth.actual,Réel,Actual
+patrimoine.growth.plus_years,+{{n}} ans,+{{n}} yrs
+patrimoine.growth.deposited_net,Versé (net),Deposited (net)
+patrimoine.growth.your_savings_effort,ton effort d’épargne,your savings effort
+patrimoine.growth.accumulated_gains,Gains accumulés,Accumulated gains
+patrimoine.growth.pct_of_deposited,{{pct}} du versé,{{pct}} of deposits
+patrimoine.growth.in_n_years,Dans {{n}} ans,In {{n}} years
+patrimoine.growth.projection_lower,projection,projection
+patrimoine.growth.of_which_interest,dont intérêts,of which interest
+patrimoine.growth.pct_of_value,{{pct}} de la valeur,{{pct}} of the value
+patrimoine.growth.annualized_return,Rendement annualisé,Annualized return
+patrimoine.growth.xirr_since_opening,XIRR depuis l’ouverture,XIRR since opening
+patrimoine.growth.annual_return_pct,Rendement annuel (%),Annual return (%)
+patrimoine.growth.monthly_contribution,Versement mensuel ({{ccy}}),Monthly contribution ({{ccy}})
+patrimoine.growth.defaults_note,"Par défaut : 7 %/an (moyenne long terme des actions) — ton rendement réel depuis l’ouverture est de {{rate}}/an — et ton versement mensuel moyen. Capitalisation mensuelle, sans frais ni impôt.","Defaults: 7%/yr (long-term equity average) — your actual return since opening is {{rate}}/yr — and your average monthly contribution. Monthly compounding, no fees or tax."
+patrimoine.growth.series_deposited,Versé,Deposited
+patrimoine.growth.series_gains,Gains,Gains
+patrimoine.growth.series_value,Valeur,Value
+patrimoine.growth.series_deposited_projected,Versé (projeté),Deposited (projected)
+patrimoine.growth.series_interest_projected,Intérêts (projetés),Interest (projected)
+patrimoine.growth.series_value_projected,Valeur (projetée),Value (projected)
+patrimoine.growth.valuing_history,Valorisation de l’historique…,Valuing history…
+patrimoine.growth.not_enough_history,Pas assez d’historique.,Not enough history.
+patrimoine.growth.green_area_note,Zone verte = ce que tes versements ont rapporté (valeur − versé).,Green area = what your contributions have earned (value − deposited).
+patrimoine.growth.as_of_date,Au {{date}}.,As of {{date}}.
+patrimoine.symbol.placeholder,"Nom, ticker ou ISIN (ex. MSCI World)","Name, ticker or ISIN (e.g. MSCI World)"
+patrimoine.symbol.popular_pea,ETF éligibles PEA courants,Popular PEA-eligible ETFs
+patrimoine.symbol.popular,Titres courants,Popular securities
+patrimoine.symbol.none_found,Aucun titre trouvé — tu peux saisir le ticker à la main.,No security found — you can type the ticker manually.
+patrimoine.pea.years_one,{{count}} an,{{count}} year
+patrimoine.pea.years_other,{{count}} ans,{{count}} years
+patrimoine.pea.months_one,{{count}} mois,{{count}} month
+patrimoine.pea.months_other,{{count}} mois,{{count}} months
+patrimoine.pea.less_than_a_month,moins d’un mois,less than a month
+patrimoine.pea.securities,Titres,Securities
+patrimoine.pea.lines_one,{{count}} ligne,{{count}} holding
+patrimoine.pea.lines_other,{{count}} lignes,{{count}} holdings
+patrimoine.pea.cash,Espèces,Cash
+patrimoine.pea.not_invested,non investies,not invested
+patrimoine.pea.net_deposits,Versements nets,Net deposits
+patrimoine.pea.gross_minus_withdrawn,{{gross}} versés − {{withdrawn}},{{gross}} deposited − {{withdrawn}}
+patrimoine.pea.deposit_count_one,{{count}} versement,{{count}} deposit
+patrimoine.pea.deposit_count_other,{{count}} versements,{{count}} deposits
+patrimoine.pea.annualized_return,Rendement annualisé,Annualized return
+patrimoine.pea.cumulative_performance,Performance cumulée,Cumulative performance
+patrimoine.pea.less_than_a_year,moins d’un an,less than a year
+patrimoine.pea.unrealized_gain,Plus-value latente,Unrealized gain
+patrimoine.pea.positions,Positions,Holdings
+patrimoine.pea.valuation_offline,Valorisation indisponible (hors ligne) : positions affichées au prix de revient.,Valuation unavailable (offline): holdings shown at cost.
+patrimoine.pea.some_prices_missing,Certains cours sont indisponibles : ces lignes sont valorisées au prix de revient.,Some prices are unavailable: those holdings are valued at cost.
+patrimoine.pea.no_position,Aucune position. Ajoute tes titres et leurs ordres depuis Placements.,No holdings. Add your securities and their orders from Investments.
+patrimoine.pea.col_security,Titre,Security
+patrimoine.pea.col_quantity,Quantité,Quantity
+patrimoine.pea.col_avg_cost,PRU,Avg cost
+patrimoine.pea.col_price,Cours,Price
+patrimoine.pea.col_value,Valeur,Value
+patrimoine.pea.col_unrealized,+/- latente,Unrealized +/-
+patrimoine.pea.col_weight,Poids,Weight
+patrimoine.pea.not_available,n/d,n/a
+patrimoine.pea.composition,Composition,Composition
+patrimoine.pea.deposits,Versements,Deposits
+patrimoine.pea.gross,brut,gross
+patrimoine.pea.net,net,net
+patrimoine.pea.no_deposit,Aucun versement : un virement vers ce compte apparaîtra ici.,No deposits: a transfer to this account will show up here.
+patrimoine.pea.deposit,Versement,Deposit
+patrimoine.pea.withdrawal,Retrait,Withdrawal
+patrimoine.pea.collapse,Réduire,Collapse
+patrimoine.pea.show_all_moves,Voir les {{n}} mouvements,Show all {{n}} movements
+patrimoine.pea.ceiling,Plafond,Ceiling
+patrimoine.pea.pct_of_ceiling,{{pct}} % du plafond légal,{{pct}}% of the legal ceiling
+patrimoine.pea.ceiling_progress,Versements bruts sur le plafond,Gross deposits against the ceiling
+patrimoine.pea.still_payable,Encore versable,Still depositable
+patrimoine.pea.pace_12_months,Rythme (12 mois),Pace (12 months)
+patrimoine.pea.per_month,{{amount}}/mois,{{amount}}/month
+patrimoine.pea.average_since_opening,Moyenne depuis l’ouverture,Average since opening
+patrimoine.pea.ceiling_reached,Plafond atteint,Ceiling reached
+patrimoine.pea.reached,Atteint,Reached
+patrimoine.pea.no_deposit_short,Aucun versement,No deposits
+patrimoine.pea.out_of_reach,Hors d’atteinte (> 80 ans),Out of reach (> 80 years)
+patrimoine.pea.reached_on,{{date}} (~{{years}} ans),{{date}} (~{{years}} years)
+patrimoine.pea.ceiling_note,Le plafond porte sur les versements bruts : les gains et les retraits ne le modifient pas.,The ceiling applies to gross deposits: gains and withdrawals don’t change it.
+patrimoine.pea.tax,Fiscalité,Taxation
+patrimoine.pea.seniority_since,d’ancienneté depuis le {{date}}.,of seniority since {{date}}.
+patrimoine.pea.seniority_since_first,d’ancienneté depuis le {{date}} (premier versement).,of seniority since {{date}} (first deposit).
+patrimoine.pea.over_5_years,Plus de 5 ans : gains exonérés d’impôt sur le revenu.,Over 5 years: gains are exempt from income tax.
+patrimoine.pea.five_years_on,5 ans le,5 years on
+patrimoine.pea.if_withdraw_today,Si je retire aujourd’hui,If I withdraw today
+patrimoine.pea.all_amount,Tout ({{amount}}),All ({{amount}})
+patrimoine.pea.withdrawal_amount,Montant du retrait en {{ccy}},Withdrawal amount in {{ccy}}
+patrimoine.pea.gain_share,Part de gain,Gain portion
+patrimoine.pea.income_tax,IR {{rate}},Income tax {{rate}}
+patrimoine.pea.social_charges,Prélèv. sociaux {{rate}},Social charges {{rate}}
+patrimoine.pea.historical_rate,taux historique,historical rate
+patrimoine.pea.rate_year,taux {{year}},{{year}} rate
+patrimoine.pea.estimated_tax,Impôt estimé,Estimated tax
+patrimoine.pea.net_received,Net perçu,Net received
+patrimoine.pea.before_5_closes,"Avant 5 ans, tout retrait clôture le plan (sauf cas d’exonération).","Before 5 years, any withdrawal closes the plan (except exempt cases)."
+patrimoine.pea.after_5_partial,"Après 5 ans, un retrait partiel ne clôture pas le plan.","After 5 years, a partial withdrawal doesn’t close the plan."
+patrimoine.pea.partial_gain_formula,Gain d’un retrait partiel = retrait × (valeur − versements nets) / valeur.,Gain of a partial withdrawal = withdrawal × (value − net deposits) / value.
+patrimoine.investments.asset_equity,Action,Stock
+patrimoine.investments.asset_etf,ETF,ETF
+patrimoine.investments.asset_fund,Fonds,Fund
+patrimoine.investments.asset_bond,Obligation,Bond
+patrimoine.investments.asset_crypto,Crypto,Crypto
+patrimoine.investments.asset_commodity,Matière première,Commodity
+patrimoine.investments.asset_cash,Liquidités,Cash
+patrimoine.investments.asset_other,Autre,Other
+patrimoine.investments.holding_deleted,{{symbol}} supprimé,{{symbol}} deleted
+patrimoine.investments.total_value,Valeur des placements,Investments value
+patrimoine.investments.cost_basis,Prix de revient,Cost basis
+patrimoine.investments.unrealized,Latent,Unrealized
+patrimoine.investments.add_holding,Ajouter une position,Add a holding
+patrimoine.investments.valuing,Valorisation au cours du jour…,Valuing at today’s prices…
+patrimoine.investments.some_prices_missing,Certains cours sont indisponibles : ces lignes sont valorisées au prix de revient.,Some prices are unavailable: those holdings are valued at cost.
+patrimoine.investments.no_holding,Aucune position.,No holdings.
+patrimoine.investments.no_holding_hint,"Ajoute une position (ETF, action, crypto…) puis ses ordres d’achat et de vente.","Add a holding (ETF, stock, crypto…) then its buy and sell orders."
+patrimoine.investments.unknown_account,Compte inconnu,Unknown account
+patrimoine.investments.analysis_hint,"Performance, heatmap mensuelle, intérêts composés, plafond, fiscalité, suivi hebdo","Performance, monthly heatmap, compound interest, ceiling, taxation, weekly tracking"
+patrimoine.investments.pea_analysis,Analyse du PEA,PEA analysis
+patrimoine.investments.analysis,Analyse,Analysis
+patrimoine.investments.col_security,Titre,Security
+patrimoine.investments.col_quantity,Quantité,Quantity
+patrimoine.investments.col_avg_cost,PRU,Avg cost
+patrimoine.investments.col_price,Cours,Price
+patrimoine.investments.col_value,Valeur,Value
+patrimoine.investments.col_unrealized,+/- latente,Unrealized +/-
+patrimoine.investments.col_weight,Poids,Weight
+patrimoine.investments.col_actions,Actions,Actions
+patrimoine.investments.not_available,n/d,n/a
+patrimoine.investments.orders,Ordres,Orders
+patrimoine.investments.more_actions_for,Plus d’actions pour {{symbol}},More actions for {{symbol}}
+patrimoine.investments.edit,Modifier,Edit
+patrimoine.investments.delete,Supprimer,Delete
+patrimoine.investments.allocation,Allocation,Allocation
+patrimoine.investments.holding_updated,Position modifiée,Holding updated
+patrimoine.investments.holding_added,Position ajoutée,Holding added
+patrimoine.investments.edit_symbol,Modifier {{symbol}},Edit {{symbol}}
+patrimoine.investments.account,Compte,Account
+patrimoine.investments.last_price,Dernier cours : {{price}},Last price: {{price}}
+patrimoine.investments.currency,Devise,Currency
+patrimoine.investments.asset_class,Classe,Asset class
+patrimoine.investments.name,Nom,Name
+patrimoine.investments.search_hint,"Tape un nom, un ticker ou un ISIN : les titres trouvés sur Yahoo Finance s’affichent ; le choix remplit nom, devise et classe.","Type a name, ticker or ISIN: securities found on Yahoo Finance are listed; picking one fills in name, currency and class."
+patrimoine.investments.cancel,Annuler,Cancel
+patrimoine.investments.save,Enregistrer,Save
+patrimoine.investments.add,Ajouter,Add
+patrimoine.investments.invalid_quantity,Quantité invalide (jusqu’à 8 décimales).,Invalid quantity (up to 8 decimals).
+patrimoine.investments.invalid_unit_price,Prix unitaire invalide.,Invalid unit price.
+patrimoine.investments.invalid_fee,Frais invalides.,Invalid fee.
+patrimoine.investments.order_added,Ordre ajouté,Order added
+patrimoine.investments.orders_of,Ordres · {{symbol}},Orders · {{symbol}}
+patrimoine.investments.side,Sens,Side
+patrimoine.investments.buy,Achat,Buy
+patrimoine.investments.sell,Vente,Sell
+patrimoine.investments.date,Date,Date
+patrimoine.investments.unit_price,Prix unitaire ({{ccy}}),Unit price ({{ccy}})
+patrimoine.investments.fee,Frais,Fee
+patrimoine.investments.add_order,Ajouter l’ordre,Add order
+patrimoine.investments.no_order,Aucun ordre.,No orders.
+patrimoine.investments.fee_amount,frais {{amount}},fee {{amount}}
+patrimoine.investments.delete_order,Supprimer l’ordre,Delete order
+patrimoine.investments.order_deleted,Ordre supprimé,Order deleted

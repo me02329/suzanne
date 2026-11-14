@@ -259,3 +259,43 @@ operations.uncleared,Non pointées,Uncleared
 operations.view_n_transactions,Voir {{n}} opérations,View {{n}} transactions
 operations.what_category_covers_e_g,"Ce que couvre la catégorie, ex. « Séminaires, salons, déplacements pro remboursés ou non »","What the category covers, e.g. “Seminars, trade fairs, business travel, reimbursed or not”"
 operations.transaction_list.no_transactions,Aucune transaction.,No transactions.
+operations.review.categorized_as,Catégorisée « {{name}} »,Categorized as “{{name}}”
+operations.review.categorized_count_one,{{count}} opération catégorisée,{{count}} transaction categorized
+operations.review.categorized_count_other,{{count}} opérations catégorisées,{{count}} transactions categorized
+operations.review.attached_to,Rattachée à {{name}},Attached to {{name}}
+operations.review.not_duplicate_done,Validé : ce n’est pas un doublon,Confirmed: not a duplicate
+operations.review.dismissed_restored,Doublons validés réaffichés,Dismissed duplicates shown again
+operations.review.duplicate_trashed,Doublon déplacé vers la corbeille,Duplicate moved to the trash
+operations.review.analyzing,Analyse en cours…,Analyzing…
+operations.review.unavailable,Analyse indisponible.,Analysis unavailable.
+operations.review.no_label,Sans libellé,No label
+operations.review.view_in_journal,Voir dans le journal,View in the journal
+operations.review.col_date,Date,Date
+operations.review.col_label,Libellé,Label
+operations.review.col_amount,Montant,Amount
+operations.review.col_account,Compte,Account
+operations.review.col_category,Catégorie,Category
+operations.review.col_actions,Actions,Actions
+operations.review.col_tx_a,Transaction A,Transaction A
+operations.review.col_tx_b,Transaction B,Transaction B
+operations.review.col_gap,Écart,Gap
+operations.review.days,{{n}} j,{{n}} d
+operations.review.clean_title,Aucune anomalie,No issues
+operations.review.clean_note,"Rien à signaler : pas de transaction orpheline, sans catégorie, ni de doublon probable.","Nothing to report: no orphan, uncategorized or likely duplicate transaction."
+operations.review.no_account_title,Sans compte ({{n}}),No account ({{n}})
+operations.review.no_account_note,Ces revenus/dépenses ne sont rattachés à aucun compte — ils ne pèsent pas dans les soldes. Choisis le compte pour régler le signalement.,These income/expenses are not attached to any account — they don’t count in balances. Pick the account to resolve the issue.
+operations.review.attach_to_account,Rattacher au compte,Attach to account
+operations.review.choose,Choisir…,Choose…
+operations.review.no_category_title,Sans catégorie ({{n}}),Uncategorized ({{n}})
+operations.review.accept_suggestions_one,Valider la proposition,Accept the suggestion
+operations.review.accept_suggestions_other,Valider les {{count}} propositions,Accept the {{count}} suggestions
+operations.review.no_category_note,"Choisis la catégorie directement ici. Quand une catégorie est proposée (règle ou même libellé déjà catégorisé), ✓ la valide.","Pick the category right here. When a category is suggested (rule or same label already categorized), ✓ accepts it."
+operations.review.suggested,Proposée :,Suggested:
+operations.review.accept_named,Valider « {{name}} »,Accept “{{name}}”
+operations.review.duplicates_title,Doublons probables ({{n}}),Likely duplicates ({{n}})
+operations.review.show_dismissed_one,Réafficher le doublon validé,Show the dismissed duplicate again
+operations.review.show_dismissed_other,Réafficher les {{count}} validés,Show the {{count}} dismissed again
+operations.review.duplicates_note,"Même compte, même type, même montant, même commerçant, à ≤ 2 jours d’écart — souvent un import rejoué ou une double saisie. ✓ = « ce n’est pas un doublon » (la paire ne sera plus proposée) ; sinon supprime l’une des deux.","Same account, type, amount and merchant, ≤ 2 days apart — often a replayed import or a double entry. ✓ = “not a duplicate” (the pair won’t be suggested again); otherwise delete one of them."
+operations.review.no_pending_duplicate,Aucun doublon en attente.,No pending duplicate.
+operations.review.not_duplicate,Pas un doublon : valider,Not a duplicate: confirm
+operations.review.delete_b,Supprimer B (corbeille),Delete B (trash)

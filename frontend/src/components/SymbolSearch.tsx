@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, Search } from 'lucide-react';
 import { http } from '../lib/api';
 
@@ -59,6 +60,7 @@ export function SymbolSearch({ value, onChange, onPick, pea = false }: {
   onPick: (hit: SymbolHit, quote: SymbolQuote | null) => void;
   pea?: boolean;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [hits, setHits] = useState<SymbolHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -113,7 +115,7 @@ export function SymbolSearch({ value, onChange, onPick, pea = false }: {
             if (e.key === 'Enter') { e.preventDefault(); void pick(hits[active]!); }
             if (e.key === 'Escape') setOpen(false);
           }}
-          placeholder="Nom, ticker ou ISIN (ex. MSCI World)"
+          placeholder={t('patrimoine.symbol.placeholder')}
           required
           autoComplete="off"
           role="combobox"
@@ -124,9 +126,9 @@ export function SymbolSearch({ value, onChange, onPick, pea = false }: {
       </div>
       {open && (
         <div className="sym-pop" role="listbox">
-          {(!touched || value.trim().length < 2) && <div className="sym-head">{pea ? 'ETF éligibles PEA courants' : 'Titres courants'}</div>}
+          {(!touched || value.trim().length < 2) && <div className="sym-head">{pea ? t('patrimoine.symbol.popular_pea') : t('patrimoine.symbol.popular')}</div>}
           {error && <p className="sym-empty">{error}</p>}
-          {!error && !loading && hits.length === 0 && <p className="sym-empty">Aucun titre trouvé — tu peux saisir le ticker à la main.</p>}
+          {!error && !loading && hits.length === 0 && <p className="sym-empty">{t('patrimoine.symbol.none_found')}</p>}
           {hits.map((h, i) => (
             <button
               key={h.symbol}

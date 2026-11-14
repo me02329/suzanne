@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { buildTracking } from '@suzanne/shared';
 import { moneyCompact } from '../../lib/format';
@@ -35,6 +36,7 @@ export function PeaGrowth({ history, flows, value, asOf, rate, pace, ccy, fmt }:
   ccy: string;
   fmt: (v: number) => string;
 }) {
+  const { t } = useTranslation();
   const theme = useChartTheme();
   const narrow = useIsNarrow();
   const [years, setYears] = useState<(typeof HORIZONS)[number]>(0);
@@ -87,44 +89,44 @@ export function PeaGrowth({ history, flows, value, asOf, rate, pace, ccy, fmt }:
   return (
     <section className="pg-section">
       <div className="pg-section-head">
-        <h2>Intérêts composés</h2>
-        <div className="acc-seg" role="group" aria-label="Projection">
+        <h2>{t('patrimoine.growth.title')}</h2>
+        <div className="acc-seg" role="group" aria-label={t('patrimoine.growth.projection')}>
           {HORIZONS.map((h) => (
             <button key={h} type="button" aria-pressed={years === h} onClick={() => setYears(h)}>
-              {h === 0 ? 'Réel' : `+${h} ans`}
+              {h === 0 ? t('patrimoine.growth.actual') : t('patrimoine.growth.plus_years', { n: h })}
             </button>
           ))}
         </div>
       </div>
       <div className="kpis pea-growth-kpis">
-        <div className="kpi"><span>Versé (net)</span><strong>{fmt(deposits)}</strong><small>ton effort d’épargne</small></div>
+        <div className="kpi"><span>{t('patrimoine.growth.deposited_net')}</span><strong>{fmt(deposits)}</strong><small>{t('patrimoine.growth.your_savings_effort')}</small></div>
         <div className="kpi">
-          <span>Gains accumulés</span>
+          <span>{t('patrimoine.growth.accumulated_gains')}</span>
           <strong className={earned >= 0 ? 'income' : 'expense'}>{earned >= 0 ? '+' : '−'}{fmt(Math.abs(earned))}</strong>
-          <small className="num">{deposits > 0 ? formatPct((earned / deposits) * 100) : '—'} du versé</small>
+          <small className="num">{t('patrimoine.growth.pct_of_deposited', { pct: deposits > 0 ? formatPct((earned / deposits) * 100) : '—' })}</small>
         </div>
         {final ? (
           <>
-            <div className="kpi"><span>Dans {years} ans</span><strong>{fmt(final.value)}</strong><small>projection</small></div>
+            <div className="kpi"><span>{t('patrimoine.growth.in_n_years', { n: years })}</span><strong>{fmt(final.value)}</strong><small>{t('patrimoine.growth.projection_lower')}</small></div>
             <div className="kpi">
-              <span>dont intérêts</span>
+              <span>{t('patrimoine.growth.of_which_interest')}</span>
               <strong className="income">{fmt(Math.max(0, final.value - final.deposits))}</strong>
-              <small className="num">{final.value > 0 ? formatPct(((final.value - final.deposits) / final.value) * 100, false) : '—'} de la valeur</small>
+              <small className="num">{t('patrimoine.growth.pct_of_value', { pct: final.value > 0 ? formatPct(((final.value - final.deposits) / final.value) * 100, false) : '—' })}</small>
             </div>
           </>
         ) : (
           <div className="kpi">
-            <span>Rendement annualisé</span>
+            <span>{t('patrimoine.growth.annualized_return')}</span>
             <strong className={rate == null ? '' : rate >= 0 ? 'income' : 'expense'}>{rate == null ? '—' : formatPct(rate * 100)}</strong>
-            <small>XIRR depuis l’ouverture</small>
+            <small>{t('patrimoine.growth.xirr_since_opening')}</small>
           </div>
         )}
       </div>
       {years > 0 && (
         <div className="pea-growth-params">
-          <label>Rendement annuel (%)<input inputMode="decimal" value={rateRaw} onChange={(e) => setRateRaw(e.target.value)} /></label>
-          <label>Versement mensuel ({ccy})<input inputMode="decimal" value={paceRaw} onChange={(e) => setPaceRaw(e.target.value)} /></label>
-          <p className="acc-muted">Par défaut : 7 %/an (moyenne long terme des actions) — ton rendement réel depuis l’ouverture est de {rate == null ? '—' : formatPct(rate * 100)}/an — et ton versement mensuel moyen. Capitalisation mensuelle, sans frais ni impôt.</p>
+          <label>{t('patrimoine.growth.annual_return_pct')}<input inputMode="decimal" value={rateRaw} onChange={(e) => setRateRaw(e.target.value)} /></label>
+          <label>{t('patrimoine.growth.monthly_contribution', { ccy })}<input inputMode="decimal" value={paceRaw} onChange={(e) => setPaceRaw(e.target.value)} /></label>
+          <p className="acc-muted">{t('patrimoine.growth.defaults_note', { rate: rate == null ? '—' : formatPct(rate * 100) })}</p>
         </div>
       )}
       <div className="pi-chart">
@@ -139,24 +141,24 @@ export function PeaGrowth({ history, flows, value, asOf, rate, pace, ccy, fmt }:
                 labelFormatter={timeTooltipLabel('day')}
                 formatter={(v, name) => [fmt(Number(v)), name]}
               />
-              <Area dataKey="deposits" name="Versé" stackId="real" type="stepAfter" stroke={theme.total} strokeWidth={1.25} fill={theme.total} fillOpacity={0.12} dot={false} isAnimationActive={false} />
-              <Area dataKey="gains" name="Gains" stackId="real" type="monotone" stroke={theme.income} strokeWidth={0} fill={theme.income} fillOpacity={0.35} dot={false} isAnimationActive={false} />
-              <Line dataKey="value" name="Valeur" type="monotone" stroke={theme.net} strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Area dataKey="deposits" name={t('patrimoine.growth.series_deposited')} stackId="real" type="stepAfter" stroke={theme.total} strokeWidth={1.25} fill={theme.total} fillOpacity={0.12} dot={false} isAnimationActive={false} />
+              <Area dataKey="gains" name={t('patrimoine.growth.series_gains')} stackId="real" type="monotone" stroke={theme.income} strokeWidth={0} fill={theme.income} fillOpacity={0.35} dot={false} isAnimationActive={false} />
+              <Line dataKey="value" name={t('patrimoine.growth.series_value')} type="monotone" stroke={theme.net} strokeWidth={2} dot={false} isAnimationActive={false} />
               {years > 0 && (
                 <>
-                  <Area dataKey="projDeposits" name="Versé (projeté)" stackId="proj" type="linear" stroke={theme.total} strokeDasharray="4 3" strokeWidth={1} fill={theme.total} fillOpacity={0.06} dot={false} isAnimationActive={false} />
-                  <Area dataKey="projGains" name="Intérêts (projetés)" stackId="proj" type="monotone" stroke="none" fill={theme.income} fillOpacity={0.18} dot={false} isAnimationActive={false} />
-                  <Line dataKey="projValue" name="Valeur (projetée)" type="monotone" stroke={theme.net} strokeDasharray="5 4" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Area dataKey="projDeposits" name={t('patrimoine.growth.series_deposited_projected')} stackId="proj" type="linear" stroke={theme.total} strokeDasharray="4 3" strokeWidth={1} fill={theme.total} fillOpacity={0.06} dot={false} isAnimationActive={false} />
+                  <Area dataKey="projGains" name={t('patrimoine.growth.series_interest_projected')} stackId="proj" type="monotone" stroke="none" fill={theme.income} fillOpacity={0.18} dot={false} isAnimationActive={false} />
+                  <Line dataKey="projValue" name={t('patrimoine.growth.series_value_projected')} type="monotone" stroke={theme.net} strokeDasharray="5 4" strokeWidth={2} dot={false} isAnimationActive={false} />
                 </>
               )}
             </ComposedChart>
           </ResponsiveContainer>
         ) : (
-          <EmptyChart message={history.status === 'loading' || history.status === 'idle' ? 'Valorisation de l’historique…' : 'Pas assez d’historique.'} />
+          <EmptyChart message={history.status === 'loading' || history.status === 'idle' ? t('patrimoine.growth.valuing_history') : t('patrimoine.growth.not_enough_history')} />
         )}
       </div>
       <p className="acc-muted pea-growth-foot">
-        Zone verte = ce que tes versements ont rapporté (valeur − versé). {last ? `Au ${formatDateFr(last.date)}.` : ''}
+        {t('patrimoine.growth.green_area_note')} {last ? t('patrimoine.growth.as_of_date', { date: formatDateFr(last.date) }) : ''}
       </p>
     </section>
   );
