@@ -14,7 +14,7 @@ categoriesRouter.get('/users/:user_id/categories', asyncHandler(async (req, res)
 categoriesRouter.post('/users/:user_id/categories', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = createCategorySchema.parse(req.body);
-  const row = await prisma.category.create({ data: { ...body, user_id, icon: body.icon ?? null } });
+  const row = await prisma.category.create({ data: { ...body, user_id, icon: body.icon ?? null, description: body.description || null } });
   res.status(201).json(row);
 }));
 
@@ -34,6 +34,7 @@ categoriesRouter.patch('/users/:user_id/categories/:id', asyncHandler(async (req
       ...(body.type != null ? { type: body.type } : {}),
       ...(body.color != null ? { color: body.color } : {}),
       ...(body.icon !== undefined ? { icon: body.icon ?? null } : {}),
+      ...(body.description !== undefined ? { description: body.description || null } : {}),
     },
   });
   res.json(row);

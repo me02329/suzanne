@@ -394,7 +394,7 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
     if (id) summary.categories.reused += 1;
     else {
       id = (await db.category.create({
-        data: { user_id, ...withUid(hit), name: n, type, color: str(raw.color, 20) ?? '#6366f1', icon: str(raw.icon, 40) },
+        data: { user_id, ...withUid(hit), name: n, type, color: str(raw.color, 20) ?? '#6366f1', icon: str(raw.icon, 40), description: str(raw.description, 500) },
       })).id;
       categoriesByKey.set(`${type}|${n}`, id);
       ownedCategories.add(id);

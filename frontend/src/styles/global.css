@@ -2399,3 +2399,24 @@ textarea {
   .account-line-actions { justify-content: flex-start; flex-wrap: wrap; }
   .reassign-select { max-width: none; flex: 1 1 auto; }
 }
+
+/* ---- À vérifier : liens et catégorie en ligne ---------------------------- */
+.link-button {
+  padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px;
+}
+.link-button:hover { text-decoration-color: currentColor; }
+.review-cat { display: grid; gap: 2px; min-width: 160px; }
+.review-cat small { font-size: 12px; }
+
+/* ---- Infobulle différée (descriptions de catégories) -------------------- */
+.hover-hint {
+  position: fixed; z-index: 1000; max-width: 280px; display: grid; gap: 2px;
+  padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px;
+  background: var(--surface-raised); color: var(--text); font-size: 13px; font-weight: 450; line-height: 1.4;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); pointer-events: none; white-space: normal;
+}
+.hover-hint.above { transform: translateY(-100%); }
+.hover-hint strong { font-size: 12.5px; }
+.hover-hint span { color: var(--muted); }
+.hint-wrap { display: block; min-width: 0; }

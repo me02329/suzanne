@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectAnomalies, type AnomalyTx } from './anomalies';
+import { detectAnomalies, merchantKey, type AnomalyTx } from './anomalies';
 
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
 const tx = (over: Partial<AnomalyTx> & { id: number }): AnomalyTx => ({
@@ -60,3 +60,24 @@ describe('detectAnomalies', () => {
     expect(r.no_category).toHaveLength(0);
   });
 });
+
+describe('doublons : enseignes différentes', () => {
+  it('ignore deux achats au même prix chez deux commerçants', () => {
+    const report = detectAnomalies([
+      tx({ id: 1, date: d('2024-02-28'), amount: 7.48, description: 'Carte 27/02/24 Ga Velizy Cb*8344' }),
+      tx({ id: 2, date: d('2024-03-01'), amount: 7.48, description: 'Carte 28/02/24 Graine D Artiste Cb*8344' }),
+    ]);
+    expect(report.duplicates).toHaveLength(0);
+  });
+  it('garde le même commerçant avec une date de libellé différente', () => {
+    const report = detectAnomalies([
+      tx({ id: 1, date: d('2024-05-28'), amount: 7.48, description: 'Carte 27/05/24 Ga Velizy Cb*8344' }),
+      tx({ id: 2, date: d('2024-05-29'), amount: 7.48, description: 'Carte 28/05/24 Ga Velizy Cb*8344' }),
+    ]);
+    expect(report.duplicates).toHaveLength(1);
+  });
+  it('merchantKey retire dates, numéros et mots génériques', () => {
+    expect(merchantKey('Carte 27/05/24 Ga Velizy Cb*8344')).toBe('GA VELIZY');
+  });
+});
+

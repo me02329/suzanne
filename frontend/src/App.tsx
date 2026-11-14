@@ -533,7 +533,7 @@ export default function App() {
           <Route path="/goals" element={userId ? <Goals userId={userId} goals={goals} accounts={accounts} accountById={accountById} run={run} /> : null} />
           <Route path="/investments" element={userId ? <Investments userId={userId} holdings={holdings} accounts={accounts} accountById={accountById} reportCurrency={reportCurrency} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/alerts" element={userId ? <Alerts userId={userId} alerts={alerts} triggered={triggeredAlerts} accounts={accounts} goals={goals} accountById={accountById} run={run} /> : null} />
-          <Route path="/anomalies" element={userId ? <Anomalies userId={userId} accountById={accountById} dataVersion={dataVersion} /> : null} />
+          <Route path="/anomalies" element={userId ? <Anomalies userId={userId} accounts={accounts} accountById={accountById} categories={categories} categoryById={categoryById} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/rules" element={userId ? <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} run={run} /> : null} />
           <Route path="/tools" element={userId ? <Tools userId={userId} accounts={accounts} run={run} /> : null} />
           <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} />} />

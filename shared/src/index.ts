@@ -67,6 +67,8 @@ export interface Category {
   type: CategoryType;
   color: string;
   icon: string | null;
+  /** Aide affichée au survol (ce que couvre la catégorie). */
+  description?: string | null;
   created_at: string;
 }
 
@@ -329,8 +331,11 @@ export interface DuplicatePair {
 }
 export interface AnomalyReport {
   no_account: AnomalyTxRef[];
-  no_category: AnomalyTxRef[];
+  /** Avec la catégorie proposée (règle ou historique du même libellé). */
+  no_category: Array<AnomalyTxRef & { suggested_category_id?: number | null }>;
   duplicates: DuplicatePair[];
+  /** Paires validées « pas un doublon » (masquées). */
+  dismissed_duplicates?: number;
 }
 
 // Métadonnées d'une pièce jointe (le binaire se télécharge à part).
@@ -509,6 +514,7 @@ export interface CreateCategoryBody {
   type: CategoryType;
   color: string;
   icon?: string | null;
+  description?: string | null;
 }
 
 export interface CreateTransactionBody {

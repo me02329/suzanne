@@ -55,6 +55,7 @@ export const createCategorySchema = z.object({
   type: z.enum(['expense', 'income']),
   color: z.string().trim().min(1).default('#6366f1'),
   icon: z.string().trim().max(80).nullish(),
+  description: z.string().trim().max(500).nullish(),
 });
 export const updateCategorySchema = createCategorySchema.partial();
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Circle, Pencil } from 'lucide-react';
+import { CategoryHint, CategoryName } from './CategoryName';
 import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne/shared';
 import { money, txLabel, typeLabel } from '../lib/format';
 import { pickableAccounts } from '../lib/account';
@@ -172,7 +173,7 @@ export function TransactionsTable({
                 </td>
                 <td>
                   {tx.type === 'transfer' || readOnly ? (
-                    <span className="jr-muted">{category?.name ?? '—'}</span>
+                    <CategoryName className="jr-muted" category={category} />
                   ) : splits.length > 0 ? (
                     <div className="jr-splits">
                       {splits.map((split, i) => {
@@ -180,21 +181,23 @@ export function TransactionsTable({
                         return (
                           <span key={`${split.category_id}-${i}`}>
                             <i style={{ background: c?.color ?? 'var(--faint)' }} />
-                            {c?.name ?? t('Catégorie')} <span className="jr-num">{money(split.amount, srcCurrency)}</span>
+                            <CategoryName category={c} fallback={t('Catégorie')} /> <span className="jr-num">{money(split.amount, srcCurrency)}</span>
                           </span>
                         );
                       })}
                     </div>
                   ) : (
-                    <select
-                      className="inline-select"
-                      value={tx.category_id ?? ''}
-                      aria-label={t('Catégorie')}
-                      onChange={(e) => onInlineUpdate(tx, { category_id: e.target.value ? Number(e.target.value) : null })}
-                    >
-                      <option value="">{t('Sans catégorie')}</option>
-                      {categories.filter((c) => c.type === tx.type).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    <CategoryHint category={category}>
+                      <select
+                        className="inline-select"
+                        value={tx.category_id ?? ''}
+                        aria-label={t('Catégorie')}
+                        onChange={(e) => onInlineUpdate(tx, { category_id: e.target.value ? Number(e.target.value) : null })}
+                      >
+                        <option value="">{t('Sans catégorie')}</option>
+                        {categories.filter((c) => c.type === tx.type).map((c) => <option key={c.id} value={c.id} title={c.description ?? undefined}>{c.name}</option>)}
+                      </select>
+                    </CategoryHint>
                   )}
                 </td>
                 <td className={`jr-num jr-amt jr-amount-col ${txTone(tx)}`}>{txAmountLabel(tx, accountById)}</td>

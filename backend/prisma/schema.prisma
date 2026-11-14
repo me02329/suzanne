@@ -105,6 +105,7 @@ model User {
   import_mappings         ImportMapping[]
   global_budgets          GlobalBudget[]
   sinking_funds           SinkingFund[]
+  duplicate_dismissals    DuplicateDismissal[]
 
   @@map("users")
 }
@@ -177,6 +178,8 @@ model Category {
   type       CategoryType
   color      String   @default("#6366f1")
   icon       String?
+  // Aide affichée au survol (ce que la catégorie couvre, exemples…).
+  description String?
   created_at DateTime @default(now()) @db.Timestamptz(6)
 
   user                   User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -252,6 +255,8 @@ model Transaction {
   bill_matches       BillMatch[]
   attachments        Attachment[]
   holding_order      HoldingOrder?
+  dismissals_a       DuplicateDismissal[] @relation("DismissalA")
+  dismissals_b       DuplicateDismissal[] @relation("DismissalB")
 
   @@unique([user_id, import_fingerprint])
   @@index([user_id, date])
@@ -724,4 +729,22 @@ model Alert {
 
   @@index([user_id, active])
   @@map("alerts")
+}
+
+// Paire signalée comme doublon probable que l'utilisateur a validée (« ce
+// n'est pas un doublon ») : elle n'est plus proposée. a_id < b_id.
+model DuplicateDismissal {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  a_id       Int
+  b_id       Int
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  user User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  a    Transaction @relation("DismissalA", fields: [a_id], references: [id], onDelete: Cascade)
+  b    Transaction @relation("DismissalB", fields: [b_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, a_id, b_id])
+  @@index([b_id])
+  @@map("duplicate_dismissals")
 }

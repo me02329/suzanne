@@ -15,7 +15,7 @@ const DEFAULT_COLOR = '#6b8f00';
 // Formulaire partagé création / modification (dans une modale).
 function CategoryForm({ initial, onSubmit, onCancel, submitLabel }: {
   initial?: Category;
-  onSubmit: (body: { name: string; type: Category['type']; color: string; icon: string }) => void;
+  onSubmit: (body: { name: string; type: Category['type']; color: string; icon: string; description: string }) => void;
   onCancel: () => void;
   submitLabel: string;
 }) {
@@ -29,6 +29,7 @@ function CategoryForm({ initial, onSubmit, onCancel, submitLabel }: {
       type,
       color: String(data.get('color')),
       icon: String(data.get('icon') || '').trim(),
+      description: String(data.get('description') || '').trim(),
     });
   };
   return (
@@ -41,6 +42,10 @@ function CategoryForm({ initial, onSubmit, onCancel, submitLabel }: {
       </fieldset>
       <label>{t('Couleur')}<input name="color" type="color" defaultValue={initial?.color ?? DEFAULT_COLOR} /></label>
       <label>{t('Icône')}<input name="icon" defaultValue={initial?.icon ?? ''} placeholder="shopping-cart" autoComplete="off" /></label>
+      <label className="full">{t('Description')}
+        <textarea name="description" defaultValue={initial?.description ?? ''} rows={3} maxLength={500} placeholder={t('Ce que couvre la catégorie, ex. « Séminaires, salons, déplacements pro remboursés ou non »')} />
+        <small className="st-muted">{t('Affichée au survol du nom de la catégorie (délai réglable dans Préférences).')}</small>
+      </label>
       <div className="modal-actions full">
         <button type="button" className="secondary" onClick={onCancel}>{t('Annuler')}</button>
         <button className="primary">{submitLabel}</button>
@@ -74,11 +79,11 @@ export function Categories({ userId, categories, run }: { userId: number; catego
     ).then((ok) => { if (ok) setMerging(null); });
   };
 
-  const create = (body: { name: string; type: Category['type']; color: string; icon: string }) => {
+  const create = (body: { name: string; type: Category['type']; color: string; icon: string; description: string }) => {
     void run(() => api.createCategory(userId, body), t('Catégorie ajoutée'))
       .then((ok) => { if (ok) setCreating(false); });
   };
-  const update = (body: { name: string; type: Category['type']; color: string; icon: string }) => {
+  const update = (body: { name: string; type: Category['type']; color: string; icon: string; description: string }) => {
     if (!editing) return;
     void run(() => api.updateCategory(userId, editing.id, body), t('Catégorie mise à jour'))
       .then((ok) => { if (ok) setEditing(null); });
@@ -86,7 +91,7 @@ export function Categories({ userId, categories, run }: { userId: number; catego
 
   const table = (rows: Category[], empty: string) => (
     <DataTable empty={rows.length === 0 ? empty : null}>
-      <thead><tr><th>{t('Nom')}</th><th>{t('Icône')}</th><th className="actions-cell"><span className="sr-only">{t('Actions')}</span></th></tr></thead>
+      <thead><tr><th>{t('Nom')}</th><th>{t('Description')}</th><th className="actions-cell"><span className="sr-only">{t('Actions')}</span></th></tr></thead>
       <tbody>
         {rows.map((c) => (
           <tr key={c.id}>
@@ -96,7 +101,7 @@ export function Categories({ userId, categories, run }: { userId: number; catego
                 <strong title={c.name}>{c.name}</strong>
               </span>
             </td>
-            <td className="st-muted" data-label={t('Icône')}>{c.icon || '—'}</td>
+            <td className="st-muted st-desc" data-label={t('Description')}>{c.description || '—'}</td>
             <td className="actions-cell">
               <IconButton label={t('Modifier')} tone="neutral" icon={<Pencil size={16} />} onClick={() => setEditing(c)} />
               <RowMenu items={[

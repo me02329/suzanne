@@ -3,6 +3,7 @@ import { CheckCircle2, CircleAlert, Loader2, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api, type AiSettings } from '../lib/api';
 import { currentLang, setLanguage, type Lang } from '../i18n';
+import { HINT_DELAY_OPTIONS, setHintDelay, useHintDelay } from '../lib/prefs';
 import '../styles/pages/settings.css';
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -14,6 +15,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 export function Settings() {
   const { t } = useTranslation();
+  const hintDelay = useHintDelay();
   const [data, setData] = useState<AiSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -98,6 +100,19 @@ export function Settings() {
           <select value={currentLang()} onChange={(e) => setLanguage(e.target.value as Lang)}>
             <option value="fr">{t('Français')}</option>
             <option value="en">{t('English')}</option>
+          </select>
+        </label>
+      </section>
+
+      <section className="panel st-pref">
+        <div className="st-pref-head">
+          <h2>{t('Infobulles des catégories')}</h2>
+          <p>{t('Délai de survol avant d’afficher la description d’une catégorie (à saisir dans Catégories).')}</p>
+        </div>
+        <label className="st-field">
+          <span className="sr-only">{t('Délai des infobulles')}</span>
+          <select value={hintDelay} onChange={(e) => setHintDelay(Number(e.target.value))}>
+            {HINT_DELAY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
           </select>
         </label>
       </section>

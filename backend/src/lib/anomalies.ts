@@ -53,6 +53,29 @@ const toRef = (t: AnomalyTx): AnomalyTxRef => ({
   account_id: t.account_id,
 });
 
+// Libellé réduit à l'enseigne : sans chiffres (dates, n° de carte), ni
+// ponctuation, ni mots génériques de relevé (« CARTE », « CB », « PRLV »…).
+const NOISE = new Set(['CARTE', 'CB', 'PRLV', 'SEPA', 'VIR', 'PAIEMENT', 'ACHAT', 'FACTURE', 'X']);
+export function merchantKey(description: string | null): string {
+  return (description ?? '')
+    .toUpperCase()
+    .normalize('NFD').replace(/\p{M}/gu, '')
+    .replace(/[0-9]/g, ' ')
+    .replace(/[^A-Z ]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !NOISE.has(w))
+    .join(' ');
+}
+
+// Deux libellés renseignés mais d'enseignes différentes (deux cafés au même
+// prix) ne font pas un doublon ; sans libellé d'un côté, on reste prudent.
+function sameMerchant(a: string | null, b: string | null): boolean {
+  const ka = merchantKey(a);
+  const kb = merchantKey(b);
+  if (!ka || !kb) return true;
+  return ka === kb || ka.includes(kb) || kb.includes(ka);
+}
+
 export function detectAnomalies(transactions: AnomalyTx[]): AnomalyReport {
   const no_account = transactions
     .filter((t) => isFlow(t) && t.account_id == null)
@@ -80,7 +103,7 @@ export function detectAnomalies(transactions: AnomalyTx[]): AnomalyReport {
       const a = sorted[i]!;
       const b = sorted[i + 1]!;
       const days = Math.round((b.date.getTime() - a.date.getTime()) / DAY_MS);
-      if (days <= DUPLICATE_WINDOW_DAYS) {
+      if (days <= DUPLICATE_WINDOW_DAYS && sameMerchant(a.description, b.description)) {
         duplicates.push({ a: toRef(a), b: toRef(b), days_apart: days });
       }
     }
