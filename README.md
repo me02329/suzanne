@@ -1,45 +1,53 @@
-# suzanne
+# Suzanne
 
-> Application auto-hébergée de suivi de finances quotidiennes : comptes, transactions, budgets, catégories, tags, récurrents, objectifs d'épargne, prévisionnel, santé financière, statistiques, assistant IA optionnel et import/export.
+> Application auto-hébergée de finances personnelles : comptes, opérations, budgets, PEA et placements, rapprochement avec les relevés bancaires. Pour un foyer, sur un réseau privé.
 
-suzanne est une application web auto-hébergée, pensée pour suivre simplement les flux du quotidien : *« combien j'ai dépensé ce mois-ci, sur quels postes, depuis quels comptes, et quels mouvements restent à catégoriser ? »*
+Suzanne répond à des questions simples : *combien j'ai dépensé ce mois-ci et où, combien il me reste à dépenser jusqu'à la fin du mois, est-ce que mes comptes collent au centime avec mes relevés, combien vaut mon PEA aujourd'hui ?*
 
-📖 **Pour apprendre à utiliser l'application, voir le [guide d'utilisation](docs/UTILISATION.md).**
+Interface en **français et en anglais**, pensée d'abord pour le mobile.
+
+📖 Pour apprendre à s'en servir : [guide d'utilisation](docs/UTILISATION.md).
 
 ---
 
 ## Captures d'écran
 
-> Thème sombre, interface entièrement en français. Captures réalisées sur un jeu de données de démonstration.
+> Données entièrement fictives (profil « Démo », générées par `tools/demo-data.mjs`).
 
-![Vue générale](docs/screenshots/dashboard.png)
-<sub>**Vue générale** — valeur nette et trajectoire, KPI du mois, répartition des dépenses et suivi des budgets.</sub>
+![Accueil](docs/screenshots/dashboard.png)
+<sub>**Accueil** : valeur nette, flux du mois, budget restant, échéances à venir, où part l'argent.</sub>
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/transactions.png" alt="Transactions"><br><sub><b>Transactions</b> — tableau dense, montants colorés par direction, pills de type, édition inline.</sub></td>
-<td width="50%"><img src="docs/screenshots/statistics.png" alt="Statistiques"><br><sub><b>Statistiques</b> — répartition par catégorie, top marchands, évolution mensuelle.</sub></td>
+<td width="50%"><img src="docs/screenshots/transactions.png" alt="Journal des opérations"><br><sub><b>Journal</b> : filtres combinables, tags, pointage, ventilation, remboursements, actions en lot.</sub></td>
+<td width="50%"><img src="docs/screenshots/budgets.png" alt="Budgets"><br><sub><b>Budgets</b> : budget du mois et « reste à vivre » par jour, enveloppes par catégorie, provisions.</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/wealth.png" alt="Patrimoine"><br><sub><b>Patrimoine</b> — actifs / passifs / liquidités et évolution par compte.</sub></td>
-<td width="50%"><img src="docs/screenshots/health.png" alt="Santé financière"><br><sub><b>Santé financière</b> — taux d'épargne, fonds d'urgence, charges fixes / variables.</sub></td>
+<td width="50%"><img src="docs/screenshots/investments.png" alt="Placements"><br><sub><b>Placements</b> : positions valorisées chaque jour aux cours Yahoo Finance, PRU, plus-values.</sub></td>
+<td width="50%"><img src="docs/screenshots/wealth.png" alt="Patrimoine"><br><sub><b>Patrimoine</b> : évolution de la valeur nette, répartition par compte et par type.</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/budgets.png" alt="Budgets"><br><sub><b>Budgets</b> — limites mensuelles par catégorie et alerte de dépassement.</sub></td>
-<td width="50%"><img src="docs/screenshots/goals.png" alt="Objectifs"><br><sub><b>Objectifs</b> — progression vers les objectifs d'épargne et échéances.</sub></td>
+<td width="50%"><img src="docs/screenshots/statistics.png" alt="Statistiques"><br><sub><b>Statistiques</b> : dépenses par catégorie, top marchands, cashflow et épargne.</sub></td>
+<td width="50%"><img src="docs/screenshots/health.png" alt="Santé financière"><br><sub><b>Santé financière</b> : taux d'épargne, fonds d'urgence, charges fixes et variables.</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/screenshots/accounts.png" alt="Comptes"><br><sub><b>Comptes</b> — comptes regroupés par établissement, multi-devises.</sub></td>
-<td width="50%"><img src="docs/screenshots/recurring.png" alt="Récurrents"><br><sub><b>Récurrents</b> — charges et revenus réguliers, cadences et génération.</sub></td>
+<td width="50%"><img src="docs/screenshots/forecast.png" alt="Prévisions"><br><sub><b>Prévisions</b> : trajectoire du solde à partir des récurrents, point bas.</sub></td>
+<td width="50%"><img src="docs/screenshots/simulator.png" alt="Simulateur"><br><sub><b>Simulateur</b> : intérêts composés, plafond et fiscalité du PEA, comparaison de scénarios.</sub></td>
 </tr>
 </table>
 
 <details>
-<summary>Plus de captures (Factures, Catégories, Tags)</summary>
+<summary>Plus de captures (comptes, objectifs, récurrents, factures, à vérifier, catégories, tags, mobile)</summary>
 
+![Comptes](docs/screenshots/accounts.png)
+![Objectifs](docs/screenshots/goals.png)
+![Récurrents](docs/screenshots/recurring.png)
 ![Factures](docs/screenshots/bills.png)
+![À vérifier](docs/screenshots/anomalies.png)
 ![Catégories](docs/screenshots/categories.png)
 ![Tags](docs/screenshots/tags.png)
+
+<img src="docs/screenshots/mobile-dashboard.png" alt="Accueil sur mobile" width="300"> <img src="docs/screenshots/mobile-transactions.png" alt="Journal sur mobile" width="300">
 
 </details>
 
@@ -47,152 +55,145 @@ suzanne est une application web auto-hébergée, pensée pour suivre simplement 
 
 ## Sommaire
 
-- [Captures d'écran](#captures-décran)
 - [Fonctionnalités](#fonctionnalités)
-- [Périmètre](#périmètre)
-- [Stack technique](#stack-technique)
+- [Démarrage rapide](#démarrage-rapide)
+- [Commandes](#commandes)
 - [Architecture](#architecture)
-- [Démarrage rapide (dev)](#démarrage-rapide-dev)
-- [Validation](#validation)
-- [Contribuer](#contribuer)
-- [Partager le dépôt](#partager-le-dépôt)
-- [Déploiement (VPS)](#déploiement-vps)
+- [Traductions](#traductions)
+- [Données de démonstration et captures](#données-de-démonstration-et-captures)
+- [Déploiement](#déploiement)
 - [Variables d'environnement](#variables-denvironnement)
-- [Référence API](#référence-api)
 - [Sécurité](#sécurité)
+- [Documentation](#documentation)
 - [Licence](#licence)
 
 ---
 
 ## Fonctionnalités
 
-- **Tableau de bord mensuel** — revenus, dépenses, net, solde estimé, comptes, ventilation par catégorie et évolution des flux.
-- **Transactions** — dépenses, revenus et transferts, tags, ventilation multi-catégories (splits), pointage/rapprochement, filtre par mois, recherche, duplication, édition inline du compte/de la catégorie, et actions en lot (catégorie, compte, pointage, **ajout de tag**, **suppression**).
-- **Remboursements** — un revenu peut annuler tout ou partie d'une dépense (répartition possible sur plusieurs dépenses) ; la part remboursée vient en déduction des dépenses, le surplus éventuel reste un revenu.
-- **Comptes** — comptes bancaires, livrets, investissements, crypto, espèces, crédits et emprunts, avec devises et regroupement par type ; **archivage** (clôture) pour masquer un compte des saisies tout en gardant son historique.
-- **Détail par compte** — historique de solde, mouvements récents, snapshots, rapprochement au relevé (solde pointé) et alertes de plafond pour les livrets réglementés.
-- **Snapshots de solde** — suivi de soldes datés par compte, avec saisie batch et pré-remplissage depuis le dernier solde connu.
-- **Catégories** — catégories dépenses/revenus personnalisables, couleurs et icônes, avec **fusion** (réaffecte tout le contenu d'une catégorie vers une autre).
-- **Tags** — étiquettes libres multi-valeurs sur les transactions, indépendantes des catégories.
-- **Budgets** — limites mensuelles par catégorie, suivi du dépensé, édition inline et reconduction automatique d'un mois sur l'autre.
-- **Factures attendues** — dépenses récurrentes à fourchette de montant (ex. électricité 80–130 €), rapprochées chaque mois des dépenses réelles par motif ; statut payée / hors fourchette / en retard, et **rapprochement manuel** d'une dépense quand le motif ne suffit pas.
-- **Transactions récurrentes / abonnements** — charges ou revenus réguliers, cadence hebdomadaire/mensuelle/annuelle, génération automatique, **date de fin** optionnelle, **saut d'une occurrence**, et liaison à une transaction existante.
-- **Prévisionnel** — projection du solde liquide à partir des récurrents actifs et des échéances d'objectifs.
-- **Santé financière** — taux d'épargne, fonds d'urgence, poids des récurrents, charges fixes/variables et adhérence aux budgets.
-- **Règles d'auto-catégorisation** — mots-clés éditables, appliqués à l'import CSV et rétroactivement aux transactions sans catégorie.
-- **Statistiques** — répartition par catégorie, top marchands, évolution mensuelle des dépenses et prise en charge des non-catégorisées.
-- **Objectifs d'épargne** — montant cible, progression et échéance, versements et **retraits** (avec transfert depuis/vers un compte) et historique des mouvements.
-- **Import / Export** — import CSV configurable, exports rapides, export sélectif JSON réimportable et restauration JSON.
-- **Assistant IA optionnel** — analyse et actions proposées avec confirmation utilisateur, en streaming, compatible OpenAI ou endpoint Chat Completions équivalent.
-- **Confort** — multi-utilisateurs, recherche globale, devise de reporting, raccourcis clavier, thèmes clair / sombre / crème, transitions soignées et défilement fluide, interface responsive.
+**Suivi du quotidien**
+- **Journal des opérations** : dépenses, revenus, virements entre comptes ; filtres combinables (type, catégories, comptes, tags, pointage) et recherche avec exclusion (`courses -auchan`) ; édition dans la ligne, actions en lot, corbeille.
+- **Ventilation** d'une opération sur plusieurs catégories, **remboursements** 1↔N (un revenu annule tout ou partie d'une ou plusieurs dépenses), **pièces jointes** (reçus, PDF).
+- **Catégories** avec description en infobulle, fusion ; **tags** libres avec résumé par tag, filtres de statistiques par tag et exclusion d'un tag des budgets.
+- **Règles** : un mot-clé du libellé décide de la catégorie (et/ou d'un tag), à l'import comme rétroactivement.
+- **À vérifier** : opérations sans compte ou sans catégorie, doublons probables (validables), suggestions de catégorie.
 
-Interface entièrement en français.
+**Comptes et rapprochement**
+- Comptes courants, livrets, PEA, comptes-titres, assurance-vie, crypto, crédits ; institutions, multi-devises (taux de change), archivage.
+- **Soldes par relevés** : le solde saisi d'un relevé fait foi ; le **rapprochement** montre, entre deux relevés, si les opérations expliquent l'écart au centime (opération manquante ou en double) et permet un ajustement explicite.
+- **Imports bancaires** : CSV configurable (profils de banque, export Boursorama reconnu), OFX, QIF. Doublons ignorés même après renommage (empreinte de la ligne de relevé), virements entre tes comptes reliés automatiquement, garde-fou contre une colonne « solde » prise pour un montant.
 
-## Périmètre
+**Planifier**
+- **Budget du mois** et « reste à vivre » par jour, **enveloppes** par catégorie avec report, plafonds suggérés d'après la médiane des 6 derniers mois, **provisions** pour lisser les grosses dépenses annuelles.
+- **Récurrents** (loyer, salaire, abonnements) générés automatiquement, **factures** à fourchette de montant vérifiées chaque mois, **prévisions** du solde, **objectifs** d'épargne.
 
-suzanne est volontairement centrée sur le suivi quotidien. Elle ne remplace pas les applications patrimoniales ou de courtage.
+**Patrimoine et placements**
+- Valeur nette et historique, par compte et par type.
+- **Positions et ordres** (8 décimales de quantité) valorisés chaque jour aux cours **Yahoo Finance**, recherche de titres ; achat et vente débitent/créditent les espèces du compte.
+- **PEA** : versements et plafond, performance pondérée par le temps et annualisée (XIRR), comparaison à un indice, fiscalité à la sortie, récapitulatif annuel imprimable ; **simulateur** d'intérêts composés.
 
-Hors périmètre :
+**Le reste**
+- **Analyse** : statistiques par catégorie et par marchand, santé financière, alertes (seuil de solde, grosse dépense, relevé manquant).
+- **Assistant IA** optionnel (OpenAI ou endpoint compatible, Ollama…) : il lit tes données et propose des actions que tu confirmes.
+- **Sauvegardes** : automatique quotidienne (14 gardées) et manuelle, export JSON complet réimportable sans doublon, export sur mesure, CSV pour tableur.
+- Plusieurs profils, recherche globale, raccourcis clavier, thème clair / sombre, interface responsive.
 
-- suivi de positions boursières ou de performance d'actifs ;
-- dividendes, allocation, rebalancing ;
-- récupération de cours de marché ;
-- authentification multi-utilisateurs complète.
+## Démarrage rapide
 
-## Stack technique
+**Prérequis :** Node.js 20+, Docker (pour PostgreSQL).
 
-| Couche | Technologies |
+```bash
+npm ci
+cp .env.example .env                                  # DATABASE_URL du Postgres de dev
+docker compose -f compose.dev.yml up -d postgres      # Postgres sur 127.0.0.1:5434
+npm run migrate:deploy                                 # applique les migrations
+npm run db:seed                                        # profil « Démo » + catégories de base
+
+npm run dev:backend                                    # API sur :3000
+npm run dev:frontend                                   # interface sur http://localhost:5174 (proxy /api → :3000)
+```
+
+Le backend tourne avec `tsx` sans rechargement automatique : relance-le après une modification côté serveur. L'interface (Vite) se recharge seule.
+
+## Commandes
+
+| Commande | Rôle |
 |---|---|
-| Backend | Node 20, Express, Prisma (PostgreSQL), Zod, TypeScript |
-| Frontend | React 18, Vite, TypeScript, Recharts, lucide-react, Lenis (défilement) |
-| Monorepo | npm workspaces — `shared/` (DTO et taxonomies), `backend/`, `frontend/` |
-| Déploiement | Docker multi-stage, Docker Compose, migrations Prisma au démarrage |
+| `npm run build` | Build `shared` → `frontend` → `backend` (et client Prisma) |
+| `npm test` | Tests unitaires (Vitest) |
+| `DATABASE_URL=… npm run test:integration` | Tests d'intégration sur une base PostgreSQL **jetable**, dont le test « golden » qui compare tous les chiffres calculés à une référence |
+| `npm run i18n:check` | Contrôle des traductions (voir [Traductions](#traductions)) |
+| `npm run i18n:extract -- <fichiers>` | Extrait le texte écrit en dur d'écrans pour le passer en clés |
+| `npm run screenshots -- <dossier> [pages]` | Captures desktop et mobile ; échoue sur une erreur JavaScript ou un débordement horizontal |
+| `npm run migrate:dev` | Nouvelle migration Prisma (dev) |
+
+Sous Windows, lance Vitest depuis PowerShell plutôt que Git Bash.
 
 ## Architecture
 
 ```
-shared/      types partagés back ↔ front, taxonomie des comptes
-backend/     API Express + Prisma + import/export + agrégations
-frontend/    SPA React (servie en prod par le backend en statique)
+shared/     types et calculs purs partagés (finances PEA, XIRR, taxonomie des comptes)
+backend/    API Express 4 + Prisma 7 + PostgreSQL, imports, agrégations, sauvegardes
+frontend/   SPA React 18 + Vite + Recharts + i18next
+tools/      captures, données de démo, outils de traduction
+docs/       guide d'utilisation, architecture du grand livre, décisions (ADR)
 ```
 
-En production, **un seul conteneur** Node sert l'API (`/api/*`), le healthcheck (`/healthz`) et le bundle frontend. Les migrations Prisma sont appliquées au démarrage (`prisma migrate deploy`).
+Principes structurants (détaillés dans [`docs/decisions/`](docs/decisions/)) :
 
-## Démarrage rapide (dev)
+- **Grand livre à lignes** : une opération = un en-tête + des lignes signées `(compte, montant, catégorie)` ; une seule définition de « dépensé / reçu » côté serveur ([ADR 0001](docs/decisions/0001-modele-comptable-a-lignes.md), [architecture](docs/ARCHITECTURE-ledger.md)).
+- **Soldes par ancres** : solde = dernier relevé + opérations postérieures ; le relevé fait foi pour le solde, les opérations pour les flux ([ADR 0002](docs/decisions/0002-soldes-par-ancres-et-rapprochement.md)).
+- **Identités stables** (UUID) et empreintes d'import : restaurer ou réimporter ne duplique rien ([ADR 0004](docs/decisions/0004-identites-stables-et-empreintes.md), [ADR 0005](docs/decisions/0005-sauvegarde-v3.md)).
+- Toutes les routes sont sous `/api/users/:user_id/…` et vérifient que chaque référence appartient à l'utilisateur.
 
-**Prérequis :** Node.js 20+, un PostgreSQL accessible.
+En production, **un seul conteneur** Node sert l'API (`/api/*`), le healthcheck (`/healthz`) et l'interface buildée ; les migrations sont appliquées au démarrage.
 
-```bash
-# 1. Installer les dépendances
-npm install
+## Traductions
 
-# 2. Configurer la base
-cp .env.example .env          # puis éditer DATABASE_URL si besoin
+Les textes de l'interface sont des **clés stables** (`budgets.budgets.monthly_budget`) rangées dans des catalogues CSV par domaine, `frontend/src/i18n/catalogs/<domaine>.csv`, une ligne par texte avec toutes les langues côte à côte :
 
-# 3. Lancer un Postgres local jetable
-docker compose -f compose.dev.yml up -d postgres
-
-# 4. Migrer et créer les données de départ
-npm run migrate:dev -w @suzanne/backend
-npm run db:seed
-
-# 5. Lancer backend (port 3000) et frontend (port 5174) dans deux terminaux
-npm run dev:backend
-npm run dev:frontend
-# Vite proxie /api -> http://localhost:3000 — ouvrir http://localhost:5174
+```csv
+keys,fr,en
+ui.nav.home,Accueil,Home
+budgets.budgets.monthly_budget,Budget du mois :,Monthly budget:
 ```
 
-Pour valider la chaîne conteneur + migrations + healthcheck :
+- Le français est la langue source et de repli ; dates, nombres et devises suivent la langue choisie.
+- `npm run i18n:check` (en CI) bloque un catalogue mal formé, une clé en double ou une case vide, et liste les clés manquantes ou inutilisées et le texte encore écrit en dur.
+- Ajouter une langue : un code dans `frontend/src/i18n/index.ts` et une colonne dans chaque catalogue.
+
+Règles complètes : [ADR 0007](docs/decisions/0007-localisation-cles-et-csv.md).
+
+## Données de démonstration et captures
+
+Les captures du README sont faites sur une base **dédiée et vide**, jamais sur des données réelles :
 
 ```bash
-docker compose up -d --build
-curl http://127.0.0.1:3000/healthz      # {"status":"ok","db":true}
+DATABASE_URL=postgres://…/suzanne_demo npm run migrate:deploy
+DATABASE_URL=postgres://…/suzanne_demo npm run db:seed
+# lancer le backend sur cette base, puis :
+BASE=http://localhost:3000 node tools/demo-data.mjs     # 12 mois d'un foyer fictif
+BASE=http://localhost:5174 npm run screenshots -- captures --month 2026-10
 ```
 
-## Validation
+`tools/demo-data.mjs` refuse de tourner si le profil « Démo » a déjà des opérations.
+
+## Déploiement
+
+> ⚠️ Suzanne n'a **pas d'authentification intégrée**. Déploie-la derrière un VPN, un reverse-proxy avec authentification, ou sur une interface privée.
+
+`compose.yml` attend un PostgreSQL joignable via `DATABASE_URL` et un réseau Docker externe `proxy`.
 
 ```bash
-npm test
-npm run build
-```
-
-La suite Vitest couvre les helpers partagés, la validation backend, les formats de dates/montants et les utilitaires frontend purs. Le build compile les types partagés, le frontend et le backend, puis génère le client Prisma.
-
-## Contribuer
-
-Les contributions sont bienvenues tant qu'elles respectent le périmètre self-host privé du projet. Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les commandes de développement, les validations attendues et les règles sur les données personnelles.
-
-## Partager le dépôt
-
-Le dépôt est prévu pour être partagé sans données personnelles :
-
-- `.env`, `.env.*`, `.data/`, `node_modules/`, les builds et les fichiers locaux d'assistants (`AGENTS.md`, `CLAUDE.md`, `.agents/`, `.claude/`, `.codex/`) sont ignorés ;
-- `.env.example` contient uniquement des valeurs de développement génériques ;
-- le seed crée un utilisateur `Démo`, un compte courant vide et des catégories génériques ;
-- la documentation utilise des domaines et IP d'exemple (`finance.example.internal`, `10.0.0.10`).
-
-Avant de publier une archive manuelle, vérifie qu'elle ne contient pas ton `.env` local ni une sauvegarde JSON réelle.
-
-## Déploiement (VPS)
-
-> ⚠️ suzanne n'a **aucune authentification intégrée**. Déploie-la derrière un VPN, un reverse-proxy avec authentification, ou sur une interface privée.
-
-Le fichier `compose.yml` attend un PostgreSQL joignable via `DATABASE_URL` et un réseau Docker externe nommé `proxy`.
-
-```bash
-cd /opt/stacks
-git clone https://github.com/<owner>/suzanne.git suzanne
-cd suzanne
-
+git clone https://github.com/<owner>/suzanne-lite.git suzanne && cd suzanne
 cat > .env <<ENV
-DATABASE_URL=postgres://suzanne:<password>@postgres:5432/suzanne
-APP_TOKEN=<long-random-shared-secret>
+DATABASE_URL=postgres://suzanne:<mot-de-passe>@postgres:5432/suzanne
+APP_TOKEN=<secret-long-et-aléatoire>
 NODE_ENV=production
 ENV
-
 docker compose up -d --build
 docker compose exec -T suzanne sh -c 'cd backend && npx prisma db seed'
-curl http://127.0.0.1:3000/healthz
+curl http://127.0.0.1:3000/healthz        # {"status":"ok","db":true}
 ```
 
 Exemple Caddy :
@@ -204,120 +205,36 @@ finance.example.internal {
 }
 ```
 
-Exemple CoreDNS :
-
-```txt
-10.0.0.10 finance.example.internal
-```
-
-### Mise à jour
-
-```bash
-git pull
-docker compose up -d --build
-docker image prune -f
-```
-
-Les migrations sont appliquées automatiquement au démarrage du conteneur.
+Mise à jour : `git pull && docker compose up -d --build` (migrations appliquées au démarrage).
 
 ## Variables d'environnement
 
 | Variable | Défaut | Description |
 |---|---|---|
-| `DATABASE_URL` | *(requis)* | URL PostgreSQL (`postgres://user:pwd@host:5432/db`) |
-| `PORT` | `3000` | Port HTTP interne |
-| `NODE_ENV` | `development` | `production` en prod |
-| `APP_TOKEN` | *(vide)* | Secret partagé optionnel exigé par les routes `/api/*` |
-| `AI_PROVIDER` | `openai` | Libellé du fournisseur IA affiché côté paramètres |
-| `AI_API_KEY` / `OPENAI_API_KEY` | *(vide)* | Clé API utilisée par l'assistant IA |
+| `DATABASE_URL` | *(requis)* | URL PostgreSQL |
+| `PORT` | `3000` | Port HTTP |
+| `NODE_ENV` | `development` | `production` en prod (avertit au démarrage si `APP_TOKEN` est vide) |
+| `APP_TOKEN` | *(vide)* | Secret partagé exigé sur `/api/*` (`Authorization: Bearer …`) |
+| `CORS_ORIGIN` | *(vide)* | Origines autorisées à appeler l'API depuis un autre domaine |
+| `AI_PROVIDER` | `openai` | Libellé du fournisseur IA |
+| `AI_API_KEY` / `OPENAI_API_KEY` | *(vide)* | Clé de l'assistant IA (aussi réglable dans Préférences) |
 | `AI_MODEL` | `gpt-4.1-mini` | Modèle compatible Chat Completions |
-| `AI_BASE_URL` | `https://api.openai.com/v1` | Endpoint OpenAI-compatible (OpenAI, proxy, local, etc.) |
-
-## Référence API
-
-Toutes les routes métier sont préfixées par `/api`.
-
-| Verbe | Route | Description |
-|---|---|---|
-| GET | `/healthz` | Healthcheck (ping DB) |
-| GET / POST | `/api/users` | Lister / créer un utilisateur |
-| DELETE | `/api/users/:id` | Supprimer un utilisateur |
-| GET / POST | `/api/users/:user_id/accounts` | Lister / créer les comptes |
-| PATCH / DELETE | `/api/users/:user_id/accounts/:id` | Modifier (dont archivage) / supprimer un compte |
-| GET | `/api/users/:user_id/accounts/:id/activity` | Activité d'un compte (totaux + mouvements récents) |
-| GET / POST | `/api/users/:user_id/institutions` | Lister / créer les institutions |
-| DELETE | `/api/users/:user_id/institutions/:id` | Supprimer une institution |
-| GET / POST | `/api/users/:user_id/categories` | Lister / créer les catégories |
-| PATCH / DELETE | `/api/users/:user_id/categories/:id` | Modifier / supprimer une catégorie |
-| POST | `/api/users/:user_id/categories/:id/merge` | Fusionner une catégorie dans une autre |
-| GET / POST | `/api/users/:user_id/tags` | Lister / créer les tags |
-| PATCH / DELETE | `/api/users/:user_id/tags/:id` | Modifier / supprimer un tag |
-| GET / POST | `/api/users/:user_id/transactions` | Lister / créer les transactions |
-| PATCH / DELETE | `/api/users/:user_id/transactions/:id` | Modifier / supprimer une transaction |
-| POST | `/api/users/:user_id/transactions/bulk-update` | Modifier en lot (compte, catégorie, pointage, tag) |
-| POST | `/api/users/:user_id/transactions/bulk-delete` | Supprimer en lot |
-| POST | `/api/users/:user_id/transactions/:id/link-recurring` | Lier / délier une transaction récurrente |
-| GET / POST | `/api/users/:user_id/budgets` | Lister / définir les budgets |
-| DELETE | `/api/users/:user_id/budgets/:id` | Supprimer un budget |
-| GET / POST | `/api/users/:user_id/recurring-transactions` | Lister / créer les récurrents |
-| PATCH / DELETE | `/api/users/:user_id/recurring-transactions/:id` | Modifier / supprimer un récurrent |
-| POST | `/api/users/:user_id/recurring-transactions/:id/skip` | Sauter la prochaine occurrence |
-| POST | `/api/users/:user_id/recurring-transactions/generate` | Générer les récurrents actifs |
-| GET / POST | `/api/users/:user_id/bills` | Lister / créer les factures attendues |
-| GET | `/api/users/:user_id/bills/status?month=` | Statut des factures sur un mois |
-| PATCH / DELETE | `/api/users/:user_id/bills/:id` | Modifier / supprimer une facture |
-| POST | `/api/users/:user_id/bills/:id/matches` | Lier manuellement une dépense à une facture |
-| DELETE | `/api/users/:user_id/bills/:id/matches/:transaction_id` | Retirer un lien manuel |
-| GET / POST | `/api/users/:user_id/category-rules` | Lister / créer les règles |
-| PATCH / DELETE | `/api/users/:user_id/category-rules/:id` | Modifier / supprimer une règle |
-| POST | `/api/users/:user_id/category-rules/apply` | Appliquer les règles aux transactions sans catégorie |
-| GET / POST | `/api/users/:user_id/savings-goals` | Lister / créer les objectifs |
-| PATCH / DELETE | `/api/users/:user_id/savings-goals/:id` | Modifier / supprimer un objectif |
-| POST | `/api/users/:user_id/savings-goals/:id/contribute` | Verser sur un objectif |
-| POST | `/api/users/:user_id/savings-goals/:id/withdraw` | Retirer d'un objectif |
-| GET | `/api/users/:user_id/savings-goals/:id/contributions` | Historique des mouvements d'un objectif |
-| DELETE | `/api/users/:user_id/savings-goals/:id/contributions/:contribution_id` | Annuler un mouvement |
-| GET / POST | `/api/users/:user_id/account-snapshots` | Lister / créer les snapshots |
-| POST | `/api/users/:user_id/account-snapshots/batch` | Saisir plusieurs snapshots |
-| GET | `/api/users/:user_id/account-snapshots/suggestions` | Comptes à snapshoter (suggestions) |
-| DELETE | `/api/users/:user_id/account-snapshots/:id` | Supprimer un snapshot |
-| GET | `/api/users/:user_id/dashboard` | Résumé mensuel |
-| GET | `/api/users/:user_id/wealth-history` | Historique de patrimoine |
-| GET | `/api/users/:user_id/statistics` | Statistiques long terme |
-| GET | `/api/users/:user_id/search` | Recherche globale |
-| POST | `/api/users/:user_id/ai/chat` | Assistant IA avec tools lecture/action confirmée |
-| POST | `/api/users/:user_id/ai/chat/stream` | Variante en streaming (SSE) |
-| POST | `/api/users/:user_id/ai/confirm` | Confirmer une action proposée par l'IA |
-| POST | `/api/users/:user_id/import.csv` | Import CSV de transactions |
-| GET | `/api/users/:user_id/transactions.csv` | Export CSV des transactions |
-| GET | `/api/users/:user_id/export.json` | Sauvegarde JSON |
-| POST | `/api/users/:user_id/export` | Export JSON sélectif |
-| POST | `/api/users/:user_id/import.json` | Restauration JSON |
-| GET / PUT | `/api/settings/ai` | Lire / modifier la configuration IA stockée |
-| GET | `/api/ai/health` | État de configuration et test de connexion IA |
+| `AI_BASE_URL` | `https://api.openai.com/v1` | Endpoint compatible OpenAI (proxy, Ollama…) |
 
 ## Sécurité
 
-suzanne **n'embarque pas d'authentification applicative** : toute personne capable d'atteindre l'application a accès aux données de tous les utilisateurs configurés. C'est un choix assumé pour un usage personnel sur réseau privé.
+- Pas de comptes utilisateurs : toute personne qui atteint l'application voit tous les profils. Usage prévu : personnel, sur réseau privé.
+- `APP_TOKEN` ajoute un secret partagé sur l'API ; au premier refus, l'interface le demande et le garde dans le navigateur.
+- Ne commite jamais de données réelles : `.env`, exports JSON/CSV, relevés, captures personnelles. Le dépôt ne contient que des données fictives.
+- Garde des sauvegardes régulières (automatiques dans l'application, et un export JSON hors de la machine).
 
-En conséquence :
+## Documentation
 
-- ne l'expose **jamais** directement sur Internet ;
-- place-la derrière un VPN (WireGuard, Tailscale...), un reverse-proxy avec authentification, ou une interface privée ;
-- garde `.env` hors Git : il contient la connexion PostgreSQL ;
-- fais des exports JSON réguliers si la base contient des données importantes.
-
-La suppression d'un utilisateur efface ses données liées via les contraintes de base.
-
-### Token d'accès optionnel (`APP_TOKEN`)
-
-Pour une couche de protection légère — utile notamment parce que l'assistant IA consomme la clé OpenAI à chaque requête —, tu peux définir la variable d'environnement `APP_TOKEN` côté backend :
-
-- **non définie** → comportement historique, aucune auth ;
-- **définie** → toute requête `/api/*` doit présenter l'en-tête `Authorization: Bearer <APP_TOKEN>`, sinon `401`. Au premier `401`, le frontend ouvre un modal de saisie ; le token est ensuite stocké en `localStorage` et envoyé sur chaque requête.
-
-Ce n'est **pas** de la gestion d'utilisateurs : juste un secret partagé. Les téléchargements directs (`export.json`, `transactions.csv`) ouverts via un lien `<a>` ne portent pas l'en-tête et ne fonctionneront donc pas tant que `APP_TOKEN` est défini — utilise l'export sélectif depuis l'interface dans ce cas.
+- [Guide d'utilisation](docs/UTILISATION.md)
+- [Architecture du grand livre](docs/ARCHITECTURE-ledger.md)
+- [Décisions d'architecture (ADR)](docs/decisions/README.md)
+- [Contribuer](CONTRIBUTING.md)
 
 ## Licence
 
-Distribué sous licence MIT. Voir [LICENSE](LICENSE).
+MIT. Voir [LICENSE](LICENSE).
