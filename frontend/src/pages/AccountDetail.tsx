@@ -34,6 +34,7 @@ import type { Run } from '../lib/run';
 import '../styles/pages/accounts.css';
 import '../styles/pages/account-detail.css';
 import '../styles/pages/pea-insights.css';
+import { useTranslation } from 'react-i18next';
 
 const RANGES: Array<{ value: string; label: string }> = [
   { value: '6m', label: '6 mois' },
@@ -53,6 +54,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   reportCurrency: string;
   run: Run;
 }) {
+  const { t } = useTranslation();
   const params = useParams();
   const accountId = Number(params.id);
   const account = accounts.find((a) => a.id === accountId) as AccountWithInvestment | undefined;
@@ -136,8 +138,8 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   if (!account) {
     return (
       <section className="pg-stack">
-        <Link className="ad-back" to="/accounts"><ArrowLeft size={16} /> Comptes</Link>
-        <p className="acc-muted">Compte introuvable.</p>
+        <Link className="ad-back" to="/accounts"><ArrowLeft size={16} />  {t('comptes.account_detail.accounts')}</Link>
+        <p className="acc-muted">{t('comptes.account_detail.account_not_found')}</p>
       </section>
     );
   }
@@ -172,7 +174,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
 
   return (
     <section className="pg-stack ad">
-      <Link className="ad-back" to="/accounts"><ArrowLeft size={16} /> Comptes</Link>
+      <Link className="ad-back" to="/accounts"><ArrowLeft size={16} />  {t('comptes.account_detail.accounts')}</Link>
 
       <header className="acc-hero">
         <div className="acc-hero-main">
@@ -181,20 +183,20 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
           <strong className={`acc-hero-value num${heroValue < 0 ? ' expense' : ''}`}>{heroMoney(heroValue)}</strong>
           {isEnvelope && envelope && (
             <span className="acc-hero-sub">
-              <span>Titres <b className="num">{nativeMoney(heroValue - envelope.cash)}</b></span>
-              <span>Espèces <b className="num">{nativeMoney(envelope.cash)}</b></span>
+              <span>{t('comptes.account_detail.securities')} <b className="num">{nativeMoney(heroValue - envelope.cash)}</b></span>
+              <span>{t('comptes.account_detail.cash')} <b className="num">{nativeMoney(envelope.cash)}</b></span>
             </span>
           )}
           {!isEnvelope && activity && (
             <span className="acc-hero-sub">
-              <span>Pointé <b className="num">{nativeMoney(activity.cleared_balance)}</b></span>
-              <span>Ouvert le {formatDateFr(account.initial_balance_date)}</span>
+              <span>{t('comptes.account_detail.cleared')} <b className="num">{nativeMoney(activity.cleared_balance)}</b></span>
+              <span>{t('comptes.account_detail.opened_on')} {formatDateFr(account.initial_balance_date)}</span>
             </span>
           )}
         </div>
         <div className="acc-hero-actions">
-          <button type="button" className="secondary" onClick={() => setEditOpen(true)}><Pencil size={16} /> Modifier</button>
-          <button type="button" className="secondary" onClick={() => setSnapshotOpen(true)}><Plus size={16} /> Saisir un relevé</button>
+          <button type="button" className="secondary" onClick={() => setEditOpen(true)}><Pencil size={16} />  {t('comptes.account_detail.edit')}</button>
+          <button type="button" className="secondary" onClick={() => setSnapshotOpen(true)}><Plus size={16} />  {t('comptes.account_detail.enter_statement')}</button>
         </div>
       </header>
 
@@ -203,7 +205,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
         const pct = Math.min(100, (current / ceiling) * 100);
         return (
           <div className="ad-ceiling">
-            <div className="ad-ceiling-head"><span>Plafond {accountTypeLabel(account.type)}</span><span className="num">{money(current)} / {money(ceiling)}</span></div>
+            <div className="ad-ceiling-head"><span>{t('comptes.account_detail.cap')} {accountTypeLabel(account.type)}</span><span className="num">{money(current)} / {money(ceiling)}</span></div>
             <div className="pea-bar"><i style={{ width: `${pct}%` }} className={pct >= 100 ? 'full' : ''} /></div>
             <span className="acc-muted">{pct >= 100 ? 'Plafond atteint.' : `${money(ceiling - current)} encore versables.`}</span>
           </div>
@@ -211,14 +213,14 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
       })()}
 
       {isEnvelope && (
-        <nav className="pi-tabs" role="tablist" aria-label="Vues du compte">
+        <nav className="pi-tabs" role="tablist" aria-label={t('comptes.account_detail.account_views')}>
           {PEA_TABS.map((t) => (
             <button key={t.id} type="button" role="tab" aria-selected={peaTab === t.id} onClick={() => setPeaTab(t.id)}>{t.label}</button>
           ))}
         </nav>
       )}
 
-      {isEnvelope && !envelope && <p className="acc-muted"><Loader2 className="spin-icon" size={14} /> Chargement des positions…</p>}
+      {isEnvelope && !envelope && <p className="acc-muted"><Loader2 className="spin-icon" size={14} />  {t('comptes.account_detail.loading_positions')}</p>}
       {isEnvelope && envelope && peaTab === 'overview' && <PeaView account={account} data={envelope} asOf={asOf} history={envelopeHistory} />}
       {insight && peaTab === 'tracking' && <PeaTracking {...insight} />}
       {insight && peaTab === 'performance' && <PeaPerformance {...insight} />}
@@ -228,8 +230,8 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
       {overview && <>
       <section className="pg-section">
         <div className="pg-section-head">
-          <h2>Évolution</h2>
-          <div className="acc-seg" role="group" aria-label="Période">
+          <h2>{t('comptes.account_detail.evolution')}</h2>
+          <div className="acc-seg" role="group" aria-label={t('comptes.account_detail.period')}>
             {RANGES.map((r) => (
               <button key={r.value} type="button" aria-pressed={range === r.value} onClick={() => setRange(r.value)}>{r.label}</button>
             ))}
@@ -259,11 +261,11 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
       </section>
 
       <section className="pg-section">
-        <div className="pg-section-head"><h2>Mouvements récents</h2></div>
+        <div className="pg-section-head"><h2>{t('comptes.account_detail.recent_movements')}</h2></div>
         {activity == null ? (
-          <p className="acc-muted"><Loader2 className="spin-icon" size={14} /> Chargement…</p>
+          <p className="acc-muted"><Loader2 className="spin-icon" size={14} />  {t('comptes.account_detail.loading')}</p>
         ) : recent.length === 0 ? (
-          <p className="acc-muted">Aucun mouvement sur ce compte.</p>
+          <p className="acc-muted">{t('comptes.account_detail.no_movements_on_this_account')}</p>
         ) : (
           <>
             <ul className="ad-moves">
@@ -290,7 +292,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
               })}
             </ul>
             {recent.length >= activityLimit && activityLimit < 100 && (
-              <button type="button" className="secondary pea-more" onClick={() => setActivityLimit((n) => Math.min(100, n * 2))}>Afficher plus</button>
+              <button type="button" className="secondary pea-more" onClick={() => setActivityLimit((n) => Math.min(100, n * 2))}>{t('comptes.account_detail.show_more')}</button>
             )}
           </>
         )}
@@ -298,15 +300,15 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
 
       {!isEnvelope && activity && (
         <details className="acc-fold">
-          <summary>Pointage{activity.uncleared_count > 0 && <span className="acc-count">{activity.uncleared_count} non pointé{activity.uncleared_count > 1 ? 's' : ''}</span>}</summary>
+          <summary>{t('comptes.account_detail.clearing')}{activity.uncleared_count > 0 && <span className="acc-count">{activity.uncleared_count}  {t('comptes.account_detail.not_cleared')}{activity.uncleared_count > 1 ? 's' : ''}</span>}</summary>
           <div className="ad-fold-body">
-            <p className="acc-muted">Solde pointé : <b className="num">{nativeMoney(activity.cleared_balance)}</b>. Saisis le solde de ton relevé : écart nul = compte rapproché.</p>
-            <label className="ad-field">Solde du relevé ({account.currency})
+            <p className="acc-muted">{t('comptes.account_detail.cleared_balance')} <b className="num">{nativeMoney(activity.cleared_balance)}</b>{t('comptes.account_detail.enter_your_statement_balance_zero')}</p>
+            <label className="ad-field">{t('comptes.account_detail.statement_balance')}{account.currency})
               <input inputMode="decimal" autoComplete="off" value={statementBalance} onChange={(e) => setStatementBalance(e.target.value)} placeholder="1 234,56" />
             </label>
             {gap != null && (gap === 0
-              ? <p className="ad-ok">Compte rapproché.</p>
-              : <p className="ad-ko">Écart de <span className="num">{nativeMoney(Math.abs(gap))}</span> {gap > 0 ? 'manquant' : 'en trop'} dans les opérations pointées.</p>)}
+              ? <p className="ad-ok">{t('comptes.account_detail.account_reconciled')}</p>
+              : <p className="ad-ko">{t('comptes.account_detail.gap')} <span className="num">{nativeMoney(Math.abs(gap))}</span> {gap > 0 ? 'manquant' : 'en trop'}  {t('comptes.account_detail.in_cleared_transactions')}</p>)}
           </div>
         </details>
       )}
@@ -320,9 +322,9 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
       />
 
       <details className="acc-fold">
-        <summary>Relevés <span className="acc-count">{accountSnapshots.length}</span></summary>
+        <summary>{t('comptes.account_detail.statements')} <span className="acc-count">{accountSnapshots.length}</span></summary>
         {accountSnapshots.length === 0 ? (
-          <p className="acc-muted acc-pad" style={{ paddingTop: 12 }}>Aucun relevé pour ce compte.</p>
+          <p className="acc-muted acc-pad" style={{ paddingTop: 12 }}>{t('comptes.account_detail.no_statements_for_this_account')}</p>
         ) : (
           <ul className="acc-list">
             {accountSnapshots.map((s) => (
@@ -333,8 +335,8 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
                   <button
                     type="button"
                     className="row-btn"
-                    aria-label="Supprimer ce relevé"
-                    title="Supprimer"
+                    aria-label={t('comptes.account_detail.delete_this_statement')}
+                    title={t('comptes.account_detail.delete')}
                     onClick={() => void run(
                       () => api.deleteSnapshot(userId, s.id),
                       'Relevé supprimé',
@@ -352,12 +354,12 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
       {snapshotOpen && (
         <Modal title={`Relevé · ${account.name}`} onClose={() => setSnapshotOpen(false)}>
           <form className="form acc-form sheet-ok" onSubmit={submitSnapshot}>
-            <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
-            <label>Solde ({account.currency})<input name="balance" inputMode="decimal" autoComplete="off" required autoFocus placeholder="0,00" /></label>
-            {isEnvelope && <p className="acc-muted full">Pour ce compte, saisis les espèces seules : les titres sont valorisés à part.</p>}
+            <label>{t('comptes.account_detail.date')}<input name="date" type="date" defaultValue={todayIso()} required /></label>
+            <label>{t('comptes.account_detail.balance')}{account.currency})<input name="balance" inputMode="decimal" autoComplete="off" required autoFocus placeholder="0,00" /></label>
+            {isEnvelope && <p className="acc-muted full">{t('comptes.account_detail.for_this_account_enter_cash')}</p>}
             <div className="acc-form-actions full">
-              <button type="button" className="secondary" onClick={() => setSnapshotOpen(false)}>Annuler</button>
-              <button className="primary">Enregistrer</button>
+              <button type="button" className="secondary" onClick={() => setSnapshotOpen(false)}>{t('comptes.account_detail.cancel')}</button>
+              <button className="primary">{t('comptes.account_detail.save')}</button>
             </div>
           </form>
         </Modal>

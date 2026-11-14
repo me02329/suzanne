@@ -216,3 +216,30 @@ patrimoine.investments.no_order,Aucun ordre.,No orders.
 patrimoine.investments.fee_amount,frais {{amount}},fee {{amount}}
 patrimoine.investments.delete_order,Supprimer l’ordre,Delete order
 patrimoine.investments.order_deleted,Ordre supprimé,Order deleted
+patrimoine.goals.saved_for_your_goals,Épargné pour tes objectifs,Saved for your goals
+patrimoine.goals.of,sur,of
+patrimoine.goals.reached,% atteint,% reached
+patrimoine.goals.goal,objectif,goal
+patrimoine.goals.add_goal,Ajouter un objectif,Add a goal
+patrimoine.goals.no_goals,Aucun objectif.,No goals.
+patrimoine.goals.a_trip_down_payment_emergency,"Un voyage, un apport, un fonds d'urgence : fixe une cible et suis ta progression.","A trip, a down payment, an emergency fund: set a target and track your progress."
+patrimoine.goals.deposit,Verser,Deposit
+patrimoine.goals.name,Nom,Name
+patrimoine.goals.target,Cible,Target
+patrimoine.goals.already_saved,Déjà épargné,Already saved
+patrimoine.goals.goal_account,Compte de l'objectif,Goal account
+patrimoine.goals.none_manual_counter,Aucun (compteur manuel),None (manual counter)
+patrimoine.goals.deadline,Échéance,Deadline
+patrimoine.goals.colour,Couleur,Colour
+patrimoine.goals.cancel,Annuler,Cancel
+patrimoine.goals.amount,Montant,Amount
+patrimoine.goals.date,Date,Date
+patrimoine.goals.none_counter_only,Aucun (compteur seul),None (counter only)
+patrimoine.goals.label,Libellé,Label
+patrimoine.goals.loading,Chargement…,Loading…
+patrimoine.goals.no_deposits_recorded,Aucun versement enregistré.,No deposits recorded.
+patrimoine.goals.movement,mouvement,movement
+patrimoine.goals.total,· total,· total
+patrimoine.goals.cancelling_deposit_lowers_progress_linke,. Annuler un versement décrémente la progression ; le virement lié reste dans les opérations.,. Cancelling a deposit lowers the progress; the linked transfer stays in the transactions.
+patrimoine.goals.linked_transfer,virement lié,linked transfer
+patrimoine.goals.close,Fermer,Close

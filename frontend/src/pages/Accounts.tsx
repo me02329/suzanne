@@ -21,6 +21,7 @@ import { AccountFormModal } from '../components/accounts/AccountFormModal';
 import { SnapshotBatchModal } from '../components/accounts/SnapshotBatchModal';
 import type { Run } from '../lib/run';
 import '../styles/pages/accounts.css';
+import { useTranslation } from 'react-i18next';
 
 const ORDERED_GROUPS = ['cash', 'regulated_savings', 'investments', 'crypto', 'liabilities', 'other'];
 
@@ -35,6 +36,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
   summary: DashboardSummary | null;
   run: Run;
 }) {
+  const { t } = useTranslation();
   const [groupBy, setGroupBy] = usePersistedState<'type' | 'institution'>('accounts_group_by', 'type');
   const [formFor, setFormFor] = useState<AccountWithInvestment | 'new' | null>(null);
   const [batchOpen, setBatchOpen] = useState(false);
@@ -107,7 +109,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
           {money(balance, reportCurrency)}
         </Link>
         <div className="acc-row-actions">
-          <button type="button" className="row-btn" aria-label={`Modifier ${account.name}`} title="Modifier" onClick={() => setFormFor(account as AccountWithInvestment)}>
+          <button type="button" className="row-btn" aria-label={`Modifier ${account.name}`} title={t('comptes.accounts.edit')} onClick={() => setFormFor(account as AccountWithInvestment)}>
             <Pencil size={16} />
           </button>
           <RowMenu
@@ -132,38 +134,38 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
     <section className="acc-page">
       <header className="acc-hero">
         <div className="acc-hero-main">
-          <span className="acc-kicker">Patrimoine net</span>
+          <span className="acc-kicker">{t('comptes.accounts.net_worth')}</span>
           <strong className={`acc-hero-value num${netWorth < 0 ? ' expense' : ''}`}>{money(netWorth, reportCurrency)}</strong>
           {summary && (
             <span className="acc-hero-sub">
-              <span>Actifs <b className="num">{money(summary.balance_assets, reportCurrency)}</b></span>
-              <span>Passifs <b className="num">{money(summary.balance_liabilities, reportCurrency)}</b></span>
-              <span>{active.length} compte{active.length > 1 ? 's' : ''}</span>
+              <span>{t('comptes.accounts.assets')} <b className="num">{money(summary.balance_assets, reportCurrency)}</b></span>
+              <span>{t('comptes.accounts.liabilities')} <b className="num">{money(summary.balance_liabilities, reportCurrency)}</b></span>
+              <span>{active.length}  {t('comptes.accounts.account')}{active.length > 1 ? 's' : ''}</span>
             </span>
           )}
         </div>
         <div className="acc-hero-actions">
           <button type="button" className="secondary" onClick={() => setBatchOpen(true)} disabled={active.length === 0}>
-            <CalendarCheck size={16} /> Saisir les soldes de fin de mois
+            <CalendarCheck size={16} />  {t('comptes.accounts.enter_month_end_balances')}
           </button>
           <button type="button" className="primary accent" onClick={() => setFormFor('new')}>
-            <Plus size={16} /> Ajouter un compte
+            <Plus size={16} />  {t('comptes.accounts.add_account')}
           </button>
         </div>
       </header>
 
       {accounts.length === 0 ? (
         <div className="acc-empty">
-          <p>Aucun compte pour l'instant.</p>
-          <p className="acc-muted">Ajoute ton compte courant, tes livrets, ton PEA… Les soldes apparaîtront ici.</p>
+          <p>{t('comptes.accounts.no_accounts_yet')}</p>
+          <p className="acc-muted">{t('comptes.accounts.add_your_current_account_savings')}</p>
         </div>
       ) : (
         <>
-          <div className="acc-toolbar" role="group" aria-label="Regrouper les comptes">
-            <span className="acc-muted">Regrouper par</span>
+          <div className="acc-toolbar" role="group" aria-label={t('comptes.accounts.group_accounts')}>
+            <span className="acc-muted">{t('comptes.accounts.group_by')}</span>
             <div className="acc-seg">
-              <button type="button" aria-pressed={groupBy === 'type'} onClick={() => setGroupBy('type')}>Type</button>
-              <button type="button" aria-pressed={groupBy === 'institution'} onClick={() => setGroupBy('institution')}>Institution</button>
+              <button type="button" aria-pressed={groupBy === 'type'} onClick={() => setGroupBy('type')}>{t('comptes.accounts.type')}</button>
+              <button type="button" aria-pressed={groupBy === 'institution'} onClick={() => setGroupBy('institution')}>{t('comptes.accounts.institution')}</button>
             </div>
           </div>
 
@@ -183,24 +185,24 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
             {unassignedCount > 0 && (
               <section className="acc-group">
                 <header className="acc-group-head">
-                  <h2>Hors compte</h2>
+                  <h2>{t('comptes.accounts.no_account')}</h2>
                   <span className="num">{money(unassignedBalance, reportCurrency)}</span>
                 </header>
-                <p className="acc-muted acc-pad">{unassignedCount} opération{unassignedCount > 1 ? 's' : ''} sans compte, comptée{unassignedCount > 1 ? 's' : ''} dans les liquidités. Affecte-les depuis Transactions.</p>
+                <p className="acc-muted acc-pad">{unassignedCount}  {t('comptes.accounts.transaction')}{unassignedCount > 1 ? 's' : ''}  {t('comptes.accounts.without_account_counted')}{unassignedCount > 1 ? 's' : ''}  {t('comptes.accounts.as_cash_assign_them_from')}</p>
               </section>
             )}
           </div>
 
           {archived.length > 0 && (
             <details className="acc-fold">
-              <summary>Comptes archivés <span className="acc-count">{archived.length}</span></summary>
+              <summary>{t('comptes.accounts.archived_accounts')} <span className="acc-count">{archived.length}</span></summary>
               <ul className="acc-list">{archived.map(row)}</ul>
             </details>
           )}
 
           {recentSnapshots.length > 0 && (
             <details className="acc-fold">
-              <summary>Relevés récents <span className="acc-count">{snapshots.length}</span></summary>
+              <summary>{t('comptes.accounts.recent_statements')} <span className="acc-count">{snapshots.length}</span></summary>
               <ul className="acc-list">
                 {recentSnapshots.map((s) => {
                   const account = accountById.get(s.account_id);
@@ -215,8 +217,8 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                         <button
                           type="button"
                           className="row-btn"
-                          aria-label="Supprimer ce relevé"
-                          title="Supprimer"
+                          aria-label={t('comptes.accounts.delete_this_statement')}
+                          title={t('comptes.accounts.delete')}
                           onClick={() => void run(
                             () => api.deleteSnapshot(userId, s.id),
                             'Relevé supprimé',
@@ -245,11 +247,11 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       )}
       {batchOpen && <SnapshotBatchModal userId={userId} accounts={accounts} summary={summary} run={run} onClose={() => setBatchOpen(false)} />}
       {blocked && (
-        <Modal title="Suppression impossible" onClose={() => setBlocked(null)}>
+        <Modal title={t('comptes.accounts.cannot_delete')} onClose={() => setBlocked(null)}>
           <p className="acc-blocked sheet-ok">{blocked.message}</p>
-          <p className="acc-muted">Archivé, le compte disparaît des saisies mais garde son historique et son solde. Tu peux le rouvrir à tout moment.</p>
+          <p className="acc-muted">{t('comptes.accounts.once_archived_account_disappears_from')}</p>
           <div className="acc-form-actions">
-            <button type="button" className="secondary" onClick={() => setBlocked(null)}>Annuler</button>
+            <button type="button" className="secondary" onClick={() => setBlocked(null)}>{t('comptes.accounts.cancel')}</button>
             <button
               type="button"
               className="primary"
@@ -261,7 +263,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
                   { undo: () => api.updateAccount(userId, target.id, { archived: false }) },
                 ).then((ok) => { if (ok) setBlocked(null); });
               }}
-            ><Archive size={16} /> Archiver</button>
+            ><Archive size={16} />  {t('comptes.accounts.archive')}</button>
           </div>
         </Modal>
       )}

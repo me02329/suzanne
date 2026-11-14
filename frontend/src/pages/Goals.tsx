@@ -11,6 +11,7 @@ import { RowMenu } from '../components/accounts/RowMenu';
 import type { Run } from '../lib/run';
 import '../styles/pages/accounts.css';
 import '../styles/pages/goals.css';
+import { useTranslation } from 'react-i18next';
 
 export function Goals({ userId, goals, accounts, accountById, run }: {
   userId: number;
@@ -19,6 +20,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
   accountById: Map<number, Account>;
   run: Run;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<SavingsGoal | 'new' | null>(null);
   const [moving, setMoving] = useState<{ goal: SavingsGoal; kind: 'in' | 'out' } | null>(null);
   const [historyGoal, setHistoryGoal] = useState<number | null>(null);
@@ -35,25 +37,25 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
     <section className="pg-stack">
       <header className="acc-hero">
         <div className="acc-hero-main">
-          <span className="acc-kicker">Épargné pour tes objectifs</span>
+          <span className="acc-kicker">{t('patrimoine.goals.saved_for_your_goals')}</span>
           <strong className="acc-hero-value num">{money(saved)}</strong>
           {goals.length > 0 && (
             <span className="acc-hero-sub">
-              <span>sur <b className="num">{money(target)}</b></span>
-              <span>{Math.round(pctAll)} % atteint</span>
-              <span>{goals.length} objectif{goals.length > 1 ? 's' : ''}</span>
+              <span>{t('patrimoine.goals.of')} <b className="num">{money(target)}</b></span>
+              <span>{Math.round(pctAll)}  {t('patrimoine.goals.reached')}</span>
+              <span>{goals.length}  {t('patrimoine.goals.goal')}{goals.length > 1 ? 's' : ''}</span>
             </span>
           )}
         </div>
         <div className="acc-hero-actions">
-          <button type="button" className="primary accent" onClick={() => setForm('new')}><Plus size={16} /> Ajouter un objectif</button>
+          <button type="button" className="primary accent" onClick={() => setForm('new')}><Plus size={16} />  {t('patrimoine.goals.add_goal')}</button>
         </div>
       </header>
 
       {goals.length === 0 ? (
         <div className="acc-empty">
-          <p>Aucun objectif.</p>
-          <p className="acc-muted">Un voyage, un apport, un fonds d'urgence : fixe une cible et suis ta progression.</p>
+          <p>{t('patrimoine.goals.no_goals')}</p>
+          <p className="acc-muted">{t('patrimoine.goals.a_trip_down_payment_emergency')}</p>
         </div>
       ) : (
         <div className="cards">
@@ -81,7 +83,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
                   <span>{account ? <><Link2 size={12} /> {account.name}</> : 'Compteur manuel'}</span>
                   <span>{g.deadline ? `Échéance ${formatDateFr(g.deadline)}` : 'Sans échéance'}</span>
                 </div>
-                <button type="button" className="secondary goal-cta" onClick={() => setMoving({ goal: g, kind: 'in' })}><Coins size={16} /> Verser</button>
+                <button type="button" className="secondary goal-cta" onClick={() => setMoving({ goal: g, kind: 'in' })}><Coins size={16} />  {t('patrimoine.goals.deposit')}</button>
               </article>
             );
           })}
@@ -98,6 +100,7 @@ export function Goals({ userId, goals, accounts, accountById, run }: {
 }
 
 function GoalFormModal({ userId, goal, accounts, run, onClose }: { userId: number; goal: SavingsGoal | null; accounts: Account[]; run: Run; onClose: () => void }) {
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -120,20 +123,20 @@ function GoalFormModal({ userId, goal, accounts, run, onClose }: { userId: numbe
   return (
     <Modal title={goal ? `Modifier « ${goal.name} »` : 'Ajouter un objectif'} onClose={onClose}>
       <form className="form acc-form sheet-ok" onSubmit={submit}>
-        <label className="full">Nom<input name="name" defaultValue={goal?.name ?? ''} required autoFocus={!goal} /></label>
-        <label>Cible<input name="target_amount" inputMode="decimal" autoComplete="off" defaultValue={goal ? String(goal.target_amount).replace('.', ',') : ''} required /></label>
-        <label>Déjà épargné<input name="current_amount" inputMode="decimal" autoComplete="off" defaultValue={goal ? String(goal.current_amount).replace('.', ',') : '0'} /></label>
-        <label className="full">Compte de l'objectif
+        <label className="full">{t('patrimoine.goals.name')}<input name="name" defaultValue={goal?.name ?? ''} required autoFocus={!goal} /></label>
+        <label>{t('patrimoine.goals.target')}<input name="target_amount" inputMode="decimal" autoComplete="off" defaultValue={goal ? String(goal.target_amount).replace('.', ',') : ''} required /></label>
+        <label>{t('patrimoine.goals.already_saved')}<input name="current_amount" inputMode="decimal" autoComplete="off" defaultValue={goal ? String(goal.current_amount).replace('.', ',') : '0'} /></label>
+        <label className="full">{t('patrimoine.goals.goal_account')}
           <select name="account_id" defaultValue={goal?.account_id ?? ''}>
-            <option value="">Aucun (compteur manuel)</option>
+            <option value="">{t('patrimoine.goals.none_manual_counter')}</option>
             {pickableAccounts(accounts, goal?.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </label>
-        <label>Échéance<input name="deadline" type="date" defaultValue={goal?.deadline?.slice(0, 10) ?? ''} /></label>
-        <label>Couleur<input name="color" type="color" defaultValue={goal?.color ?? '#4a6a00'} /></label>
+        <label>{t('patrimoine.goals.deadline')}<input name="deadline" type="date" defaultValue={goal?.deadline?.slice(0, 10) ?? ''} /></label>
+        <label>{t('patrimoine.goals.colour')}<input name="color" type="color" defaultValue={goal?.color ?? '#4a6a00'} /></label>
         {error && <p className="acc-error full" role="alert">{error}</p>}
         <div className="acc-form-actions full">
-          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('patrimoine.goals.cancel')}</button>
           <button className="primary">{goal ? 'Enregistrer' : 'Ajouter'}</button>
         </div>
       </form>
@@ -142,6 +145,7 @@ function GoalFormModal({ userId, goal, accounts, run, onClose }: { userId: numbe
 }
 
 function MoveModal({ userId, goal, kind, accounts, run, onClose }: { userId: number; goal: SavingsGoal; kind: 'in' | 'out'; accounts: Account[]; run: Run; onClose: () => void }) {
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const others = pickableAccounts(accounts).filter((a) => a.id !== goal.account_id);
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -163,17 +167,17 @@ function MoveModal({ userId, goal, kind, accounts, run, onClose }: { userId: num
   return (
     <Modal title={`${kind === 'in' ? 'Verser sur' : 'Retirer de'} « ${goal.name} »`} onClose={onClose}>
       <form className="form acc-form sheet-ok" onSubmit={submit}>
-        <label>Montant<input name="amount" inputMode="decimal" autoComplete="off" required autoFocus placeholder="0,00" /></label>
-        <label>Date<input name="date" type="date" defaultValue={todayIso()} required /></label>
+        <label>{t('patrimoine.goals.amount')}<input name="amount" inputMode="decimal" autoComplete="off" required autoFocus placeholder="0,00" /></label>
+        <label>{t('patrimoine.goals.date')}<input name="date" type="date" defaultValue={todayIso()} required /></label>
         {goal.account_id != null && (
           <label className="full">{kind === 'in' ? 'Depuis le compte' : 'Vers le compte'}
             <select name="other_account_id">
-              <option value="">Aucun (compteur seul)</option>
+              <option value="">{t('patrimoine.goals.none_counter_only')}</option>
               {others.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
         )}
-        <label className="full">Libellé<input name="description" placeholder={kind === 'in' ? 'Versement mensuel' : 'Achat prévu'} /></label>
+        <label className="full">{t('patrimoine.goals.label')}<input name="description" placeholder={kind === 'in' ? 'Versement mensuel' : 'Achat prévu'} /></label>
         <p className="acc-muted full">
           {goal.account_id != null
             ? `Avec un compte choisi, un virement est créé ${kind === 'in' ? 'vers' : 'depuis'} le compte de l'objectif.`
@@ -182,7 +186,7 @@ function MoveModal({ userId, goal, kind, accounts, run, onClose }: { userId: num
         </p>
         {error && <p className="acc-error full" role="alert">{error}</p>}
         <div className="acc-form-actions full">
-          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('patrimoine.goals.cancel')}</button>
           <button className="primary">{kind === 'in' ? 'Verser' : 'Retirer'}</button>
         </div>
       </form>
@@ -191,6 +195,7 @@ function MoveModal({ userId, goal, kind, accounts, run, onClose }: { userId: num
 }
 
 function GoalHistoryModal({ userId, goal, run, onClose }: { userId: number; goal: SavingsGoal; run: Run; onClose: () => void }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<GoalContribution[] | null>(null);
   const [version, setVersion] = useState(0);
   useEffect(() => {
@@ -202,16 +207,16 @@ function GoalHistoryModal({ userId, goal, run, onClose }: { userId: number; goal
   return (
     <Modal title={`Historique · ${goal.name}`} onClose={onClose}>
       <div className="sheet-ok">
-        {rows == null ? <p className="acc-muted"><Loader2 className="spin-icon" size={14} /> Chargement…</p>
-          : rows.length === 0 ? <p className="acc-muted">Aucun versement enregistré.</p>
+        {rows == null ? <p className="acc-muted"><Loader2 className="spin-icon" size={14} />  {t('patrimoine.goals.loading')}</p>
+          : rows.length === 0 ? <p className="acc-muted">{t('patrimoine.goals.no_deposits_recorded')}</p>
             : (
               <>
-                <p className="acc-muted">{rows.length} mouvement{rows.length > 1 ? 's' : ''} · total <b className="num">{money(Math.round(total * 100) / 100)}</b>. Annuler un versement décrémente la progression ; le virement lié reste dans les opérations.</p>
+                <p className="acc-muted">{rows.length}  {t('patrimoine.goals.movement')}{rows.length > 1 ? 's' : ''}  {t('patrimoine.goals.total')} <b className="num">{money(Math.round(total * 100) / 100)}</b>{t('patrimoine.goals.cancelling_deposit_lowers_progress_linke')}</p>
                 <ul className="goal-history">
                   {rows.map((c) => (
                     <li key={c.id}>
                       <div className="goal-history-main">
-                        <span>{c.description ?? (c.amount < 0 ? 'Retrait' : 'Versement')}{c.transaction_id != null && <ArrowLeftRight size={12} className="goal-tx" aria-label="virement lié" />}</span>
+                        <span>{c.description ?? (c.amount < 0 ? 'Retrait' : 'Versement')}{c.transaction_id != null && <ArrowLeftRight size={12} className="goal-tx" aria-label={t('patrimoine.goals.linked_transfer')} />}</span>
                         <small>{formatDateFr(c.date)}</small>
                       </div>
                       <span className={`num ${c.amount < 0 ? 'expense' : 'income'}`}>{c.amount < 0 ? '−' : '+'}{money(Math.abs(c.amount))}</span>
@@ -219,7 +224,7 @@ function GoalHistoryModal({ userId, goal, run, onClose }: { userId: number; goal
                         type="button"
                         className="row-btn"
                         aria-label={c.amount < 0 ? 'Annuler ce retrait' : 'Annuler ce versement'}
-                        title="Annuler"
+                        title={t('patrimoine.goals.cancel')}
                         onClick={() => void run(() => api.deleteGoalContribution(userId, goal.id, c.id), 'Mouvement annulé').then((ok) => { if (ok) setVersion((v) => v + 1); })}
                       ><Trash2 size={16} /></button>
                     </li>
@@ -227,7 +232,7 @@ function GoalHistoryModal({ userId, goal, run, onClose }: { userId: number; goal
                 </ul>
               </>
             )}
-        <div className="acc-form-actions"><button type="button" className="secondary" onClick={onClose}>Fermer</button></div>
+        <div className="acc-form-actions"><button type="button" className="secondary" onClick={onClose}>{t('patrimoine.goals.close')}</button></div>
       </div>
     </Modal>
   );

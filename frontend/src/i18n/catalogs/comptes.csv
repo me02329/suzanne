@@ -43,3 +43,62 @@ comptes.snapshot_batch_modal.create_account_first,Crée d'abord un compte.,Creat
 comptes.snapshot_batch_modal.estimated,Estimé,Estimated
 comptes.snapshot_batch_modal.cancel,Annuler,Cancel
 comptes.snapshot_batch_modal.save,Enregistrer,Save
+comptes.accounts.edit,Modifier,Edit
+comptes.accounts.net_worth,Patrimoine net,Net worth
+comptes.accounts.assets,Actifs,Assets
+comptes.accounts.liabilities,Passifs,Liabilities
+comptes.accounts.account,compte,account
+comptes.accounts.enter_month_end_balances,Saisir les soldes de fin de mois,Enter month-end balances
+comptes.accounts.add_account,Ajouter un compte,Add an account
+comptes.accounts.no_accounts_yet,Aucun compte pour l'instant.,No accounts yet.
+comptes.accounts.add_your_current_account_savings,"Ajoute ton compte courant, tes livrets, ton PEA… Les soldes apparaîtront ici.","Add your current account, savings accounts, PEA… Balances will show up here."
+comptes.accounts.group_accounts,Regrouper les comptes,Group accounts
+comptes.accounts.group_by,Regrouper par,Group by
+comptes.accounts.type,Type,Type
+comptes.accounts.institution,Institution,Institution
+comptes.accounts.no_account,Hors compte,No account
+comptes.accounts.transaction,opération,transaction
+comptes.accounts.without_account_counted,"sans compte, comptée","without an account, counted"
+comptes.accounts.as_cash_assign_them_from,dans les liquidités. Affecte-les depuis Transactions.,as cash. Assign them from Transactions.
+comptes.accounts.archived_accounts,Comptes archivés,Archived accounts
+comptes.accounts.recent_statements,Relevés récents,Recent statements
+comptes.accounts.delete_this_statement,Supprimer ce relevé,Delete this statement
+comptes.accounts.delete,Supprimer,Delete
+comptes.accounts.cannot_delete,Suppression impossible,Cannot delete
+comptes.accounts.once_archived_account_disappears_from,"Archivé, le compte disparaît des saisies mais garde son historique et son solde. Tu peux le rouvrir à tout moment.","Once archived, the account disappears from entry forms but keeps its history and balance. You can reopen it at any time."
+comptes.accounts.cancel,Annuler,Cancel
+comptes.accounts.archive,Archiver,Archive
+comptes.account_detail.accounts,Comptes,Accounts
+comptes.account_detail.account_not_found,Compte introuvable.,Account not found.
+comptes.account_detail.securities,Titres,Securities
+comptes.account_detail.cash,Espèces,Cash
+comptes.account_detail.cleared,Pointé,Cleared
+comptes.account_detail.opened_on,Ouvert le,Opened on
+comptes.account_detail.edit,Modifier,Edit
+comptes.account_detail.enter_statement,Saisir un relevé,Enter a statement
+comptes.account_detail.cap,Plafond,Cap
+comptes.account_detail.account_views,Vues du compte,Account views
+comptes.account_detail.loading_positions,Chargement des positions…,Loading positions…
+comptes.account_detail.evolution,Évolution,Evolution
+comptes.account_detail.period,Période,Period
+comptes.account_detail.recent_movements,Mouvements récents,Recent movements
+comptes.account_detail.loading,Chargement…,Loading…
+comptes.account_detail.no_movements_on_this_account,Aucun mouvement sur ce compte.,No movements on this account.
+comptes.account_detail.show_more,Afficher plus,Show more
+comptes.account_detail.clearing,Pointage,Clearing
+comptes.account_detail.not_cleared,non pointé,not cleared
+comptes.account_detail.cleared_balance,Solde pointé :,Cleared balance:
+comptes.account_detail.enter_your_statement_balance_zero,. Saisis le solde de ton relevé : écart nul = compte rapproché.,. Enter your statement balance: zero gap = account reconciled.
+comptes.account_detail.statement_balance,Solde du relevé (,Statement balance (
+comptes.account_detail.account_reconciled,Compte rapproché.,Account reconciled.
+comptes.account_detail.gap,Écart de,Gap of
+comptes.account_detail.in_cleared_transactions,dans les opérations pointées.,in cleared transactions.
+comptes.account_detail.statements,Relevés,Statements
+comptes.account_detail.no_statements_for_this_account,Aucun relevé pour ce compte.,No statements for this account.
+comptes.account_detail.delete_this_statement,Supprimer ce relevé,Delete this statement
+comptes.account_detail.delete,Supprimer,Delete
+comptes.account_detail.date,Date,Date
+comptes.account_detail.balance,Solde (,Balance (
+comptes.account_detail.for_this_account_enter_cash,"Pour ce compte, saisis les espèces seules : les titres sont valorisés à part.","For this account, enter cash only: securities are valued separately."
+comptes.account_detail.cancel,Annuler,Cancel
+comptes.account_detail.save,Enregistrer,Save

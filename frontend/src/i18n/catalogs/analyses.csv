@@ -1,0 +1,39 @@
+keys,fr,en
+analyses.simulator.mode,Mode,Mode
+analyses.simulator.simulator,Simulateur,Simulator
+analyses.simulator.scenarios,Scénarios,Scenarios
+analyses.simulator.in_pea,Dans un PEA,In a PEA
+analyses.simulator.deposits_capped_at,versements plafonnés à,deposits capped at
+analyses.simulator.pea_taxation,", fiscalité PEA",", PEA taxation"
+analyses.simulator.in,Dans,In
+analyses.simulator.yr,an,yr
+analyses.simulator.net_tax,Net d’impôt,Net of tax
+analyses.simulator.paid_in,Versé,Paid in
+analyses.simulator.starting_capital,Capital de départ,Starting capital
+analyses.simulator.monthly_deposit,Versement mensuel,Monthly deposit
+analyses.simulator.annual_return,Rendement annuel,Annual return
+analyses.simulator.duration,Durée,Duration
+analyses.simulator.start_from_my_pea,Partir de mon PEA (,Start from my PEA (
+analyses.simulator.interest,Intérêts,Interest
+analyses.simulator.tax_on_withdrawal,Impôt à la sortie,Tax on withdrawal
+analyses.simulator.social_charges,PS,Social charges
+analyses.simulator.net_received,Net perçu,Net received
+analyses.simulator.full_withdrawal,retrait total,full withdrawal
+analyses.simulator.projection,Projection,Projection
+analyses.simulator.year_by_year,Année par année,Year by year
+analyses.simulator.year,Année,Year
+analyses.simulator.capital,Capital,Capital
+analyses.simulator.interest_share,Part intérêts,Interest share
+analyses.simulator.return_compounded_monthly_deposit_at,"Rendement composé chaque mois, versement en début de mois. Impôt estimé pour un retrait total au terme, au taux de prélèvements sociaux actuel","Return compounded monthly, deposit at the start of the month. Tax estimated for a full withdrawal at the end, at the current social charges rate"
+analyses.simulator.scenario_name,Nom du scénario,Scenario name
+analyses.simulator.monthly,Mensuel,Monthly
+analyses.simulator.return,Rendement,Return
+analyses.simulator.add_scenario,Ajouter un scénario,Add a scenario
+analyses.simulator.comparison_over,Comparaison sur,Comparison over
+analyses.simulator.years,ans,years
+analyses.simulator.final_capital,Capital final,Final capital
+analyses.simulator.the_highest,le plus haut,the highest
+analyses.simulator.beyond_this_monthly_deposits_stop,"Au-delà, les versements mensuels s'arrêtent : le PEA est plein.","Beyond this, monthly deposits stop: the PEA is full."
+analyses.simulator.cap_reached_in_year_n,plafond atteint en {{n}}e année,cap reached in year {{n}}
+analyses.simulator.amount_per_month,{{amount}}/mois,{{amount}}/month
+analyses.simulator.capital_only,capital seul,capital only

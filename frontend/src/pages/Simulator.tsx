@@ -10,6 +10,7 @@ import '../styles/pages/accounts.css';
 import '../styles/pages/pea.css';
 import '../styles/pages/simulator.css';
 import { localeTag } from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 type Mode = 'simulator' | 'scenarios';
 
@@ -41,6 +42,7 @@ function simulate(initial: number, monthly: number, rate: number, years: number,
 // Simulateur d'intérêts composés + comparaison de scénarios (njord : pages
 // Simulator et Scenarios), avec plafond PEA et net d'impôt à la sortie.
 export function Simulator({ summary, reportCurrency }: { summary: DashboardSummary | null; reportCurrency: string }) {
+  const { t } = useTranslation();
   const [mode, setMode] = usePersistedState<Mode>('simulator_mode', 'simulator');
   const ccy = summary?.currency ?? reportCurrency;
   const fmt = (v: number) => money(v, ccy);
@@ -48,9 +50,9 @@ export function Simulator({ summary, reportCurrency }: { summary: DashboardSumma
 
   return (
     <section className="pg-stack sim">
-      <div className="acc-seg sim-mode" role="group" aria-label="Mode">
-        <button type="button" aria-pressed={mode === 'simulator'} onClick={() => setMode('simulator')}>Simulateur</button>
-        <button type="button" aria-pressed={mode === 'scenarios'} onClick={() => setMode('scenarios')}>Scénarios</button>
+      <div className="acc-seg sim-mode" role="group" aria-label={t('analyses.simulator.mode')}>
+        <button type="button" aria-pressed={mode === 'simulator'} onClick={() => setMode('simulator')}>{t('analyses.simulator.simulator')}</button>
+        <button type="button" aria-pressed={mode === 'scenarios'} onClick={() => setMode('scenarios')}>{t('analyses.simulator.scenarios')}</button>
       </div>
       {mode === 'simulator'
         ? <SingleSimulator fmt={fmt} ccy={ccy} peaBalance={peaBalance} />
@@ -72,15 +74,17 @@ function Field({ label, value, onChange, suffix, numeric = 'decimal' }: { label:
 }
 
 function PeaToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  const { t } = useTranslation();
   return (
     <label className="sim-check">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span>Dans un PEA <small>versements plafonnés à <span className="num">{money(PEA_CEILING, 'EUR')}</span>, fiscalité PEA</small></span>
+      <span>{t('analyses.simulator.in_pea')} <small>{t('analyses.simulator.deposits_capped_at')} <span className="num">{money(PEA_CEILING, 'EUR')}</span>{t('analyses.simulator.pea_taxation')}</small></span>
     </label>
   );
 }
 
 function SingleSimulator({ fmt, ccy, peaBalance }: { fmt: (v: number) => string; ccy: string; peaBalance: number }) {
+  const { t } = useTranslation();
   const theme = useChartTheme();
   const narrow = useIsNarrow();
   const asOf = todayIso();
@@ -103,41 +107,41 @@ function SingleSimulator({ fmt, ccy, peaBalance }: { fmt: (v: number) => string;
     <>
       <header className="acc-hero">
         <div className="acc-hero-main">
-          <span className="acc-kicker">Dans {years} an{years > 1 ? 's' : ''}</span>
+          <span className="acc-kicker">{t('analyses.simulator.in')} {years}  {t('analyses.simulator.yr')}{years > 1 ? 's' : ''}</span>
           <strong className="acc-hero-value num">{fmt(result.finalTotal)}</strong>
           <span className="acc-hero-sub">
-            <span>Net d’impôt <b className="num">{fmt(tax.net)}</b></span>
-            <span>Versé <b className="num">{fmt(result.finalContributed)}</b></span>
+            <span>{t('analyses.simulator.net_tax')} <b className="num">{fmt(tax.net)}</b></span>
+            <span>{t('analyses.simulator.paid_in')} <b className="num">{fmt(result.finalContributed)}</b></span>
             {multiplier != null && <span>×<b className="num">{multiplier.toLocaleString(localeTag(), { maximumFractionDigits: 2 })}</b></span>}
           </span>
         </div>
       </header>
 
       <div className="sim-form">
-        <Field label="Capital de départ" value={initial} onChange={setInitial} suffix={ccy} />
-        <Field label="Versement mensuel" value={monthly} onChange={setMonthly} suffix={`${ccy}/mois`} />
-        <Field label="Rendement annuel" value={rate} onChange={setRate} suffix="%/an" />
-        <Field label="Durée" value={yearsRaw} onChange={setYears} suffix="ans" numeric="numeric" />
+        <Field label={t('analyses.simulator.starting_capital')} value={initial} onChange={setInitial} suffix={ccy} />
+        <Field label={t('analyses.simulator.monthly_deposit')} value={monthly} onChange={setMonthly} suffix={`${ccy}/mois`} />
+        <Field label={t('analyses.simulator.annual_return')} value={rate} onChange={setRate} suffix="%/an" />
+        <Field label={t('analyses.simulator.duration')} value={yearsRaw} onChange={setYears} suffix="ans" numeric="numeric" />
         <PeaToggle checked={pea} onChange={setPea} />
         {peaBalance > 0 && (
           <button type="button" className="secondary sim-prefill" onClick={() => setInitial(String(Math.round(peaBalance)))}>
-            <Wand2 size={16} /> Partir de mon PEA (<span className="num">{fmt(peaBalance)}</span>)
+            <Wand2 size={16} />  {t('analyses.simulator.start_from_my_pea')}<span className="num">{fmt(peaBalance)}</span>)
           </button>
         )}
       </div>
 
       <div className="kpis">
-        <div className="kpi"><span>Versé</span><strong>{fmt(result.finalContributed)}</strong><small>{result.ceilingReachedMonth != null ? `plafond atteint en ${Math.ceil((result.ceilingReachedMonth + 1) / 12)}e année` : `${num(monthly) > 0 ? `${fmt(num(monthly))}/mois` : 'capital seul'}`}</small></div>
-        <div className="kpi"><span>Intérêts</span><strong className={result.finalInterest >= 0 ? 'income' : 'expense'}>{fmt(result.finalInterest)}</strong><small>{result.finalTotal > 0 ? `${Math.round((result.finalInterest / result.finalTotal) * 100)} % du capital` : '—'}</small></div>
+        <div className="kpi"><span>{t('analyses.simulator.paid_in')}</span><strong>{fmt(result.finalContributed)}</strong><small>{result.ceilingReachedMonth != null ? t('analyses.simulator.cap_reached_in_year_n', { n: Math.ceil((result.ceilingReachedMonth + 1) / 12) }) : num(monthly) > 0 ? t('analyses.simulator.amount_per_month', { amount: fmt(num(monthly)) }) : t('analyses.simulator.capital_only')}</small></div>
+        <div className="kpi"><span>{t('analyses.simulator.interest')}</span><strong className={result.finalInterest >= 0 ? 'income' : 'expense'}>{fmt(result.finalInterest)}</strong><small>{result.finalTotal > 0 ? `${Math.round((result.finalInterest / result.finalTotal) * 100)} % du capital` : '—'}</small></div>
         <div className="kpi">
-          <span>Impôt à la sortie</span><strong>{fmt(tax.total)}</strong>
-          <small>{tax.incomeRate > 0 ? `PFU ${(tax.incomeRate * 100).toLocaleString(localeTag())} % + ` : ''}PS {(tax.socialRate * 100).toLocaleString(localeTag())} %</small>
+          <span>{t('analyses.simulator.tax_on_withdrawal')}</span><strong>{fmt(tax.total)}</strong>
+          <small>{tax.incomeRate > 0 ? `PFU ${(tax.incomeRate * 100).toLocaleString(localeTag())} % + ` : ''}{t('analyses.simulator.social_charges')} {(tax.socialRate * 100).toLocaleString(localeTag())} %</small>
         </div>
-        <div className="kpi"><span>Net perçu</span><strong>{fmt(tax.net)}</strong><small>retrait total</small></div>
+        <div className="kpi"><span>{t('analyses.simulator.net_received')}</span><strong>{fmt(tax.net)}</strong><small>{t('analyses.simulator.full_withdrawal')}</small></div>
       </div>
 
       <section className="pg-section">
-        <div className="pg-section-head"><h2>Projection</h2></div>
+        <div className="pg-section-head"><h2>{t('analyses.simulator.projection')}</h2></div>
         <div className="sim-chart">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
@@ -154,18 +158,18 @@ function SingleSimulator({ fmt, ccy, peaBalance }: { fmt: (v: number) => string;
       </section>
 
       <section className="pg-section">
-        <div className="pg-section-head"><h2>Année par année</h2></div>
+        <div className="pg-section-head"><h2>{t('analyses.simulator.year_by_year')}</h2></div>
         <div className="pea-table-wrap">
           <table className="pea-table">
-            <thead><tr><th>Année</th><th className="r">Capital</th><th className="r">Versé</th><th className="r">Intérêts</th><th className="r">Part intérêts</th></tr></thead>
+            <thead><tr><th>{t('analyses.simulator.year')}</th><th className="r">{t('analyses.simulator.capital')}</th><th className="r">{t('analyses.simulator.paid_in')}</th><th className="r">{t('analyses.simulator.interest')}</th><th className="r">{t('analyses.simulator.interest_share')}</th></tr></thead>
             <tbody>
               {rows.map((p) => (
                 <tr key={p.year}>
-                  <td className="pea-title"><strong>Année {p.year}</strong></td>
-                  <td className="r num pea-value" data-label="Capital">{fmt(p.total)}</td>
-                  <td className="r num" data-label="Versé">{fmt(p.contributed)}</td>
-                  <td className="r num income" data-label="Intérêts">{fmt(p.interest)}</td>
-                  <td className="r num" data-label="Part intérêts">{p.total > 0 ? `${Math.round((p.interest / p.total) * 100)} %` : '—'}</td>
+                  <td className="pea-title"><strong>{t('analyses.simulator.year')} {p.year}</strong></td>
+                  <td className="r num pea-value" data-label={t('analyses.simulator.capital')}>{fmt(p.total)}</td>
+                  <td className="r num" data-label={t('analyses.simulator.paid_in')}>{fmt(p.contributed)}</td>
+                  <td className="r num income" data-label={t('analyses.simulator.interest')}>{fmt(p.interest)}</td>
+                  <td className="r num" data-label={t('analyses.simulator.interest_share')}>{p.total > 0 ? `${Math.round((p.interest / p.total) * 100)} %` : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -175,7 +179,8 @@ function SingleSimulator({ fmt, ccy, peaBalance }: { fmt: (v: number) => string;
           <button type="button" className="secondary pea-more" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Tous les 5 ans' : 'Toutes les années'}</button>
         )}
         <p className="pea-foot">
-          Rendement composé chaque mois, versement en début de mois. Impôt estimé pour un retrait total au terme, au taux de prélèvements sociaux actuel
+          
+          {t('analyses.simulator.return_compounded_monthly_deposit_at')}
           {pea ? ' (PEA : exonération d’impôt sur le revenu après 5 ans).' : ' (compte-titres : prélèvement forfaitaire unique).'}
         </p>
       </section>
@@ -184,6 +189,7 @@ function SingleSimulator({ fmt, ccy, peaBalance }: { fmt: (v: number) => string;
 }
 
 function Scenarios({ fmt, ccy }: { fmt: (v: number) => string; ccy: string }) {
+  const { t } = useTranslation();
   const theme = useChartTheme();
   const asOf = todayIso();
   const [initial, setInitial] = usePersistedState('scenarios_initial', '0');
@@ -214,8 +220,8 @@ function Scenarios({ fmt, ccy }: { fmt: (v: number) => string; ccy: string }) {
   return (
     <>
       <div className="sim-form sim-form-common">
-        <Field label="Capital de départ" value={initial} onChange={setInitial} suffix={ccy} />
-        <Field label="Durée" value={yearsRaw} onChange={setYears} suffix="ans" numeric="numeric" />
+        <Field label={t('analyses.simulator.starting_capital')} value={initial} onChange={setInitial} suffix={ccy} />
+        <Field label={t('analyses.simulator.duration')} value={yearsRaw} onChange={setYears} suffix="ans" numeric="numeric" />
         <PeaToggle checked={pea} onChange={setPea} />
       </div>
 
@@ -223,21 +229,21 @@ function Scenarios({ fmt, ccy }: { fmt: (v: number) => string; ccy: string }) {
         {results.map(({ scenario, result, tax }, i) => (
           <article key={scenario.id} className="sim-scenario" style={{ borderTopColor: seriesColor(theme, i) }}>
             <div className="sim-scenario-head">
-              <input aria-label="Nom du scénario" value={scenario.label} onChange={(e) => update(scenario.id, { label: e.target.value })} />
+              <input aria-label={t('analyses.simulator.scenario_name')} value={scenario.label} onChange={(e) => update(scenario.id, { label: e.target.value })} />
               <button type="button" className="row-btn" aria-label={`Supprimer ${scenario.label}`} disabled={scenarios.length <= 1} onClick={() => remove(scenario.id)}><Trash2 size={16} /></button>
             </div>
             <div className="sim-scenario-fields">
-              <Field label="Mensuel" value={scenario.monthly} onChange={(v) => update(scenario.id, { monthly: v })} suffix={ccy} />
-              <Field label="Rendement" value={scenario.rate} onChange={(v) => update(scenario.id, { rate: v })} suffix="%" />
+              <Field label={t('analyses.simulator.monthly')} value={scenario.monthly} onChange={(v) => update(scenario.id, { monthly: v })} suffix={ccy} />
+              <Field label={t('analyses.simulator.return')} value={scenario.rate} onChange={(v) => update(scenario.id, { rate: v })} suffix="%" />
             </div>
             <ScenarioResult result={result} net={tax.net} fmt={fmt} best={tax.net === best && results.length > 1} />
           </article>
         ))}
-        <button type="button" className="sim-add" onClick={add}><Plus size={18} /> Ajouter un scénario</button>
+        <button type="button" className="sim-add" onClick={add}><Plus size={18} />  {t('analyses.simulator.add_scenario')}</button>
       </div>
 
       <section className="pg-section">
-        <div className="pg-section-head"><h2>Comparaison sur {years} ans</h2></div>
+        <div className="pg-section-head"><h2>{t('analyses.simulator.comparison_over')} {years}  {t('analyses.simulator.years')}</h2></div>
         <div className="sim-chart">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chart} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
@@ -258,12 +264,13 @@ function Scenarios({ fmt, ccy }: { fmt: (v: number) => string; ccy: string }) {
 }
 
 function ScenarioResult({ result, net, fmt, best }: { result: CompoundResult; net: number; fmt: (v: number) => string; best: boolean }) {
+  const { t } = useTranslation();
   return (
     <dl className="pea-dl">
-      <div className="pea-total"><dt>Capital final{best && <small>le plus haut</small>}</dt><dd className="num">{fmt(result.finalTotal)}</dd></div>
-      <div><dt>Net d’impôt</dt><dd className="num">{fmt(net)}</dd></div>
-      <div><dt>Versé{result.ceilingReachedMonth != null && <small title="Au-delà, les versements mensuels s'arrêtent : le PEA est plein.">plafond atteint en {Math.ceil((result.ceilingReachedMonth + 1) / 12)}e année</small>}</dt><dd className="num">{fmt(result.finalContributed)}</dd></div>
-      <div><dt>Intérêts</dt><dd className="num income">{fmt(result.finalInterest)}</dd></div>
+      <div className="pea-total"><dt>{t('analyses.simulator.final_capital')}{best && <small>{t('analyses.simulator.the_highest')}</small>}</dt><dd className="num">{fmt(result.finalTotal)}</dd></div>
+      <div><dt>{t('analyses.simulator.net_tax')}</dt><dd className="num">{fmt(net)}</dd></div>
+      <div><dt>{t('analyses.simulator.paid_in')}{result.ceilingReachedMonth != null && <small title={t('analyses.simulator.beyond_this_monthly_deposits_stop')}>{t('analyses.simulator.cap_reached_in_year_n', { n: Math.ceil((result.ceilingReachedMonth + 1) / 12) })}</small>}</dt><dd className="num">{fmt(result.finalContributed)}</dd></div>
+      <div><dt>{t('analyses.simulator.interest')}</dt><dd className="num income">{fmt(result.finalInterest)}</dd></div>
     </dl>
   );
 }
