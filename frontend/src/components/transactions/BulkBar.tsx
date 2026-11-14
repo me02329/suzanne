@@ -9,17 +9,24 @@ import type { Run } from '../../lib/run';
 import type { SelectionState } from './useSelection';
 
 // Barre d'actions groupées, affichée tant qu'une sélection existe.
-export function BulkBar({ selection, userId, tags, run, onEdit }: {
+export function BulkBar({ selection, userId, tags, run, onEdit, onRefund }: {
   selection: SelectionState;
   userId: number;
   tags: Tag[];
   run: Run;
   onEdit: () => void;
+  /** Lier les remboursements de la sélection (dépenses ↔ revenus). */
+  onRefund?: () => void;
 }) {
   const { t } = useTranslation();
   const { count, selected, clear } = selection;
   if (count === 0) return null;
   const ids = selected.map((tx) => tx.id);
+  // Remboursement possible : pas de transfert, et un seul revenu ou une seule
+  // dépense d'un côté (1 ↔ N).
+  const nIncome = selected.filter((tx) => tx.type === 'income').length;
+  const nExpense = selected.filter((tx) => tx.type === 'expense').length;
+  const canRefund = nIncome + nExpense === count && !(nIncome > 1 && nExpense > 1);
 
   const setCleared = (cleared: boolean) => {
     void run(
@@ -49,6 +56,11 @@ export function BulkBar({ selection, userId, tags, run, onEdit }: {
     <div className="jr-bulk" role="region" aria-label={t('Actions sur la sélection')}>
       <strong>{t(count > 1 ? '{{n}} sélectionnées' : '{{n}} sélectionnée', { n: count })}</strong>
       <button type="button" className="secondary" onClick={onEdit}>{t('Modifier')}</button>
+      {onRefund && canRefund && (
+        <button type="button" className="secondary" onClick={onRefund} title={t('Un revenu peut rembourser plusieurs dépenses, et une dépense être remboursée par plusieurs revenus')}>
+          {nIncome === 0 ? t('Rembourser') : nExpense === 0 ? t('Lier à une dépense') : t('Lier le remboursement')}
+        </button>
+      )}
       <button type="button" className="secondary" onClick={() => setCleared(true)}>{t('Pointer')}</button>
       <button type="button" className="secondary" onClick={() => setCleared(false)}>{t('Dépointer')}</button>
       {tags.length > 0 && (

@@ -71,6 +71,18 @@ export function serializeTransaction(row: TxRow) {
   };
 }
 
+// Recherche : libellé, ou montant si la requête est un nombre (« 12,50 »,
+// « -12.5 ») — on compare la valeur absolue des lignes, au centime près.
+function searchConditions(q: string): Prisma.TransactionWhereInput[] {
+  const out: Prisma.TransactionWhereInput[] = [{ description: { contains: q, mode: 'insensitive' } }];
+  const cleaned = q.replace(/[\s  €]/g, '').replace(',', '.');
+  if (/^[-+]?\d+(\.\d{1,2})?$/.test(cleaned)) {
+    const v = Math.abs(Number(cleaned));
+    out.push({ lines: { some: { OR: [{ amount: { gte: v - 0.005, lte: v + 0.005 } }, { amount: { gte: -v - 0.005, lte: -v + 0.005 } }] } } });
+  }
+  return out;
+}
+
 transactionsRouter.get('/users/:user_id/transactions', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const month = req.query.month ? monthString.parse(req.query.month) : null;
@@ -99,7 +111,7 @@ transactionsRouter.get('/users/:user_id/transactions', asyncHandler(async (req, 
       user_id,
       ...(dateFilter ? { date: dateFilter } : {}),
       ...(type === 'transfer' ? { kind: 'transfer' as const } : type ? { kind: 'standard' as const } : {}),
-      ...(q ? { description: { contains: q, mode: 'insensitive' as const } } : {}),
+      ...(q ? { OR: searchConditions(q) } : {}),
       ...(lineFilters.length > 0 ? { AND: lineFilters } : {}),
     },
     orderBy: [{ date: 'desc' }, { id: 'desc' }],

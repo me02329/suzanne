@@ -13,13 +13,40 @@ export interface TxSort {
 }
 export type ClearedFilter = 'all' | 'cleared' | 'uncleared';
 
+/** Filtre multi-valeurs : garder (include) ou écarter (exclude) les valeurs
+ *  cochées. `'none'` = sans catégorie / sans tag. Vide = pas de filtre. */
+export interface SetFilter {
+  mode: 'include' | 'exclude';
+  ids: string[];
+}
+export const NO_SET_FILTER: SetFilter = { mode: 'include', ids: [] };
+
 export interface TxFilters {
   query: string;
   type: 'all' | TransactionType;
-  categoryId: string;
+  categories: SetFilter;
   accountGroup: string;
-  tagId: string;
+  tags: SetFilter;
   cleared: ClearedFilter;
+}
+
+function matchesSet(filter: SetFilter, values: string[]): boolean {
+  if (filter.ids.length === 0) return true;
+  const hit = values.some((v) => filter.ids.includes(v));
+  return filter.mode === 'include' ? hit : !hit;
+}
+
+// Recherche « à la logs » : chaque mot doit apparaître ; un mot précédé de
+// « - » doit être absent (ex. « courses -auchan »). Guillemets non gérés.
+export function parseQuery(raw: string): { include: string[]; exclude: string[] } {
+  const include: string[] = [];
+  const exclude: string[] = [];
+  for (const token of raw.trim().toLowerCase().split(/\s+/)) {
+    if (!token) continue;
+    if (token.startsWith('-') && token.length > 1 && !/^-\d/.test(token)) exclude.push(token.slice(1));
+    else include.push(token);
+  }
+  return { include, exclude };
 }
 
 // Filtres, tri et pagination du journal. Les filtres sont persistés entre
@@ -27,31 +54,33 @@ export interface TxFilters {
 export function useTransactionFilters(source: Transaction[], categoryById: Map<number, Category>, accountById: Map<number, Account>, resetKey: string) {
   const [query, setQuery] = useState('');
   const [type, setType] = usePersistedState<'all' | TransactionType>('tx_filter_type', 'all');
-  const [categoryId, setCategoryId] = usePersistedState<string>('tx_filter_category', 'all');
+  const [categories, setCategories] = usePersistedState<SetFilter>('tx_filter_categories', NO_SET_FILTER);
   const [accountGroup, setAccountGroup] = usePersistedState<string>('tx_filter_account_group', 'all');
-  const [tagId, setTagId] = usePersistedState<string>('tx_filter_tag', 'all');
+  const [tags, setTags] = usePersistedState<SetFilter>('tx_filter_tags', NO_SET_FILTER);
   const [cleared, setCleared] = usePersistedState<ClearedFilter>('tx_filter_cleared', 'all');
   const [sort, setSort] = usePersistedState<TxSort>('tx_sort', { key: 'date', dir: 'desc' });
   const [page, setPage] = useState(1);
 
-  const filters: TxFilters = { query, type, categoryId, accountGroup, tagId, cleared };
+  const filters: TxFilters = { query, type, categories, accountGroup, tags, cleared };
   // Signature des filtres : sert à remettre la page / la sélection à zéro.
-  const signature = JSON.stringify([query.trim(), type, categoryId, accountGroup, tagId, cleared, resetKey]);
+  const signature = JSON.stringify([query.trim(), type, categories, accountGroup, tags, cleared, resetKey]);
+  // Lien profond « ?category= » : une seule catégorie gardée.
+  const setCategoryId = useCallback((id: string) => setCategories(id === 'all' ? NO_SET_FILTER : { mode: 'include', ids: [id] }), [setCategories]);
 
   // Tout changement de ce qui est affiché ramène à la page 1.
   useEffect(() => { setPage(1); }, [signature, sort.key, sort.dir]);
 
-  const activeCount = [type !== 'all', categoryId !== 'all', accountGroup !== 'all', tagId !== 'all', cleared !== 'all', query.trim() !== '']
+  const activeCount = [type !== 'all', categories.ids.length > 0, accountGroup !== 'all', tags.ids.length > 0, cleared !== 'all', query.trim() !== '']
     .filter(Boolean).length;
 
   const reset = useCallback(() => {
     setType('all');
-    setCategoryId('all');
+    setCategories(NO_SET_FILTER);
     setAccountGroup('all');
-    setTagId('all');
+    setTags(NO_SET_FILTER);
     setCleared('all');
     setQuery('');
-  }, [setType, setCategoryId, setAccountGroup, setTagId, setCleared]);
+  }, [setType, setCategories, setAccountGroup, setTags, setCleared]);
 
   // En-tête cliqué : inverse le sens si c'est déjà la clé, sinon bascule avec
   // un sens par défaut (récent / gros d'abord, alphabétique pour le texte).
@@ -62,15 +91,17 @@ export function useTransactionFilters(source: Transaction[], categoryById: Map<n
   }, [setSort]);
 
   const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+    const needle = parseQuery(query);
     return source.filter((t) => {
       if (type !== 'all' && t.type !== type) return false;
       if (cleared !== 'all' && (cleared === 'cleared') !== t.cleared) return false;
-      if (tagId !== 'all' && !(t.tags ?? []).some((tag) => String(tag.id) === tagId)) return false;
-      // Une transaction ventilée appartient à toutes les catégories de ses splits.
-      if (categoryId !== 'all'
-        && String(t.category_id ?? '') !== categoryId
-        && !(t.splits ?? []).some((split) => String(split.category_id) === categoryId)) return false;
+      const tagValues = (t.tags ?? []).map((tag) => String(tag.id));
+      if (!matchesSet(tags, tagValues.length > 0 ? tagValues : ['none'])) return false;
+      // Une transaction ventilée appartient à toutes les catégories de ses
+      // splits ; une dépense/un revenu sans catégorie vaut « none ».
+      const catValues = [t.category_id, ...(t.splits ?? []).map((split) => split.category_id)]
+        .filter((id): id is number => id != null).map(String);
+      if (!matchesSet(categories, catValues.length > 0 ? catValues : t.type === 'transfer' ? [] : ['none'])) return false;
       const src = accountById.get(t.account_id ?? -1);
       const dest = accountById.get(t.to_account_id ?? -1);
       // « account:<id> » : un compte précis (lien depuis la fiche d'un compte).
@@ -81,7 +112,7 @@ export function useTransactionFilters(source: Transaction[], categoryById: Map<n
         const groups = [src ? accountTypeGroup(src.type) : null, dest ? accountTypeGroup(dest.type) : null];
         if (!groups.includes(accountGroup as ReturnType<typeof accountTypeGroup>)) return false;
       }
-      if (!needle) return true;
+      if (needle.include.length === 0 && needle.exclude.length === 0) return true;
       const haystack = [
         t.description,
         src?.name,
@@ -93,9 +124,9 @@ export function useTransactionFilters(source: Transaction[], categoryById: Map<n
         String(t.amount),
         formatTxDate(t.date),
       ].filter(Boolean).join(' ').toLowerCase();
-      return haystack.includes(needle);
+      return needle.include.every((w) => haystack.includes(w)) && !needle.exclude.some((w) => haystack.includes(w));
     });
-  }, [source, query, type, cleared, tagId, categoryId, accountGroup, accountById, categoryById]);
+  }, [source, query, type, cleared, tags, categories, accountGroup, accountById, categoryById]);
 
   const sorted = useMemo(() => {
     const dir = sort.dir === 'asc' ? 1 : -1;
@@ -120,11 +151,12 @@ export function useTransactionFilters(source: Transaction[], categoryById: Map<n
       const refundPart = refundAllocatedAmount(t);
       acc.income += t.amount - refundPart;
       acc.expenses -= refundPart;
+      acc.refunds += refundPart;
     }
     if (t.type === 'expense') acc.expenses += t.amount;
     if (t.type === 'transfer') acc.transfers += t.amount;
     return acc;
-  }, { income: 0, expenses: 0, transfers: 0 }), [filtered]);
+  }, { income: 0, expenses: 0, transfers: 0, refunds: 0 }), [filtered]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -150,8 +182,9 @@ export function useTransactionFilters(source: Transaction[], categoryById: Map<n
     setQuery,
     setType,
     setCategoryId,
+    setCategories,
     setAccountGroup,
-    setTagId,
+    setTags,
     setCleared,
     activeCount,
     reset,

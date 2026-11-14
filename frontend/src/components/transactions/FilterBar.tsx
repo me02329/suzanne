@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { ACCOUNT_GROUPS, type Category, type Tag, type TransactionType } from '@suzanne/shared';
 import { Modal } from '../Modal';
+import { SetFilterMenu } from './SetFilterMenu';
 import type { ClearedFilter, TransactionFiltersState, TxSortKey } from './useTransactionFilters';
 
 // Recherche toujours visible ; les autres filtres en ligne sur desktop,
@@ -29,10 +30,15 @@ export function FilterBar({ state, categories, tags, mobile, accounts = [] }: {
         <option value="income">{t('Revenus')}</option>
         <option value="transfer">{t('Transferts')}</option>
       </select>
-      <select value={filters.categoryId} onChange={(e) => state.setCategoryId(e.target.value)} aria-label={t('Filtre de catégorie')}>
-        <option value="all">{t('Toutes les catégories')}</option>
-        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
+      <SetFilterMenu
+        label={t('Filtre de catégorie')}
+        allLabel={t('Toutes les catégories')}
+        noneLabel={t('Sans catégorie')}
+        options={[...categories].sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name, 'fr') : a.type === 'expense' ? -1 : 1))
+          .map((c) => ({ value: String(c.id), label: c.name, color: c.color, group: c.type === 'income' ? t('Revenus') : t('Dépenses'), hint: c.description }))}
+        value={filters.categories}
+        onChange={state.setCategories}
+      />
       <select value={filters.accountGroup} onChange={(e) => state.setAccountGroup(e.target.value)} aria-label={t('Filtre de compte')}>
         <option value="all">{t('Tous les comptes')}</option>
         <optgroup label={t('Par type')}>
@@ -46,10 +52,14 @@ export function FilterBar({ state, categories, tags, mobile, accounts = [] }: {
         )}
       </select>
       {tags.length > 0 && (
-        <select value={filters.tagId} onChange={(e) => state.setTagId(e.target.value)} aria-label={t('Filtre de tag')}>
-          <option value="all">{t('Tous les tags')}</option>
-          {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
-        </select>
+        <SetFilterMenu
+          label={t('Filtre de tag')}
+          allLabel={t('Tous les tags')}
+          noneLabel={t('Sans tag')}
+          options={tags.map((tag) => ({ value: String(tag.id), label: tag.name, color: tag.color }))}
+          value={filters.tags}
+          onChange={state.setTags}
+        />
       )}
       <select value={filters.cleared} onChange={(e) => state.setCleared(e.target.value as ClearedFilter)} aria-label={t('Filtre de pointage')}>
         <option value="all">{t('Pointées ou non')}</option>
@@ -66,7 +76,8 @@ export function FilterBar({ state, categories, tags, mobile, accounts = [] }: {
         type="search"
         value={filters.query}
         onChange={(e) => state.setQuery(e.target.value)}
-        placeholder={t('Rechercher libellé, compte, montant…')}
+        placeholder={t('Rechercher (-mot exclut)')}
+        title={t('Chaque mot doit apparaître ; « -mot » exclut (ex. « courses -auchan »)')}
         aria-label={t('Rechercher dans le journal')}
       />
       {filters.query && (

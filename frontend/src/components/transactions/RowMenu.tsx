@@ -42,10 +42,10 @@ export function useTxMenuItems() {
       items.push({ key: 'split', label: split ? t('Modifier la ventilation') : t('Ventiler'), icon: <Split size={16} />, on: split, onSelect: () => h.onSplit(tx) });
     }
     if (tx.type === 'expense') {
-      items.push({ key: 'refund', label: t('Créer le remboursement'), icon: <HandCoins size={16} />, on: refundedAmount(tx) > 0, onSelect: () => h.onRefund(tx) });
+      items.push({ key: 'refund', label: t('Rembourser…'), icon: <HandCoins size={16} />, on: refundedAmount(tx) > 0, onSelect: () => h.onRefund(tx) });
     } else if (tx.type === 'income') {
       const linked = (tx.refund_allocations?.length ?? 0) > 0 || tx.refunds_transaction_id != null;
-      items.push({ key: 'refund', label: t('Lier à une dépense'), icon: <Link2 size={16} />, on: linked, onSelect: () => h.onRefund(tx) });
+      items.push({ key: 'refund', label: t('Lier à des dépenses'), icon: <Link2 size={16} />, on: linked, onSelect: () => h.onRefund(tx) });
     }
     items.push(
       { key: 'attachments', label: t('Pièces jointes'), icon: <Paperclip size={16} />, onSelect: () => h.onAttachments(tx) },

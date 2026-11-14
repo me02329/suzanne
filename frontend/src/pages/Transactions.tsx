@@ -26,7 +26,7 @@ import '../styles/pages/transactions.css';
 // Une seule modale ouverte à la fois.
 type Dialog =
   | { kind: 'form'; mode: TxFormMode; tx?: Transaction; draft?: TxDraft }
-  | { kind: 'refund'; tx: Transaction }
+  | { kind: 'refund'; txs: Transaction[]; fromSelection?: boolean }
   | { kind: 'recurring'; tx: Transaction }
   | { kind: 'attachments'; tx: Transaction }
   | { kind: 'bulkEdit' }
@@ -93,7 +93,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
     }
     if (category !== null || q !== null || monthParam !== null || txParam !== null || typeParam !== null || accountParam !== null) {
       filters.reset();
-      if (accountParam !== null && /^d+$/.test(accountParam)) filters.setAccountGroup(`account:${accountParam}`);
+      if (accountParam !== null && /^\d+$/.test(accountParam)) filters.setAccountGroup(`account:${accountParam}`);
       if (typeParam === 'income' || typeParam === 'expense' || typeParam === 'transfer') filters.setType(typeParam);
       if (category !== null) filters.setCategoryId(category);
       if (q !== null) filters.setQuery(q);
@@ -151,7 +151,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
       t('Transaction déplacée vers la corbeille'),
       { undo: () => api.restoreTransaction(userId, tx.id) },
     ).then((ok) => {
-      if (ok) setDialog((d) => (d && 'tx' in d && d.tx?.id === tx.id ? null : d));
+      if (ok) setDialog((d) => (d && 'tx' in d && d.tx?.id === tx.id ? null : d && 'txs' in d && d.txs.some((x) => x.id === tx.id) ? null : d));
     });
   }, [run, t, userId]);
 
@@ -159,7 +159,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
     onCopy: (tx) => setDialog({ kind: 'form', mode: 'copy', tx }),
     onLink: (tx) => setDialog({ kind: 'recurring', tx }),
     onSplit: (tx) => setDialog({ kind: 'form', mode: 'split', tx }),
-    onRefund: (tx) => setDialog({ kind: 'refund', tx }),
+    onRefund: (tx) => setDialog({ kind: 'refund', txs: [tx] }),
     onAttachments: (tx) => setDialog({ kind: 'attachments', tx }),
     onDelete: deleteTx,
   }), [deleteTx]);
@@ -212,7 +212,12 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
           <span className="jr-summary-count"><strong>{filters.filtered.length}</strong> {t(filters.filtered.length > 1 ? 'opérations' : 'opération')}</span>
           <span className="jr-totals">
             <span className="jr-num income" title={t('Revenus')}>+{money(totals.income)}</span>
-            <span className="jr-num expense" title={t('Dépenses')}>{totals.expenses < 0 ? '+' : '−'}{money(Math.abs(totals.expenses))}</span>
+            <span className="jr-num expense" title={totals.refunds > 0 ? t('Dépenses nettes des remboursements') : t('Dépenses')}>{totals.expenses < 0 ? '+' : '−'}{money(Math.abs(totals.expenses))}</span>
+            {totals.refunds > 0.004 && (
+              <span className="jr-num jr-muted" title={t('Remboursements reçus : ils annulent les dépenses remboursées au lieu de compter comme revenus (dépenses brutes : {{gross}})', { gross: money(totals.expenses + totals.refunds) })}>
+                ↺ {t('dont {{amount}} remboursés', { amount: money(totals.refunds) })}
+              </span>
+            )}
             {totals.transfers > 0 && <span className="jr-num jr-muted" title={t('Transferts')}>⇄ {money(totals.transfers)}</span>}
           </span>
           <span className="jr-spacer" />
@@ -235,7 +240,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
           </button>
         </div>
 
-        <BulkBar selection={selection} userId={userId} tags={tags} run={run} onEdit={() => setDialog({ kind: 'bulkEdit' })} />
+        <BulkBar selection={selection} userId={userId} tags={tags} run={run} onEdit={() => setDialog({ kind: 'bulkEdit' })} onRefund={() => setDialog({ kind: 'refund', txs: selection.selected, fromSelection: true })} />
 
         {mobile ? (
           <JournalList
@@ -302,7 +307,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
         />
       )}
       {dialog?.kind === 'refund' && (
-        <RefundModal tx={dialog.tx} userId={userId} accounts={accounts} accountById={accountById} categoryById={categoryById} run={run} onClose={closeDialog} />
+        <RefundModal seed={dialog.txs} userId={userId} accounts={accounts} accountById={accountById} categoryById={categoryById} run={run} onClose={closeDialog} onDone={dialog.fromSelection ? selection.clear : undefined} />
       )}
       {dialog?.kind === 'recurring' && (
         <RecurringLinkModal tx={dialog.tx} userId={userId} recurring={recurring} accountById={accountById} categoryById={categoryById} run={run} onClose={closeDialog} />
