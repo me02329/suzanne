@@ -72,7 +72,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
     if (Math.abs(diff) < 0.005) return <>= {prevLabel}</>;
     const tone = (diff > 0) === (goodWhen === 'up') ? 'income' : 'expense';
     const pct = Math.abs(previous) >= 0.005 ? `${Math.abs(Math.round((diff / Math.abs(previous)) * 100))} %` : signedMoney(diff);
-    return <><span className={tone}>{diff > 0 ? '↑' : '↓'} {pct}</span> vs {prevLabel}</>;
+    return <><span className={tone}>{diff > 0 ? '↑' : '↓'} {pct}</span>  {t('accueil.dashboard.vs')} {prevLabel}</>;
   };
 
   const sparkData = monthRows.filter((row) => Number.isFinite(row.cumulative_net));
@@ -204,8 +204,8 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
           {savingRate != null && prevSavingRate != null && savingRate >= -100 && prevSavingRate >= -100 && (
             <small>
               <span className={savingRate >= prevSavingRate ? 'income' : 'expense'}>
-                {savingRate === prevSavingRate ? '=' : savingRate > prevSavingRate ? '↑' : '↓'} {Math.abs(savingRate - prevSavingRate)} pts
-              </span> vs {prevLabel}
+                {savingRate === prevSavingRate ? '=' : savingRate > prevSavingRate ? '↑' : '↓'} {Math.abs(savingRate - prevSavingRate)}  {t('accueil.dashboard.pts')}
+              </span>  {t('accueil.dashboard.vs')} {prevLabel}
             </small>
           )}
         </div>

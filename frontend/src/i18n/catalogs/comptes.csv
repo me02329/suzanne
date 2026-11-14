@@ -1,0 +1,45 @@
+keys,fr,en
+comptes.account_form_modal.name,Nom,Name
+comptes.account_form_modal.type,Type,Type
+comptes.account_form_modal.currency,Devise,Currency
+comptes.account_form_modal.institution,Institution,Institution
+comptes.account_form_modal.none,Aucune,None
+comptes.account_form_modal.new_institution,+ Nouvelle institution…,+ New institution…
+comptes.account_form_modal.institution_name,Nom de l'institution,Institution name
+comptes.account_form_modal.bank_broker,"Banque, courtier…","Bank, broker…"
+comptes.account_form_modal.opening_balance,Solde initial,Opening balance
+comptes.account_form_modal.as,Au,As of
+comptes.account_form_modal.tax_opening_date,Date fiscale d'ouverture,Tax opening date
+comptes.account_form_modal.start_holding_period_5_years,"Point de départ de l'ancienneté (5 ans pour un PEA, 8 ans pour une assurance-vie). Vide : date du premier versement.","Start of the holding period (5 years for a PEA, 8 years for life insurance). Empty: date of the first deposit."
+comptes.account_form_modal.stock_orders_debit_credit_this,Les ordres de bourse débitent/créditent les espèces de ce compte,Stock orders debit/credit this account's cash
+comptes.account_form_modal.cancel,Annuler,Cancel
+comptes.account_form_modal.manage_institutions,Gérer les institutions (,Manage institutions (
+comptes.account_form_modal.no_institutions_pick_new_institution,Aucune institution. Choisis « Nouvelle institution » dans la liste pour en créer une.,No institutions. Pick “New institution” in the list to create one.
+comptes.account_form_modal.new_name,Nouveau nom,New name
+comptes.account_form_modal.save,Enregistrer,Save
+comptes.account_form_modal.rename,Renommer,Rename
+comptes.reconciliation_panel.statement_reconciliation,Rapprochement des relevés,Statement reconciliation
+comptes.reconciliation_panel.gap,écart,gap
+comptes.reconciliation_panel.up_to_date,à jour,up to date
+comptes.reconciliation_panel.the,Les,The
+comptes.reconciliation_panel.periods_between_your_statements_match,périodes entre tes relevés concordent au centime avec les opérations.,periods between your statements match the transactions to the cent.
+comptes.reconciliation_panel.between_two_statements_transactions_shou,"Entre deux relevés, les opérations devraient expliquer tout l'écart de solde. Un écart = une opération manquante (écart positif) ou en trop / en double (écart négatif). Le solde affiché reste juste (le relevé fait foi) ; ce sont les statistiques qui sont faussées.","Between two statements, the transactions should explain the whole balance change. A gap = a missing transaction (positive gap) or an extra / duplicate one (negative gap). The displayed balance stays right (the statement is authoritative); it is the statistics that are skewed."
+comptes.reconciliation_panel.statements,relevés,statements
+comptes.reconciliation_panel.transaction,opération,transaction
+comptes.reconciliation_panel.for,pour,for
+comptes.reconciliation_panel.incl_adjustment,· dont ajustement,· incl. adjustment
+comptes.reconciliation_panel.view_transactions,Voir les opérations,View transactions
+comptes.reconciliation_panel.creates_adjustment_transaction_neither_e,Crée une opération d'ajustement (ni dépense ni revenu) du montant de l'écart,Creates an adjustment transaction (neither expense nor income) for the gap amount
+comptes.reconciliation_panel.adjust,Ajuster,Adjust
+comptes.reconciliation_panel.statement,relevé,statement
+comptes.reconciliation_panel.older,plus ancien,older
+comptes.reconciliation_panel.than_your_transaction_history_not,"que ton historique d'opérations, non rapproché","than your transaction history, not reconciled"
+comptes.reconciliation_panel.since_last_statement,Depuis le dernier relevé (,Since the last statement (
+comptes.reconciliation_panel.enter_statement_to_check_them,. Saisis un relevé pour les vérifier.,. Enter a statement to check them.
+comptes.snapshot_batch_modal.month_end_balances,Soldes de fin de mois,Month-end balances
+comptes.snapshot_batch_modal.enter_actual_balance_read_on,"Saisis le solde réel lu sur tes relevés. Laisse vide ce que tu n'as pas vérifié. Pour un compte d'investissement, saisis les espèces seules.","Enter the actual balance read on your statements. Leave blank what you have not checked. For an investment account, enter cash only."
+comptes.snapshot_batch_modal.date,Date,Date
+comptes.snapshot_batch_modal.create_account_first,Crée d'abord un compte.,Create an account first.
+comptes.snapshot_batch_modal.estimated,Estimé,Estimated
+comptes.snapshot_batch_modal.cancel,Annuler,Cancel
+comptes.snapshot_batch_modal.save,Enregistrer,Save

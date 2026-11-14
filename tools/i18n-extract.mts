@@ -29,7 +29,7 @@ if (files.length === 0) {
   process.exit(2);
 }
 
-const TEXT_ATTRS = new Set(['placeholder', 'title', 'aria-label', 'alt', 'label']);
+const TEXT_ATTRS = new Set(['placeholder', 'title', 'aria-label', 'alt', 'label', 'data-label', 'confirm']);
 const ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const decode = (s: string) => s.replace(/&(#\d+|[a-z]+);/g, (m, e: string) => (e.startsWith('#') ? String.fromCharCode(Number(e.slice(1))) : ENTITIES[e] ?? m));
 const clean = (raw: string) => decode(raw.replace(/\s+/g, ' ').trim());
@@ -73,7 +73,8 @@ if (!translationsArg) {
   process.exit(2);
 }
 const en = JSON.parse(fs.readFileSync(path.resolve(translationsArg), 'utf8')) as Record<string, string>;
-const taken = new Set(loadCatalogs().flatMap((c) => c.rows.map((r) => r.key)));
+const catalogRows = loadCatalogs().flatMap((c) => c.rows);
+const taken = new Set(catalogRows.map((r) => r.key));
 
 // ── Portée de t ─────────────────────────────────────────────────────────────
 type Fn = ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction | ts.MethodDeclaration;
@@ -87,9 +88,11 @@ function fnName(fn: Fn): string | null {
   return null;
 }
 const isComponent = (fn: Fn) => /^[A-Z]/.test(fnName(fn) ?? '');
-const declaresT = (fn: Fn, sf: ts.SourceFile) => fn.parameters.some((p) => p.name.getText(sf) === 't'
-  || (ts.isObjectBindingPattern(p.name) && p.name.elements.some((e) => e.name.getText(sf) === 't')))
+// t fourni par la fonction : `{ t }` en paramètre ou `const { t } = useTranslation()`.
+const declaresT = (fn: Fn, sf: ts.SourceFile) => fn.parameters.some((p) => ts.isObjectBindingPattern(p.name) && p.name.elements.some((e) => e.name.getText(sf) === 't'))
   || (fn.body != null && ts.isBlock(fn.body) && /\bconst\s*\{[^}]*\bt\b[^}]*\}\s*=\s*useTranslation\(/.test(fn.body.getText(sf)));
+// Paramètre simple nommé t (ex. `.map((t) => …)` sur des transactions) : masque la traduction.
+const shadowsT = (fn: Fn, sf: ts.SourceFile) => fn.parameters.some((p) => ts.isIdentifier(p.name) && p.name.getText(sf) === 't');
 
 const summary: string[] = [];
 const missing = new Set<string>();
@@ -100,7 +103,11 @@ for (const file of files) {
   const sf = parse(file, text);
   const domain = domainOf(file);
   const prefix = path.basename(file).replace(/\.tsx?$/, '').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
-  const keyOf = new Map<string, string>();
+  // Une phrase qui a déjà une clé pour ce fichier (lot précédent) la réutilise.
+  const keyOf = new Map<string, string>(catalogRows
+    .filter((r) => r.key.startsWith(`${domain}.${prefix}.`))
+    .map((r) => [r.values.fr!, r.key]));
+  const reused = new Set(keyOf.keys());
   const edits: Array<{ start: number; end: number; text: string }> = [];
   const hookFns = new Set<Fn>();
   let needsI18n = false;
@@ -124,6 +131,7 @@ for (const file of files) {
     let call = `i18n.t('${key}')`;
     for (let p: ts.Node | undefined = tgt.node.parent; p; p = p.parent) {
       if (!isFn(p)) continue;
+      if (shadowsT(p, sf)) break;
       if (declaresT(p, sf)) { call = `t('${key}')`; break; }
       if (isComponent(p) && p.body && ts.isBlock(p.body)) { hookFns.add(p); call = `t('${key}')`; break; }
     }
@@ -159,7 +167,7 @@ for (const file of files) {
     text = text.slice(0, e.start) + e.text + text.slice(e.end);
   }
   fs.writeFileSync(file, text);
-  summary.push(`${rel(file).padEnd(56)} ${String(done).padStart(4)} textes, ${keyOf.size} clés${hookFns.size ? `, useTranslation ajouté ×${hookFns.size}` : ''}${needsI18n ? ', i18n.t' : ''}`);
+  summary.push(`${rel(file).padEnd(56)} ${String(done).padStart(4)} textes, ${keyOf.size - reused.size} clés nouvelles${hookFns.size ? `, useTranslation ajouté ×${hookFns.size}` : ''}${needsI18n ? ', i18n.t' : ''}`);
 }
 
 for (const [domain, rows] of rowsByDomain) appendCatalogRows(domain, rows);

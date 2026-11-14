@@ -7,6 +7,7 @@ import { parseDecimal } from '../../lib/pea';
 import { todayIso } from '../../lib/format';
 import { Modal } from '../Modal';
 import type { Run } from '../../lib/run';
+import { useTranslation } from 'react-i18next';
 
 const NEW_INSTITUTION = '__new';
 
@@ -21,6 +22,7 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
   run: Run;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [type, setType] = useState<AccountType>(account?.type ?? 'checking');
   const [institution, setInstitution] = useState<string>(account?.institution_id != null ? String(account.institution_id) : '');
   const [manageOpen, setManageOpen] = useState(false);
@@ -66,56 +68,56 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
   return (
     <Modal title={account ? `Modifier ${account.name}` : 'Ajouter un compte'} onClose={onClose}>
       <form className="form acc-form sheet-ok" onSubmit={submit}>
-        <label className="full">Nom<input name="name" defaultValue={account?.name ?? ''} required maxLength={120} autoFocus={!account} /></label>
-        <label>Type
+        <label className="full">{t('comptes.account_form_modal.name')}<input name="name" defaultValue={account?.name ?? ''} required maxLength={120} autoFocus={!account} /></label>
+        <label>{t('comptes.account_form_modal.type')}
           <select name="type" value={type} onChange={(e) => setType(e.target.value as AccountType)}>
             {ACCOUNT_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </label>
-        <label>Devise
+        <label>{t('comptes.account_form_modal.currency')}
           <select name="currency" defaultValue={account?.currency ?? 'EUR'} required>
             {REPORT_CURRENCIES.map((o) => <option key={o.value} value={o.value}>{o.value}</option>)}
           </select>
         </label>
-        <label className="full">Institution
+        <label className="full">{t('comptes.account_form_modal.institution')}
           <select value={institution} onChange={(e) => setInstitution(e.target.value)}>
-            <option value="">Aucune</option>
+            <option value="">{t('comptes.account_form_modal.none')}</option>
             {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-            <option value={NEW_INSTITUTION}>+ Nouvelle institution…</option>
+            <option value={NEW_INSTITUTION}>{t('comptes.account_form_modal.new_institution')}</option>
           </select>
         </label>
         {institution === NEW_INSTITUTION && (
-          <label className="full">Nom de l'institution<input name="new_institution" placeholder="Banque, courtier…" maxLength={120} autoFocus /></label>
+          <label className="full">{t('comptes.account_form_modal.institution_name')}<input name="new_institution" placeholder={t('comptes.account_form_modal.bank_broker')} maxLength={120} autoFocus /></label>
         )}
-        <label>Solde initial
+        <label>{t('comptes.account_form_modal.opening_balance')}
           <input name="initial_balance" inputMode="decimal" autoComplete="off" defaultValue={account ? String(account.initial_balance).replace('.', ',') : '0'} />
         </label>
-        <label>Au
+        <label>{t('comptes.account_form_modal.as')}
           <input name="initial_balance_date" type="date" defaultValue={account?.initial_balance_date?.slice(0, 10) ?? todayIso()} required />
         </label>
         {showFiscal && (
-          <label className="full">Date fiscale d'ouverture
+          <label className="full">{t('comptes.account_form_modal.tax_opening_date')}
             <input name="fiscal_start_date" type="date" defaultValue={account?.fiscal_start_date?.slice(0, 10) ?? ''} />
-            <small className="acc-hint">Point de départ de l'ancienneté (5 ans pour un PEA, 8 ans pour une assurance-vie). Vide : date du premier versement.</small>
+            <small className="acc-hint">{t('comptes.account_form_modal.start_holding_period_5_years')}</small>
           </label>
         )}
         {showOrdersCash && (
           <label className="acc-check full">
             <input type="checkbox" name="orders_affect_cash" defaultChecked={account ? Boolean(account.orders_affect_cash) : true} />
-            <span>Les ordres de bourse débitent/créditent les espèces de ce compte</span>
+            <span>{t('comptes.account_form_modal.stock_orders_debit_credit_this')}</span>
           </label>
         )}
         {error && <p className="acc-error full" role="alert">{error}</p>}
         <div className="acc-form-actions full">
-          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('comptes.account_form_modal.cancel')}</button>
           <button className="primary">{account ? 'Enregistrer' : 'Ajouter le compte'}</button>
         </div>
       </form>
 
       <details className="acc-manage" open={manageOpen} onToggle={(e) => setManageOpen((e.currentTarget as HTMLDetailsElement).open)}>
-        <summary>Gérer les institutions ({institutions.length})</summary>
+        <summary>{t('comptes.account_form_modal.manage_institutions')}{institutions.length})</summary>
         {institutions.length === 0 ? (
-          <p className="acc-muted">Aucune institution. Choisis « Nouvelle institution » dans la liste pour en créer une.</p>
+          <p className="acc-muted">{t('comptes.account_form_modal.no_institutions_pick_new_institution')}</p>
         ) : (
           <ul className="acc-inst-list">
             {institutions.map((i) => (
@@ -129,6 +131,7 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
 }
 
 function InstitutionRow({ userId, institution, used, run }: { userId: number; institution: Institution; used: boolean; run: Run }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(institution.name);
   const save = () => {
@@ -141,15 +144,15 @@ function InstitutionRow({ userId, institution, used, run }: { userId: number; in
     <li>
       {editing ? (
         <>
-          <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Nouveau nom" maxLength={120} autoFocus
+          <input value={name} onChange={(e) => setName(e.target.value)} aria-label={t('comptes.account_form_modal.new_name')} maxLength={120} autoFocus
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } }} />
-          <button type="button" className="row-btn" aria-label="Enregistrer" title="Enregistrer" onClick={save}><Check size={16} /></button>
-          <button type="button" className="row-btn" aria-label="Annuler" title="Annuler" onClick={() => { setName(institution.name); setEditing(false); }}><X size={16} /></button>
+          <button type="button" className="row-btn" aria-label={t('comptes.account_form_modal.save')} title={t('comptes.account_form_modal.save')} onClick={save}><Check size={16} /></button>
+          <button type="button" className="row-btn" aria-label={t('comptes.account_form_modal.cancel')} title={t('comptes.account_form_modal.cancel')} onClick={() => { setName(institution.name); setEditing(false); }}><X size={16} /></button>
         </>
       ) : (
         <>
           <span className="acc-inst-name">{institution.name}</span>
-          <button type="button" className="row-btn" aria-label={`Renommer ${institution.name}`} title="Renommer" onClick={() => setEditing(true)}><Pencil size={15} /></button>
+          <button type="button" className="row-btn" aria-label={`Renommer ${institution.name}`} title={t('comptes.account_form_modal.rename')} onClick={() => setEditing(true)}><Pencil size={15} /></button>
           <button
             type="button"
             className="row-btn"

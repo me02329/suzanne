@@ -5,6 +5,7 @@ import type { AuditLogEntry } from '@suzanne/shared';
 import { api } from '../lib/api';
 import { DataTable } from './DataTable';
 import { Panel } from './Panel';
+import { useTranslation } from 'react-i18next';
 
 const ACTION_LABEL: Record<string, string> = { POST: 'Création', PATCH: 'Modification', PUT: 'Modification', DELETE: 'Suppression' };
 const ENTITY_LABEL: Record<string, string> = {
@@ -16,6 +17,7 @@ const ENTITY_LABEL: Record<string, string> = {
 
 // Journal d'audit : dernières mutations (qui/quoi/quand).
 export function AuditLogPanel({ userId, dataVersion = 0 }: { userId: number; dataVersion?: number }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<AuditLogEntry[] | null>(null);
   const [shown, setShown] = useState(PAGE);
 
@@ -28,27 +30,28 @@ export function AuditLogPanel({ userId, dataVersion = 0 }: { userId: number; dat
   }, [userId, dataVersion]);
 
   return (
-    <Panel title="Activité récente">
-      <p className="panel-note">Les dernières modifications, de la plus récente à la plus ancienne.</p>
+    <Panel title={t('reglages.audit_log_panel.recent_activity')}>
+      <p className="panel-note">{t('reglages.audit_log_panel.the_latest_changes_newest_first')}</p>
       {items == null ? (
-        <p className="empty"><Loader2 className="spin-icon" size={16} /> Chargement…</p>
+        <p className="empty"><Loader2 className="spin-icon" size={16} />  {t('reglages.audit_log_panel.loading')}</p>
       ) : (
         <>
         <DataTable empty={items.length === 0 ? 'Aucune activité enregistrée.' : null}>
-          <thead><tr><th>Élément</th><th>Action</th><th>Quand</th></tr></thead>
+          <thead><tr><th>{t('reglages.audit_log_panel.item')}</th><th>{t('reglages.audit_log_panel.action')}</th><th>{t('reglages.audit_log_panel.when')}</th></tr></thead>
           <tbody>
             {items.slice(0, shown).map((e) => (
               <tr key={e.id}>
                 <td className="cell-primary"><strong>{ENTITY_LABEL[e.entity] ?? e.entity}{e.entity_id != null ? ` #${e.entity_id}` : ''}</strong></td>
-                <td data-label="Action">{ACTION_LABEL[e.action] ?? e.action}</td>
-                <td className="st-muted" data-label="Quand">{new Date(e.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                <td data-label={t('reglages.audit_log_panel.action')}>{ACTION_LABEL[e.action] ?? e.action}</td>
+                <td className="st-muted" data-label={t('reglages.audit_log_panel.when')}>{new Date(e.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
               </tr>
             ))}
           </tbody>
         </DataTable>
         {items.length > shown && (
           <button type="button" className="secondary st-more" onClick={() => setShown((n) => n + 50)}>
-            Voir plus ({items.length - shown})
+            
+            {t('reglages.audit_log_panel.show_more')}{items.length - shown})
           </button>
         )}
         </>

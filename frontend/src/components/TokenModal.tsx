@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
 import { setAppToken } from '../lib/authToken';
+import { useTranslation } from 'react-i18next';
 
 // Affiché quand le backend répond 401 : il exige un APP_TOKEN. L'utilisateur
 // saisit le secret partagé, qui est persisté puis renvoyé sur chaque requête.
 export function TokenModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { t } = useTranslation();
   const [value, setValue] = useState('');
 
   const submit = (event: React.FormEvent) => {
@@ -15,22 +17,24 @@ export function TokenModal({ onClose, onSaved }: { onClose: () => void; onSaved:
   };
 
   return (
-    <Modal title="Token d’accès requis" onClose={onClose}>
+    <Modal title={t('reglages.token_modal.access_token_required')} onClose={onClose}>
       <form className="form" onSubmit={submit}>
         <p className="panel-note">
-          Ce serveur est protégé par un token d’accès. Saisissez-le pour continuer.
+          
+          {t('reglages.token_modal.this_server_is_protected_by')}
         </p>
         <label>
-          Token
+          
+          {t('reglages.token_modal.token')}
           <input
             type="password"
             autoFocus
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="APP_TOKEN"
+            placeholder="APP_TOKEN" /* i18n-ignore */
           />
         </label>
-        <button className="primary" disabled={!value.trim()}>Valider</button>
+        <button className="primary" disabled={!value.trim()}>{t('reglages.token_modal.confirm')}</button>
       </form>
     </Modal>
   );

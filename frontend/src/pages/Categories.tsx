@@ -41,7 +41,7 @@ function CategoryForm({ initial, onSubmit, onCancel, submitLabel }: {
         <button type="button" className={type === 'income' ? 'active' : ''} aria-pressed={type === 'income'} onClick={() => setType('income')}>{t('operations.income')}</button>
       </fieldset>
       <label>{t('operations.color')}<input name="color" type="color" defaultValue={initial?.color ?? DEFAULT_COLOR} /></label>
-      <label>{t('operations.icon')}<input name="icon" defaultValue={initial?.icon ?? ''} placeholder="shopping-cart" autoComplete="off" /></label>
+      <label>{t('operations.icon')}<input name="icon" defaultValue={initial?.icon ?? ''} placeholder="shopping-cart" /* i18n-ignore : nom d'icône */ autoComplete="off" /></label>
       <label className="full">{t('operations.description')}
         <textarea name="description" defaultValue={initial?.description ?? ''} rows={3} maxLength={500} placeholder={t('operations.what_category_covers_e_g')} />
         <small className="st-muted">{t('operations.shown_when_hovering_category_name')}</small>

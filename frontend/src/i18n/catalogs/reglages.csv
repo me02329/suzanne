@@ -24,3 +24,25 @@ reglages.hint_delay.2s,2 secondes,2 seconds
 reglages.hint_delay.3s,3 secondes,3 seconds
 reglages.hint_delay.immediate,Immédiat,Immediate
 reglages.hint_delay.never,Jamais,Never
+reglages.backups_panel.backups,Sauvegardes,Backups
+reglages.backups_panel.create,Créer,Create
+reglages.backups_panel.one_automatic_backup_per_day,"Une sauvegarde automatique par jour, les 14 dernières sont gardées.","One automatic backup per day, the last 14 are kept."
+reglages.backups_panel.loading,Chargement…,Loading…
+reglages.backups_panel.backup,Sauvegarde,Backup
+reglages.backups_panel.date,Date,Date
+reglages.backups_panel.size,Taille,Size
+reglages.backups_panel.actions,Actions,Actions
+reglages.backups_panel.automatic,Automatique,Automatic
+reglages.backups_panel.manual,Manuelle,Manual
+reglages.backups_panel.download,Télécharger,Download
+reglages.audit_log_panel.recent_activity,Activité récente,Recent activity
+reglages.audit_log_panel.the_latest_changes_newest_first,"Les dernières modifications, de la plus récente à la plus ancienne.","The latest changes, newest first."
+reglages.audit_log_panel.loading,Chargement…,Loading…
+reglages.audit_log_panel.item,Élément,Item
+reglages.audit_log_panel.action,Action,Action
+reglages.audit_log_panel.when,Quand,When
+reglages.audit_log_panel.show_more,Voir plus (,Show more (
+reglages.token_modal.access_token_required,Token d’accès requis,Access token required
+reglages.token_modal.this_server_is_protected_by,Ce serveur est protégé par un token d’accès. Saisissez-le pour continuer.,This server is protected by an access token. Enter it to continue.
+reglages.token_modal.token,Token,Token
+reglages.token_modal.confirm,Valider,Confirm

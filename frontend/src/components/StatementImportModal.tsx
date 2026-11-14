@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { Modal } from './Modal';
 import type { Run } from '../lib/run';
+import { useTranslation } from 'react-i18next';
 
 // Import d'un relevé bancaire OFX ou QIF. Le format OFX porte sa propre date
 // (AAAAMMJJ) ; pour QIF, la date est ambiguë → on laisse choisir le format.
@@ -14,6 +15,7 @@ export function StatementImportModal({ userId, accounts, run, onClose }: {
   run: Run;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [format, setFormat] = useState<'ofx' | 'qif'>('ofx');
   const [accountId, setAccountId] = useState('');
   const [dateFormat, setDateFormat] = useState<ImportDateFormat>('auto');
@@ -48,7 +50,7 @@ export function StatementImportModal({ userId, accounts, run, onClose }: {
   };
 
   return (
-    <Modal title="Importer un relevé OFX / QIF" onClose={onClose} wide>
+    <Modal title={t('operations.statement_import_modal.import_ofx_qif_statement')} onClose={onClose} wide>
       <div className="form tools-modal-form">
         <div
           className={`csv-drop full${dragActive ? ' active' : ''}${fileName ? ' loaded' : ''}`}
@@ -63,44 +65,44 @@ export function StatementImportModal({ userId, accounts, run, onClose }: {
           <Upload size={20} />
           <span>
             {fileName
-              ? <><strong>{fileName}</strong> · {content.length.toLocaleString('fr-FR')} caractères · touche pour changer</>
+              ? <><strong>{fileName}</strong> · {content.length.toLocaleString('fr-FR')}  {t('operations.statement_import_modal.characters_key_to_change')}</>
               : 'Dépose le fichier .ofx ou .qif ici, ou touche pour parcourir'}
           </span>
         </div>
         <input ref={fileRef} type="file" accept=".ofx,.qif,application/x-ofx,text/plain" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
-        <label>Format
+        <label>{t('operations.statement_import_modal.format')}
           <select value={format} onChange={(e) => setFormat(e.target.value as 'ofx' | 'qif')}>
-            <option value="ofx">OFX</option>
-            <option value="qif">QIF</option>
+            <option value="ofx">OFX</option>{/* i18n-ignore */}
+            <option value="qif">QIF</option>{/* i18n-ignore */}
           </select>
         </label>
-        <label>Compte
+        <label>{t('operations.statement_import_modal.account')}
           <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            <option value="">Aucun</option>
+            <option value="">{t('operations.statement_import_modal.none')}</option>
             {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
           </select>
         </label>
         {format === 'qif' && (
-          <label>Format de date (QIF)
+          <label>{t('operations.statement_import_modal.date_format_qif')}
             <select value={dateFormat} onChange={(e) => setDateFormat(e.target.value as ImportDateFormat)}>
-              <option value="auto">Auto</option>
-              <option value="dd/mm/yyyy">JJ/MM/AAAA</option>
-              <option value="mm/dd/yyyy">MM/JJ/AAAA</option>
-              <option value="yyyy-mm-dd">AAAA-MM-JJ</option>
+              <option value="auto">{t('operations.statement_import_modal.auto')}</option>
+              <option value="dd/mm/yyyy">{t('operations.statement_import_modal.dd_mm_yyyy')}</option>
+              <option value="mm/dd/yyyy">{t('operations.statement_import_modal.mm_dd_yyyy')}</option>
+              <option value="yyyy-mm-dd">{t('operations.statement_import_modal.yyyy_mm_dd')}</option>
             </select>
           </label>
         )}
-        <p className="panel-note full">Les doublons (déjà présents ou répétés dans le fichier) sont ignorés, et tes règles de catégorie s’appliquent.</p>
+        <p className="panel-note full">{t('operations.statement_import_modal.duplicates_already_present_or_repeated')}</p>
         {result && (
           <div className="notice full" role="status">
-            <FileUp size={16} /> <strong>{result.imported}</strong> importée{result.imported > 1 ? 's' : ''} · {result.skipped} ignorée{result.skipped > 1 ? 's' : ''}
+            <FileUp size={16} /> <strong>{result.imported}</strong>  {t('operations.statement_import_modal.imported')}{result.imported > 1 ? 's' : ''} · {result.skipped}  {t('operations.statement_import_modal.skipped')}{result.skipped > 1 ? 's' : ''}
             {result.duplicates_count > 0 && ` (dont ${result.duplicates_count} doublon${result.duplicates_count > 1 ? 's' : ''})`}
           </div>
         )}
         <div className="modal-actions full">
           <button type="button" className="secondary" onClick={onClose}>{result ? 'Fermer' : 'Annuler'}</button>
           <button type="button" className="primary" disabled={!content || busy} onClick={submit}>
-            {busy ? <Loader2 className="spin-icon" size={16} /> : <Upload size={16} />} Importer
+            {busy ? <Loader2 className="spin-icon" size={16} /> : <Upload size={16} />}  {t('operations.statement_import_modal.import')}
           </button>
         </div>
       </div>

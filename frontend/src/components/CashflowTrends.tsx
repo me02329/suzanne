@@ -18,6 +18,7 @@ import { timeAxisProps, timeTooltipLabel } from '../lib/timeAxis';
 import { EmptyChart } from '../components/EmptyChart';
 import '../styles/pages/plan.css';
 import '../styles/pages/statistics.css';
+import { useTranslation } from 'react-i18next';
 
 type CashflowTrendsSummary = {
   currency: string;
@@ -31,6 +32,7 @@ export function CashflowTrends({ summary, reportCurrency }: {
   summary: CashflowTrendsSummary | null;
   reportCurrency: string;
 }) {
+  const { t } = useTranslation();
   const chartTheme = useChartTheme();
   const narrow = useIsNarrow();
   const displayCurrency = summary?.currency ?? reportCurrency;
@@ -75,7 +77,7 @@ export function CashflowTrends({ summary, reportCurrency }: {
   return (
     <div className="st-trends">
       <div className="pg-card">
-        <div className="pg-card-head"><h2>Revenus et dépenses par mois</h2></div>
+        <div className="pg-card-head"><h2>{t('accueil.cashflow_trends.income_and_expenses_by_month')}</h2></div>
         <div className="pg-card-body">
           <div className="pg-chart">
             {cashflowHasData ? (
@@ -101,7 +103,7 @@ export function CashflowTrends({ summary, reportCurrency }: {
 
       <div className="st-trends-row">
         <div className="pg-card">
-          <div className="pg-card-head"><h2>Taux d’épargne</h2></div>
+          <div className="pg-card-head"><h2>{t('accueil.cashflow_trends.savings_rate')}</h2></div>
           <div className="pg-card-body">
             <div className="pg-chart small">
               {rateHasData ? (
@@ -134,7 +136,7 @@ export function CashflowTrends({ summary, reportCurrency }: {
         </div>
 
         <div className="pg-card">
-          <div className="pg-card-head"><h2>Par année</h2></div>
+          <div className="pg-card-head"><h2>{t('accueil.cashflow_trends.by_year')}</h2></div>
           <div className="pg-card-body">
             <div className="pg-chart small">
               {yearHasData ? (

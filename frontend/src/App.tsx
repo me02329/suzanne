@@ -385,14 +385,14 @@ export default function App() {
     <>
       {users.length > 1 && (
         <label className="field-inline">
-          <span>Profil</span>
+          <span>{t('ui.app.profile')}</span>
           <select value={userId ?? ''} onChange={(e) => setUserId(Number(e.target.value))}>
             {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
         </label>
       )}
       <label className="field-inline">
-        <span>Devise</span>
+        <span>{t('ui.app.currency')}</span>
         <select value={reportCurrency} onChange={(e) => setReportCurrency(e.target.value)}>
           {REPORT_CURRENCIES.map((option) => <option key={option.value} value={option.value}>{option.value}</option>)}
         </select>
@@ -403,10 +403,10 @@ export default function App() {
 
   return (
     <div className="shell">
-      <aside className="rail" aria-label="Navigation principale">
+      <aside className="rail" aria-label={t('ui.app.main_navigation')}>
         <div className="rail-brand">
           <span className="rail-mark" aria-hidden>S</span>
-          <span className="rail-name">Suzanne</span>
+          <span className="rail-name">Suzanne</span>{/* i18n-ignore : nom de l'application */}
         </div>
         <nav className="rail-nav">
           {navSections.map((s) => (
@@ -432,12 +432,12 @@ export default function App() {
             <h1>{t(tabLabel(tab))}</h1>
           </div>
           <div className={searchOpen ? 'topbar-tools search-open' : 'topbar-tools'}>
-            <button type="button" className="icon-ghost topbar-search-toggle" aria-label="Rechercher" aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)}>
+            <button type="button" className="icon-ghost topbar-search-toggle" aria-label={t('ui.app.search')} aria-expanded={searchOpen} onClick={() => setSearchOpen((v) => !v)}>
               {searchOpen ? <X size={18} /> : <Search size={18} />}
             </button>
             {userId && <SearchBox userId={userId} onNavigate={(next) => { setSearchOpen(false); setActiveTab(next); }} />}
             {controls}
-            {loading && <span className="spinner" aria-label="Chargement" />}
+            {loading && <span className="spinner" aria-label={t('ui.app.loading')} />}
           </div>
         </header>
         {section.tabs.length > 1 && (
@@ -457,7 +457,7 @@ export default function App() {
         )}
 
         <main className="content">
-        <Suspense fallback={<div className="page-loading">Chargement…</div>}>
+        <Suspense fallback={<div className="page-loading">{t('ui.app.loading_2')}</div>}>
         {/* Keyed by pathname so the wrapper remounts on every navigation and
             replays the fade — whatever element the page uses as its root. */}
         <div className="page-fade" key={location.pathname}>
@@ -546,13 +546,13 @@ export default function App() {
         </main>
       </div>
 
-      <nav className="tabbar" aria-label="Navigation">
+      <nav className="tabbar" aria-label={t('ui.app.navigation')}>
         {navSections.filter((s) => (MOBILE_PRIMARY as readonly string[]).includes(s.id)).slice(0, 2).map((s) => (
           <button key={s.id} type="button" className={s.id === section.id ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setActiveTab(s.tabs[0]!.tab)}>
             {s.icon}<span>{t(s.short)}</span>
           </button>
         ))}
-        <button type="button" className="tabbar-add" aria-label="Nouvelle opération" onClick={() => navigate('/transactions?focus=quick')}>
+        <button type="button" className="tabbar-add" aria-label={t('ui.app.new_transaction')} onClick={() => navigate('/transactions?focus=quick')}>
           <Plus size={24} strokeWidth={2.25} />
         </button>
         {navSections.filter((s) => s.id === 'accounts').map((s) => (
@@ -561,16 +561,16 @@ export default function App() {
           </button>
         ))}
         <button type="button" className={moreOpen || !(MOBILE_PRIMARY as readonly string[]).includes(section.id) ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setMoreOpen(true)}>
-          <MoreHorizontal size={20} strokeWidth={1.75} /><span>Plus</span>
+          <MoreHorizontal size={20} strokeWidth={1.75} /><span>{t('ui.app.more')}</span>
         </button>
       </nav>
 
       {moreOpen && (
         <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
-          <div className="sheet" role="dialog" aria-modal="true" aria-label="Plus" onClick={(e) => e.stopPropagation()}>
+          <div className="sheet" role="dialog" aria-modal="true" aria-label={t('ui.app.more')} onClick={(e) => e.stopPropagation()}>
             <div className="sheet-head">
-              <strong>Plus</strong>
-              <button type="button" className="icon-ghost" aria-label="Fermer" onClick={() => setMoreOpen(false)}><X size={18} /></button>
+              <strong>{t('ui.app.more')}</strong>
+              <button type="button" className="icon-ghost" aria-label={t('ui.app.close')} onClick={() => setMoreOpen(false)}><X size={18} /></button>
             </div>
             <div className="sheet-grid">
               {navSections.filter((s) => !(MOBILE_PRIMARY as readonly string[]).includes(s.id)).map((s) => (
@@ -585,20 +585,20 @@ export default function App() {
       )}
 
       {shortcutsOpen && (
-        <Modal title="Raccourcis clavier" onClose={() => setShortcutsOpen(false)}>
+        <Modal title={t('ui.app.keyboard_shortcuts')} onClose={() => setShortcutsOpen(false)}>
           <div className="shortcuts-help">
-            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>d</kbd></span> Vue générale</div>
-            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>w</kbd></span> Patrimoine</div>
-            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>t</kbd></span> Transactions</div>
-            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>s</kbd></span> Statistiques</div>
-            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>a</kbd></span> Comptes</div>
-            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>b</kbd></span> Budgets</div>
-            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>c</kbd></span> Catégories</div>
-            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>g</kbd></span> Objectifs</div>
-            <div className="shortcuts-row"><span><kbd>n</kbd></span> Nouvelle transaction</div>
-            <div className="shortcuts-row"><span><kbd>/</kbd></span> Rechercher</div>
-            <div className="shortcuts-row"><span><kbd>[</kbd> <kbd>]</kbd></span> Mois précédent / suivant</div>
-            <div className="shortcuts-row"><span><kbd>?</kbd></span> Cette aide</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>d</kbd></span>  {t('ui.app.overview')}</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>w</kbd></span>  {t('ui.app.net_worth')}</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>t</kbd></span>  {t('ui.app.transactions')}</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>s</kbd></span>  {t('ui.app.statistics')}</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>a</kbd></span>  {t('ui.app.accounts')}</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>b</kbd></span>  {t('ui.app.budgets')}</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>c</kbd></span>  {t('ui.app.categories')}</div>
+            <div className="shortcuts-row"><span><kbd>g</kbd> <kbd>g</kbd></span>  {t('ui.app.goals')}</div>
+            <div className="shortcuts-row"><span><kbd>n</kbd></span>  {t('ui.app.new_transaction_2')}</div>
+            <div className="shortcuts-row"><span><kbd>/</kbd></span>  {t('ui.app.search')}</div>
+            <div className="shortcuts-row"><span><kbd>[</kbd> <kbd>]</kbd></span>  {t('ui.app.previous_next_month')}</div>
+            <div className="shortcuts-row"><span><kbd>?</kbd></span>  {t('ui.app.this_help')}</div>
           </div>
         </Modal>
       )}

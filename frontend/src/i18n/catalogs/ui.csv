@@ -50,3 +50,25 @@ ui.drilldown_popover.loading,Chargement…,Loading…
 ui.drilldown_popover.no_transactions_found_in_this,Aucune transaction trouvée sur cette plage.,No transactions found in this range.
 ui.drilldown_popover.transaction,transaction,transaction
 ui.drilldown_popover.click_to_open_right_month,— clique pour ouvrir au bon mois.,— click to open the right month.
+ui.app.profile,Profil,Profile
+ui.app.currency,Devise,Currency
+ui.app.main_navigation,Navigation principale,Main navigation
+ui.app.search,Rechercher,Search
+ui.app.loading,Chargement,Loading
+ui.app.loading_2,Chargement…,Loading…
+ui.app.navigation,Navigation,Navigation
+ui.app.new_transaction,Nouvelle opération,New transaction
+ui.app.more,Plus,More
+ui.app.close,Fermer,Close
+ui.app.keyboard_shortcuts,Raccourcis clavier,Keyboard shortcuts
+ui.app.overview,Vue générale,Overview
+ui.app.net_worth,Patrimoine,Net worth
+ui.app.transactions,Transactions,Transactions
+ui.app.statistics,Statistiques,Statistics
+ui.app.accounts,Comptes,Accounts
+ui.app.budgets,Budgets,Budgets
+ui.app.categories,Catégories,Categories
+ui.app.goals,Objectifs,Goals
+ui.app.new_transaction_2,Nouvelle transaction,New transaction
+ui.app.previous_next_month,Mois précédent / suivant,Previous / next month
+ui.app.this_help,Cette aide,This help

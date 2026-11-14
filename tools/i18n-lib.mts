@@ -124,7 +124,7 @@ export function scanFile(file: string, text = fs.readFileSync(file, 'utf8')): { 
   return { uses, dynamic };
 }
 
-const TEXT_ATTRS = new Set(['placeholder', 'title', 'aria-label', 'alt', 'label']);
+const TEXT_ATTRS = new Set(['placeholder', 'title', 'aria-label', 'alt', 'label', 'data-label', 'confirm']);
 
 /**
  * Textes visibles écrits en dur dans le JSX, repérés avec l'analyseur

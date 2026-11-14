@@ -8,6 +8,7 @@ import { IconButton } from './IconButton';
 import { Panel } from './Panel';
 import { RowMenu } from './ui/RowMenu';
 import type { Run } from '../lib/run';
+import { useTranslation } from 'react-i18next';
 
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
@@ -18,6 +19,7 @@ function humanSize(bytes: number): string {
 // Sauvegardes : snapshots JSON complets stockés en base, créés à la demande ou
 // automatiquement chaque jour (rotation côté serveur).
 export function BackupsPanel({ userId, run }: { userId: number; run: Run }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<BackupMeta[] | null>(null);
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -52,32 +54,32 @@ export function BackupsPanel({ userId, run }: { userId: number; run: Run }) {
 
   return (
     <Panel
-      title="Sauvegardes"
+      title={t('reglages.backups_panel.backups')}
       action={(
         <button type="button" className="secondary" disabled={busy} onClick={create}>
-          {busy ? <Loader2 className="spin-icon" size={16} /> : <Plus size={16} />} Créer
+          {busy ? <Loader2 className="spin-icon" size={16} /> : <Plus size={16} />}  {t('reglages.backups_panel.create')}
         </button>
       )}
     >
-      <p className="panel-note">Une sauvegarde automatique par jour, les 14 dernières sont gardées.</p>
+      <p className="panel-note">{t('reglages.backups_panel.one_automatic_backup_per_day')}</p>
       {items == null ? (
-        <p className="empty"><Loader2 className="spin-icon" size={16} /> Chargement…</p>
+        <p className="empty"><Loader2 className="spin-icon" size={16} />  {t('reglages.backups_panel.loading')}</p>
       ) : (
         <DataTable scroll empty={items.length === 0 ? 'Aucune sauvegarde.' : null}>
-          <thead><tr><th>Sauvegarde</th><th>Date</th><th className="amount-cell">Taille</th><th className="actions-cell"><span className="sr-only">Actions</span></th></tr></thead>
+          <thead><tr><th>{t('reglages.backups_panel.backup')}</th><th>{t('reglages.backups_panel.date')}</th><th className="amount-cell">{t('reglages.backups_panel.size')}</th><th className="actions-cell"><span className="sr-only">{t('reglages.backups_panel.actions')}</span></th></tr></thead>
           <tbody>
             {items.map((b) => (
               <tr key={b.id}>
                 <td className="cell-primary">
                   <span className="st-name">
-                    {b.auto ? <Clock size={14} aria-label="Automatique" /> : <DatabaseBackup size={14} aria-label="Manuelle" />}
+                    {b.auto ? <Clock size={14} aria-label={t('reglages.backups_panel.automatic')} /> : <DatabaseBackup size={14} aria-label={t('reglages.backups_panel.manual')} />}
                     <span title={b.label}>{b.label}</span>
                   </span>
                 </td>
-                <td className="st-muted" data-label="Date">{new Date(b.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                <td className="amount-cell st-muted" data-label="Taille">{humanSize(b.size)}</td>
+                <td className="st-muted" data-label={t('reglages.backups_panel.date')}>{new Date(b.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                <td className="amount-cell st-muted" data-label={t('reglages.backups_panel.size')}>{humanSize(b.size)}</td>
                 <td className="actions-cell">
-                  <IconButton label="Télécharger" tone="neutral" icon={<Download size={16} />} onClick={() => void download(b)} />
+                  <IconButton label={t('reglages.backups_panel.download')} tone="neutral" icon={<Download size={16} />} onClick={() => void download(b)} />
                   <RowMenu items={[
                     { label: 'Restaurer', icon: <RotateCcw />, confirm: 'Restaurer cette sauvegarde ? Rien n’est écrasé ni dupliqué : seules les données absentes sont recréées.', onSelect: () => restore(b) },
                     { label: 'Supprimer', icon: <Trash2 />, danger: true, confirm: 'Supprimer cette sauvegarde ?', onSelect: () => remove(b) },

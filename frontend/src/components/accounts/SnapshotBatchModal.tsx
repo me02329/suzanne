@@ -6,6 +6,7 @@ import { lastDayOfPreviousMonthIso, money } from '../../lib/format';
 import { parseDecimal } from '../../lib/pea';
 import { Modal } from '../Modal';
 import type { Run } from '../../lib/run';
+import { useTranslation } from 'react-i18next';
 
 const ORDERED_GROUPS = ['cash', 'regulated_savings', 'investments', 'crypto', 'liabilities', 'other'];
 
@@ -17,6 +18,7 @@ export function SnapshotBatchModal({ userId, accounts, summary, run, onClose }: 
   run: Run;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [date, setDate] = useState(() => lastDayOfPreviousMonthIso());
   const [inputs, setInputs] = useState<Record<number, string>>({});
   const [prefilling, setPrefilling] = useState(false);
@@ -61,17 +63,17 @@ export function SnapshotBatchModal({ userId, accounts, summary, run, onClose }: 
   };
 
   return (
-    <Modal title="Soldes de fin de mois" onClose={onClose} wide>
+    <Modal title={t('comptes.snapshot_batch_modal.month_end_balances')} onClose={onClose} wide>
       <form className="acc-batch sheet-ok" onSubmit={submit}>
-        <p className="acc-muted">Saisis le solde réel lu sur tes relevés. Laisse vide ce que tu n'as pas vérifié. Pour un compte d'investissement, saisis les espèces seules.</p>
+        <p className="acc-muted">{t('comptes.snapshot_batch_modal.enter_actual_balance_read_on')}</p>
         <div className="acc-batch-top">
-          <label>Date<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label>
+          <label>{t('comptes.snapshot_batch_modal.date')}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label>
           <button type="button" className="secondary" onClick={() => void prefill()} disabled={prefilling || active.length === 0}>
             <Wand2 size={16} /> {prefilling ? 'Calcul…' : 'Pré-remplir'}
           </button>
         </div>
         {active.length === 0 ? (
-          <p className="empty">Crée d'abord un compte.</p>
+          <p className="empty">{t('comptes.snapshot_batch_modal.create_account_first')}</p>
         ) : (
           <div className="acc-batch-list">
             {ORDERED_GROUPS.flatMap((group) => {
@@ -85,7 +87,7 @@ export function SnapshotBatchModal({ userId, accounts, summary, run, onClose }: 
                     <label key={a.id} className="acc-batch-row">
                       <span className="acc-batch-name">
                         <strong>{a.name}</strong>
-                        <small>Estimé {est ? money(est.signed_balance, reportCurrency) : '—'}</small>
+                        <small>{t('comptes.snapshot_batch_modal.estimated')} {est ? money(est.signed_balance, reportCurrency) : '—'}</small>
                       </span>
                       <input
                         inputMode="decimal"
@@ -104,8 +106,8 @@ export function SnapshotBatchModal({ userId, accounts, summary, run, onClose }: 
         )}
         {error && <p className="acc-error" role="alert">{error}</p>}
         <div className="acc-form-actions">
-          <button type="button" className="secondary" onClick={onClose}>Annuler</button>
-          <button className="primary" disabled={filled === 0}>Enregistrer{filled > 0 ? ` (${filled})` : ''}</button>
+          <button type="button" className="secondary" onClick={onClose}>{t('comptes.snapshot_batch_modal.cancel')}</button>
+          <button className="primary" disabled={filled === 0}>{t('comptes.snapshot_batch_modal.save')}{filled > 0 ? ` (${filled})` : ''}</button>
         </div>
       </form>
     </Modal>

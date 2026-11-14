@@ -299,3 +299,39 @@ operations.review.duplicates_note,"Même compte, même type, même montant, mêm
 operations.review.no_pending_duplicate,Aucun doublon en attente.,No pending duplicate.
 operations.review.not_duplicate,Pas un doublon : valider,Not a duplicate: confirm
 operations.review.delete_b,Supprimer B (corbeille),Delete B (trash)
+operations.statement_import_modal.import_ofx_qif_statement,Importer un relevé OFX / QIF,Import an OFX / QIF statement
+operations.statement_import_modal.characters_key_to_change,caractères · touche pour changer,characters · key to change
+operations.statement_import_modal.format,Format,Format
+operations.statement_import_modal.account,Compte,Account
+operations.statement_import_modal.none,Aucun,None
+operations.statement_import_modal.date_format_qif,Format de date (QIF),Date format (QIF)
+operations.statement_import_modal.auto,Auto,Auto
+operations.statement_import_modal.dd_mm_yyyy,JJ/MM/AAAA,DD/MM/YYYY
+operations.statement_import_modal.mm_dd_yyyy,MM/JJ/AAAA,MM/DD/YYYY
+operations.statement_import_modal.yyyy_mm_dd,AAAA-MM-JJ,YYYY-MM-DD
+operations.statement_import_modal.duplicates_already_present_or_repeated,"Les doublons (déjà présents ou répétés dans le fichier) sont ignorés, et tes règles de catégorie s’appliquent.","Duplicates (already present or repeated in the file) are skipped, and your category rules apply."
+operations.statement_import_modal.imported,importée,imported
+operations.statement_import_modal.skipped,ignorée,skipped
+operations.statement_import_modal.import,Importer,Import
+operations.trash_modal.trash,Corbeille,Trash
+operations.trash_modal.deleted_transactions_are_kept_here,Les transactions supprimées sont conservées ici. Restaure-les ou supprime-les définitivement (irréversible).,Deleted transactions are kept here. Restore them or delete them permanently (irreversible).
+operations.trash_modal.loading,Chargement…,Loading…
+operations.trash_modal.date,Date,Date
+operations.trash_modal.label,Libellé,Label
+operations.trash_modal.amount,Montant,Amount
+operations.trash_modal.actions,Actions,Actions
+operations.trash_modal.restore,Restaurer,Restore
+operations.trash_modal.delete_permanently,Supprimer définitivement,Delete permanently
+operations.trash_modal.close,Fermer,Close
+operations.attachments_modal.receipts_and_proofs_images_or,"Reçus et justificatifs (images ou PDF, 8 Mo max), stockés dans la base.","Receipts and proofs (images or PDF, 8 MB max), stored in the database."
+operations.attachments_modal.add_file,Ajouter un fichier,Add a file
+operations.attachments_modal.loading,Chargement…,Loading…
+operations.attachments_modal.file,Fichier,File
+operations.attachments_modal.size,Taille,Size
+operations.attachments_modal.added_on,Ajouté le,Added on
+operations.attachments_modal.actions,Actions,Actions
+operations.attachments_modal.open_download,Ouvrir / télécharger,Open / download
+operations.attachments_modal.delete,Supprimer,Delete
+operations.attachments_modal.close,Fermer,Close
+operations.trash_modal.delete_permanently_this_cannot_be,Supprimer définitivement ? Cette action est irréversible.,Delete permanently? This cannot be undone.
+operations.attachments_modal.delete_this_attachment,Supprimer cette pièce jointe ?,Delete this attachment?
