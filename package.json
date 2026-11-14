@@ -31,7 +31,8 @@
     "screenshots": "node tools/screenshots.mjs",
     "i18n:check": "tsx tools/i18n-check.mts",
     "i18n:migrate": "tsx tools/i18n-migrate.mts",
-    "i18n:extract": "tsx tools/i18n-extract.mts"
+    "i18n:extract": "tsx tools/i18n-extract.mts",
+    "bank:poc": "tsx tools/enable-banking.mts"
   },
   "engines": {
     "node": ">=20"
