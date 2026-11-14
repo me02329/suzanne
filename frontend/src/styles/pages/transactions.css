@@ -52,7 +52,7 @@
   flex: 0 1 110px; font-family: var(--num-font); font-weight: 600; text-align: right;
 }
 .jr-quick-label { flex: 1 1 120px; }
-.jr-quick select.jr-quick-extra { flex: 1 1 140px; max-width: 200px; }
+.jr-quick select.jr-quick-extra, .jr-quick .cat-select.jr-quick-extra { flex: 1 1 140px; max-width: 200px; width: auto; }
 .jr-quick input.jr-quick-extra { flex: 0 0 140px; }
 .jr-quick-add { display: inline-flex; align-items: center; gap: 6px; }
 .jr-quick-more { flex: 0 0 auto; }
@@ -274,7 +274,7 @@
 
 /* ---- Tablette ------------------------------------------------------------ */
 @media (max-width: 1180px) {
-  .jr-quick select.jr-quick-extra { flex-basis: 150px; }
+  .jr-quick select.jr-quick-extra, .jr-quick .cat-select.jr-quick-extra { flex-basis: 150px; }
   .jr-quick input.jr-quick-extra { flex-basis: 140px; }
 }
 
@@ -390,3 +390,4 @@ button.jr-badge-link:hover { color: var(--text); border-color: var(--text); }
 .refunded-item:hover { background: var(--surface-muted); }
 .refunded-date { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .refunded-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-quick .cat-select.jr-quick-extra { align-self: stretch; }

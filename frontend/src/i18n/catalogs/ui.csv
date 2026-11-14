@@ -74,3 +74,7 @@ ui.app.previous_next_month,Mois précédent / suivant,Previous / next month
 ui.app.this_help,Cette aide,This help
 ui.icon_picker.none,Aucune icône,No icon
 ui.icon_picker.unknown,"Icône actuelle « {{name}} » inconnue : choisis-en une dans la liste.","Current icon “{{name}}” is unknown: pick one from the list."
+ui.category_select.search,Rechercher une catégorie…,Search a category…
+ui.category_select.no_match,Aucune catégorie ne correspond.,No matching category.
+ui.category_select.no_description,Pas de description pour cette catégorie.,No description for this category.
+ui.category_select.hint,Survole une catégorie pour voir sa description.,Hover a category to see its description.

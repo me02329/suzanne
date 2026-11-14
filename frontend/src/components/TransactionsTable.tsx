@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Circle, Pencil } from 'lucide-react';
 import { CategoryHint, CategoryName } from './CategoryName';
+import { CategorySelect } from './CategorySelect';
 import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne/shared';
 import { money, txLabel, typeLabel } from '../lib/format';
 import { pickableAccounts } from '../lib/account';
@@ -220,15 +221,14 @@ export function TransactionsTable({
                     </div>
                   ) : (
                     <CategoryHint category={category}>
-                      <select
-                        className="inline-select"
-                        value={tx.category_id ?? ''}
-                        aria-label={t('commun.category')}
-                        onChange={(e) => onInlineUpdate(tx, { category_id: e.target.value ? Number(e.target.value) : null })}
-                      >
-                        <option value="">{t('operations.no_category')}</option>
-                        {categories.filter((c) => c.type === tx.type).map((c) => <option key={c.id} value={c.id} title={c.description ?? undefined}>{c.name}</option>)}
-                      </select>
+                      <CategorySelect
+                        className="inline"
+                        value={String(tx.category_id ?? '')}
+                        onChange={(v) => onInlineUpdate(tx, { category_id: v ? Number(v) : null })}
+                        categories={categories.filter((c) => c.type === tx.type)}
+                        noneLabel={t('operations.no_category')}
+                        ariaLabel={t('commun.category')}
+                      />
                     </CategoryHint>
                   )}
                 </td>

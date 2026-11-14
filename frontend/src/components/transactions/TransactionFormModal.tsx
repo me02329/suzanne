@@ -8,6 +8,7 @@ import { money, todayIso } from '../../lib/format';
 import { Modal } from '../Modal';
 import { TagPicker } from '../TagPicker';
 import type { Run } from '../../lib/run';
+import { CategorySelect } from '../CategorySelect';
 import {
   amountInput,
   emptySplitDraft,
@@ -199,10 +200,14 @@ export function TransactionFormModal({ mode, tx, draft, userId, accounts, catego
           </label>
         ) : (
           <label>{t('commun.category')}
-            <select value={splitEnabled ? '' : categoryId} onChange={(e) => setCategoryId(e.target.value)} disabled={splitEnabled}>
-              <option value="">{splitEnabled ? t('operations.split_3') : t('operations.none_2')}</option>
-              {typedCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <CategorySelect
+              value={splitEnabled ? '' : categoryId}
+              onChange={setCategoryId}
+              disabled={splitEnabled}
+              categories={typedCategories}
+              noneLabel={splitEnabled ? t('operations.split_3') : t('operations.none_2')}
+              ariaLabel={t('commun.category')}
+            />
           </label>
         )}
         {!isTransfer && (
@@ -271,10 +276,13 @@ function SplitEditor({ drafts, categories, target, currency, onChange }: {
       </div>
       {drafts.map((row) => (
         <div className="jr-split-row" key={row.key}>
-          <select value={row.category_id} onChange={(e) => update(row.key, { category_id: e.target.value })} aria-label={t('operations.split_category')}>
-            <option value="">{t('commun.category')}</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <CategorySelect
+            value={row.category_id}
+            onChange={(v) => update(row.key, { category_id: v })}
+            categories={categories}
+            noneLabel={t('commun.category')}
+            ariaLabel={t('operations.split_category')}
+          />
           <div className="jr-split-amount">
             <input inputMode="decimal" autoComplete="off" value={row.amount} onChange={(e) => update(row.key, { amount: e.target.value })} placeholder="0,00" aria-label={t('operations.split_amount')} />
             <button type="button" className="jr-link" onClick={() => fill(row.key)} disabled={target <= 0} title={t('operations.fill_with_remainder')}>{t('operations.fill')}</button>

@@ -8,6 +8,7 @@ import { todayIso } from '../../lib/format';
 import type { Run } from '../../lib/run';
 import type { TxDraft } from './TransactionFormModal';
 import { parseAmount, roundAmount } from './txUtils';
+import { CategorySelect } from '../CategorySelect';
 
 type QuickType = 'expense' | 'income';
 
@@ -97,10 +98,14 @@ export const QuickEntry = forwardRef<HTMLInputElement, {
         onChange={(e) => { setAmount(e.target.value); setInvalid(false); }}
       />
       <input className="jr-quick-label" placeholder={t('operations.label')} aria-label={t('operations.label')} value={description} onChange={(e) => setDescription(e.target.value)} />
-      <select className="jr-quick-extra" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label={t('commun.category')}>
-        <option value="">{t('commun.category')}</option>
-        {typed.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
+      <CategorySelect
+        className="jr-quick-extra"
+        value={categoryId}
+        onChange={setCategoryId}
+        categories={typed}
+        noneLabel={t('commun.category')}
+        ariaLabel={t('commun.category')}
+      />
       <select className="jr-quick-extra" value={accountId} onChange={(e) => setAccountId(e.target.value)} aria-label={t('operations.account')}>
         <option value="">{t('operations.account')}</option>
         {pickableAccounts(accounts).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
