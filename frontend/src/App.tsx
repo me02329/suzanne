@@ -533,7 +533,7 @@ export default function App() {
           <Route path="/recurring" element={userId ? <Recurring userId={userId} recurring={recurring} accounts={accounts} categories={categories} categoryById={categoryById} accountById={accountById} summary={summary} reportCurrency={reportCurrency} run={run} /> : null} />
           <Route path="/bills" element={userId ? <Bills userId={userId} month={month} billsStatus={billsStatus} accounts={accounts} categories={categories} accountById={accountById} run={run} /> : null} />
           <Route path="/forecast" element={userId ? <Forecast recurring={recurring} accounts={accounts} goals={goals} summary={summary} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
-          <Route path="/health" element={userId ? <Health summary={summary} recurring={recurring} budgets={budgets} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
+          <Route path="/health" element={userId ? <Health userId={userId} summary={summary} recurring={recurring} budgets={budgets} reportCurrency={reportCurrency} categoryById={categoryById} accountById={accountById} /> : null} />
           <Route path="/loans" element={userId ? <Loans userId={userId} accounts={accounts} institutions={institutions} categories={categories} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/diversification" element={userId ? <Diversification userId={userId} accounts={accounts} institutions={institutions} summary={summary} reportCurrency={reportCurrency} /> : null} />
           <Route path="/bank/*" element={userId ? <Bank userId={userId} accounts={accounts} run={run} /> : null} />

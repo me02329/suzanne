@@ -164,3 +164,10 @@ analyses.diversification.diag_guarantee_insurer,{{institution}} détient {{amoun
 analyses.diversification.diag_open_life_insurance,Pas d'assurance-vie : en ouvrir une tôt (même avec peu) fait courir les 8 ans de fiscalité allégée.,No life insurance: opening one early (even small) starts the 8-year tax clock.
 analyses.diversification.diag_open_pea,Pas de PEA : l'ouvrir tôt fait courir les 5 ans d'exonération d'impôt sur les gains.,No PEA: opening it early starts the 5-year tax exemption clock.
 analyses.diversification.disclaimer,"Repères courants de gestion de patrimoine, pas un conseil personnalisé : l'allocation idéale dépend de tes projets, de ton horizon et de ton goût du risque.","Common wealth-management guidelines, not personal advice: the right allocation depends on your projects, horizon and risk appetite."
+analyses.savings.title,"Taux d'épargne, mois par mois","Savings rate, month by month"
+analyses.savings.average,Sur 12 mois : {{pct}} % (Français : ≈ {{ref}} %),Over 12 months: {{pct}}% (French households: ≈ {{ref}}%)
+analyses.savings.rate,Taux d'épargne,Savings rate
+analyses.savings.french_average,Moyenne française,French average
+analyses.savings.pyf_yes,"Tu te paies en premier : {{count}} mois sur 3, un versement d’environ {{amount}} vers {{to}} juste après la paie ou en début de mois.","You pay yourself first: {{count}} of 3 months, about {{amount}} to {{to}} right after payday or early in the month."
+analyses.savings.pyf_no,« Se payer en premier » : {{count}} versement(s) vers l’épargne en début de mois sur les 3 derniers mois. Un virement automatique d’environ {{amount}} (10 % de tes revenus) juste après la paie rend l’épargne automatique.,“Pay yourself first”: {{count}} early-month contribution(s) to savings over the last 3 months. An automatic transfer of about {{amount}} (10% of your income) right after payday makes saving automatic.
+analyses.savings.pyf_action,Programmer un virement récurrent,Set up a recurring transfer
