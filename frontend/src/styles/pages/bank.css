@@ -72,3 +72,5 @@
 .bank-alert.info svg { color: var(--warn); }
 .bank-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
 .bank-card-hint { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.35; max-width: 360px; }
+.bank-embedded { display: grid; gap: 14px; min-width: 0; }
+.bank-embedded > h2 { margin: 0; }

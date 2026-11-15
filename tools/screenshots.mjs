@@ -25,7 +25,7 @@ const lang = flag('--lang') ?? 'fr';
 const full = args.includes('--full');
 const month = flag('--month');
 const BASE = process.env.BASE ?? 'http://localhost:5174';
-const ALL = ['dashboard', 'health', 'alerts', 'transactions', 'anomalies', 'accounts', 'wealth', 'investments', 'loans', 'goals', 'simulator',
+const ALL = ['dashboard', 'health', 'alerts', 'transactions', 'anomalies', 'accounts', 'wealth', 'diversification', 'investments', 'loans', 'goals', 'simulator',
   'budgets', 'recurring', 'bills', 'forecast', 'statistics', 'assistant', 'categories', 'tags', 'rules', 'tools', 'users', 'settings'];
 const pages = args[1] && !args[1].startsWith('--') ? args[1].split(',') : ALL;
 fs.mkdirSync(out, { recursive: true });
@@ -49,7 +49,11 @@ for (const [label, viewport, mobile] of [['desk', { width: 1440, height: 900 }, 
   for (const p of pages) {
     current = p;
     await page.goto(`${BASE}/${p}`);
-    await page.waitForTimeout(900);
+    // Attendre la fin des chargements (réseau calme, plus de « Chargement… ») :
+    // un délai fixe photographiait des pages encore vides à froid.
+    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await page.waitForFunction(() => !/Chargement|Loading/.test(document.querySelector('main')?.innerText ?? document.body.innerText), null, { timeout: 15_000 }).catch(() => {});
+    await page.waitForTimeout(600);
     for (let i = 0; i < monthsBack; i += 1) {
       const prev = page.getByRole('button', { name: 'Mois précédent' }).first();
       if (!(await prev.isVisible().catch(() => false))) break;

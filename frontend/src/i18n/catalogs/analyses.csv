@@ -132,7 +132,7 @@ analyses.diversification.excluded_business,Hors société ({{amount}}).,Excludin
 analyses.diversification.excluded_debts,Dettes non déduites ({{amount}}).,Debts not deducted ({{amount}}).
 analyses.diversification.monthly_expenses,Dépenses moyennes : {{amount}} par mois,Average spending: {{amount}} per month
 analyses.diversification.pyramid,Pyramide de l'épargne,Savings pyramid
-analyses.diversification.months,{{count}} mois de dépenses,{{count}} months of spending
+analyses.diversification.months,{{formatted}} mois de dépenses,{{formatted}} months of spending
 analyses.diversification.click_layer,Clique sur un étage pour voir ce qu’il contient.,Click a level to see what it holds.
 analyses.diversification.how_to_read,Comment lire la pyramide,How to read the pyramid
 analyses.diversification.empty_layer,Rien à cet étage pour l’instant.,Nothing on this level yet.
@@ -164,3 +164,59 @@ analyses.diversification.diag_guarantee_insurer,{{institution}} détient {{amoun
 analyses.diversification.diag_open_life_insurance,Pas d'assurance-vie : en ouvrir une tôt (même avec peu) fait courir les 8 ans de fiscalité allégée.,No life insurance: opening one early (even small) starts the 8-year tax clock.
 analyses.diversification.diag_open_pea,Pas de PEA : l'ouvrir tôt fait courir les 5 ans d'exonération d'impôt sur les gains.,No PEA: opening it early starts the 5-year tax exemption clock.
 analyses.diversification.disclaimer,"Repères courants de gestion de patrimoine, pas un conseil personnalisé : l'allocation idéale dépend de tes projets, de ton horizon et de ton goût du risque.","Common wealth-management guidelines, not personal advice: the right allocation depends on your projects, horizon and risk appetite."
+analyses.savings.title,"Taux d'épargne, mois par mois","Savings rate, month by month"
+analyses.savings.average,Sur 12 mois : {{pct}} % (Français : ≈ {{ref}} %),Over 12 months: {{pct}}% (French households: ≈ {{ref}}%)
+analyses.savings.rate,Taux d'épargne,Savings rate
+analyses.savings.french_average,Moyenne française,French average
+analyses.savings.pyf_yes,"Tu te paies en premier : {{count}} mois sur 3, un versement d’environ {{amount}} vers {{to}} juste après la paie ou en début de mois.","You pay yourself first: {{count}} of 3 months, about {{amount}} to {{to}} right after payday or early in the month."
+analyses.savings.pyf_no,« Se payer en premier » : {{count}} versement(s) vers l’épargne en début de mois sur les 3 derniers mois. Un virement automatique d’environ {{amount}} (10 % de tes revenus) juste après la paie rend l’épargne automatique.,“Pay yourself first”: {{count}} early-month contribution(s) to savings over the last 3 months. An automatic transfer of about {{amount}} (10% of your income) right after payday makes saving automatic.
+analyses.savings.pyf_action,Programmer un virement récurrent,Set up a recurring transfer
+analyses.diversification.diag_fees_ok,"Frais moyens de tes placements : {{pct}} % par an (≈ {{amount}}), raisonnables.","Average fees on your investments: {{pct}}% a year (≈ {{amount}}), reasonable."
+analyses.diversification.diag_fees_high,"Frais moyens élevés : {{pct}} % par an (≈ {{amount}}). Au-delà de 1 %, ils mangent une grosse part du rendement sur 20 ans.","High average fees: {{pct}}% a year (≈ {{amount}}). Above 1%, they eat a large share of returns over 20 years."
+analyses.diversification.diag_fees_missing,{{count}} placement(s) sans frais renseignés : ajoute-les dans « Modifier » pour estimer ce qu’ils te coûtent.,{{count}} investment(s) without fees set: add them in « Edit » to estimate what they cost you.
+analyses.rebalance.title,Allocation cible et rééquilibrage,Target allocation and rebalancing
+analyses.rebalance.intro,"Choisis une répartition cible par classe d'actifs (point de départ à ajuster), puis indique ton prochain versement : Suzanne te dit où le mettre pour t'en rapprocher, sans rien vendre.","Choose a target split by asset class (a starting point to adjust), then enter your next contribution: Suzanne tells you where to put it to get closer, without selling anything."
+analyses.rebalance.prudent,Prudent,Cautious
+analyses.rebalance.balanced,Équilibré,Balanced
+analyses.rebalance.dynamic,Dynamique,Growth
+analyses.rebalance.edit,Modifier la cible,Edit target
+analyses.rebalance.sum,Total : {{sum}} % (doit faire 100 %),Total: {{sum}}% (must be 100%)
+analyses.rebalance.cancel,Annuler,Cancel
+analyses.rebalance.save,Enregistrer la cible,Save target
+analyses.rebalance.saved,Allocation cible enregistrée,Target allocation saved
+analyses.rebalance.next_deposit,Mon prochain versement (€),My next contribution (€)
+analyses.rebalance.class,Classe,Class
+analyses.rebalance.now,Actuel,Now
+analyses.rebalance.target,Cible,Target
+analyses.rebalance.gap,Écart,Gap
+analyses.rebalance.put,À verser,To add
+analyses.rebalance.where_cash,"livret A, LDDS",passbook accounts
+analyses.rebalance.where_bonds,fonds euros d'assurance-vie,life insurance euro fund
+analyses.rebalance.where_equities,ETF sur PEA ou assurance-vie,ETFs in a PEA or life insurance
+analyses.rebalance.where_real_estate,SCPI (en assurance-vie) ou immobilier,REITs (in life insurance) or property
+analyses.rebalance.where_alternative,"crypto, or","crypto, gold"
+analyses.rebalance.note,Rééquilibrer par les versements évite de vendre (et de payer de l'impôt sur les plus-values). Un écart de quelques points est normal : un point une fois par an suffit.,Rebalancing through contributions avoids selling (and paying capital gains tax). A gap of a few points is normal: checking once a year is enough.
+analyses.projection.mode,Mon patrimoine,My wealth
+analyses.projection.loading,Chargement…,Loading…
+analyses.projection.monthly,Épargne mensuelle (€),Monthly savings (€)
+analyses.projection.monthly_hint,Ton rythme sur 12 mois : {{amount}} par mois,Your pace over 12 months: {{amount}} a month
+analyses.projection.years,Horizon (années),Horizon (years)
+analyses.projection.extra,Scénario : en plus chaque mois en actions (€),Scenario: extra each month in equities (€)
+analyses.projection.split_target,L’épargne mensuelle est répartie selon ton allocation cible (Diversification).,Monthly savings are split according to your target allocation (Diversification).
+analyses.projection.split_current,L’épargne mensuelle est répartie comme ton patrimoine actuel. Définis une allocation cible dans Diversification pour la répartir autrement.,Monthly savings are split like your current wealth. Set a target allocation in Diversification to split it differently.
+analyses.projection.today,Aujourd’hui,Today
+analyses.projection.blended,rendement moyen ≈ {{pct}} par an,average return ≈ {{pct}} a year
+analyses.projection.in_years,Dans {{years}} ans,In {{years}} years
+analyses.projection.contributed,dont {{amount}} versés,of which {{amount}} contributed
+analyses.projection.with_extra,Avec +{{amount}}/mois en actions,With +{{amount}}/month in equities
+analyses.projection.difference,{{amount}} de plus,{{amount}} more
+analyses.projection.rule_72,Règle de 72,Rule of 72
+analyses.projection.doubling,double en ≈ {{years}} ans,doubles in ≈ {{years}} years
+analyses.projection.rule_72_hint,72 ÷ rendement annuel = années pour doubler,72 ÷ annual return = years to double
+analyses.projection.year_n,Année {{n}},Year {{n}}
+analyses.projection.total,Patrimoine,Wealth
+analyses.projection.contributed_label,Versé,Contributed
+analyses.projection.by_class,Par classe d’actifs,By asset class
+analyses.projection.class,Classe,Class
+analyses.projection.rate,Rendement,Return
+analyses.projection.note,"Projection indicative avec des rendements typiques constants (livrets ~2 %, fonds euros ~2,5 %, actions ~7 %, immobilier ~4,5 %), avant impôts et inflation. Les marchés ne montent pas en ligne droite.","Indicative projection with constant typical returns (passbooks ~2%, euro funds ~2.5%, equities ~7%, real estate ~4.5%), before tax and inflation. Markets do not rise in a straight line."

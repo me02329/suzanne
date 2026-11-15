@@ -416,3 +416,10 @@ patrimoine.wrapper.social,Prélèvements sociaux ({{rate}}),Social charges ({{ra
 patrimoine.wrapper.estimated_tax,Fiscalité estimée,Estimated tax
 patrimoine.wrapper.net_received,Net perçu,Net received
 patrimoine.wrapper.life_note,Estimation indicative pour des versements de moins de 150 000 € ; les prélèvements sociaux sont souvent déjà prélevés chaque année sur le fonds en euros.,"Indicative estimate for contributions under €150,000; social charges are often already deducted yearly on the euro fund."
+patrimoine.return.title,Rendement de ton épargne placée,Return on your invested savings
+patrimoine.return.per_year_since,"par an depuis le {{date}}, versements neutralisés","a year since {{date}}, contributions excluded"
+patrimoine.return.start_value,Au départ,At start
+patrimoine.return.net_deposits,Versé (net),Contributed (net)
+patrimoine.return.gain,Gagné,Gained
+patrimoine.return.current,Aujourd’hui,Today
+patrimoine.return.note,"Livrets, PEL, PEA, compte-titres, assurance-vie, PER et crypto (hors société). Les virements depuis tes autres comptes sont des versements, pas du rendement ; ceux entre placements s'annulent. Taux annualisé (XIRR) ; par année : méthode de Dietz.","Passbooks, home savings plans, PEA, brokerage, life insurance, retirement plans and crypto (excluding the company). Transfers from your other accounts are contributions, not returns; those between investments cancel out. Annualized rate (XIRR); per year: Dietz method."

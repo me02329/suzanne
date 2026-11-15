@@ -1,18 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import {
-  buildPyramid,
+  accountFeatures,
+  weightedFeeRate,
   type Account,
   type AssetBucket,
   type Diagnostic,
   type DashboardSummary,
-  type HoldingsValuation,
   type Institution,
   type PyramidLayer,
 } from '@suzanne/shared';
-import { api } from '../lib/api';
+import { usePyramid } from '../lib/usePyramid';
+import type { Run } from '../lib/run';
+import { RebalanceCard } from '../components/diversification/RebalanceCard';
+import { localeTag } from '../i18n';
 import { money as moneyFmt } from '../lib/format';
 import '../styles/pages/diversification.css';
 
@@ -51,57 +54,29 @@ const DIAG_TEXT: Record<Diagnostic['id'], string> = {
 };
 const MONEY_PARAMS = new Set(['target', 'surplus', 'amount']);
 
-export function Diversification({ userId, accounts, institutions, summary, reportCurrency }: {
+export function Diversification({ userId, accounts, institutions, summary, reportCurrency, run }: {
   userId: number;
+  run: Run;
   accounts: Account[];
   institutions: Institution[];
   summary: DashboardSummary | null;
   reportCurrency: string;
 }) {
   const { t } = useTranslation();
-  const [valuation, setValuation] = useState<HoldingsValuation | null>(null);
   const [open, setOpen] = useState<PyramidLayer | null>(null);
-  const currency = summary?.currency ?? reportCurrency;
+  const { pyramid: result, monthlyExpenses, currency } = usePyramid(userId, accounts, institutions, summary, reportCurrency);
   const money = (v: number) => moneyFmt(v, currency);
 
-  useEffect(() => {
-    let cancelled = false;
-    api.holdingsValuation(userId, currency)
-      .then((v) => { if (!cancelled) setValuation(v); })
-      .catch(() => { if (!cancelled) setValuation({ currency, market_value: 0, cost_basis: 0, unrealized_pnl: 0, unrealized_pnl_pct: 0, holdings: [], allocation: [] }); });
-    return () => { cancelled = true; };
-  }, [userId, currency, summary]);
-
-  // Dépenses mensuelles moyennes : les mois passés de la courbe sur 12 mois.
-  const monthlyExpenses = useMemo(() => {
-    const current = new Date().toISOString().slice(0, 7);
-    const months = (summary?.monthly_cashflow ?? []).filter((m) => m.month < current && m.expenses > 0);
-    return months.length > 0 ? months.reduce((s, m) => s + m.expenses, 0) / months.length : null;
-  }, [summary]);
-
-  const result = useMemo(() => {
-    if (!summary || !valuation) return null;
-    const institutionName = new Map(institutions.map((i) => [i.id, i.name]));
-    const balanceOf = new Map(summary.account_balances.map((b) => [b.account_id, b.signed_balance]));
-    return buildPyramid(
-      accounts.filter((a) => !a.archived).map((a) => ({
-        id: a.id,
-        name: a.name,
-        type: a.type,
-        professional: a.professional,
-        institution: a.institution_id != null ? institutionName.get(a.institution_id) ?? null : null,
-        balance: balanceOf.get(a.id) ?? 0,
-        positions: valuation.holdings
-          .filter((h) => h.account_id === a.id && h.quantity > 0)
-          .map((h) => ({ symbol: h.symbol, name: h.name, asset_class: h.asset_class, value: h.market_value })),
-      })),
-      monthlyExpenses,
-    );
-  }, [accounts, institutions, summary, valuation, monthlyExpenses]);
+  // Frais moyens des placements (comptes avec frais renseignés), pondérés par leur valeur.
+  const balanceOf = new Map((summary?.account_balances ?? []).map((b) => [b.account_id, b.signed_balance]));
+  const invested = accounts.filter((a) => !a.archived && !a.professional && accountFeatures(a.type).holdings);
+  const feeRate = weightedFeeRate(invested.map((a) => ({ value: balanceOf.get(a.id) ?? 0, feeRate: a.annual_fee_rate != null ? a.annual_fee_rate / 100 : null })));
+  const feeCost = feeRate != null ? invested.reduce((s, a) => s + (a.annual_fee_rate != null ? Math.max(0, balanceOf.get(a.id) ?? 0) * a.annual_fee_rate / 100 : 0), 0) : 0;
+  const missingFees = invested.filter((a) => a.annual_fee_rate == null && (balanceOf.get(a.id) ?? 0) > 0).length;
 
   if (!result) return <section className="dv-page"><p className="acc-muted">{t('analyses.diversification.loading')}</p></section>;
   const pctFmt = (v: number) => `${(v * 100).toFixed(v > 0 && v < 0.1 ? 1 : 0)} %`;
-  const diagParams = (d: Diagnostic) => Object.fromEntries(Object.entries(d.params ?? {}).map(([k, v]) => [k, MONEY_PARAMS.has(k) && typeof v === 'number' ? money(v) : v]));
+  const diagParams = (d: Diagnostic) => Object.fromEntries(Object.entries(d.params ?? {}).map(([k, v]) => [k, typeof v === 'number' ? (MONEY_PARAMS.has(k) ? money(v) : v.toLocaleString(localeTag())) : v]));
 
   return (
     <section className="dv-page">
@@ -127,7 +102,7 @@ export function Diversification({ userId, accounts, institutions, summary, repor
                 <button type="button" onClick={() => setOpen(open === l.layer ? null : l.layer)} aria-expanded={open === l.layer}>
                   <span className="dv-layer-name">{t(LAYER_TEXT[l.layer].title)}</span>
                   <span className="dv-layer-amount num">{money(l.amount)}</span>
-                  <span className="dv-layer-share num">{pctFmt(l.share)}{l.layer === 'safety' && result.emergencyMonths != null ? ` · ${t('analyses.diversification.months', { count: Math.round(result.emergencyMonths * 10) / 10 })}` : ''}</span>
+                  <span className="dv-layer-share num">{pctFmt(l.share)}{l.layer === 'safety' && result.emergencyMonths != null ? ` · ${t('analyses.diversification.months', { count: Math.round(result.emergencyMonths * 10) / 10, formatted: (Math.round(result.emergencyMonths * 10) / 10).toLocaleString(localeTag()) })}` : ''}</span>
                 </button>
               </li>
             ))}
@@ -176,6 +151,8 @@ export function Diversification({ userId, accounts, institutions, summary, repor
         </ul>
       </section>
 
+      <RebalanceCard userId={userId} buckets={result.buckets} money={money} run={run} />
+
       <section className="dv-card">
         <h2>{t('analyses.diversification.checkup')}</h2>
         <ul className="dv-diags">
@@ -185,6 +162,15 @@ export function Diversification({ userId, accounts, institutions, summary, repor
               <span>{t(DIAG_TEXT[d.id], diagParams(d))}</span>
             </li>
           ))}
+          {feeRate != null && (
+            <li className={feeRate > 0.01 ? 'warn' : 'ok'}>
+              {feeRate > 0.01 ? <AlertTriangle size={17} /> : <CheckCircle2 size={17} />}
+              <span>{t(feeRate > 0.01 ? 'analyses.diversification.diag_fees_high' : 'analyses.diversification.diag_fees_ok', { pct: (feeRate * 100).toFixed(2).replace('.', ','), amount: money(feeCost) })}</span>
+            </li>
+          )}
+          {missingFees > 0 && (
+            <li className="info"><Info size={17} /><span>{t('analyses.diversification.diag_fees_missing', { count: missingFees })}</span></li>
+          )}
         </ul>
         <p className="acc-muted dv-note">{t('analyses.diversification.disclaimer')}</p>
       </section>

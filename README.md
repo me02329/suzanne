@@ -15,7 +15,7 @@ Interface en **français et en anglais**, pensée d'abord pour le mobile.
 > Données entièrement fictives (profil « Démo », générées par `tools/demo-data.mjs`).
 
 ![Accueil](docs/screenshots/dashboard.png)
-<sub>**Accueil** : valeur nette, flux du mois, budget restant, échéances à venir, où part l'argent.</sub>
+<sub>**Accueil** : valeur nette, flux du mois, feuille de route de l'épargnant (étapes cochées d'après tes données), budget restant, échéances à venir.</sub>
 
 <table>
 <tr>
@@ -24,22 +24,26 @@ Interface en **français et en anglais**, pensée d'abord pour le mobile.
 </tr>
 <tr>
 <td width="50%"><img src="docs/screenshots/investments.png" alt="Placements"><br><sub><b>Placements</b> : positions valorisées chaque jour aux cours Yahoo Finance, PRU, plus-values.</sub></td>
-<td width="50%"><img src="docs/screenshots/wealth.png" alt="Patrimoine"><br><sub><b>Patrimoine</b> : évolution de la valeur nette, répartition par compte et par type.</sub></td>
+<td width="50%"><img src="docs/screenshots/wealth.png" alt="Patrimoine"><br><sub><b>Patrimoine</b> : rendement de l'épargne placée (versements neutralisés), évolution de la valeur nette, répartition.</sub></td>
 </tr>
 <tr>
 <td width="50%"><img src="docs/screenshots/statistics.png" alt="Statistiques"><br><sub><b>Statistiques</b> : dépenses par catégorie, top marchands, cashflow et épargne.</sub></td>
-<td width="50%"><img src="docs/screenshots/health.png" alt="Santé financière"><br><sub><b>Santé financière</b> : taux d'épargne, fonds d'urgence, charges fixes et variables.</sub></td>
+<td width="50%"><img src="docs/screenshots/health.png" alt="Santé financière"><br><sub><b>Santé financière</b> : taux d'épargne mois par mois, « se payer en premier », fonds d'urgence, charges fixes.</sub></td>
 </tr>
 <tr>
 <td width="50%"><img src="docs/screenshots/forecast.png" alt="Prévisions"><br><sub><b>Prévisions</b> : trajectoire du solde à partir des récurrents, point bas.</sub></td>
-<td width="50%"><img src="docs/screenshots/simulator.png" alt="Simulateur"><br><sub><b>Simulateur</b> : intérêts composés, plafond et fiscalité du PEA, comparaison de scénarios.</sub></td>
+<td width="50%"><img src="docs/screenshots/simulator.png" alt="Simulateur"><br><sub><b>Simulateur</b> : intérêts composés, fiscalité du PEA, scénarios, projection de son patrimoine réel.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/diversification.png" alt="Diversification"><br><sub><b>Diversification</b> : pyramide de l'épargne, classes d'actifs, allocation cible et rééquilibrage, diagnostic.</sub></td>
+<td width="50%"><img src="docs/screenshots/accounts.png" alt="Comptes"><br><sub><b>Comptes</b> : livrets, placements, biens (estimation, prêt lié), compte de société à part.</sub></td>
 </tr>
 </table>
 
 <details>
-<summary>Plus de captures (comptes, objectifs, récurrents, factures, à vérifier, catégories, tags, mobile)</summary>
+<summary>Plus de captures (prêts, objectifs, récurrents, factures, à vérifier, catégories, tags, mobile)</summary>
 
-![Comptes](docs/screenshots/accounts.png)
+![Prêts](docs/screenshots/loans.png)
 ![Objectifs](docs/screenshots/goals.png)
 ![Récurrents](docs/screenshots/recurring.png)
 ![Factures](docs/screenshots/bills.png)
@@ -82,13 +86,19 @@ Interface en **français et en anglais**, pensée d'abord pour le mobile.
 - Comptes courants, livrets, PEA, comptes-titres, assurance-vie, crypto, crédits ; institutions, multi-devises (taux de change), archivage.
 - **Soldes par relevés** : le solde saisi d'un relevé fait foi ; le **rapprochement** montre, entre deux relevés, si les opérations expliquent l'écart au centime (opération manquante ou en double) et permet un ajustement explicite.
 - **Imports bancaires** : CSV configurable (profils de banque, export Boursorama reconnu), OFX, QIF. Doublons ignorés même après renommage (empreinte de la ligne de relevé), virements entre tes comptes reliés automatiquement, garde-fou contre une colonne « solde » prise pour un montant.
+- **Synchronisation bancaire DSP2** (optionnelle, via Enable Banking, lecture seule) : connexion depuis Réglages → Données, opérations et soldes récupérés automatiquement, opérations déjà importées reconnues sans doublon ; la fiche d'une opération affiche toutes les données de la banque (libellé complet, référence, contrepartie).
+- **Comptes professionnels** (société) : suivis à part, exclus des dépenses, revenus et du patrimoine personnels ; les apports et rémunérations restent visibles.
+- Chaque type de compte a sa fiche : plafond et versements (PEA, livrets), intérêts, **frais annuels** et leur coût sur 20 ans, enveloppe fiscale (assurance-vie, PER), **biens immobiliers** et objets de valeur estimés, rattachés à leur prêt.
 
 **Planifier**
 - **Budget du mois** et « reste à vivre » par jour, **enveloppes** par catégorie avec report, plafonds suggérés d'après la médiane des 6 derniers mois, **provisions** pour lisser les grosses dépenses annuelles.
 - **Récurrents** (loyer, salaire, abonnements) générés automatiquement, **factures** à fourchette de montant vérifiées chaque mois, **prévisions** du solde, **objectifs** d'épargne.
 
 **Patrimoine et placements**
-- Valeur nette et historique, par compte et par type.
+- Valeur nette et historique, par compte et par type ; **rendement global** du patrimoine (gains hors versements, annualisé).
+- **Diversification** : pyramide par classe d'actifs (liquidités, obligataire, actions, immobilier, alternatif), allocation cible et **rééquilibrage** (où placer le prochain versement).
+- **Feuille de route** sur l'accueil : épargne de précaution, dettes, enveloppes, investissement — l'étape suivante d'abord ; **taux d'épargne** dans la santé financière.
+- **Projection** du patrimoine sur 1 à 50 ans, classe par classe, avec un scénario « + X €/mois en actions ».
 - **Positions et ordres** (8 décimales de quantité) valorisés chaque jour aux cours **Yahoo Finance**, recherche de titres ; achat et vente débitent/créditent les espèces du compte.
 - **PEA** : versements et plafond, performance pondérée par le temps et annualisée (XIRR), comparaison à un indice, fiscalité à la sortie, récapitulatif annuel imprimable ; **simulateur** d'intérêts composés.
 
@@ -97,6 +107,7 @@ Interface en **français et en anglais**, pensée d'abord pour le mobile.
 - **Assistant IA** optionnel (OpenAI ou endpoint compatible, Ollama…) : il lit tes données et propose des actions que tu confirmes.
 - **Sauvegardes** : automatique quotidienne (14 gardées) et manuelle, export JSON complet réimportable sans doublon, export sur mesure, CSV pour tableur.
 - Plusieurs profils, recherche globale, raccourcis clavier, thème clair / sombre, interface responsive.
+- Navigation par question : Accueil (ça va ?), Opérations (que s'est-il passé ?), Comptes (où est mon argent ?), Analyse, Planifier, Réglages (données, profils, préférences).
 
 ## Démarrage rapide
 
@@ -237,4 +248,4 @@ Mise à jour : `git pull && docker compose up -d --build` (migrations appliquée
 
 ## Licence
 
-MIT. Voir [LICENSE](LICENSE).
+[PolyForm Noncommercial 1.0.0](LICENSE) : tu peux utiliser Suzanne, la copier, la modifier et la forker librement **pour un usage non commercial** (personnel, associatif, enseignement, recherche). Toute utilisation commerciale (vendre l'application ou un service basé sur elle, l'utiliser dans une entreprise) demande l'accord de l'auteur. Les versions publiées auparavant sous licence MIT restent sous MIT.

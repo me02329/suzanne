@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Plus, Trash2, Wand2 } from 'lucide-react';
-import { PEA_CEILING, exitTax, simulateCompoundGrowth, type CompoundResult, type DashboardSummary } from '@suzanne/shared';
+import { PEA_CEILING, exitTax, simulateCompoundGrowth, type Account, type CompoundResult, type DashboardSummary, type Institution } from '@suzanne/shared';
+import { PyramidProjection } from '../components/simulator/PyramidProjection';
 import { money, moneyCompact, todayIso } from '../lib/format';
 import { seriesColor, useChartTheme, useIsNarrow } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
@@ -12,7 +13,7 @@ import '../styles/pages/simulator.css';
 import { localeTag } from '../i18n';
 import { useTranslation } from 'react-i18next';
 
-type Mode = 'simulator' | 'scenarios';
+type Mode = 'simulator' | 'scenarios' | 'wealth';
 
 interface Scenario {
   id: number;
@@ -41,7 +42,7 @@ function simulate(initial: number, monthly: number, rate: number, years: number,
 
 // Simulateur d'intérêts composés + comparaison de scénarios (njord : pages
 // Simulator et Scenarios), avec plafond PEA et net d'impôt à la sortie.
-export function Simulator({ summary, reportCurrency }: { summary: DashboardSummary | null; reportCurrency: string }) {
+export function Simulator({ userId, accounts, institutions, summary, reportCurrency }: { userId: number; accounts: Account[]; institutions: Institution[]; summary: DashboardSummary | null; reportCurrency: string }) {
   const { t } = useTranslation();
   const [mode, setMode] = usePersistedState<Mode>('simulator_mode', 'simulator');
   const ccy = summary?.currency ?? reportCurrency;
@@ -53,10 +54,12 @@ export function Simulator({ summary, reportCurrency }: { summary: DashboardSumma
       <div className="acc-seg sim-mode" role="group" aria-label={t('analyses.simulator.mode')}>
         <button type="button" aria-pressed={mode === 'simulator'} onClick={() => setMode('simulator')}>{t('analyses.simulator.simulator')}</button>
         <button type="button" aria-pressed={mode === 'scenarios'} onClick={() => setMode('scenarios')}>{t('analyses.simulator.scenarios')}</button>
+        <button type="button" aria-pressed={mode === 'wealth'} onClick={() => setMode('wealth')}>{t('analyses.projection.mode')}</button>
       </div>
       {mode === 'simulator'
         ? <SingleSimulator fmt={fmt} ccy={ccy} peaBalance={peaBalance} />
-        : <Scenarios fmt={fmt} ccy={ccy} />}
+        : mode === 'scenarios' ? <Scenarios fmt={fmt} ccy={ccy} />
+          : <PyramidProjection userId={userId} accounts={accounts} institutions={institutions} summary={summary} reportCurrency={reportCurrency} fmt={fmt} />}
     </section>
   );
 }

@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { getAiConfig, updateAiSettings } from '../lib/settingsStore.js';
+import { prisma } from '../prisma.js';
+import { idParam } from '../lib/validation.js';
 
 export const settingsRouter = Router();
 
@@ -53,4 +55,32 @@ settingsRouter.put('/settings/ai', asyncHandler(async (req, res) => {
     provider: cfg.provider,
     source: cfg.source,
   });
+}));
+
+// Allocation cible par classe d'actifs (Analyse → Diversification), par profil.
+// Stockée en JSON dans la table des réglages ; null tant que non définie.
+const allocationKey = (user_id: number) => `allocation_target.${user_id}`;
+const allocationSchema = z.object({
+  cash: z.number().min(0).max(100),
+  bonds: z.number().min(0).max(100),
+  equities: z.number().min(0).max(100),
+  real_estate: z.number().min(0).max(100),
+  alternative: z.number().min(0).max(100),
+}).refine((t) => Math.abs(t.cash + t.bonds + t.equities + t.real_estate + t.alternative - 100) < 0.5, { message: 'Les parts doivent totaliser 100 %.' });
+
+settingsRouter.get('/users/:user_id/allocation-target', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const row = await prisma.setting.findUnique({ where: { key: allocationKey(user_id) } });
+  res.json(row ? JSON.parse(row.value) : null);
+}));
+
+settingsRouter.put('/users/:user_id/allocation-target', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const body = allocationSchema.parse(req.body);
+  await prisma.setting.upsert({
+    where: { key: allocationKey(user_id) },
+    create: { key: allocationKey(user_id), value: JSON.stringify(body) },
+    update: { value: JSON.stringify(body) },
+  });
+  res.json(body);
 }));

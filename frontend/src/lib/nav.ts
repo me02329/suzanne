@@ -37,7 +37,14 @@ export const navSections: NavSection[] = [
   },
   {
     id: 'ops', label: 'ui.nav.ops', short: 'ui.nav.ops', icon: icon(ArrowLeftRight),
-    tabs: [{ tab: 'transactions', label: 'ui.tab.transactions' }, { tab: 'anomalies', label: 'ui.tab.anomalies' }],
+    // « Que s'est-il passé, et comment je le range ? » : journal et rangement.
+    tabs: [
+      { tab: 'transactions', label: 'ui.tab.transactions' },
+      { tab: 'anomalies', label: 'ui.tab.anomalies' },
+      { tab: 'categories', label: 'ui.tab.categories' },
+      { tab: 'rules', label: 'ui.tab.rules' },
+      { tab: 'tags', label: 'ui.tab.tags' },
+    ],
   },
   {
     id: 'accounts', label: 'ui.nav.accounts', short: 'ui.nav.accounts_short', icon: icon(Landmark),
@@ -72,12 +79,10 @@ export const navSections: NavSection[] = [
   { id: 'assistant', label: 'ui.nav.assistant', short: 'ui.nav.assistant', icon: icon(Sparkles), tabs: [{ tab: 'assistant', label: 'ui.tab.assistant' }] },
   {
     id: 'settings', label: 'ui.nav.settings', short: 'ui.nav.settings', icon: icon(Settings),
+    // Configuration : faire entrer / sortir les données (synchro bancaire,
+    // import, export, sauvegardes), profils, préférences.
     tabs: [
-      { tab: 'categories', label: 'ui.tab.categories' },
-      { tab: 'tags', label: 'ui.tab.tags' },
-      { tab: 'rules', label: 'ui.tab.rules' },
-      { tab: 'tools', label: 'ui.tab.tools' },
-      { tab: 'bank', label: 'ui.tab.bank' },
+      { tab: 'tools', label: 'ui.tab.data' },
       { tab: 'users', label: 'ui.tab.users' },
       { tab: 'settings', label: 'ui.tab.settings' },
     ],
@@ -118,9 +123,13 @@ export function pathForTab(tab: Tab): string {
 }
 
 // Derives the active tab from a pathname; unknown paths fall back to dashboard.
+// Anciennes adresses rangées ailleurs : /bank (dont le retour de la banque
+// /bank/callback) appartient désormais à l'onglet Données.
+const TAB_ALIASES: Record<string, Tab> = { bank: 'tools' };
+
 export function tabFromPath(pathname: string): Tab {
   const segment = pathname.replace(/^\/+/, '').split('/')[0] ?? '';
-  return TAB_SET.has(segment) ? (segment as Tab) : 'dashboard';
+  return TAB_SET.has(segment) ? (segment as Tab) : TAB_ALIASES[segment] ?? 'dashboard';
 }
 
 // Guards a tab value read from localStorage.

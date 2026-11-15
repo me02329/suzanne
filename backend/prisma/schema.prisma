@@ -160,6 +160,9 @@ model Account {
   professional         Boolean  @default(false)
   // Bien immobilier / de valeur : prêt qui le finance (capital net = valeur − reste dû).
   linked_account_id    Int?
+  // Frais annuels du placement en % (gestion du contrat + frais des fonds) :
+  // coût estimé et rendement net dans la fiche du compte.
+  annual_fee_rate      Float?
   // Date fiscale (PEA : date du premier versement, règle des 5 ans ;
   // assurance-vie : 8 ans). Null = date d'ouverture.
   fiscal_start_date    DateTime? @db.Date

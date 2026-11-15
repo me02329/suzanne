@@ -12,7 +12,7 @@ Suzanne peut récupérer chaque jour les opérations et le solde de tes comptes 
 
 ## Activation (une fois)
 
-L'écran **Réglages → Banque** affiche ces étapes tant que le serveur n'est pas configuré.
+L'écran **Réglages → Données** affiche ces étapes tant que le serveur n'est pas configuré.
 
 1. Créer un compte sur le [Control Panel Enable Banking](https://enablebanking.com/cp/).
 2. **Ajouter une application « Production »**, clé générée dans le navigateur. Le fichier `<id-application>.pem` téléchargé est la **clé privée**. Description, e-mail, URL de confidentialité et de CGU sont obligatoires (le lien du dépôt suffit pour un usage perso).
@@ -55,7 +55,7 @@ Le consentement expire (180 jours) : la carte de la banque passe en « bientôt 
 - `backend/src/lib/bankSync.ts` : `state` signé (HMAC, lié au profil, 1 h), connexions, reprise de l'existant, import via `dedupeAndInsert`, relevé de solde, planificateur.
 - `backend/src/routes/bank.ts` : `/users/:user_id/bank` (état), `/bank/check`, `/bank/aspsps`, `/bank/auth`, `/bank/callback`, `PATCH /bank/links/:id`, `/bank/connections/:id/sync`, `DELETE /bank/connections/:id`.
 - Tables `bank_connections` et `bank_links` (migration `20261117000000_bank_connections`), hors sauvegardes.
-- Front : `frontend/src/pages/Bank.tsx` (Réglages → Banque, `/bank`, `/bank/callback`).
+- Front : `frontend/src/pages/Bank.tsx` (Réglages → Données, `/bank`, `/bank/callback`).
 - Outil de diagnostic : `npm run bank:poc -- check | banks FR bourso | auth | session | accounts | balances | transactions` (`tools/enable-banking.mts`, configuration dans `.env.enablebanking`, réponses brutes dans `.data/`).
 - Tests : `backend/src/lib/enableBanking.test.ts`, `backend/src/test/bank.integration.test.ts`.
 

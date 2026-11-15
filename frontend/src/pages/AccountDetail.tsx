@@ -25,6 +25,7 @@ import { Modal } from '../components/Modal';
 import { PeaView, type PeaData } from '../components/pea/PeaView';
 import { InterestCard } from '../components/accounts/InterestCard';
 import { ValuationCard } from '../components/accounts/ValuationCard';
+import { FeesCard } from '../components/accounts/FeesCard';
 import { PEA_TABS, type InsightProps, type PeaTab } from '../components/pea/insightTypes';
 import { envelopeIncomes, useEnvelopeHistory } from '../components/pea/useEnvelopeHistory';
 import { PeaTracking } from '../components/pea/PeaTracking';
@@ -232,6 +233,7 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
           onEstimate={() => setSnapshotOpen(true)}
         />
       )}
+      {features.holdings && <FeesCard account={account} value={heroValue} fmt={nativeMoney} onEdit={() => setEditOpen(true)} />}
       {features.interest && <InterestCard userId={userId} account={account} history={history} fmt={nativeMoney} version={summary} />}
 
       {isEnvelope && (

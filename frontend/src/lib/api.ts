@@ -1,4 +1,5 @@
 import type {
+  AllocationTarget,
   Account,
   AccountSnapshot,
   AiChatResponse,
@@ -169,6 +170,8 @@ export interface BankAspsp { name: string; country: string; bic: string | null; 
 export interface BankCheck { ok: boolean; error?: string; name?: string | null; active?: boolean | null; environment?: string | null; redirect_url_registered?: boolean | null }
 
 export const api = {
+  allocationTarget: (userId: number) => http<AllocationTarget | null>(`/users/${userId}/allocation-target`),
+  setAllocationTarget: (userId: number, body: AllocationTarget) => http<AllocationTarget>(`/users/${userId}/allocation-target`, { method: 'PUT', body: JSON.stringify(body) }),
   bank: (userId: number) => http<BankStatus>(`/users/${userId}/bank`),
   bankCheck: (userId: number) => http<BankCheck>(`/users/${userId}/bank/check`),
   bankAspsps: (userId: number, country: string) => http<BankAspsp[]>(`/users/${userId}/bank/aspsps?country=${encodeURIComponent(country)}`),

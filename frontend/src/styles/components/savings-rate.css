@@ -1,0 +1,9 @@
+/* Santé : taux d'épargne mensuel et « se payer en premier ». */
+.sr { display: grid; gap: 10px; }
+.sr .pg-card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; }
+.sr .pg-card-head .acc-muted { font-size: 13px; }
+.sr-chart { height: 200px; min-width: 0; }
+.sr-pyf { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-muted); font-size: 14px; }
+.sr-pyf svg { flex: 0 0 auto; margin-top: 1px; color: var(--warn); }
+.sr-pyf.ok { background: var(--income-soft); }
+.sr-pyf.ok svg { color: var(--income); }

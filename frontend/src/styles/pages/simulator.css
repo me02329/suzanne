@@ -68,3 +68,17 @@
   .sim-chart { height: 240px; }
   .sim-add { min-height: 56px; }
 }
+
+/* Mon patrimoine : projection de la pyramide. */
+.pp-inputs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 10px 16px; }
+.pp-inputs label { display: grid; gap: 4px; font-size: 13.5px; }
+.pp-inputs small { font-size: 12px; }
+.pp-split, .pp-note { margin: 0; font-size: 12.5px; }
+.pp-chart { height: 260px; min-width: 0; }
+.pp-table-wrap { overflow-x: auto; }
+.pp-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 560px; }
+.pp-table th { text-align: left; color: var(--muted); font-size: 12px; font-weight: 650; padding: 0 8px 6px 0; white-space: nowrap; }
+.pp-table td { padding: 6px 8px 6px 0; border-top: 1px solid var(--border); white-space: nowrap; }
+.pp-table .num { text-align: right; }
+.pp-table .pp-total td { font-weight: 700; }
+.pp-rate { width: 54px; text-align: right; padding: 4px 6px; }

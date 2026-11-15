@@ -39,6 +39,7 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
   const showFiscal = FISCAL_DATE_TYPES.includes(type);
   // Bien (immobilier, objet) : le solde initial est le prix d'achat, prêt lié possible.
   const isProperty = accountFeatures(type).valuation;
+  const hasFees = accountFeatures(type).holdings;
   const loans = accounts.filter((a) => a.type === 'loan' && !a.archived && a.id !== account?.id);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -58,6 +59,7 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
       initial_balance_date: String(data.get('initial_balance_date')),
       ...(showOrdersCash ? { orders_affect_cash: data.get('orders_affect_cash') === 'on' } : {}),
       ...(showFiscal ? { fiscal_start_date: String(data.get('fiscal_start_date') || '') || null } : {}),
+      ...(hasFees ? { annual_fee_rate: String(data.get('annual_fee_rate') ?? '').trim() === '' ? null : parseDecimal(data.get('annual_fee_rate')) } : {}),
       ...(isProperty ? { linked_account_id: data.get('linked_account_id') ? Number(data.get('linked_account_id')) : null } : {}),
       professional: data.get('professional') === 'on',
     };
@@ -100,6 +102,12 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
         <label>{isProperty ? t('comptes.account_form_modal.purchase_date') : t('comptes.account_form_modal.as')}
           <input name="initial_balance_date" type="date" defaultValue={account?.initial_balance_date?.slice(0, 10) ?? todayIso()} required />
         </label>
+        {hasFees && (
+          <label className="full">{t('comptes.account_form_modal.annual_fees')}
+            <input name="annual_fee_rate" inputMode="decimal" autoComplete="off" placeholder="0,6" defaultValue={(account as { annual_fee_rate?: number | null } | null | undefined)?.annual_fee_rate != null ? String((account as { annual_fee_rate: number }).annual_fee_rate).replace('.', ',') : ''} />
+            <small className="acc-hint">{t('comptes.account_form_modal.annual_fees_hint')}</small>
+          </label>
+        )}
         {isProperty && (
           <>
             <label className="full">{t('comptes.account_form_modal.linked_loan')}

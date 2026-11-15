@@ -14,6 +14,7 @@ import { AuditLogPanel } from '../components/AuditLogPanel';
 
 import type { Run } from '../lib/run';
 import '../styles/pages/settings.css';
+import { Bank } from './Bank';
 import { useTranslation } from 'react-i18next';
 
 const EXPORT_ENTITIES = [
@@ -261,6 +262,8 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
 
   return (
     <section className="st-page tools-page">
+      {/* Synchronisation bancaire en tête : la façon la plus simple de faire entrer ses opérations. */}
+      <Bank userId={userId} accounts={accounts} run={run} embedded />
       <div className="st-tools-grid">
         <section className="panel st-actions" aria-labelledby="tools-import-title">
           <h2 id="tools-import-title" className="st-list-title">{t('reglages.tools.import')}</h2>

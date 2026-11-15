@@ -129,3 +129,15 @@ comptes.account_form_modal.purchase_date,Date d'achat,Purchase date
 comptes.account_form_modal.linked_loan,Prêt associé,Linked loan
 comptes.account_form_modal.no_linked_loan,Aucun (payé comptant),None (paid in full)
 comptes.account_form_modal.property_hint,La valeur se met à jour par estimations (bouton « Nouvelle estimation » sur la fiche) ; le prix d'achat sert à calculer la plus-value.,The value is updated with estimates (« New estimate » on the account page); the purchase price is used to compute the gain.
+comptes.account_form_modal.annual_fees,Frais annuels (%),Annual fees (%)
+comptes.account_form_modal.annual_fees_hint,"Frais de gestion du contrat + frais des fonds (TER des ETF), par an. Ex. 0,6 pour une assurance-vie en ligne avec des ETF.","Contract management fees + fund fees (ETF TER), per year. E.g. 0.6 for an online life insurance with ETFs."
+comptes.features.fees_title,Frais,Fees
+comptes.features.fees_unknown,Frais annuels non renseignés : ils pèsent lourd sur le long terme.,Annual fees not set: they weigh heavily over the long term.
+comptes.features.fees_set,Les renseigner,Set them
+comptes.features.fees_rate,Frais annuels,Annual fees
+comptes.features.fees_net,rendement net ≈ {{pct}} sur 7 % brut,net return ≈ {{pct}} on 7% gross
+comptes.features.fees_year,Coût cette année,Cost this year
+comptes.features.fees_year_hint,au niveau actuel du placement,at the current balance
+comptes.features.fees_horizon,Manque à gagner sur {{years}} ans,Shortfall over {{years}} years
+comptes.features.fees_horizon_hint,"à 7 % brut, sans versement : {{final}} au lieu de {{without}}","at 7% gross, no contributions: {{final}} instead of {{without}}"
+comptes.features.fees_compare,"Avec des frais de 0,2 % (ETF en PEA ou contrat en ligne), tu aurais environ {{saving}} de plus dans {{years}} ans.","With 0.2% fees (ETFs in a PEA or an online contract), you would have about {{saving}} more in {{years}} years."

@@ -7,6 +7,7 @@ import { computeHealth, type HealthRating } from '../lib/health';
 import '../styles/pages/plan.css';
 import '../styles/pages/home.css';
 import { useTranslation } from 'react-i18next';
+import { SavingsRateCard } from '../components/health/SavingsRateCard';
 
 const RATING_LABEL: Record<HealthRating, string> = {
   good: 'Sain',
@@ -17,7 +18,8 @@ const RATING_LABEL: Record<HealthRating, string> = {
 
 const pct = (value: number | null) => (value === null ? '—' : value < -1 ? '< −100 %' : `${Math.round(value * 100)} %`);
 
-export function Health({ summary, recurring, budgets, reportCurrency, categoryById, accountById }: {
+export function Health({ userId, summary, recurring, budgets, reportCurrency, categoryById, accountById }: {
+  userId: number;
   summary: DashboardSummary | null;
   recurring: RecurringTransaction[];
   budgets: Budget[];
@@ -108,6 +110,8 @@ export function Health({ summary, recurring, budgets, reportCurrency, categoryBy
           to="/budgets"
         />
       </div>
+
+      <SavingsRateCard userId={userId} summary={summary} accounts={[...accountById.values()]} currency={displayCurrency} />
 
       <div className="pg-card">
         <div className="pg-card-head"><h2>{t('analyses.health.fixed_or_variable')}</h2></div>

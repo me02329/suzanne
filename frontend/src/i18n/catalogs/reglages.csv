@@ -238,3 +238,4 @@ reglages.bank.waiting_reopen,Rouvrir la page de la banque,Reopen the bank's page
 reglages.bank.waiting_paste,"Si la page de retour ne s'affiche pas correctement (URL d'un autre environnement), copie son adresse complète et colle-la ici :","If the return page doesn't display properly (a redirect URL from another environment), copy its full address and paste it here:"
 reglages.bank.waiting_done,J'ai terminé,I'm done
 reglages.bank.card_hint,Carte à débit immédiat ? Ses paiements figurent déjà sur le compte courant : laisse-la sur « Ne pas synchroniser » (sinon doublons). Carte à débit différé : associe-la à un compte « Carte / crédit ».,Immediate-debit card? Its payments already show on the current account: leave it on « Do not sync » (otherwise duplicates). Deferred-debit card: map it to a « Card / credit » account.
+reglages.bank.section_title,Synchronisation bancaire,Bank sync

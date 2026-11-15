@@ -381,6 +381,7 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
           archived: Boolean(raw.archived ?? false),
           orders_affect_cash: Boolean(raw.orders_affect_cash ?? false),
           professional: Boolean(raw.professional ?? false),
+          annual_fee_rate: raw.annual_fee_rate != null && Number.isFinite(Number(raw.annual_fee_rate)) ? Number(raw.annual_fee_rate) : null,
           fiscal_start_date: parseDay(raw.fiscal_start_date),
         },
       })).id;

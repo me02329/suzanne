@@ -104,6 +104,7 @@ accountsRouter.post('/users/:user_id/accounts', asyncHandler(async (req, res) =>
       orders_affect_cash: extra.orders_affect_cash ?? investment,
       professional: extra.professional ?? false,
       linked_account_id: extra.linked_account_id ? await linkedLoanOf(user_id, extra.linked_account_id) : null,
+      annual_fee_rate: extra.annual_fee_rate ?? null,
       fiscal_start_date: extra.fiscal_start_date ? new Date(extra.fiscal_start_date) : null,
     },
   });
@@ -127,6 +128,7 @@ accountsRouter.patch('/users/:user_id/accounts/:id', asyncHandler(async (req, re
     data: {
       ...(extra.orders_affect_cash !== undefined ? { orders_affect_cash: extra.orders_affect_cash } : {}),
       ...(extra.professional !== undefined ? { professional: extra.professional } : {}),
+      ...(extra.annual_fee_rate !== undefined ? { annual_fee_rate: extra.annual_fee_rate } : {}),
       ...(extra.linked_account_id !== undefined ? { linked_account_id: extra.linked_account_id ? await linkedLoanOf(user_id, extra.linked_account_id, id) : null } : {}),
       ...(extra.fiscal_start_date !== undefined ? { fiscal_start_date: extra.fiscal_start_date ? new Date(extra.fiscal_start_date) : null } : {}),
       ...(body.name != null ? { name: body.name } : {}),

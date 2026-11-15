@@ -25,7 +25,6 @@ ui.tab.settings,Préférences,Preferences
 ui.tab.simulator,Simulateur,Simulator
 ui.tab.statistics,Statistiques,Statistics
 ui.tab.tags,Tags,Tags
-ui.tab.tools,Import / Export,Import / Export
 ui.tab.transactions,Journal,Journal
 ui.tab.users,Profils,Profiles
 ui.tab.wealth,Patrimoine,Net worth
@@ -79,5 +78,5 @@ ui.category_select.no_match,Aucune catégorie ne correspond.,No matching categor
 ui.category_select.no_description,Pas de description pour cette catégorie.,No description for this category.
 ui.category_select.hint,Survole une catégorie pour voir sa description.,Hover a category to see its description.
 ui.tab.loans,Prêts,Loans
-ui.tab.bank,Banque,Bank
 ui.tab.diversification,Diversification,Diversification
+ui.tab.data,Données,Data
