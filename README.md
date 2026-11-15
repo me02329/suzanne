@@ -237,4 +237,4 @@ Mise à jour : `git pull && docker compose up -d --build` (migrations appliquée
 
 ## Licence
 
-MIT. Voir [LICENSE](LICENSE).
+[PolyForm Noncommercial 1.0.0](LICENSE) : tu peux utiliser Suzanne, la copier, la modifier et la forker librement **pour un usage non commercial** (personnel, associatif, enseignement, recherche). Toute utilisation commerciale (vendre l'application ou un service basé sur elle, l'utiliser dans une entreprise) demande l'accord de l'auteur. Les versions publiées auparavant sous licence MIT restent sous MIT.
