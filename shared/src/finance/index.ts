@@ -13,3 +13,4 @@ export * from './savings.js';
 export * from './fees.js';
 export * from './rebalance.js';
 export * from './wealthReturn.js';
+export * from './projection.js';

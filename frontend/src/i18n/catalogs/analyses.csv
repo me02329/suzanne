@@ -196,3 +196,27 @@ analyses.rebalance.where_equities,ETF sur PEA ou assurance-vie,ETFs in a PEA or 
 analyses.rebalance.where_real_estate,SCPI (en assurance-vie) ou immobilier,REITs (in life insurance) or property
 analyses.rebalance.where_alternative,"crypto, or","crypto, gold"
 analyses.rebalance.note,Rééquilibrer par les versements évite de vendre (et de payer de l'impôt sur les plus-values). Un écart de quelques points est normal : un point une fois par an suffit.,Rebalancing through contributions avoids selling (and paying capital gains tax). A gap of a few points is normal: checking once a year is enough.
+analyses.projection.mode,Mon patrimoine,My wealth
+analyses.projection.loading,Chargement…,Loading…
+analyses.projection.monthly,Épargne mensuelle (€),Monthly savings (€)
+analyses.projection.monthly_hint,Ton rythme sur 12 mois : {{amount}} par mois,Your pace over 12 months: {{amount}} a month
+analyses.projection.years,Horizon (années),Horizon (years)
+analyses.projection.extra,Scénario : en plus chaque mois en actions (€),Scenario: extra each month in equities (€)
+analyses.projection.split_target,L’épargne mensuelle est répartie selon ton allocation cible (Diversification).,Monthly savings are split according to your target allocation (Diversification).
+analyses.projection.split_current,L’épargne mensuelle est répartie comme ton patrimoine actuel. Définis une allocation cible dans Diversification pour la répartir autrement.,Monthly savings are split like your current wealth. Set a target allocation in Diversification to split it differently.
+analyses.projection.today,Aujourd’hui,Today
+analyses.projection.blended,rendement moyen ≈ {{pct}} par an,average return ≈ {{pct}} a year
+analyses.projection.in_years,Dans {{years}} ans,In {{years}} years
+analyses.projection.contributed,dont {{amount}} versés,of which {{amount}} contributed
+analyses.projection.with_extra,Avec +{{amount}}/mois en actions,With +{{amount}}/month in equities
+analyses.projection.difference,{{amount}} de plus,{{amount}} more
+analyses.projection.rule_72,Règle de 72,Rule of 72
+analyses.projection.doubling,double en ≈ {{years}} ans,doubles in ≈ {{years}} years
+analyses.projection.rule_72_hint,72 ÷ rendement annuel = années pour doubler,72 ÷ annual return = years to double
+analyses.projection.year_n,Année {{n}},Year {{n}}
+analyses.projection.total,Patrimoine,Wealth
+analyses.projection.contributed_label,Versé,Contributed
+analyses.projection.by_class,Par classe d’actifs,By asset class
+analyses.projection.class,Classe,Class
+analyses.projection.rate,Rendement,Return
+analyses.projection.note,"Projection indicative avec des rendements typiques constants (livrets ~2 %, fonds euros ~2,5 %, actions ~7 %, immobilier ~4,5 %), avant impôts et inflation. Les marchés ne montent pas en ligne droite.","Indicative projection with constant typical returns (passbooks ~2%, euro funds ~2.5%, equities ~7%, real estate ~4.5%), before tax and inflation. Markets do not rise in a straight line."

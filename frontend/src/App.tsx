@@ -544,7 +544,7 @@ export default function App() {
           <Route path="/rules" element={userId ? <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} tags={tags} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/tools" element={userId ? <Tools userId={userId} accounts={accounts} run={run} /> : null} />
           <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} />} />
-          <Route path="/simulator" element={userId ? <Simulator summary={summary} reportCurrency={reportCurrency} /> : null} />
+          <Route path="/simulator" element={userId ? <Simulator userId={userId} accounts={accounts} institutions={institutions} summary={summary} reportCurrency={reportCurrency} /> : null} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to={pathForTab(normalizeTab(lastTab))} replace />} />
         </Routes>
