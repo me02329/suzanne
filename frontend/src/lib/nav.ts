@@ -10,10 +10,13 @@ import {
 } from 'lucide-react';
 import type { SearchResult } from '@suzanne/shared';
 
-export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'bills' | 'goals' | 'investments' | 'alerts' | 'anomalies' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health' | 'simulator' | 'loans' | 'bank';
+export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'bills' | 'goals' | 'investments' | 'alerts' | 'anomalies' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health' | 'simulator' | 'loans' | 'bank' | 'diversification';
 
-// Navigation à deux niveaux : 7 sections (barre latérale / barre du bas), et
-// des onglets à l'intérieur de chaque section. Chaque onglet garde sa propre
+// Navigation à deux niveaux : 7 sections (barre latérale / barre du bas) et des
+// onglets à l'intérieur de chaque section. Une question par section (ADR 0006) :
+// Accueil « ça va ? », Opérations « que s'est-il passé ? », Comptes « où est mon
+// argent ? », Analyse « qu'est-ce que ça dit ? », Planifier « qu'est-ce qui
+// arrive, où je vais ? ». Chaque onglet garde sa propre
 // URL (/budgets, /bills…) : les liens existants restent valides.
 // Les libellés sont des clés de traduction (catalogue ui.csv), affichées avec t().
 export interface NavSection {
@@ -30,7 +33,7 @@ const icon = (C: typeof House) => React.createElement(C, { size: 20, strokeWidth
 export const navSections: NavSection[] = [
   {
     id: 'home', label: 'ui.nav.home', short: 'ui.nav.home', icon: icon(House),
-    tabs: [{ tab: 'dashboard', label: 'ui.tab.dashboard' }, { tab: 'health', label: 'ui.tab.health' }, { tab: 'alerts', label: 'ui.tab.alerts' }],
+    tabs: [{ tab: 'dashboard', label: 'ui.tab.dashboard' }, { tab: 'alerts', label: 'ui.tab.alerts' }],
   },
   {
     id: 'ops', label: 'ui.nav.ops', short: 'ui.nav.ops', icon: icon(ArrowLeftRight),
@@ -38,13 +41,11 @@ export const navSections: NavSection[] = [
   },
   {
     id: 'accounts', label: 'ui.nav.accounts', short: 'ui.nav.accounts_short', icon: icon(Landmark),
+    // « Où est mon argent ? » : soldes et fiches de comptes (placements, biens, prêts).
     tabs: [
       { tab: 'accounts', label: 'ui.tab.accounts' },
-      { tab: 'wealth', label: 'ui.tab.wealth' },
       { tab: 'investments', label: 'ui.tab.investments' },
       { tab: 'loans', label: 'ui.tab.loans' },
-      { tab: 'goals', label: 'ui.tab.goals' },
-      { tab: 'simulator', label: 'ui.tab.simulator' },
     ],
   },
   {
@@ -54,9 +55,20 @@ export const navSections: NavSection[] = [
       { tab: 'recurring', label: 'ui.tab.recurring' },
       { tab: 'bills', label: 'ui.tab.bills' },
       { tab: 'forecast', label: 'ui.tab.forecast' },
+      { tab: 'goals', label: 'ui.tab.goals' },
+      { tab: 'simulator', label: 'ui.tab.simulator' },
     ],
   },
-  { id: 'analysis', label: 'ui.nav.analysis', short: 'ui.nav.analysis', icon: icon(PieChart), tabs: [{ tab: 'statistics', label: 'ui.tab.statistics' }] },
+  // « Qu'est-ce que ça dit ? » : tout ce qui agrège plusieurs comptes.
+  {
+    id: 'analysis', label: 'ui.nav.analysis', short: 'ui.nav.analysis', icon: icon(PieChart),
+    tabs: [
+      { tab: 'statistics', label: 'ui.tab.statistics' },
+      { tab: 'wealth', label: 'ui.tab.wealth' },
+      { tab: 'diversification', label: 'ui.tab.diversification' },
+      { tab: 'health', label: 'ui.tab.health' },
+    ],
+  },
   { id: 'assistant', label: 'ui.nav.assistant', short: 'ui.nav.assistant', icon: icon(Sparkles), tabs: [{ tab: 'assistant', label: 'ui.tab.assistant' }] },
   {
     id: 'settings', label: 'ui.nav.settings', short: 'ui.nav.settings', icon: icon(Settings),

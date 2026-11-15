@@ -140,6 +140,10 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
   // on la surligne. Sinon on cherche sa date (toutes périodes) et on bascule
   // sur son mois ; l'effet reprend quand le mois est rechargé.
   const { goToTransaction } = filters;
+  const pendingTxRef = useRef(pendingTxId);
+  pendingTxRef.current = pendingTxId;
+  const monthRef = useRef(month);
+  monthRef.current = month;
   useEffect(() => {
     if (pendingTxId === null) return;
     if (goToTransaction(pendingTxId)) {
@@ -150,18 +154,19 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
     if (lookedUpTx.current === pendingTxId) return;
     lookedUpTx.current = pendingTxId;
     const target = pendingTxId;
-    let cancelled = false;
-    // Une seule opération demandée (et non tout l'historique).
+    // Une seule opération demandée (et non tout l'historique). La réponse est
+    // appliquée tant que cette opération est toujours la cible — et non
+    // annulée au moindre rechargement de la liste du mois, qui arrive souvent
+    // pendant la requête : on ne la relancerait plus et le lien resterait sans effet.
     http<Transaction>(`/users/${userId}/transactions/${target}`)
       .then((found) => {
-        if (cancelled) return;
+        if (pendingTxRef.current !== target) return;
         const txMonth = found.date.slice(0, 7);
-        if (month !== undefined && txMonth === month) { setPendingTxId(null); return; }
+        if (monthRef.current !== undefined && txMonth === monthRef.current) { setPendingTxId(null); return; }
         onMonthChange(txMonth);
       })
-      .catch(() => { if (!cancelled) setPendingTxId(null); });
-    return () => { cancelled = true; };
-  }, [pendingTxId, goToTransaction, userId, month, onMonthChange]);
+      .catch(() => { if (pendingTxRef.current === target) setPendingTxId(null); });
+  }, [pendingTxId, goToTransaction, userId, onMonthChange]);
 
   // La surbrillance s'éteint d'elle-même.
   useEffect(() => {

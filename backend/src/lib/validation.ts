@@ -36,6 +36,8 @@ export const createAccountSchema = z.object({
     'credit',
     'loan',
     'receivable',
+    'real_estate',
+    'valuable',
     'other',
   ]).default('checking'),
   currency: currencyCode.default('EUR'),
@@ -51,6 +53,8 @@ export const investmentAccountFields = z.object({
   fiscal_start_date: dateString.nullish(),
   // Compte professionnel (société) : hors des finances personnelles.
   professional: z.preprocess((v) => (v === 'false' || v === '0' ? false : v), z.coerce.boolean()).optional(),
+  // Bien : prêt qui le finance (compte de type emprunt du même profil).
+  linked_account_id: z.coerce.number().int().positive().nullable().optional(),
 });
 
 export const createCategorySchema = z.object({

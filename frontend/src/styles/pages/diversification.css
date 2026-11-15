@@ -1,0 +1,61 @@
+/* Analyse → Diversification : pyramide de l'épargne, classes d'actifs, diagnostic. */
+.dv-page { display: grid; gap: 16px; min-width: 0; }
+.dv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 20px; }
+.dv-total { display: block; font-size: clamp(26px, 3vw, 34px); font-family: var(--num-font); margin: 2px 0 4px; }
+.dv-head p { margin: 0; font-size: 13.5px; max-width: 720px; }
+.dv-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; min-width: 0; display: grid; gap: 10px; align-content: start; }
+.dv-card h2 { margin: 0; font-size: 17px; }
+.dv-card p { margin: 0; }
+.dv-note { font-size: 12.5px; }
+.dv-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; }
+
+/* Pyramide : étages centrés, de plus en plus larges vers le socle. */
+.dv-pyramid { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; justify-items: center; }
+.dv-layer { width: var(--w, 100%); min-width: 220px; }
+.dv-layer button {
+  width: 100%; display: grid; justify-items: center; gap: 1px; padding: 10px 8px; border: 0; border-radius: 8px; cursor: pointer; color: #fff;
+  clip-path: polygon(6% 0, 94% 0, 100% 100%, 0 100%);
+}
+.dv-layer.open button { outline: 3px solid var(--text); outline-offset: 2px; }
+.dv-layer-name { font-weight: 700; font-size: 13.5px; }
+.dv-layer-amount { font-size: 16px; font-weight: 650; }
+.dv-layer-share { font-size: 12px; opacity: 0.9; }
+.dv-layer.speculative button, .dv-dot.speculative { background: #c2410c; }
+.dv-layer.growth button, .dv-dot.growth { background: #7c3aed; }
+.dv-layer.secure button, .dv-dot.secure { background: #0f766e; }
+.dv-layer.safety button, .dv-dot.safety { background: #2563eb; }
+.dv-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+.dv-legend { margin: 0; display: grid; gap: 10px; font-size: 13.5px; }
+.dv-legend dt { font-weight: 650; }
+.dv-legend dd { margin: 2px 0 0 18px; color: var(--muted); }
+.dv-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 360px; overflow-y: auto; }
+.dv-items li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+.dv-items li a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; }
+.dv-items li .acc-muted { font-size: 12px; }
+
+/* Classes d'actifs : barre empilée + légende. */
+.dv-bar { display: flex; height: 16px; border-radius: 999px; overflow: hidden; background: var(--surface-muted); }
+.dv-seg.cash { background: #2563eb; }
+.dv-seg.bonds { background: #0f766e; }
+.dv-seg.equities { background: #7c3aed; }
+.dv-seg.real_estate { background: #a16207; }
+.dv-seg.alternative { background: #c2410c; }
+.dv-bucket-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 6px 16px; font-size: 13.5px; }
+.dv-bucket-legend li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.dv-bucket-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* Diagnostic. */
+.dv-diags { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dv-diags li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; font-size: 14px; }
+.dv-diags li svg { flex: 0 0 auto; margin-top: 1px; }
+.dv-diags li.warn { background: var(--warn-soft); color: var(--text); }
+.dv-diags li.warn svg { color: var(--warn); }
+.dv-diags li.ok { background: var(--income-soft); }
+.dv-diags li.ok svg { color: var(--income); }
+.dv-diags li.info { background: var(--surface-muted); }
+.dv-diags li.info svg { color: var(--muted); }
+
+@media (max-width: 860px) {
+  .dv-grid { grid-template-columns: minmax(0, 1fr); }
+  .dv-layer { min-width: 0; width: calc(var(--w, 100%) + 10%); max-width: 100%; }
+}

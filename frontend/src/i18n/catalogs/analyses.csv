@@ -125,3 +125,42 @@ analyses.tags.except,Tout sauf,All except
 analyses.tags.only_tag,Seulement « {{name}} »,Only “{{name}}”
 analyses.tags.except_tag,Tout sauf « {{name}} »,All except “{{name}}”
 analyses.statistics.other_categories_n,Autres ({{n}}),Other ({{n}})
+analyses.diversification.loading,Chargement…,Loading…
+analyses.diversification.kicker,Patrimoine à répartir,Wealth to allocate
+analyses.diversification.total_hint,"Tes comptes, placements et biens rangés selon leur risque et leur horizon.","Your accounts, investments and property arranged by risk and horizon."
+analyses.diversification.excluded_business,Hors société ({{amount}}).,Excluding the company ({{amount}}).
+analyses.diversification.excluded_debts,Dettes non déduites ({{amount}}).,Debts not deducted ({{amount}}).
+analyses.diversification.monthly_expenses,Dépenses moyennes : {{amount}} par mois,Average spending: {{amount}} per month
+analyses.diversification.pyramid,Pyramide de l'épargne,Savings pyramid
+analyses.diversification.months,{{count}} mois de dépenses,{{count}} months of spending
+analyses.diversification.click_layer,Clique sur un étage pour voir ce qu’il contient.,Click a level to see what it holds.
+analyses.diversification.how_to_read,Comment lire la pyramide,How to read the pyramid
+analyses.diversification.empty_layer,Rien à cet étage pour l’instant.,Nothing on this level yet.
+analyses.diversification.layer_safety,Précaution,Safety net
+analyses.diversification.layer_safety_hint,"Disponible tout de suite, sans risque : comptes courants, Livret A, LDDS, LEP. Le socle : 3 à 6 mois de dépenses pour les imprévus.","Available immediately, risk-free: current accounts, passbooks. The base: 3 to 6 months of spending for emergencies."
+analyses.diversification.layer_secure,Sécurisé,Secure
+analyses.diversification.layer_secure_hint,"Capital garanti ou peu risqué, pour les projets à quelques années : PEL, fonds euros de l'assurance-vie, obligations, espèces en attente d'investissement.","Guaranteed or low-risk capital, for projects a few years out: home savings plans, euro funds, bonds, cash waiting to be invested."
+analyses.diversification.layer_growth,Croissance long terme,Long-term growth
+analyses.diversification.layer_growth_hint,"Actions, ETF, unités de compte, immobilier : rendement plus élevé mais fluctuant, à garder 8 ans et plus.","Equities, ETFs, unit-linked funds, property: higher but volatile returns, to hold 8 years or more."
+analyses.diversification.layer_speculative,Spéculatif,Speculative
+analyses.diversification.layer_speculative_hint,"Crypto, or et matières premières, objets de valeur : la pointe de la pyramide, 5 à 10 % au plus.","Crypto, gold and commodities, valuables: the tip of the pyramid, 5 to 10% at most."
+analyses.diversification.asset_classes,Classes d'actifs,Asset classes
+analyses.diversification.bucket_cash,Monétaire (liquidités),Cash
+analyses.diversification.bucket_bonds,Fonds euros et obligations,Euro funds and bonds
+analyses.diversification.bucket_equities,Actions,Equities
+analyses.diversification.bucket_real_estate,Immobilier,Real estate
+analyses.diversification.bucket_alternative,"Atypique (crypto, or, objets)","Alternative (crypto, gold, items)"
+analyses.diversification.checkup,Point sur ta diversification,Diversification check-up
+analyses.diversification.diag_emergency_missing,Pas encore assez d'historique de dépenses pour évaluer ton épargne de précaution.,Not enough spending history yet to assess your safety net.
+analyses.diversification.diag_emergency_low,Épargne de précaution courte : {{months}} mois de dépenses. Vise au moins 3 mois (≈ {{target}}) avant de placer à long terme.,Short safety net: {{months}} months of spending. Aim for at least 3 months (≈ {{target}}) before investing long term.
+analyses.diversification.diag_emergency_ok,Épargne de précaution solide : {{months}} mois de dépenses.,Solid safety net: {{months}} months of spending.
+analyses.diversification.diag_emergency_high,"{{months}} mois de dépenses dorment en précaution : au-delà de 6 mois (≈ {{surplus}} de trop), cet argent pourrait travailler en sécurisé ou à long terme.","{{months}} months of spending sit idle: beyond 6 months (≈ {{surplus}} extra), this money could work in secure or long-term investments."
+analyses.diversification.diag_speculative_high,Part spéculative élevée : {{pct}} % du patrimoine (repère : 5 à 10 % au plus).,High speculative share: {{pct}}% of wealth (guideline: 5 to 10% at most).
+analyses.diversification.diag_speculative_ok,Part spéculative contenue : {{pct}} % du patrimoine.,Speculative share under control: {{pct}}% of wealth.
+analyses.diversification.diag_growth_low,Peu de placements de long terme ({{pct}} %) alors que ta précaution est constituée : l'argent garde surtout sa valeur sans la faire fructifier.,Few long-term investments ({{pct}}%) although your safety net is in place: money mostly keeps its value without growing.
+analyses.diversification.diag_concentration,Concentration : {{name}} pèse {{pct}} % du patrimoine. Une action seule est risquée ; un ETF diversifie.,Concentration: {{name}} weighs {{pct}}% of wealth. A single stock is risky; an ETF diversifies.
+analyses.diversification.diag_guarantee_deposits,{{institution}} détient {{amount}} de dépôts : la garantie des dépôts couvre 100 000 € par personne et par banque.,"{{institution}} holds {{amount}} in deposits: the deposit guarantee covers €100,000 per person and per bank."
+analyses.diversification.diag_guarantee_insurer,{{institution}} détient {{amount}} en assurance : la garantie couvre 70 000 € par assureur.,"{{institution}} holds {{amount}} in insurance: the guarantee covers €70,000 per insurer."
+analyses.diversification.diag_open_life_insurance,Pas d'assurance-vie : en ouvrir une tôt (même avec peu) fait courir les 8 ans de fiscalité allégée.,No life insurance: opening one early (even small) starts the 8-year tax clock.
+analyses.diversification.diag_open_pea,Pas de PEA : l'ouvrir tôt fait courir les 5 ans d'exonération d'impôt sur les gains.,No PEA: opening it early starts the 5-year tax exemption clock.
+analyses.diversification.disclaimer,"Repères courants de gestion de patrimoine, pas un conseil personnalisé : l'allocation idéale dépend de tes projets, de ton horizon et de ton goût du risque.","Common wealth-management guidelines, not personal advice: the right allocation depends on your projects, horizon and risk appetite."

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ArrowLeft, CheckCircle2, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
+  accountFeatures,
   accountTypeLabel,
   type Account,
   type AccountSnapshot,
@@ -22,6 +23,8 @@ import { accountCash, accountPositions, envelopeFlows, formatDateFr, parseDecima
 import { EmptyChart } from '../components/EmptyChart';
 import { Modal } from '../components/Modal';
 import { PeaView, type PeaData } from '../components/pea/PeaView';
+import { InterestCard } from '../components/accounts/InterestCard';
+import { ValuationCard } from '../components/accounts/ValuationCard';
 import { PEA_TABS, type InsightProps, type PeaTab } from '../components/pea/insightTypes';
 import { envelopeIncomes, useEnvelopeHistory } from '../components/pea/useEnvelopeHistory';
 import { PeaTracking } from '../components/pea/PeaTracking';
@@ -43,7 +46,6 @@ const RANGES: Array<{ value: string; label: string }> = [
   { value: 'all', label: 'Tout' },
 ];
 
-const ENVELOPE_TYPES: ReadonlyArray<Account['type']> = ['pea', 'securities', 'crypto'];
 
 export function AccountDetail({ userId, accounts, summary, snapshots, categoryById, reportCurrency, run }: {
   userId: number;
@@ -58,7 +60,9 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const params = useParams();
   const accountId = Number(params.id);
   const account = accounts.find((a) => a.id === accountId) as AccountWithInvestment | undefined;
-  const isEnvelope = account != null && ENVELOPE_TYPES.includes(account.type);
+  // Ce que la fiche affiche dépend des capacités du type (registre partagé).
+  const features = accountFeatures(account?.type ?? 'other');
+  const isEnvelope = account != null && features.holdings;
 
   const [range, setRange] = usePersistedState('account_detail_range', '12m');
   const [history, setHistory] = useState<{ date: string; balance: number }[] | null>(null);
@@ -156,7 +160,12 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
   const ceiling = livretCeiling(account, reportCurrency);
   const accountSnapshots = snapshots.filter((s) => s.account_id === account.id).sort((a, b) => b.date.localeCompare(a.date));
 
-  const accountStart = [account.initial_balance_date, ...accountSnapshots.map((s) => s.date)].map((d) => d.slice(0, 10)).reduce((m, d) => (d < m ? d : m));
+  // Début de la courbe : la plus ancienne ancre (ouverture, relevé) ou la
+  // première opération (solde non nul), si l'historique remonte plus loin
+  // que les ancres (opérations reconstituées à rebours).
+  const firstActivity = (history ?? []).find((p) => Math.abs(p.balance) > 0.005)?.date;
+  const accountStart = [account.initial_balance_date, ...accountSnapshots.map((s) => s.date), ...(firstActivity ? [firstActivity] : [])]
+    .map((d) => d.slice(0, 10)).reduce((m, d) => (d < m ? d : m));
   const chartData = (history ?? []).filter((p) => p.date.slice(0, 10) >= accountStart).map((p) => ({ ...p, day: p.date.slice(0, 10), label: formatMonth(p.date.slice(0, 7)) }));
   const domain = fitDomain(chartData.map((p) => p.balance).filter((v) => Number.isFinite(v)));
 
@@ -211,6 +220,19 @@ export function AccountDetail({ userId, accounts, summary, snapshots, categoryBy
           </div>
         );
       })()}
+
+      {features.valuation && (
+        <ValuationCard
+          account={account}
+          accounts={accounts}
+          summary={summary}
+          snapshots={snapshots}
+          value={balanceRow?.signed_balance ?? account.initial_balance}
+          fmt={nativeMoney}
+          onEstimate={() => setSnapshotOpen(true)}
+        />
+      )}
+      {features.interest && <InterestCard userId={userId} account={account} history={history} fmt={nativeMoney} version={summary} />}
 
       {isEnvelope && (
         <nav className="pi-tabs" role="tablist" aria-label={t('comptes.account_detail.account_views')}>
