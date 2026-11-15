@@ -1,0 +1,24 @@
+/* Patrimoine : rendement de l'épargne placée. */
+.wr { display: grid; gap: 12px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.wr .pg-card-head h2 { margin: 0; font-size: 17px; }
+.wr-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px 24px; }
+.wr-top > div { display: grid; gap: 2px; }
+.wr-rate { font-size: 32px; font-family: var(--num-font); }
+.wr-top .acc-muted { font-size: 13px; }
+.wr-dl { display: grid; grid-template-columns: repeat(4, auto); gap: 4px 20px; margin: 0; font-size: 13.5px; }
+.wr-dl div { display: grid; gap: 1px; }
+.wr-dl dt { color: var(--muted); font-size: 12px; }
+.wr-dl dd { margin: 0; font-weight: 600; }
+.wr-years { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.wr-years li { display: grid; grid-template-columns: 48px minmax(0, 1fr) 80px 110px; gap: 10px; align-items: center; font-size: 13.5px; }
+.wr-years .num { text-align: right; }
+.wr-track { height: 8px; border-radius: 999px; background: var(--surface-muted); overflow: hidden; }
+.wr-track i { display: block; height: 100%; border-radius: inherit; }
+.wr-track i.pos { background: var(--income); }
+.wr-track i.neg { background: var(--expense); }
+.wr-note { margin: 0; font-size: 12.5px; }
+@media (max-width: 640px) {
+  .wr-dl { grid-template-columns: repeat(2, auto); }
+  .wr-years li { grid-template-columns: 40px minmax(0, 1fr) 70px; }
+  .wr-years li > :last-child { display: none; }
+}

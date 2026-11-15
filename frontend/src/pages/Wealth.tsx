@@ -39,6 +39,7 @@ import { fitDomain, symlogConstant, symlogInverse, toBase100, toSymlog, type Cha
 import { EmptyChart } from '../components/EmptyChart';
 import { Panel } from '../components/Panel';
 import '../styles/pages/accounts.css';
+import { WealthReturnCard } from '../components/wealth/WealthReturnCard';
 import '../styles/pages/wealth.css';
 
 // 12-color palette used when the wealth chart is broken down per account.
@@ -287,6 +288,8 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
         <div className="kpi"><span>{t('patrimoine.cash')}</span><strong>{money(cashBalance)}</strong></div>
         <div className="kpi"><span>{t('patrimoine.accounts')}</span><strong>{accountRows.length}</strong></div>
       </div>
+
+      {userId != null && <WealthReturnCard userId={userId} accounts={accounts} summary={summary} currency={displayCurrency} money={money} />}
 
       <section className="chart-full">
         <Panel title={t('patrimoine.net_worth_over_time')}>
