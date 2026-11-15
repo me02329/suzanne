@@ -80,3 +80,4 @@ ui.category_select.no_description,Pas de description pour cette catégorie.,No d
 ui.category_select.hint,Survole une catégorie pour voir sa description.,Hover a category to see its description.
 ui.tab.loans,Prêts,Loans
 ui.tab.bank,Banque,Bank
+ui.tab.diversification,Diversification,Diversification
