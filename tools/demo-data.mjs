@@ -94,6 +94,8 @@ add(day(summer.y, summer.m, 17), 'expense', 74.5, carte, 'Restaurants', 'CREPERI
 const dec = months.find((x) => x.m === 11);
 if (dec) add(day(dec.y, dec.m, 20), 'income', 900, courant, 'Prime', 'VIR PRIME ANNUELLE');
 for (const tx of txs) await api(`${U}/transactions`, tx);
+// Opération isolée (comptes ajoutés plus bas), seulement si elle est passée.
+const addTx = async (date, body) => { if (past(date)) { txs.push(body); await api(`${U}/transactions`, { ...body, date: iso(date) }); } };
 
 // ── PEA : un ETF monde acheté chaque mois au cours réel de clôture ─────────
 const etf = await api(`${U}/holdings`, { account_id: pea.id, symbol: 'DCAM.PA', name: 'Amundi PEA Monde (MSCI World)', asset_class: 'etf', currency: 'EUR' });
@@ -105,6 +107,42 @@ for (const mo of months) {
   const quantity = Math.floor(199 / quote);
   if (quantity > 0) await api(`${U}/holdings/${etf.id}/orders`, { side: 'buy', date: iso(date), quantity, unit_price: Math.round(quote * 1e4) / 1e4, fee: 0 });
 }
+
+await api(`${U}/accounts/${pea.id}`, { annual_fee_rate: 0.2 }, 'PATCH');
+
+// ── Assurance-vie : fonds euros + une unité de compte (ETF monde) ───────────
+const insurer = await api(`${U}/institutions`, { name: 'Assureur Exemple' });
+const av = await api(`${U}/accounts`, {
+  name: 'Assurance-vie', type: 'life_insurance', currency: 'EUR', institution_id: insurer.id,
+  initial_balance: 4200, initial_balance_date: iso(day(start.y, start.m, 1)), fiscal_start_date: `${today.getUTCFullYear() - 6}-03-01`,
+  annual_fee_rate: 0.6, orders_affect_cash: true,
+});
+const uc = await api(`${U}/holdings`, { account_id: av.id, symbol: 'DCAM.PA', name: 'UC Amundi MSCI World', asset_class: 'etf', currency: 'EUR' });
+const ucQuote = prices.find((p) => p.date >= iso(day(start.y, start.m, 2)))?.price ?? 5.5;
+await api(`${U}/holdings/${uc.id}/orders`, { side: 'buy', date: iso(day(start.y, start.m, 2)), quantity: Math.floor(1800 / ucQuote), unit_price: Math.round(ucQuote * 1e4) / 1e4, fee: 0 });
+for (const mo of months) await addTx(day(mo.y, mo.m, 4), { type: 'transfer', amount: 100, account_id: courant.id, to_account_id: av.id, description: 'VERSEMENT ASSURANCE VIE' });
+
+// ── Livret A : intérêts de l'année passée (versés au 31 décembre) ───────────
+if (dec) await addTx(day(dec.y, dec.m, 31), { type: 'income', amount: 168.4, account_id: livret.id, category_id: cat('Intérêts'), description: 'INTERETS LIVRET A' });
+
+// ── Bien immobilier : studio locatif et son prêt (capital net) ──────────────
+const mortgage = await api(`${U}/accounts`, { name: 'Prêt immobilier', type: 'loan', currency: 'EUR', institution_id: bank.id, initial_balance: -118000, initial_balance_date: `${today.getUTCFullYear() - 3}-06-01` });
+await api(`${U}/account-snapshots`, { account_id: mortgage.id, date: iso(day(start.y, start.m, 1)), balance: -104300 });
+await api(`${U}/account-snapshots`, { account_id: mortgage.id, date: iso(day(cur.y, cur.m, 1)), balance: -98600 });
+const studio = await api(`${U}/accounts`, { name: 'Studio locatif', type: 'real_estate', currency: 'EUR', initial_balance: 142000, initial_balance_date: `${today.getUTCFullYear() - 3}-06-01`, linked_account_id: mortgage.id });
+await api(`${U}/account-snapshots`, { account_id: studio.id, date: `${today.getUTCFullYear() - 1}-06-01`, balance: 147000 });
+await api(`${U}/account-snapshots`, { account_id: studio.id, date: iso(day(cur.y, cur.m, 1)), balance: 151500 });
+
+// ── Société (SASU) : compte professionnel, hors finances personnelles ───────
+const sasu = await api(`${U}/accounts`, { name: 'SASU Exemple (pro)', type: 'checking', currency: 'EUR', institution_id: bank.id, initial_balance: 3200, initial_balance_date: iso(day(start.y, start.m, 1)), professional: true });
+await addTx(day(start.y, start.m + 2, 6), { type: 'transfer', amount: 1000, account_id: courant.id, to_account_id: sasu.id, description: 'APPORT EN COMPTE COURANT D ASSOCIE' });
+for (const mo of months.slice(-4)) {
+  await addTx(day(mo.y, mo.m, 12), { type: 'income', amount: 1800, account_id: sasu.id, category_id: cat('Freelance'), description: 'FACTURE CLIENT EXEMPLE' });
+  await addTx(day(mo.y, mo.m, 14), { type: 'expense', amount: 59, account_id: sasu.id, category_id: cat('Logiciels & services'), description: 'LOGICIEL COMPTABILITE' });
+}
+
+// ── Allocation cible (Diversification) ──────────────────────────────────────
+await api(`${U}/allocation-target`, { cash: 10, bonds: 35, equities: 40, real_estate: 10, alternative: 5 }, 'PUT');
 
 // ── Planification ───────────────────────────────────────────────────────────
 const recurrings = [
