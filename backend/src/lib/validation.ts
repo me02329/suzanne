@@ -55,6 +55,8 @@ export const investmentAccountFields = z.object({
   professional: z.preprocess((v) => (v === 'false' || v === '0' ? false : v), z.coerce.boolean()).optional(),
   // Bien : prêt qui le finance (compte de type emprunt du même profil).
   linked_account_id: z.coerce.number().int().positive().nullable().optional(),
+  // Frais annuels en % (0 à 10).
+  annual_fee_rate: z.coerce.number().min(0).max(10).nullable().optional(),
 });
 
 export const createCategorySchema = z.object({

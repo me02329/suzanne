@@ -6,6 +6,7 @@ import { accountFeatures, buildRoadmap, type Account, type DashboardSummary, typ
 import { http } from '../../lib/api';
 import { usePersistedState } from '../../lib/storage';
 import { usePyramid } from '../../lib/usePyramid';
+import { localeTag } from '../../i18n';
 import '../../styles/components/roadmap.css';
 
 // Accueil : feuille de route de l'épargnant, chaque étape cochée d'après les
@@ -69,6 +70,7 @@ export function RoadmapCard({ userId, accounts, summary, reportCurrency }: {
     });
   }, [accounts, pyramid, valuation, summary, investingMonths]);
 
+  const fmtParams = (p?: Record<string, string | number>) => Object.fromEntries(Object.entries(p ?? {}).map(([k, v]) => [k, typeof v === 'number' ? v.toLocaleString(localeTag()) : v]));
   if (!roadmap) return null;
   const next = roadmap.steps.find((s) => s.id === roadmap.next);
   const pct = roadmap.total > 0 ? Math.round((roadmap.done / roadmap.total) * 100) : 0;
@@ -87,7 +89,7 @@ export function RoadmapCard({ userId, accounts, summary, reportCurrency }: {
         <div className="rm-next">
           <span className="rm-next-label">{t('accueil.roadmap.next_step')}</span>
           <strong>{t(STEP_TEXT[next.id].title)}</strong>
-          <p className="acc-muted">{t(STEP_TEXT[next.id].hint, next.params ?? {})}</p>
+          <p className="acc-muted">{t(STEP_TEXT[next.id].hint, fmtParams(next.params))}</p>
           <Link className="rm-next-link" to={next.link}>{t(STEP_TEXT[next.id].action)} <ArrowRight size={14} /></Link>
         </div>
       )}
@@ -100,7 +102,7 @@ export function RoadmapCard({ userId, accounts, summary, reportCurrency }: {
               <div>
                 <Link to={s.link}>{t(STEP_TEXT[s.id].title)}</Link>
                 {s.status === 'optional' && <small className="acc-muted"> · {t('accueil.roadmap.optional')}</small>}
-                <p className="acc-muted">{t(STEP_TEXT[s.id].hint, s.params ?? {})}</p>
+                <p className="acc-muted">{t(STEP_TEXT[s.id].hint, fmtParams(s.params))}</p>
               </div>
             </li>
           ))}

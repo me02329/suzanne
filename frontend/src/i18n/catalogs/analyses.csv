@@ -132,7 +132,7 @@ analyses.diversification.excluded_business,Hors société ({{amount}}).,Excludin
 analyses.diversification.excluded_debts,Dettes non déduites ({{amount}}).,Debts not deducted ({{amount}}).
 analyses.diversification.monthly_expenses,Dépenses moyennes : {{amount}} par mois,Average spending: {{amount}} per month
 analyses.diversification.pyramid,Pyramide de l'épargne,Savings pyramid
-analyses.diversification.months,{{count}} mois de dépenses,{{count}} months of spending
+analyses.diversification.months,{{formatted}} mois de dépenses,{{formatted}} months of spending
 analyses.diversification.click_layer,Clique sur un étage pour voir ce qu’il contient.,Click a level to see what it holds.
 analyses.diversification.how_to_read,Comment lire la pyramide,How to read the pyramid
 analyses.diversification.empty_layer,Rien à cet étage pour l’instant.,Nothing on this level yet.
@@ -171,3 +171,6 @@ analyses.savings.french_average,Moyenne française,French average
 analyses.savings.pyf_yes,"Tu te paies en premier : {{count}} mois sur 3, un versement d’environ {{amount}} vers {{to}} juste après la paie ou en début de mois.","You pay yourself first: {{count}} of 3 months, about {{amount}} to {{to}} right after payday or early in the month."
 analyses.savings.pyf_no,« Se payer en premier » : {{count}} versement(s) vers l’épargne en début de mois sur les 3 derniers mois. Un virement automatique d’environ {{amount}} (10 % de tes revenus) juste après la paie rend l’épargne automatique.,“Pay yourself first”: {{count}} early-month contribution(s) to savings over the last 3 months. An automatic transfer of about {{amount}} (10% of your income) right after payday makes saving automatic.
 analyses.savings.pyf_action,Programmer un virement récurrent,Set up a recurring transfer
+analyses.diversification.diag_fees_ok,"Frais moyens de tes placements : {{pct}} % par an (≈ {{amount}}), raisonnables.","Average fees on your investments: {{pct}}% a year (≈ {{amount}}), reasonable."
+analyses.diversification.diag_fees_high,"Frais moyens élevés : {{pct}} % par an (≈ {{amount}}). Au-delà de 1 %, ils mangent une grosse part du rendement sur 20 ans.","High average fees: {{pct}}% a year (≈ {{amount}}). Above 1%, they eat a large share of returns over 20 years."
+analyses.diversification.diag_fees_missing,{{count}} placement(s) sans frais renseignés : ajoute-les dans « Modifier » pour estimer ce qu’ils te coûtent.,{{count}} investment(s) without fees set: add them in « Edit » to estimate what they cost you.

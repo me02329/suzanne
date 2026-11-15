@@ -90,7 +90,7 @@ export function Accounts({ userId, accounts, institutions, snapshots, institutio
       undo: () => accountsApi.create(userId, {
         name: a.name, type: a.type, currency: a.currency, institution_id: a.institution_id,
         initial_balance: a.initial_balance, initial_balance_date: a.initial_balance_date.slice(0, 10),
-        orders_affect_cash: a.orders_affect_cash, fiscal_start_date: a.fiscal_start_date?.slice(0, 10) ?? null, professional: a.professional ?? false,
+        orders_affect_cash: a.orders_affect_cash, fiscal_start_date: a.fiscal_start_date?.slice(0, 10) ?? null, professional: a.professional ?? false, annual_fee_rate: a.annual_fee_rate ?? null, linked_account_id: a.linked_account_id ?? null,
       }),
     });
   };

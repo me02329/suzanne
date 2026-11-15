@@ -10,6 +10,8 @@ export interface InvestmentAccountFields {
   professional?: boolean;
   /** Bien : prêt qui le finance. */
   linked_account_id?: number | null;
+  /** Frais annuels en %. */
+  annual_fee_rate?: number | null;
 }
 export type AccountWithInvestment = Account & InvestmentAccountFields;
 

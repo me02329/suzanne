@@ -57,6 +57,8 @@ export interface Account {
   professional?: boolean;
   /** Bien (immobilier, objet) : prêt qui le finance. */
   linked_account_id?: number | null;
+  /** Frais annuels du placement, en % (ex. 0.6 = 0,6 %). */
+  annual_fee_rate?: number | null;
   created_at: string;
 }
 
