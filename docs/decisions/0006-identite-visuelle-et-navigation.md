@@ -20,3 +20,22 @@ L'interface était un clone visuel d'une plateforme de trading (« Binance-inspi
 
 Styles par page dans `styles/pages/` ; `global.css` en cours d'allègement. Contrôle de
 débordement mobile automatisé (`tools/screenshots.mjs`).
+
+## Révision — novembre 2026 : une question par section
+
+Les sections ont été réorganisées autour d'une question chacune, pour que chaque
+écran ait une place évidente :
+
+| Section | Question | Onglets |
+|---|---|---|
+| Accueil | « Ça va ? » | Aperçu (avec la feuille de route), Alertes |
+| Opérations | « Que s'est-il passé, et comment je le range ? » | Journal, À vérifier, Catégories, Règles, Tags |
+| Comptes | « Où est mon argent ? » | Comptes, Placements, Prêts |
+| Analyse | « Qu'est-ce que ça dit ? » (plusieurs comptes) | Statistiques, Patrimoine, Diversification, Santé |
+| Planifier | « Qu'est-ce qui arrive, où je vais ? » | Budgets, Récurrents, Factures, Prévisions, Objectifs, Simulateur |
+| Assistant | — | Assistant |
+| Réglages | Configuration | Données (synchro bancaire, import, export, sauvegardes), Profils, Préférences |
+
+Une fiche de compte reste dans Comptes même quand elle montre des analyses
+propres à ce compte (performance, heatmap d'un PEA) : Analyse agrège plusieurs
+comptes. Les URL ne changent pas (`/bank` mène à Données).

@@ -12,7 +12,7 @@ import type { Run } from '../lib/run';
 import '../styles/pages/settings.css';
 import '../styles/pages/bank.css';
 
-// Réglages → Banque : synchronisation automatique des comptes via Enable
+// Réglages → Données : synchronisation automatique des comptes via Enable
 // Banking (DSP2, lecture seule). Guide d'activation tant que le serveur n'est
 // pas configuré, puis connexion des banques (redirection), association des
 // comptes et synchronisation. Retour de la banque sur /bank/callback.
@@ -35,7 +35,8 @@ function parseReturnUrl(value: string): { code: string; state: string } | null {
   }
 }
 
-export function Bank({ userId, accounts, run }: { userId: number; accounts: Account[]; run: Run }) {
+// `embedded` : section de la page Réglages → Données (titre, pas de pleine page).
+export function Bank({ userId, accounts, run, embedded = false }: { userId: number; accounts: Account[]; run: Run; embedded?: boolean }) {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ export function Bank({ userId, accounts, run }: { userId: number; accounts: Acco
     const code = params.get('code');
     const state = params.get('state');
     const error = params.get('error_description') ?? params.get('error');
-    navigate('/bank', { replace: true });
+    navigate('/tools', { replace: true });
     if (error) setCallbackError(error);
     else if (code && state) void completeCallback(code, state);
   }, [location.pathname, location.search, navigate, completeCallback]);
@@ -87,7 +88,8 @@ export function Bank({ userId, accounts, run }: { userId: number; accounts: Acco
   if (!status) return <section className="st-page bank-page"><p className="muted"><Loader2 size={16} className="spin-icon" /> {t('reglages.bank.loading')}</p></section>;
 
   return (
-    <section className="st-page bank-page">
+    <section className={embedded ? 'bank-page bank-embedded' : 'st-page bank-page'} aria-labelledby={embedded ? 'bank-title' : undefined}>
+      {embedded && <h2 id="bank-title" className="st-list-title">{t('reglages.bank.section_title')}</h2>}
       <div className="st-toolbar">
         <p className="st-summary">
           <strong>{status.connections.length}</strong> {t(status.connections.length > 1 ? 'reglages.bank.connections_n' : 'reglages.bank.connection_1')}

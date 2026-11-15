@@ -42,7 +42,7 @@ export function setBankClientForTests(client: EnableBankingClient | null, config
 export function bankClient(): EnableBankingClient {
   if (clientOverride) return clientOverride;
   const { config, error } = bankConfig();
-  if (!config) throw new HttpError(503, error ?? 'Synchronisation bancaire non configurée sur ce serveur (voir Réglages → Banque).');
+  if (!config) throw new HttpError(503, error ?? 'Synchronisation bancaire non configurée sur ce serveur (voir Réglages → Données).');
   return new EnableBankingClient(config);
 }
 
@@ -428,11 +428,11 @@ export async function bankAlerts(user_id: number): Promise<Array<{ id: number; t
     const days = Math.ceil((c.valid_until.getTime() - Date.now()) / DAY);
     const id = -100_000 - c.id;
     if (days <= 0 || c.status === 'expired') {
-      out.push({ id, type: 'bank', severity: 'warning', message: `L'accès à ${c.aspsp_name} a expiré : plus de synchronisation. Renouvelle-le dans Réglages → Banque.` });
+      out.push({ id, type: 'bank', severity: 'warning', message: `L'accès à ${c.aspsp_name} a expiré : plus de synchronisation. Renouvelle-le dans Réglages → Données.` });
     } else if (days <= 7) {
-      out.push({ id, type: 'bank', severity: 'info', message: `L'accès à ${c.aspsp_name} expire dans ${days} jour${days > 1 ? 's' : ''} : renouvelle-le dans Réglages → Banque.` });
+      out.push({ id, type: 'bank', severity: 'info', message: `L'accès à ${c.aspsp_name} expire dans ${days} jour${days > 1 ? 's' : ''} : renouvelle-le dans Réglages → Données.` });
     } else if (c.status === 'error') {
-      out.push({ id, type: 'bank', severity: 'warning', message: `La synchronisation de ${c.aspsp_name} a échoué : détails dans Réglages → Banque.` });
+      out.push({ id, type: 'bank', severity: 'warning', message: `La synchronisation de ${c.aspsp_name} a échoué : détails dans Réglages → Données.` });
     }
   }
   return out;
