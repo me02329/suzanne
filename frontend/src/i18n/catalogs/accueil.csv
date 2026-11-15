@@ -37,3 +37,29 @@ accueil.cashflow_trends.savings_rate,Taux d’épargne,Savings rate
 accueil.cashflow_trends.by_year,Par année,By year
 accueil.dashboard.vs,vs,vs
 accueil.dashboard.pts,pts,pts
+accueil.roadmap.title,Ma feuille de route,My roadmap
+accueil.roadmap.progress,{{done}} étape(s) sur {{total}},{{done}} of {{total}} steps
+accueil.roadmap.next_step,Prochaine étape,Next step
+accueil.roadmap.all_done,"Toutes les étapes essentielles sont faites. Garde le cap : investir régulièrement, rééquilibrer une fois par an.","All essential steps are done. Stay the course: invest regularly, rebalance once a year."
+accueil.roadmap.optional,facultatif,optional
+accueil.roadmap.budget,Suivre ses dépenses,Track your spending
+accueil.roadmap.budget_hint,Savoir où part l’argent : {{pct}} % des dépenses du mois sont encore sans catégorie (objectif : moins de 10 %).,Know where money goes: {{pct}}% of this month’s spending is still uncategorized (goal: under 10%).
+accueil.roadmap.budget_action,Catégoriser les opérations,Categorize transactions
+accueil.roadmap.emergency,Constituer son épargne de précaution,Build your safety net
+accueil.roadmap.emergency_hint,"{{months}} mois de dépenses de côté, disponibles tout de suite ; objectif : 3 à 6 mois sur des livrets.","{{months}} months of spending set aside, available now; goal: 3 to 6 months on passbook accounts."
+accueil.roadmap.emergency_action,Voir la pyramide,See the pyramid
+accueil.roadmap.life_insurance,Ouvrir une assurance-vie,Open a life insurance
+accueil.roadmap.life_insurance_hint,"L'enveloppe la plus souple : la fiscalité s'allège après 8 ans, autant ouvrir tôt, même avec peu.","The most flexible wrapper: taxation eases after 8 years, so open early, even with little."
+accueil.roadmap.life_insurance_action,Ajouter le compte,Add the account
+accueil.roadmap.pea_etf,Investir en actions via un PEA et des ETF,Invest in equities through a PEA and ETFs
+accueil.roadmap.pea_etf_hint,"Pour le long terme : un ETF Monde diversifie sur des milliers d’entreprises, et le PEA exonère les gains après 5 ans.","For the long term: a world ETF spreads over thousands of companies, and the PEA exempts gains after 5 years."
+accueil.roadmap.pea_etf_action,Voir mes placements,See my investments
+accueil.roadmap.regular,Investir régulièrement,Invest regularly
+accueil.roadmap.regular_hint,Un versement automatique chaque mois (« se payer en premier ») lisse les points d’entrée : {{months}} mois sur les 3 derniers.,An automatic monthly contribution (“pay yourself first”) smooths entry points: {{months}} of the last 3 months.
+accueil.roadmap.regular_action,Programmer un récurrent,Set up a recurring transfer
+accueil.roadmap.property,Diversifier dans l’immobilier,Diversify into real estate
+accueil.roadmap.property_hint,"Résidence principale, locatif ou SCPI : une autre classe d’actifs, souvent financée à crédit.","Main home, rental or REITs: another asset class, often financed with a loan."
+accueil.roadmap.property_action,Ajouter un bien,Add a property
+accueil.roadmap.tax,Optimiser sa fiscalité,Optimize your taxes
+accueil.roadmap.tax_hint,"PER pour réduire l’impôt sur le revenu, dons… Un bonus, pas un objectif en soi.","Retirement plan to cut income tax, donations… A bonus, not a goal in itself."
+accueil.roadmap.tax_action,Ajouter un PER,Add a retirement plan

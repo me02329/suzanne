@@ -1,18 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import {
-  buildPyramid,
   type Account,
   type AssetBucket,
   type Diagnostic,
   type DashboardSummary,
-  type HoldingsValuation,
   type Institution,
   type PyramidLayer,
 } from '@suzanne/shared';
-import { api } from '../lib/api';
+import { usePyramid } from '../lib/usePyramid';
 import { money as moneyFmt } from '../lib/format';
 import '../styles/pages/diversification.css';
 
@@ -59,45 +57,9 @@ export function Diversification({ userId, accounts, institutions, summary, repor
   reportCurrency: string;
 }) {
   const { t } = useTranslation();
-  const [valuation, setValuation] = useState<HoldingsValuation | null>(null);
   const [open, setOpen] = useState<PyramidLayer | null>(null);
-  const currency = summary?.currency ?? reportCurrency;
+  const { pyramid: result, monthlyExpenses, currency } = usePyramid(userId, accounts, institutions, summary, reportCurrency);
   const money = (v: number) => moneyFmt(v, currency);
-
-  useEffect(() => {
-    let cancelled = false;
-    api.holdingsValuation(userId, currency)
-      .then((v) => { if (!cancelled) setValuation(v); })
-      .catch(() => { if (!cancelled) setValuation({ currency, market_value: 0, cost_basis: 0, unrealized_pnl: 0, unrealized_pnl_pct: 0, holdings: [], allocation: [] }); });
-    return () => { cancelled = true; };
-  }, [userId, currency, summary]);
-
-  // Dépenses mensuelles moyennes : les mois passés de la courbe sur 12 mois.
-  const monthlyExpenses = useMemo(() => {
-    const current = new Date().toISOString().slice(0, 7);
-    const months = (summary?.monthly_cashflow ?? []).filter((m) => m.month < current && m.expenses > 0);
-    return months.length > 0 ? months.reduce((s, m) => s + m.expenses, 0) / months.length : null;
-  }, [summary]);
-
-  const result = useMemo(() => {
-    if (!summary || !valuation) return null;
-    const institutionName = new Map(institutions.map((i) => [i.id, i.name]));
-    const balanceOf = new Map(summary.account_balances.map((b) => [b.account_id, b.signed_balance]));
-    return buildPyramid(
-      accounts.filter((a) => !a.archived).map((a) => ({
-        id: a.id,
-        name: a.name,
-        type: a.type,
-        professional: a.professional,
-        institution: a.institution_id != null ? institutionName.get(a.institution_id) ?? null : null,
-        balance: balanceOf.get(a.id) ?? 0,
-        positions: valuation.holdings
-          .filter((h) => h.account_id === a.id && h.quantity > 0)
-          .map((h) => ({ symbol: h.symbol, name: h.name, asset_class: h.asset_class, value: h.market_value })),
-      })),
-      monthlyExpenses,
-    );
-  }, [accounts, institutions, summary, valuation, monthlyExpenses]);
 
   if (!result) return <section className="dv-page"><p className="acc-muted">{t('analyses.diversification.loading')}</p></section>;
   const pctFmt = (v: number) => `${(v * 100).toFixed(v > 0 && v < 0.1 ? 1 : 0)} %`;

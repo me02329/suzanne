@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
@@ -20,6 +21,7 @@ import { useBudgetStatus } from '../components/home/useBudgetStatus';
 import { TransactionList } from '../components/TransactionList';
 import '../styles/pages/plan.css';
 import '../styles/pages/home.css';
+import { RoadmapCard } from '../components/home/RoadmapCard';
 
 const UPCOMING_DAYS = 14;
 
@@ -40,6 +42,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const allAccounts = useMemo(() => [...accountById.values()], [accountById]);
   const chartTheme = useChartTheme();
   const displayCurrency = summary?.currency ?? reportCurrency;
   const money = (value: number) => moneyFmt(value, displayCurrency);
@@ -215,6 +218,8 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
           <small>{monthLabel}</small>
         </Link>
       </div>
+
+      {userId != null && <RoadmapCard userId={userId} accounts={allAccounts} summary={summary} reportCurrency={reportCurrency} />}
 
       <div className="home-grid">
         <div className="home-col">
