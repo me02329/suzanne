@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Check, Pencil, Trash2, X } from 'lucide-react';
-import { ACCOUNT_TYPES, REPORT_CURRENCIES, type Account, type AccountType, type Institution } from '@suzanne/shared';
+import { ACCOUNT_TYPES, accountFeatures, REPORT_CURRENCIES, type Account, type AccountType, type Institution } from '@suzanne/shared';
 import { api } from '../../lib/api';
 import { accountsApi, FISCAL_DATE_TYPES, ORDER_CASH_TYPES, type AccountWithInvestment } from '../../lib/api-accounts';
 import { parseDecimal } from '../../lib/pea';
@@ -37,6 +37,9 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
   const institutions = given ?? loaded ?? [];
   const showOrdersCash = ORDER_CASH_TYPES.includes(type);
   const showFiscal = FISCAL_DATE_TYPES.includes(type);
+  // Bien (immobilier, objet) : le solde initial est le prix d'achat, prêt lié possible.
+  const isProperty = accountFeatures(type).valuation;
+  const loans = accounts.filter((a) => a.type === 'loan' && !a.archived && a.id !== account?.id);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -55,6 +58,7 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
       initial_balance_date: String(data.get('initial_balance_date')),
       ...(showOrdersCash ? { orders_affect_cash: data.get('orders_affect_cash') === 'on' } : {}),
       ...(showFiscal ? { fiscal_start_date: String(data.get('fiscal_start_date') || '') || null } : {}),
+      ...(isProperty ? { linked_account_id: data.get('linked_account_id') ? Number(data.get('linked_account_id')) : null } : {}),
       professional: data.get('professional') === 'on',
     };
     void run(async () => {
@@ -90,12 +94,23 @@ export function AccountFormModal({ userId, account, accounts, institutions: give
         {institution === NEW_INSTITUTION && (
           <label className="full">{t('comptes.account_form_modal.institution_name')}<input name="new_institution" placeholder={t('comptes.account_form_modal.bank_broker')} maxLength={120} autoFocus /></label>
         )}
-        <label>{t('comptes.account_form_modal.opening_balance')}
+        <label>{isProperty ? t('comptes.account_form_modal.purchase_price') : t('comptes.account_form_modal.opening_balance')}
           <input name="initial_balance" inputMode="decimal" autoComplete="off" defaultValue={account ? String(account.initial_balance).replace('.', ',') : '0'} />
         </label>
-        <label>{t('comptes.account_form_modal.as')}
+        <label>{isProperty ? t('comptes.account_form_modal.purchase_date') : t('comptes.account_form_modal.as')}
           <input name="initial_balance_date" type="date" defaultValue={account?.initial_balance_date?.slice(0, 10) ?? todayIso()} required />
         </label>
+        {isProperty && (
+          <>
+            <label className="full">{t('comptes.account_form_modal.linked_loan')}
+              <select name="linked_account_id" defaultValue={(account as { linked_account_id?: number | null } | null | undefined)?.linked_account_id ?? ''}>
+                <option value="">{t('comptes.account_form_modal.no_linked_loan')}</option>
+                {loans.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </label>
+            <small className="acc-hint full">{t('comptes.account_form_modal.property_hint')}</small>
+          </>
+        )}
         {showFiscal && (
           <label className="full">{t('comptes.account_form_modal.tax_opening_date')}
             <input name="fiscal_start_date" type="date" defaultValue={account?.fiscal_start_date?.slice(0, 10) ?? ''} />

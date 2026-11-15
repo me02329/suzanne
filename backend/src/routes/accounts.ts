@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma, prismaBase } from '../prisma.js';
 import { resyncAccountOrders } from '../lib/holdingCash.js';
-import { asyncHandler } from '../middleware/errors.js';
+import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { createAccountSchema, idParam, updateAccountSchema, investmentAccountFields } from '../lib/validation.js';
 import { round2 } from '../lib/money.js';
 import { serializeTransaction, transactionInclude } from './transactions.js';
@@ -82,6 +82,13 @@ accountsRouter.get('/users/:user_id/accounts/:id/activity', asyncHandler(async (
   });
 }));
 
+// Prêt lié à un bien : un compte emprunt du même profil (et pas le bien lui-même).
+async function linkedLoanOf(user_id: number, linkedId: number, selfId?: number): Promise<number> {
+  const loan = await prisma.account.findFirst({ where: { id: linkedId, user_id }, select: { id: true, type: true } });
+  if (!loan || loan.id === selfId || loan.type !== 'loan') throw new HttpError(400, 'Le prêt lié doit être un compte « Emprunt » de ce profil.');
+  return loan.id;
+}
+
 accountsRouter.post('/users/:user_id/accounts', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = createAccountSchema.parse(req.body);
@@ -96,6 +103,7 @@ accountsRouter.post('/users/:user_id/accounts', asyncHandler(async (req, res) =>
       initial_balance_date: new Date(body.initial_balance_date),
       orders_affect_cash: extra.orders_affect_cash ?? investment,
       professional: extra.professional ?? false,
+      linked_account_id: extra.linked_account_id ? await linkedLoanOf(user_id, extra.linked_account_id) : null,
       fiscal_start_date: extra.fiscal_start_date ? new Date(extra.fiscal_start_date) : null,
     },
   });
@@ -119,6 +127,7 @@ accountsRouter.patch('/users/:user_id/accounts/:id', asyncHandler(async (req, re
     data: {
       ...(extra.orders_affect_cash !== undefined ? { orders_affect_cash: extra.orders_affect_cash } : {}),
       ...(extra.professional !== undefined ? { professional: extra.professional } : {}),
+      ...(extra.linked_account_id !== undefined ? { linked_account_id: extra.linked_account_id ? await linkedLoanOf(user_id, extra.linked_account_id, id) : null } : {}),
       ...(extra.fiscal_start_date !== undefined ? { fiscal_start_date: extra.fiscal_start_date ? new Date(extra.fiscal_start_date) : null } : {}),
       ...(body.name != null ? { name: body.name } : {}),
       ...(body.institution_id !== undefined ? { institution_id: body.institution_id ?? null } : {}),

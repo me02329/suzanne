@@ -31,6 +31,8 @@ export type AccountType =
   | 'credit'
   | 'loan'
   | 'receivable'
+  | 'real_estate'
+  | 'valuable'
   | 'other';
 export type CategoryType = 'expense' | 'income';
 export type RecurringFrequency = 'weekly' | 'monthly' | 'yearly';
@@ -53,6 +55,8 @@ export interface Account {
   archived: boolean;
   /** Compte professionnel (société) : hors des finances personnelles. */
   professional?: boolean;
+  /** Bien (immobilier, objet) : prêt qui le finance. */
+  linked_account_id?: number | null;
   created_at: string;
 }
 
@@ -760,7 +764,7 @@ export interface StatisticsSummary {
 // dashboard, alertes). Ne pas dupliquer ailleurs.
 // ---------------------------------------------------------------------------
 
-export type AccountGroup = 'cash' | 'regulated_savings' | 'investments' | 'crypto' | 'liabilities' | 'other' | 'business';
+export type AccountGroup = 'cash' | 'regulated_savings' | 'investments' | 'crypto' | 'property' | 'liabilities' | 'other' | 'business';
 
 export const ACCOUNT_TYPES: ReadonlyArray<{ value: AccountType; label: string; group: AccountGroup }> = [
   { value: 'checking', label: 'Compte courant', group: 'cash' },
@@ -780,6 +784,9 @@ export const ACCOUNT_TYPES: ReadonlyArray<{ value: AccountType; label: string; g
   { value: 'loan', label: 'Emprunt', group: 'liabilities' },
   // Argent prêté à un tiers : une créance, donc un actif.
   { value: 'receivable', label: 'Prêt accordé', group: 'other' },
+  // Biens valorisés par estimation (chaque relevé = une estimation).
+  { value: 'real_estate', label: 'Bien immobilier', group: 'property' },
+  { value: 'valuable', label: 'Bien de valeur (véhicule, objet…)', group: 'property' },
   { value: 'other', label: 'Autre', group: 'other' },
 ];
 
@@ -788,6 +795,7 @@ export const ACCOUNT_GROUPS: ReadonlyArray<{ value: AccountGroup; label: string;
   { value: 'regulated_savings', label: 'Livrets', color: '#10b981' },
   { value: 'investments', label: 'Investissements', color: '#7c3aed' },
   { value: 'crypto', label: 'Crypto', color: '#f59e0b' },
+  { value: 'property', label: 'Biens', color: '#a16207' },
   { value: 'liabilities', label: 'Passifs', color: '#dc2626' },
   { value: 'other', label: 'Autres', color: '#64748b' },
   // Comptes professionnels (société) : leur trésorerie, à part du reste.
@@ -822,7 +830,55 @@ export const LIVRET_CEILINGS: Partial<Record<AccountType, number>> = {
   livret_a: 22950,
   ldds: 12000,
   lep: 10000,
+  pel: 61200,
 };
+
+/** Enveloppe fiscale d'un compte de placement (règles françaises). */
+export type TaxWrapper = 'pea' | 'life_insurance' | 'retirement';
+
+/**
+ * Capacités d'un type de compte : ce que sa fiche affiche et ce que l'app sait
+ * calculer pour lui. Ajouter un type de placement = lui donner ses capacités
+ * ici, sans toucher aux écrans.
+ */
+export interface AccountFeatures {
+  /** Positions, ordres, performance (TWR, XIRR, heatmap), répartition. */
+  holdings: boolean;
+  /** Fiscalité propre (ancienneté, plafond, sortie). */
+  wrapper: TaxWrapper | null;
+  /** Plafond de versements (livrets réglementés, PEA). */
+  ceiling: number | null;
+  /** Rémunéré par des intérêts : intérêts reçus par an et taux constaté. */
+  interest: boolean;
+  /** Valeur estimée (biens) : historique d'estimations, plus-value, prêt lié. */
+  valuation: boolean;
+  /** Passif : le solde est une dette. */
+  liability: boolean;
+}
+
+const NO_FEATURES: AccountFeatures = { holdings: false, wrapper: null, ceiling: null, interest: false, valuation: false, liability: false };
+const FEATURES: Partial<Record<AccountType, Partial<AccountFeatures>>> = {
+  savings: { interest: true },
+  livret_a: { interest: true },
+  ldds: { interest: true },
+  lep: { interest: true },
+  pel: { interest: true },
+  cel: { interest: true },
+  pea: { holdings: true, wrapper: 'pea' },
+  securities: { holdings: true },
+  life_insurance: { holdings: true, wrapper: 'life_insurance' },
+  retirement: { holdings: true, wrapper: 'retirement' },
+  crypto: { holdings: true },
+  real_estate: { valuation: true },
+  valuable: { valuation: true },
+  credit: { liability: true },
+  loan: { liability: true },
+};
+
+export function accountFeatures(type: AccountType | string): AccountFeatures {
+  const t = type as AccountType;
+  return { ...NO_FEATURES, ...FEATURES[t], ceiling: LIVRET_CEILINGS[t] ?? (t === 'pea' ? 150000 : null) };
+}
 
 export const REPORT_CURRENCIES: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'EUR', label: 'EUR - Euro' },

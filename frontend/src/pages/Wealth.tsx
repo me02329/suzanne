@@ -119,6 +119,8 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
       { key: 'regulated_savings', label: t('patrimoine.savings_accounts'), color: accountGroupColor('regulated_savings'), width: 2 },
       { key: 'investments', label: t('patrimoine.investments'), color: accountGroupColor('investments'), width: 2 },
       { key: 'crypto', label: t('patrimoine.crypto'), color: accountGroupColor('crypto'), width: 2 },
+      { key: 'property', label: t('patrimoine.property'), color: accountGroupColor('property'), width: 2 },
+      { key: 'business', label: t('patrimoine.business'), color: accountGroupColor('business'), width: 2 },
       { key: 'other', label: t('patrimoine.other'), color: accountGroupColor('other'), width: 2 },
     ];
     // `chartTheme` est en dépendance : sans lui, le mémo gardait les couleurs
@@ -147,6 +149,8 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
       regulated_savings: byGroupAmount('regulated_savings') > 0,
       investments: byGroupAmount('investments') > 0,
       crypto: byGroupAmount('crypto') > 0,
+      property: byGroupAmount('property') > 0,
+      business: byGroupAmount('business') > 0,
       other: byGroupAmount('other') > 0,
     };
   }, [wealthViewMode, summary, accounts]);

@@ -393,3 +393,26 @@ patrimoine.loans.transactions,Opérations,Transactions
 patrimoine.loans.what_happened,Que s'est-il passé ?,What happened?
 patrimoine.loans.which_loan,Prêt concerné,Which loan
 patrimoine.loans.who_placeholder,"ex. Papa, Alex, ma banque","e.g. Dad, Alex, my bank"
+patrimoine.property,Biens,Property
+patrimoine.business,Société,Company
+patrimoine.wrapper.per_title,Fiscalité du PER,Retirement plan taxation
+patrimoine.wrapper.per_locked,Bloqué jusqu'à la retraite,Locked until retirement
+patrimoine.wrapper.per_locked_hint,"Sauf déblocage anticipé : achat de la résidence principale, accidents de la vie.","Except early release: buying your main home, life accidents."
+patrimoine.wrapper.tmi,Ta tranche marginale d'imposition,Your marginal tax bracket
+patrimoine.wrapper.per_year_deposits,Versements de l'année,This year's contributions
+patrimoine.wrapper.per_tax_saving,Économie d'impôt estimée,Estimated tax saving
+patrimoine.wrapper.net_deposits,Versements nets depuis l'ouverture,Net contributions since opening
+patrimoine.wrapper.per_note,"Versements déductibles du revenu imposable dans la limite du plafond épargne retraite (avis d'impôt). À la sortie, le capital correspondant est imposé.",Contributions are deductible from taxable income up to the retirement savings ceiling (tax notice). The matching capital is taxed on exit.
+patrimoine.wrapper.life_title,Fiscalité de l'assurance-vie,Life insurance taxation
+patrimoine.wrapper.life_mature,Plus de 8 ans : fiscalité allégée,Over 8 years: reduced taxation
+patrimoine.wrapper.life_until,Fiscalité allégée à partir du {{date}} (8 ans),Reduced taxation from {{date}} (8 years)
+patrimoine.wrapper.since,Ancienneté depuis le {{date}}.,Held since {{date}}.
+patrimoine.wrapper.if_withdraw_today,Si je rachète aujourd'hui,If I withdraw today
+patrimoine.wrapper.couple,Couple (abattement de {{amount}}),Couple (allowance of {{amount}})
+patrimoine.wrapper.gain_share,Part de gains du rachat,Gain share of the withdrawal
+patrimoine.wrapper.allowance,Abattement annuel,Annual allowance
+patrimoine.wrapper.income_tax,Impôt sur le revenu ({{rate}}),Income tax ({{rate}})
+patrimoine.wrapper.social,Prélèvements sociaux ({{rate}}),Social charges ({{rate}})
+patrimoine.wrapper.estimated_tax,Fiscalité estimée,Estimated tax
+patrimoine.wrapper.net_received,Net perçu,Net received
+patrimoine.wrapper.life_note,Estimation indicative pour des versements de moins de 150 000 € ; les prélèvements sociaux sont souvent déjà prélevés chaque année sur le fonds en euros.,"Indicative estimate for contributions under €150,000; social charges are often already deducted yearly on the euro fund."

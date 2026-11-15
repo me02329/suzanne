@@ -18,6 +18,7 @@ import type { AccountWithInvestment } from '../../lib/api-accounts';
 import { CompositionChart } from './CompositionChart';
 import { PeaGrowth } from './PeaGrowth';
 import type { EnvelopeHistory } from './useEnvelopeHistory';
+import { WrapperCard } from './WrapperCard';
 import '../../styles/pages/pea.css';
 
 export interface PeaData {
@@ -151,6 +152,20 @@ export function PeaView({ account, data, asOf, history }: { account: AccountWith
           ccy={ccy}
           fmt={fmt}
         />
+      )}
+
+      {(account.type === 'life_insurance' || account.type === 'retirement') && (
+        <div className="pea-grid">
+          <WrapperCard
+            account={account}
+            firstDeposit={firstDeposit}
+            value={value}
+            net={net}
+            yearDeposits={deposits.filter((d) => d.date.startsWith(asOf.slice(0, 4))).reduce((s, d) => s + d.amount, 0)}
+            asOf={asOf}
+            fmt={fmt}
+          />
+        </div>
       )}
 
       {isPea && (

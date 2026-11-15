@@ -8,6 +8,8 @@ export interface InvestmentAccountFields {
   fiscal_start_date?: string | null;
   /** Compte professionnel (société) : hors des finances personnelles. */
   professional?: boolean;
+  /** Bien : prêt qui le finance. */
+  linked_account_id?: number | null;
 }
 export type AccountWithInvestment = Account & InvestmentAccountFields;
 
@@ -52,4 +54,4 @@ export interface Reconciliation {
 // Types pour lesquels les ordres de bourse peuvent débiter les espèces du compte.
 export const ORDER_CASH_TYPES: ReadonlyArray<Account['type']> = ['pea', 'securities', 'crypto', 'retirement'];
 // Types qui ont une date fiscale (ancienneté du plan / contrat).
-export const FISCAL_DATE_TYPES: ReadonlyArray<Account['type']> = ['pea', 'life_insurance'];
+export const FISCAL_DATE_TYPES: ReadonlyArray<Account['type']> = ['pea', 'life_insurance', 'retirement'];

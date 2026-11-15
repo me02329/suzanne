@@ -23,7 +23,7 @@ import type { Run } from '../lib/run';
 import '../styles/pages/accounts.css';
 import { useTranslation } from 'react-i18next';
 
-const ORDERED_GROUPS = ['cash', 'regulated_savings', 'investments', 'crypto', 'liabilities', 'other', 'business'];
+const ORDERED_GROUPS = ['cash', 'regulated_savings', 'investments', 'crypto', 'property', 'liabilities', 'other', 'business'];
 
 interface Group { key: string; title: string; accounts: Account[] }
 

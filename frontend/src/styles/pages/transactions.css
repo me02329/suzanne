@@ -175,8 +175,21 @@
 @keyframes jr-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
 /* ---- Surbrillance (deep link) ----------------------------------------- */
-.jr-table tbody tr.tx-highlight, .jr-item.highlight { animation: jr-flash 1.4s ease-in-out 3; }
-@keyframes jr-flash { 0%, 100% { background: transparent; } 50% { background: var(--accent-soft); } }
+/* Opération ciblée (lien depuis une autre page, recherche, remboursement…) :
+   fond teinté et barre d'accent tenus ~6 s (durée de highlightId), avec quelques
+   pulsations au début pour attirer l'oeil, puis fondu. */
+.jr-table tbody tr.tx-highlight > td { animation: jr-target 6s ease-out forwards; }
+.jr-table tbody tr.tx-highlight > td:first-child { box-shadow: inset 4px 0 0 var(--accent-fill, var(--text)); }
+.jr-item.highlight { animation: jr-target 6s ease-out forwards; box-shadow: inset 4px 0 0 var(--accent-fill, var(--text)); border-radius: 8px; }
+@keyframes jr-target {
+  0%, 16%, 32% { background: var(--accent-soft); }
+  8%, 24% { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+  80% { background: var(--accent-soft); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jr-table tbody tr.tx-highlight > td, .jr-item.highlight { animation: none; background: var(--accent-soft); }
+}
 
 /* ---- Liste mobile (groupée par jour) --------------------------------- */
 .jr-list { display: grid; }

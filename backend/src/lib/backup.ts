@@ -390,6 +390,13 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
     }
     accountMap.set(num(raw.id, -1), id);
   }
+  // Prêt lié à un bien : les deux comptes existent maintenant, on traduit le lien.
+  for (const raw of payload.accounts ?? []) {
+    if (raw.linked_account_id == null) continue;
+    const id = accountMap.get(num(raw.id, -1));
+    const linked = accountMap.get(num(raw.linked_account_id, -1));
+    if (id && linked && ownedAccounts.has(id)) await db.account.update({ where: { id }, data: { linked_account_id: linked } });
+  }
   const resolveAccount = (rawId: unknown, rawName: unknown): number | null => {
     if (rawId == null && rawName == null) return null;
     const mapped = rawId != null ? accountMap.get(num(rawId, -1)) : undefined;
