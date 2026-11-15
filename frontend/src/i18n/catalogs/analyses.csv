@@ -174,3 +174,25 @@ analyses.savings.pyf_action,Programmer un virement récurrent,Set up a recurring
 analyses.diversification.diag_fees_ok,"Frais moyens de tes placements : {{pct}} % par an (≈ {{amount}}), raisonnables.","Average fees on your investments: {{pct}}% a year (≈ {{amount}}), reasonable."
 analyses.diversification.diag_fees_high,"Frais moyens élevés : {{pct}} % par an (≈ {{amount}}). Au-delà de 1 %, ils mangent une grosse part du rendement sur 20 ans.","High average fees: {{pct}}% a year (≈ {{amount}}). Above 1%, they eat a large share of returns over 20 years."
 analyses.diversification.diag_fees_missing,{{count}} placement(s) sans frais renseignés : ajoute-les dans « Modifier » pour estimer ce qu’ils te coûtent.,{{count}} investment(s) without fees set: add them in « Edit » to estimate what they cost you.
+analyses.rebalance.title,Allocation cible et rééquilibrage,Target allocation and rebalancing
+analyses.rebalance.intro,"Choisis une répartition cible par classe d'actifs (point de départ à ajuster), puis indique ton prochain versement : Suzanne te dit où le mettre pour t'en rapprocher, sans rien vendre.","Choose a target split by asset class (a starting point to adjust), then enter your next contribution: Suzanne tells you where to put it to get closer, without selling anything."
+analyses.rebalance.prudent,Prudent,Cautious
+analyses.rebalance.balanced,Équilibré,Balanced
+analyses.rebalance.dynamic,Dynamique,Growth
+analyses.rebalance.edit,Modifier la cible,Edit target
+analyses.rebalance.sum,Total : {{sum}} % (doit faire 100 %),Total: {{sum}}% (must be 100%)
+analyses.rebalance.cancel,Annuler,Cancel
+analyses.rebalance.save,Enregistrer la cible,Save target
+analyses.rebalance.saved,Allocation cible enregistrée,Target allocation saved
+analyses.rebalance.next_deposit,Mon prochain versement (€),My next contribution (€)
+analyses.rebalance.class,Classe,Class
+analyses.rebalance.now,Actuel,Now
+analyses.rebalance.target,Cible,Target
+analyses.rebalance.gap,Écart,Gap
+analyses.rebalance.put,À verser,To add
+analyses.rebalance.where_cash,"livret A, LDDS",passbook accounts
+analyses.rebalance.where_bonds,fonds euros d'assurance-vie,life insurance euro fund
+analyses.rebalance.where_equities,ETF sur PEA ou assurance-vie,ETFs in a PEA or life insurance
+analyses.rebalance.where_real_estate,SCPI (en assurance-vie) ou immobilier,REITs (in life insurance) or property
+analyses.rebalance.where_alternative,"crypto, or","crypto, gold"
+analyses.rebalance.note,Rééquilibrer par les versements évite de vendre (et de payer de l'impôt sur les plus-values). Un écart de quelques points est normal : un point une fois par an suffit.,Rebalancing through contributions avoids selling (and paying capital gains tax). A gap of a few points is normal: checking once a year is enough.

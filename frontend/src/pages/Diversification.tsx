@@ -13,6 +13,8 @@ import {
   type PyramidLayer,
 } from '@suzanne/shared';
 import { usePyramid } from '../lib/usePyramid';
+import type { Run } from '../lib/run';
+import { RebalanceCard } from '../components/diversification/RebalanceCard';
 import { localeTag } from '../i18n';
 import { money as moneyFmt } from '../lib/format';
 import '../styles/pages/diversification.css';
@@ -52,8 +54,9 @@ const DIAG_TEXT: Record<Diagnostic['id'], string> = {
 };
 const MONEY_PARAMS = new Set(['target', 'surplus', 'amount']);
 
-export function Diversification({ userId, accounts, institutions, summary, reportCurrency }: {
+export function Diversification({ userId, accounts, institutions, summary, reportCurrency, run }: {
   userId: number;
+  run: Run;
   accounts: Account[];
   institutions: Institution[];
   summary: DashboardSummary | null;
@@ -147,6 +150,8 @@ export function Diversification({ userId, accounts, institutions, summary, repor
           ))}
         </ul>
       </section>
+
+      <RebalanceCard userId={userId} buckets={result.buckets} money={money} run={run} />
 
       <section className="dv-card">
         <h2>{t('analyses.diversification.checkup')}</h2>

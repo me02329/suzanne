@@ -11,3 +11,4 @@ export * from './pyramid.js';
 export * from './roadmap.js';
 export * from './savings.js';
 export * from './fees.js';
+export * from './rebalance.js';
