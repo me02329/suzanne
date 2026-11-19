@@ -37,7 +37,15 @@ L'écran **Réglages → Données** affiche ces étapes tant que le serveur n'es
 
 1. **Connecter une banque** : choisir le pays et la banque → redirection vers la banque → validation → retour sur Suzanne (`/bank/callback`). Une connexion par banque : refaire l'opération pour Fortuneo, Revolut… (chacune avec son propre consentement). Si l'URL de retour configurée n'est pas celle de la page ouverte (dev), coller l'adresse de retour dans « Configuration du serveur ».
 2. **Associer** chaque compte bancaire à un compte Suzanne (ou « Ne pas synchroniser ») et choisir la date de début.
-3. **Synchroniser** (bouton, puis automatiquement toutes les ~24 h).
+3. **Synchroniser** (bouton, puis automatiquement aux heures choisies, voir ci-dessous).
+
+### Synchronisation automatique
+
+- Par défaut **à 7 h et 19 h, heure de Paris**. Chaque profil choisit dans Réglages → Données : désactivée, ou 1 à 3 fois par jour, à l'heure voulue (fuseau du navigateur). Défaut du serveur : `BANK_SYNC_HOURS` (`7,19`) et `BANK_SYNC_TZ` (`Europe/Paris`) ; une valeur invalide est ignorée avec un avertissement au démarrage.
+- **3 fois par jour au plus** : la DSP2 limite les lectures faites sans l'utilisateur à 4 par jour et par compte ; la marge laisse le bouton « Synchroniser » utilisable.
+- Le serveur vérifie toutes les 15 minutes. **Une seule tentative par créneau**, réussie ou non : une banque en erreur n'est pas rappelée en boucle (le quota n'est pas épuisé), elle est retentée au créneau suivant. Une synchro manuelle dans les 2 h qui précèdent repousse le créneau. Un créneau manqué (serveur arrêté) est rattrapé une fois au redémarrage.
+- **Une synchro à la fois par banque** : un clic sur « Synchroniser » pendant la synchro automatique (ou un double clic) répond « déjà en cours » au lieu d'importer deux fois.
+- Erreurs : quota dépassé (429) → message clair, nouvel essai au créneau suivant ; accès expiré ou révoqué → connexion « expirée », plus de synchro automatique jusqu'au renouvellement ; un compte en échec n'empêche pas les autres comptes de la même banque d'être synchronisés. L'état et la dernière erreur sont visibles sur la carte de la banque et dans les alertes.
 
 Ce que fait une synchro, pour chaque compte associé :
 

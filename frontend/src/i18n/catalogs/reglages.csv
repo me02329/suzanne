@@ -239,3 +239,15 @@ reglages.bank.waiting_paste,"Si la page de retour ne s'affiche pas correctement 
 reglages.bank.waiting_done,J'ai terminé,I'm done
 reglages.bank.card_hint,Carte à débit immédiat ? Ses paiements figurent déjà sur le compte courant : laisse-la sur « Ne pas synchroniser » (sinon doublons). Carte à débit différé : associe-la à un compte « Carte / crédit ».,Immediate-debit card? Its payments already show on the current account: leave it on « Do not sync » (otherwise duplicates). Deferred-debit card: map it to a « Card / credit » account.
 reglages.bank.section_title,Synchronisation bancaire,Bank sync
+reglages.bank.auto_title,Synchronisation automatique,Automatic sync
+reglages.bank.auto_hint,"Les banques limitent les lectures faites sans toi à 4 par jour : {{n}} synchronisations automatiques au plus, le bouton « Synchroniser » reste disponible.","Banks limit reads made without you to 4 a day: at most {{n}} automatic syncs, the « Sync » button stays available."
+reglages.bank.auto_frequency,Fréquence,Frequency
+reglages.bank.auto_off,Désactivée,Off
+reglages.bank.auto_times_one,1 fois par jour,Once a day
+reglages.bank.auto_times_other,{{count}} fois par jour,{{count}} times a day
+reglages.bank.auto_at,À,At
+reglages.bank.auto_hour,{{h}} h,{{h}}:00
+reglages.bank.auto_next,Prochaine synchronisation : {{date}},Next sync: {{date}}
+reglages.bank.auto_disabled,Synchronisation automatique désactivée : utilise le bouton « Synchroniser ».,Automatic sync off: use the « Sync » button.
+reglages.bank.auto_reset,Revenir au réglage par défaut ({{hours}}),Back to the default ({{hours}})
+reglages.bank.auto_saved,Synchronisation automatique enregistrée,Automatic sync saved

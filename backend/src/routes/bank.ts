@@ -7,12 +7,50 @@ import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { dateString, idParam } from '../lib/validation.js';
 import { assertAccountOwned } from '../lib/transactionHelpers.js';
 import {
-  bankClient, bankConfig, completeAuthorization, deleteConnection, listAspsps, startAuthorization, syncConnection, syncLink,
+  bankClient, bankConfig, bankSyncSchedule, completeAuthorization, deleteConnection, listAspsps, startAuthorization, syncConnection, syncLink, userSyncSchedule,
 } from '../lib/bankSync.js';
+import { bankScheduleKey, MAX_SYNC_SLOTS, nextSlot, validTimeZone } from '../lib/bankSchedule.js';
 
 export const bankRouter = Router();
 
 const country = z.string().regex(/^[A-Z]{2}$/).default('FR');
+
+/** Synchro automatique d'un profil : heures, fuseau, prochain passage, et défaut du serveur. */
+async function autoSyncStatus(user_id: number) {
+  const fallback = bankSyncSchedule();
+  const schedule = await userSyncSchedule(user_id, fallback);
+  return {
+    hours: schedule.hours,
+    time_zone: schedule.timeZone,
+    custom: schedule.custom,
+    default_hours: fallback.hours,
+    max_slots: MAX_SYNC_SLOTS,
+    next_at: nextSlot(new Date(), schedule)?.toISOString() ?? null,
+  };
+}
+
+// Heures de la synchro automatique choisies par le profil (au plus 3 par jour :
+// la DSP2 limite les lectures sans l'utilisateur à 4 par jour). `hours: []`
+// désactive la synchro automatique ; `null` revient au réglage du serveur.
+const scheduleBody = z.object({
+  hours: z.array(z.number().int().min(0).max(23)).max(MAX_SYNC_SLOTS, `${MAX_SYNC_SLOTS} synchronisations automatiques par jour au plus (limite des banques).`)
+    .refine((h) => new Set(h).size === h.length, 'Chaque heure ne peut être choisie qu\'une fois.')
+    .nullable(),
+  time_zone: z.string().max(64).refine(validTimeZone, 'Fuseau horaire inconnu.').optional(),
+});
+
+bankRouter.put('/users/:user_id/bank/schedule', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const body = scheduleBody.parse(req.body);
+  const key = bankScheduleKey(user_id);
+  if (body.hours === null) {
+    await prisma.setting.deleteMany({ where: { key } });
+  } else {
+    const value = JSON.stringify({ hours: [...body.hours].sort((a, b) => a - b), time_zone: body.time_zone ?? bankSyncSchedule().timeZone });
+    await prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
+  }
+  res.json(await autoSyncStatus(user_id));
+}));
 
 // État : configuration du serveur (pour le guide d'activation) et connexions.
 bankRouter.get('/users/:user_id/bank', asyncHandler(async (req, res) => {
@@ -28,6 +66,8 @@ bankRouter.get('/users/:user_id/bank', asyncHandler(async (req, res) => {
     config_error: error,
     redirect_url: config?.redirectUrl ?? null,
     app_id: config ? `${config.appId.slice(0, 8)}…` : null,
+    // Synchro automatique : créneaux et prochain passage (affichés dans Réglages → Données).
+    auto_sync: config ? await autoSyncStatus(user_id) : null,
     connections: connections.map(({ session_id: _session, ...c }) => ({
       ...c,
       expired: c.valid_until.getTime() < Date.now(),
