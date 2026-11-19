@@ -21,6 +21,9 @@ services:
       ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
       ENABLE_BANKING_KEY_PATH: /run/secrets/enablebanking.pem
       ENABLE_BANKING_REDIRECT_URL: ${ENABLE_BANKING_REDIRECT_URL:-}
+      # Synchro automatique par défaut (modifiable par profil dans Réglages → Données).
+      BANK_SYNC_HOURS: ${BANK_SYNC_HOURS:-7,19}
+      BANK_SYNC_TZ: ${BANK_SYNC_TZ:-Europe/Paris}
       # Pool Prisma (défaut 5, ouvert à la demande) : suffisant pour un foyer ;
       # à augmenter seulement si l'app rame avec beaucoup d'usagers simultanés.
       # DATABASE_POOL_MAX: "5"

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Check, Copy, ExternalLink, Landmark, Link2, Loader2, Plus, RefreshCw, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react';
 import type { Account } from '@suzanne/shared';
-import { api, type BankAspsp, type BankCheck, type BankConnection, type BankLink, type BankStatus } from '../lib/api';
+import { api, type BankAspsp, type BankAutoSync, type BankCheck, type BankConnection, type BankLink, type BankStatus } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { money } from '../lib/format';
 import { formatTxDate } from '../components/transactions/txUtils';
@@ -116,6 +116,7 @@ export function Bank({ userId, accounts, run, embedded = false }: { userId: numb
           {status.connections.map((c) => (
             <ConnectionCard key={c.id} userId={userId} connection={c} accounts={accounts} run={run} onChanged={refresh} onRenew={() => setConnecting({ country: c.aspsp_country, bank: c.aspsp_name })} />
           ))}
+          {status.auto_sync && status.connections.length > 0 && <AutoSyncCard userId={userId} autoSync={status.auto_sync} run={run} onChanged={refresh} />}
           <ServerPanel userId={userId} status={status} onPasted={completeCallback} />
         </>
       ) : (
@@ -130,6 +131,67 @@ export function Bank({ userId, accounts, run, embedded = false }: { userId: numb
 }
 
 // ---- Guide d'activation ------------------------------------------------------
+
+/** Heures proposées quand on ajoute un créneau : réparties sur la journée. */
+const SUGGESTED_HOURS = [7, 19, 13];
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+
+/**
+ * Synchro automatique : combien de fois par jour (0 à 3, limite DSP2 de 4
+ * lectures sans l'utilisateur) et à quelles heures. Enregistré à chaque
+ * changement, dans le fuseau du navigateur.
+ */
+function AutoSyncCard({ userId, autoSync, run, onChanged }: { userId: number; autoSync: BankAutoSync; run: Run; onChanged: () => void }) {
+  const { t } = useTranslation();
+  const timeZone = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; } })();
+  const save = async (hours: number[] | null) => {
+    if (await run(() => api.setBankSchedule(userId, hours, timeZone), t('reglages.bank.auto_saved'))) onChanged();
+  };
+  const setCount = (n: number) => {
+    const next = autoSync.hours.slice(0, n);
+    for (const h of SUGGESTED_HOURS) if (next.length < n && !next.includes(h)) next.push(h);
+    void save(next);
+  };
+  const setHour = (index: number, hour: number) => {
+    if (autoSync.hours.some((h, i) => h === hour && i !== index)) return;
+    void save(autoSync.hours.map((h, i) => (i === index ? hour : h)));
+  };
+  const label = (h: number) => t('reglages.bank.auto_hour', { h });
+  const next = autoSync.next_at ? new Date(autoSync.next_at) : null;
+
+  return (
+    <article className="pg-card bank-auto">
+      <header>
+        <h3><RefreshCw size={18} aria-hidden /> {t('reglages.bank.auto_title')}</h3>
+        <p className="muted">{t('reglages.bank.auto_hint', { n: autoSync.max_slots })}</p>
+      </header>
+      <div className="bank-auto-row">
+        <label>
+          <span>{t('reglages.bank.auto_frequency')}</span>
+          <select value={autoSync.hours.length} onChange={(e) => setCount(Number(e.target.value))}>
+            <option value={0}>{t('reglages.bank.auto_off')}</option>
+            {Array.from({ length: autoSync.max_slots }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{t('reglages.bank.auto_times', { count: n })}</option>)}
+          </select>
+        </label>
+        {autoSync.hours.map((hour, index) => (
+          <label key={index}>
+            <span>{t('reglages.bank.auto_at')}</span>
+            <select value={hour} onChange={(e) => setHour(index, Number(e.target.value))}>
+              {HOURS.map((h) => <option key={h} value={h} disabled={h !== hour && autoSync.hours.includes(h)}>{label(h)}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
+      <p className="muted bank-auto-next">
+        {autoSync.hours.length === 0 ? t('reglages.bank.auto_disabled')
+          : next ? t('reglages.bank.auto_next', { date: next.toLocaleString(undefined, { weekday: 'long', hour: '2-digit', minute: '2-digit' }) }) : null}
+        {autoSync.custom && (
+          <> · <button type="button" className="link-button" onClick={() => void save(null)}>{t('reglages.bank.auto_reset', { hours: autoSync.default_hours.map(label).join(', ') })}</button></>
+        )}
+      </p>
+    </article>
+  );
+}
 
 function SetupGuide({ status }: { status: BankStatus }) {
   const { t } = useTranslation();

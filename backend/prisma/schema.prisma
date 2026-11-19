@@ -809,6 +809,8 @@ model BankConnection {
   // active | expired | revoked | error
   status        String    @default("active")
   last_sync_at  DateTime? @db.Timestamptz(6)
+  // Dernière tentative, réussie ou non (planification de la synchro automatique).
+  last_attempt_at DateTime? @db.Timestamptz(6)
   last_error    String?
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
 

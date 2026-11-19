@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
 import { EnableBankingClient } from '../lib/enableBanking';
-import { setBankClientForTests, signState } from '../lib/bankSync';
+import { runScheduledBankSync, setBankClientForTests, signState } from '../lib/bankSync';
 import { prisma } from '../prisma';
 
 const app = createApp();
@@ -21,8 +21,15 @@ const transactions = [
 const transactionsAcc2 = [
   { entry_reference: 'P1', transaction_amount: { amount: '120.00', currency: 'EUR' }, credit_debit_indicator: 'CRDT', status: 'BOOK', booking_date: '2026-10-16', remittance_information: ['VIR Virement de Jean DUPONT'] },
 ];
+// Comportement de la banque simulée pour la synchro automatique : normal,
+// quota dépassé (429) ou accès révoqué (401). Appels enregistrés.
+let bankMode: 'ok' | 'rate_limited' | 'revoked' = 'ok';
+const calls: string[] = [];
 const fakeFetch = async (url: string) => {
   const { pathname: path, searchParams } = new URL(url);
+  calls.push(path);
+  if (path.startsWith('/accounts/') && bankMode === 'rate_limited') return { ok: false, status: 429, text: async () => '{"code":429,"error":"ASPSP_RATE_LIMIT_EXCEEDED"}' };
+  if (path.startsWith('/accounts/') && bankMode === 'revoked') return { ok: false, status: 401, text: async () => '{"code":401,"error":"EXPIRED_SESSION"}' };
   // Comme Boursorama : pas plus de 90 jours d'historique.
   if (path.endsWith('/transactions') && (searchParams.get('date_from') ?? '') < '2026-08-17') {
     return { ok: false, status: 422, text: async () => JSON.stringify({ code: 422, error: 'WRONG_TRANSACTIONS_PERIOD', detail: { date_from: '2026-08-17' } }) };
@@ -97,5 +104,101 @@ describe('synchronisation bancaire', () => {
 
     await api.delete(`/api/users/${u}/bank/connections/${connection.id}`).expect(200);
     expect((await api.get(`/api/users/${u}/bank`).expect(200)).body.connections).toEqual([]);
+  });
+});
+
+describe('synchronisation bancaire automatique', () => {
+  const paris = { hours: [7, 19], timeZone: 'Europe/Paris', warnings: [] };
+  const DAY = 86400_000;
+
+  it('synchronise aux créneaux, une tentative par créneau, gère quota, révocation, réglage du profil et synchros simultanées', async () => {
+    const u = (await api.post('/api/users').send({ name: 'Banque auto' }).expect(201)).body.id as number;
+    const acc = (await api.post(`/api/users/${u}/accounts`).send({ name: 'Courant auto', type: 'checking', currency: 'EUR', initial_balance: 0, initial_balance_date: '2026-01-01' }).expect(201)).body.id as number;
+    const connection = await prisma.bankConnection.create({
+      data: {
+        user_id: u, aspsp_name: 'Banque Auto', aspsp_country: 'FR', session_id: `sess-auto-${u}`, valid_until: new Date(Date.now() + 60 * DAY),
+        links: { create: [{ user_id: u, remote_uid: `auto-${u}`, remote_name: 'Compte', account_id: acc, sync_from: new Date('2026-09-01T00:00:00Z') }] },
+      },
+    });
+    const state = () => prisma.bankConnection.findUniqueOrThrow({ where: { id: connection.id } });
+    const ownCalls = () => calls.filter((c) => c.includes(`auto-${u}`)).length;
+    const txCount = async () => ((await api.get(`/api/users/${u}/transactions?account_id=${acc}`).expect(200)).body as unknown[]).length;
+    // Passage au créneau suivant : la dernière tentative recule d'un jour.
+    const nextSlot = () => prisma.bankConnection.update({ where: { id: connection.id }, data: { last_attempt_at: new Date(Date.now() - DAY) } });
+
+    // 1. Jamais synchronisée : synchro automatique, opérations et solde importés.
+    await runScheduledBankSync(new Date(), paris);
+    let s = await state();
+    expect(s).toMatchObject({ status: 'active', last_error: null });
+    expect(s.last_sync_at).not.toBeNull();
+    expect(s.last_attempt_at).not.toBeNull();
+    expect(await txCount()).toBe(4); // R1 à R4 (l'opération en attente est ignorée)
+    const afterFirst = ownCalls();
+    expect(afterFirst).toBeGreaterThan(0);
+
+    // 2. Même créneau : aucun nouvel appel à la banque.
+    await runScheduledBankSync(new Date(), paris);
+    expect(ownCalls()).toBe(afterFirst);
+
+    // 3. Quota de la banque dépassé : connexion en erreur, message clair, pas de plantage…
+    bankMode = 'rate_limited';
+    await nextSlot();
+    await runScheduledBankSync(new Date(), paris);
+    s = await state();
+    expect(s.status).toBe('error');
+    expect(s.last_error).toMatch(/limite le nombre de synchronisations/);
+    // … et pas de nouvel essai avant le créneau suivant (le quota n'est pas épuisé en boucle).
+    const afterRate = ownCalls();
+    await runScheduledBankSync(new Date(), paris);
+    expect(ownCalls()).toBe(afterRate);
+    // Le bouton « Synchroniser » renvoie un 429 lisible.
+    const manual = await api.post(`/api/users/${u}/bank/connections/${connection.id}/sync`).expect(429);
+    expect(JSON.stringify(manual.body)).toMatch(/limite/);
+
+    // 4. Créneau suivant, banque rétablie : la connexion redevient active, sans doublon.
+    bankMode = 'ok';
+    await nextSlot();
+    await runScheduledBankSync(new Date(), paris);
+    expect(await state()).toMatchObject({ status: 'active', last_error: null });
+    expect(await txCount()).toBe(4);
+
+    // 5. Synchro automatique désactivée par le profil : plus aucun appel.
+    const off = (await api.put(`/api/users/${u}/bank/schedule`).send({ hours: [], time_zone: 'Europe/Paris' }).expect(200)).body;
+    expect(off).toMatchObject({ hours: [], custom: true, next_at: null });
+    await nextSlot();
+    const beforeOff = ownCalls();
+    await runScheduledBankSync(new Date(), paris);
+    expect(ownCalls()).toBe(beforeOff);
+    // Heures choisies : validées (3 au plus, sans doublon, fuseau connu), prochaine synchro calculée.
+    await api.put(`/api/users/${u}/bank/schedule`).send({ hours: [1, 2, 3, 4] }).expect(400);
+    await api.put(`/api/users/${u}/bank/schedule`).send({ hours: [8, 8] }).expect(400);
+    await api.put(`/api/users/${u}/bank/schedule`).send({ hours: [8], time_zone: 'Nulle/Part' }).expect(400);
+    const custom = (await api.put(`/api/users/${u}/bank/schedule`).send({ hours: [21, 6], time_zone: 'Europe/Paris' }).expect(200)).body;
+    expect(custom).toMatchObject({ hours: [6, 21], custom: true });
+    expect(new Date(custom.next_at).getTime()).toBeGreaterThan(Date.now());
+    expect((await api.get(`/api/users/${u}/bank`).expect(200)).body.auto_sync).toMatchObject({ hours: [6, 21], custom: true });
+    // Retour au réglage du serveur.
+    expect((await api.put(`/api/users/${u}/bank/schedule`).send({ hours: null }).expect(200)).body).toMatchObject({ custom: false });
+
+    // 6. Deux synchros simultanées (bouton et synchro automatique, double clic) : une seule passe.
+    const both = await Promise.all([
+      api.post(`/api/users/${u}/bank/connections/${connection.id}/sync`),
+      api.post(`/api/users/${u}/bank/connections/${connection.id}/sync`),
+    ]);
+    expect(both.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(await txCount()).toBe(4);
+
+    // 7. Accès révoqué par la banque : connexion expirée, plus de synchro automatique.
+    bankMode = 'revoked';
+    await nextSlot();
+    await runScheduledBankSync(new Date(), paris);
+    expect(await state()).toMatchObject({ status: 'expired' });
+    bankMode = 'ok';
+    await nextSlot();
+    const beforeRevoked = ownCalls();
+    await runScheduledBankSync(new Date(), paris);
+    expect(ownCalls()).toBe(beforeRevoked);
+
+    await prisma.bankConnection.delete({ where: { id: connection.id } });
   });
 });

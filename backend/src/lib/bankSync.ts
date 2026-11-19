@@ -11,6 +11,7 @@ import {
   type Aspsp, type BankBalance, type BankTransaction, type EnableBankingConfig,
 } from './enableBanking.js';
 import { dedupeAndInsert, loadRules, matchRule, type ParsedImportRow } from '../routes/import_export.js';
+import { bankScheduleKey, isSyncDue, parseSyncSchedule, scheduleFromSetting, type SyncSchedule } from './bankSchedule.js';
 
 const DAY = 86400_000;
 /** Recouvrement à chaque synchro : une opération peut être comptabilisée avec quelques jours de retard. */
@@ -290,7 +291,61 @@ export function bankDataOf(tx: BankTransaction, bank: string, account_id: number
   return Object.fromEntries(Object.entries(raw).filter(([, v]) => v != null && v !== '' && !(Array.isArray(v) && v.length === 0)));
 }
 
+// ---- Verrou par connexion ----------------------------------------------------
+// Une seule synchro à la fois par connexion (bouton et synchro automatique
+// simultanés, double clic) : deux synchros parallèles liraient les mêmes
+// opérations avant que l'une ou l'autre les enregistre. Le serveur est un seul
+// processus : un verrou en mémoire suffit.
+const syncing = new Set<number>();
+
+export class SyncBusyError extends HttpError {
+  constructor() { super(409, 'Une synchronisation de cette banque est déjà en cours : réessaie dans un instant.'); }
+}
+
+async function withConnectionLock<T>(connectionId: number, fn: () => Promise<T>): Promise<T> {
+  if (syncing.has(connectionId)) throw new SyncBusyError();
+  syncing.add(connectionId);
+  try {
+    return await fn();
+  } finally {
+    syncing.delete(connectionId);
+  }
+}
+
+/** La banque (ou Enable Banking) refuse pour cause de quota d'accès dépassé. */
+export function isRateLimited(error: unknown): boolean {
+  return error instanceof EnableBankingError
+    && (error.status === 429 || /RATE_LIMIT|rate limit|too many requests|ACCESS_EXCEEDED/i.test(error.body));
+}
+
+/** Accès révoqué ou expiré côté banque : il faut reconnecter. */
+export function isConsentGone(error: unknown): boolean {
+  if (!(error instanceof EnableBankingError) || isRateLimited(error)) return false;
+  return error.status === 401 || error.status === 403 || /expired|revoked|invalid session|EXPIRED_SESSION|CLOSED_SESSION/i.test(error.body);
+}
+
+/** Message affiché (et enregistré) pour une synchro qui échoue. */
+export function syncErrorMessage(error: unknown): string {
+  if (isRateLimited(error)) return 'La banque limite le nombre de synchronisations par jour : nouvel essai au prochain créneau automatique.';
+  if (isConsentGone(error)) return 'L\'accès à la banque a expiré ou a été révoqué : reconnecte la banque.';
+  if (error instanceof EnableBankingError) return `La banque a refusé la synchronisation : ${error.message}`;
+  return error instanceof Error ? error.message : String(error);
+}
+
 export async function syncLink(user_id: number, linkId: number): Promise<SyncResult> {
+  const link = await prisma.bankLink.findFirst({ where: { id: linkId, user_id }, select: { connection_id: true } });
+  if (!link) throw new HttpError(404, 'Compte bancaire introuvable');
+  return withConnectionLock(link.connection_id, async () => {
+    try {
+      return await syncLinkUnlocked(user_id, linkId);
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(isRateLimited(error) ? 429 : 502, syncErrorMessage(error));
+    }
+  });
+}
+
+async function syncLinkUnlocked(user_id: number, linkId: number): Promise<SyncResult> {
   const link = await prisma.bankLink.findFirst({ where: { id: linkId, user_id }, include: { connection: true } });
   if (!link) throw new HttpError(404, 'Compte bancaire introuvable');
   if (link.account_id == null) throw new HttpError(400, 'Associe d\'abord ce compte bancaire à un compte Suzanne.');
@@ -360,27 +415,56 @@ export async function syncLink(user_id: number, linkId: number): Promise<SyncRes
   return result;
 }
 
-/** Synchronise tous les comptes associés d'une connexion ; met à jour son état. */
+/**
+ * Synchronise tous les comptes associés d'une connexion ; met à jour son état.
+ * Un compte en échec n'empêche pas les autres d'être synchronisés ; l'erreur
+ * est enregistrée puis renvoyée. Seul un accès expiré ou révoqué arrête tout.
+ */
 export async function syncConnection(user_id: number, connectionId: number) {
+  const exists = await prisma.bankConnection.findFirst({ where: { id: connectionId, user_id }, select: { id: true } });
+  if (!exists) throw new HttpError(404, 'Connexion bancaire introuvable');
+  return withConnectionLock(connectionId, () => syncConnectionUnlocked(user_id, connectionId));
+}
+
+async function syncConnectionUnlocked(user_id: number, connectionId: number) {
   const connection = await prisma.bankConnection.findFirst({ where: { id: connectionId, user_id }, include: { links: true } });
   if (!connection) throw new HttpError(404, 'Connexion bancaire introuvable');
-  if (connection.valid_until.getTime() < Date.now()) {
-    await prisma.bankConnection.update({ where: { id: connection.id }, data: { status: 'expired' } });
+  const now = new Date();
+  if (connection.valid_until.getTime() < now.getTime()) {
+    await prisma.bankConnection.update({ where: { id: connection.id }, data: { status: 'expired', last_attempt_at: now } });
     throw new HttpError(409, 'Le consentement a expiré : reconnecte la banque.');
   }
+  // Tentative notée AVANT d'appeler la banque : un plantage en cours de route
+  // ne doit pas faire retenter la synchro automatique en boucle.
+  await prisma.bankConnection.update({ where: { id: connection.id }, data: { last_attempt_at: now } });
   const results: SyncResult[] = [];
-  try {
-    for (const link of connection.links.filter((l) => l.account_id != null)) results.push(await syncLink(user_id, link.id));
-    await prisma.bankConnection.update({ where: { id: connection.id }, data: { status: 'active', last_sync_at: new Date(), last_error: null } });
-  } catch (error) {
-    const expired = error instanceof EnableBankingError && (error.status === 401 || error.status === 403 || /expired|revoked|invalid session/i.test(error.body));
-    await prisma.bankConnection.update({
-      where: { id: connection.id },
-      data: { status: expired ? 'expired' : 'error', last_error: (error instanceof Error ? error.message : String(error)).slice(0, 500) },
-    });
-    throw error instanceof EnableBankingError ? new HttpError(502, `La banque a refusé la synchronisation : ${error.message}`) : error;
+  let firstError: unknown = null;
+  for (const link of connection.links.filter((l) => l.account_id != null)) {
+    try {
+      results.push(await syncLinkUnlocked(user_id, link.id));
+    } catch (error) {
+      firstError ??= error;
+      // Accès perdu ou quota atteint : les autres comptes de la même banque
+      // échoueraient pareil (et consommeraient du quota) ; on s'arrête là.
+      if (isConsentGone(error) || isRateLimited(error)) break;
+    }
   }
-  return results;
+  if (firstError == null) {
+    await prisma.bankConnection.update({ where: { id: connection.id }, data: { status: 'active', last_sync_at: new Date(), last_error: null } });
+    return results;
+  }
+  const message = syncErrorMessage(firstError);
+  await prisma.bankConnection.update({
+    where: { id: connection.id },
+    data: {
+      status: isConsentGone(firstError) ? 'expired' : 'error',
+      last_error: message.slice(0, 500),
+      // Une partie des comptes est à jour : on le note quand même.
+      ...(results.length > 0 ? { last_sync_at: new Date() } : {}),
+    },
+  });
+  if (firstError instanceof HttpError) throw firstError;
+  throw new HttpError(isRateLimited(firstError) ? 429 : 502, message);
 }
 
 export async function deleteConnection(user_id: number, connectionId: number) {
@@ -391,29 +475,87 @@ export async function deleteConnection(user_id: number, connectionId: number) {
   await prisma.bankConnection.delete({ where: { id: connection.id } });
 }
 
-/** Synchro quotidienne de toutes les connexions actives (tous profils). */
+// ---- Synchro automatique ---------------------------------------------------
+
+/** Créneaux de la synchro automatique (lus une fois, avertissements affichés au démarrage). */
+let scheduleCache: SyncSchedule | null = null;
+export function bankSyncSchedule(): SyncSchedule {
+  scheduleCache ??= parseSyncSchedule();
+  return scheduleCache;
+}
+
+/**
+ * Un passage de la synchro automatique : synchronise les connexions dont le
+ * créneau est passé (voir isSyncDue). Ne lève jamais : une erreur de base ou de
+ * banque est journalisée et le passage suivant réessaiera.
+ */
+/** Créneaux d'un profil : ses heures choisies, sinon celles du serveur. */
+export async function userSyncSchedule(user_id: number, fallback: SyncSchedule = bankSyncSchedule()) {
+  const row = await prisma.setting.findUnique({ where: { key: bankScheduleKey(user_id) } });
+  return scheduleFromSetting(row?.value, fallback);
+}
+
+export async function runScheduledBankSync(now = new Date(), fallback: SyncSchedule = bankSyncSchedule()): Promise<{ due: number; ok: number; failed: number }> {
+  const out = { due: 0, ok: 0, failed: 0 };
+  let candidates: Array<{ id: number; user_id: number; status: string; valid_until: Date; last_attempt_at: Date | null }>;
+  const schedules = new Map<number, SyncSchedule>();
+  try {
+    candidates = await prisma.bankConnection.findMany({
+      where: { status: { in: ['active', 'error'] }, valid_until: { gt: now } },
+      select: { id: true, user_id: true, status: true, valid_until: true, last_attempt_at: true },
+      orderBy: { id: 'asc' },
+    });
+    const users = [...new Set(candidates.map((c) => c.user_id))];
+    const rows = users.length > 0 ? await prisma.setting.findMany({ where: { key: { in: users.map(bankScheduleKey) } } }) : [];
+    const byKey = new Map(rows.map((r) => [r.key, r.value]));
+    for (const u of users) schedules.set(u, scheduleFromSetting(byKey.get(bankScheduleKey(u)), fallback));
+  } catch (error) {
+    console.error('[suzanne] bank sync: lecture des connexions impossible', error instanceof Error ? error.message : error);
+    return out;
+  }
+  for (const c of candidates) {
+    if (!isSyncDue(c, now, schedules.get(c.user_id) ?? fallback)) continue;
+    out.due += 1;
+    try {
+      await syncConnection(c.user_id, c.id);
+      out.ok += 1;
+    } catch (error) {
+      // Déjà en cours (bouton « Synchroniser ») : rien à faire, ce n'est pas un échec.
+      if (error instanceof SyncBusyError) { out.due -= 1; continue; }
+      out.failed += 1;
+      console.error(`[suzanne] bank sync ${c.id} failed:`, error instanceof Error ? error.message : error);
+    }
+  }
+  if (out.due > 0) console.log(`[suzanne] bank sync: ${out.ok} ok, ${out.failed} en échec`);
+  return out;
+}
+
+const CHECK_EVERY_MS = 15 * 60_000;
+
+/**
+ * Synchro automatique : vérification toutes les 15 minutes, synchro aux
+ * créneaux BANK_SYNC_HOURS (7 h et 19 h, heure de Paris, par défaut). Un
+ * créneau manqué (serveur arrêté) est rattrapé une fois au redémarrage.
+ */
 export function startBankSyncScheduler(): void {
   if (!bankConfig().config) return;
+  const schedule = bankSyncSchedule();
+  for (const warning of schedule.warnings) console.warn(`[suzanne] ${warning}`);
+  console.log(`[suzanne] bank sync auto (défaut, modifiable par profil) : ${schedule.hours.map((h) => `${h} h`).join(', ')} (${schedule.timeZone})`);
   let running = false;
-  const run = async () => {
+  const tick = async () => {
     if (running) return;
     running = true;
     try {
-      const since = new Date(Date.now() - 20 * 3600_000);
-      const due = await prisma.bankConnection.findMany({
-        where: { status: { in: ['active', 'error'] }, valid_until: { gt: new Date() }, OR: [{ last_sync_at: null }, { last_sync_at: { lt: since } }] },
-        select: { id: true, user_id: true },
-      });
-      for (const c of due) {
-        await syncConnection(c.user_id, c.id).catch((error) => console.error(`[suzanne] bank sync ${c.id} failed`, error instanceof Error ? error.message : error));
-      }
-      if (due.length > 0) console.log(`[suzanne] bank sync: ${due.length} connection(s)`);
+      await runScheduledBankSync(new Date(), schedule);
+    } catch (error) {
+      console.error('[suzanne] bank sync scheduler failed', error);
     } finally {
       running = false;
     }
   };
-  setTimeout(() => void run(), 60_000).unref?.();
-  setInterval(() => void run(), 6 * 3600_000).unref?.();
+  setTimeout(() => void tick(), 60_000).unref?.();
+  setInterval(() => void tick(), CHECK_EVERY_MS).unref?.();
 }
 
 /**

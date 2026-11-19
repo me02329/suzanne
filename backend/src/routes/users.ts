@@ -20,7 +20,7 @@ usersRouter.delete('/users/:id', asyncHandler(async (req, res) => {
   const id = idParam.parse(req.params.id);
   await prisma.user.delete({ where: { id } });
   // Réglages propres au profil (table clé-valeur sans lien) : allocation cible.
-  await prisma.setting.deleteMany({ where: { key: `allocation_target.${id}` } });
+  await prisma.setting.deleteMany({ where: { key: { in: [`allocation_target.${id}`, `bank_sync.${id}`] } } });
   res.json({ deleted: true });
 }));
 

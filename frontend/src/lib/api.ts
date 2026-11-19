@@ -165,7 +165,21 @@ export interface BankConnection {
   last_error: string | null;
   links: BankLink[];
 }
-export interface BankStatus { configured: boolean; config_error: string | null; redirect_url: string | null; app_id: string | null; connections: BankConnection[] }
+export interface BankStatus {
+  configured: boolean; config_error: string | null; redirect_url: string | null; app_id: string | null; connections: BankConnection[];
+  /** Synchro automatique du profil ; null si la synchro n'est pas configurée. */
+  auto_sync?: BankAutoSync | null;
+}
+export interface BankAutoSync {
+  /** Heures choisies ([] = désactivée). */
+  hours: number[];
+  time_zone: string;
+  /** true : heures choisies par le profil ; false : réglage du serveur. */
+  custom: boolean;
+  default_hours: number[];
+  max_slots: number;
+  next_at: string | null;
+}
 export interface BankAspsp { name: string; country: string; bic: string | null; beta: boolean; logo: string | null; consent_days: number | null }
 export interface BankCheck { ok: boolean; error?: string; name?: string | null; active?: boolean | null; environment?: string | null; redirect_url_registered?: boolean | null }
 
@@ -179,6 +193,7 @@ export const api = {
   bankCallback: (userId: number, code: string, state: string) => http<BankConnection>(`/users/${userId}/bank/callback`, { method: 'POST', body: JSON.stringify({ code, state }) }),
   updateBankLink: (userId: number, id: number, body: { account_id?: number | null; sync_from?: string | null }) => http<BankLink>(`/users/${userId}/bank/links/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   syncBankConnection: (userId: number, id: number) => http<{ results: Array<NonNullable<BankLink['last_result']>> }>(`/users/${userId}/bank/connections/${id}/sync`, { method: 'POST' }),
+  setBankSchedule: (userId: number, hours: number[] | null, timeZone?: string) => http<BankAutoSync>(`/users/${userId}/bank/schedule`, { method: 'PUT', body: JSON.stringify({ hours, ...(timeZone ? { time_zone: timeZone } : {}) }) }),
   deleteBankConnection: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/bank/connections/${id}`, { method: 'DELETE' }),
   users: () => http<User[]>('/users'),
   createUser: (body: { name: string }) => http<User>('/users', { method: 'POST', body: JSON.stringify(body) }),
