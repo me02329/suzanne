@@ -4,7 +4,10 @@ import '../styles/components/touch-gestures.css';
 
 // Gestes tactiles de la coquille (écrans tactiles seulement) :
 // - glisser vers le bas en haut de page → actualiser les données ;
-// - glisser à gauche / à droite → onglet suivant / précédent de la section.
+// - glisser à gauche / à droite, dans les 70 % du haut de l'écran → sous-page
+//   suivante / précédente de la section (Journal → À vérifier…) ;
+// - même geste dans les 30 % du bas (barre du bas comprise) → grande page
+//   suivante / précédente (Accueil → Opérations → Comptes…).
 // Le glissé horizontal est permissif (un geste à peu près horizontal suffit)
 // mais ignore les bords de l'écran, réservés au geste « retour » d'iOS et
 // d'Android, ainsi que tout ce qui défile déjà horizontalement (tableaux,
@@ -27,8 +30,10 @@ const IGNORE = [
   '.recharts-wrapper', '.no-swipe',
   'nav', '.subnav', '[role="tablist"]', '[role="radiogroup"]',
   '.acc-seg', '.jr-seg', '.st-segment', '.st-toggle', '.pi-tabs', '.series-toggles',
-  '.tag-picker-chips', '.bg-hero-chips', '.icon-picker-groups', '.tabbar',
+  '.tag-picker-chips', '.bg-hero-chips', '.icon-picker-groups',
 ].join(', ');
+const SECTIONS_ZONE = 0.7; // au-delà de 70 % de la hauteur : grandes pages
+export type SwipeZone = 'tabs' | 'sections';
 const OVERLAYS = '.sheet-backdrop, .modal-backdrop, .drilldown-backdrop, [aria-modal="true"], [role="dialog"]';
 
 /** Un ancêtre défile-t-il horizontalement (tableau large, barre d'onglets…) ? */
@@ -42,10 +47,10 @@ function inHorizontalScroller(el: Element | null): boolean {
 
 export function TouchGestures({ onSwipe, onRefresh, canSwipe }: {
   /** 'next' = glissé vers la gauche, 'prev' = vers la droite. */
-  onSwipe: (direction: 'next' | 'prev') => void;
+  onSwipe: (direction: 'next' | 'prev', zone: SwipeZone) => void;
   onRefresh: () => Promise<unknown>;
-  /** Y a-t-il un onglet dans cette direction ? (sinon simple rebond) */
-  canSwipe: (direction: 'next' | 'prev') => boolean;
+  /** Y a-t-il une page dans cette direction ? (sinon simple rebond) */
+  canSwipe: (direction: 'next' | 'prev', zone: SwipeZone) => boolean;
 }) {
   const indicator = useRef<HTMLDivElement>(null);
   const handlers = useRef({ onSwipe, onRefresh, canSwipe });
@@ -58,6 +63,7 @@ export function TouchGestures({ onSwipe, onRefresh, canSwipe }: {
     let start: { x: number; y: number; t: number } | null = null;
     let axis: 'x' | 'y' | null = null;
     let swipeAllowed = false;
+    let zone: SwipeZone = 'tabs';
     let pullAllowed = false;
     let pull = 0;
     let refreshing = false;
@@ -84,14 +90,18 @@ export function TouchGestures({ onSwipe, onRefresh, canSwipe }: {
       if (event.touches.length !== 1 || refreshing) return;
       const touch = event.touches[0]!;
       const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest(IGNORE)) return;
+      // La barre du bas est une zone « grandes pages » à part entière (elle est
+      // un <nav>, exclu sinon comme les autres barres).
+      const onTabbar = target?.closest('.tabbar') != null;
+      if (!onTabbar && target?.closest(IGNORE)) return;
       // Panneau « Plus », fenêtre ou feuille ouverte (fond grisé compris) :
       // aucun geste sur la page en dessous.
       if (document.querySelector(OVERLAYS)) return;
       start = { x: touch.clientX, y: touch.clientY, t: event.timeStamp };
       axis = null;
+      zone = onTabbar || touch.clientY > window.innerHeight * SECTIONS_ZONE ? 'sections' : 'tabs';
       swipeAllowed = touch.clientX > EDGE && touch.clientX < window.innerWidth - EDGE && !inHorizontalScroller(target);
-      pullAllowed = window.scrollY <= 0;
+      pullAllowed = !onTabbar && window.scrollY <= 0;
       pull = 0;
     };
 
@@ -106,7 +116,7 @@ export function TouchGestures({ onSwipe, onRefresh, canSwipe }: {
         axis = Math.abs(dx) > Math.abs(dy) * 0.85 ? 'x' : 'y';
       }
       if (axis === 'x' && swipeAllowed) {
-        const allowed = handlers.current.canSwipe(dx < 0 ? 'next' : 'prev');
+        const allowed = handlers.current.canSwipe(dx < 0 ? 'next' : 'prev', zone);
         setShift(allowed ? dx * 0.35 : dx * 0.08);
       } else if (axis === 'y' && pullAllowed && dy > 0 && window.scrollY <= 0) {
         pull = Math.min(PULL_MAX, dy * 0.5);
@@ -127,8 +137,8 @@ export function TouchGestures({ onSwipe, onRefresh, canSwipe }: {
         setShift(0, true);
         const direction = dx < 0 ? 'next' : 'prev';
         const far = Math.abs(dx) >= SWIPE_MIN || (Math.abs(dx) >= 32 && speed >= SWIPE_FAST);
-        if (far && Math.abs(dy) < 140 && !window.getSelection()?.toString() && handlers.current.canSwipe(direction)) {
-          handlers.current.onSwipe(direction);
+        if (far && Math.abs(dy) < 140 && !window.getSelection()?.toString() && handlers.current.canSwipe(direction, zone)) {
+          handlers.current.onSwipe(direction, zone);
         }
       }
       if (wasAxis === 'y' && pull > 0) {

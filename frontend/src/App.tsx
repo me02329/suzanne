@@ -32,7 +32,7 @@ import { Modal } from './components/Modal';
 import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
 import { BankSyncButton } from './components/BankSyncButton';
-import { TouchGestures } from './components/TouchGestures';
+import { TouchGestures, type SwipeZone } from './components/TouchGestures';
 import { SuzanneMark } from './components/SuzanneMark';
 import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
@@ -377,10 +377,17 @@ export default function App() {
     navigate(pathForTab(nextTab));
     setMoreOpen(false);
   };
-  // Glisser à gauche / à droite (tactile) : onglet voisin dans la section.
-  const neighbourTab = (direction: 'next' | 'prev') => {
+  // Glisser à gauche / à droite (tactile) : en haut de l'écran, sous-page
+  // voisine dans la section ; en bas, grande page voisine (ordre de la
+  // navigation), ouverte sur son premier onglet.
+  const neighbourTab = (direction: 'next' | 'prev', zone: SwipeZone) => {
+    const step = direction === 'next' ? 1 : -1;
+    if (zone === 'sections') {
+      const index = navSections.findIndex((s) => s.id === section.id);
+      return index < 0 ? undefined : navSections[index + step]?.tabs[0]?.tab;
+    }
     const index = section.tabs.findIndex((item) => item.tab === tab);
-    return index < 0 ? undefined : section.tabs[index + (direction === 'next' ? 1 : -1)]?.tab;
+    return index < 0 ? undefined : section.tabs[index + step]?.tab;
   };
   const openUnassignedTransactions = () => {
     setTransactionIssueFilter('unassigned_account');
@@ -415,8 +422,8 @@ export default function App() {
   return (
     <div className="shell">
       <TouchGestures
-        canSwipe={(direction) => neighbourTab(direction) !== undefined}
-        onSwipe={(direction) => { const next = neighbourTab(direction); if (next) setActiveTab(next); }}
+        canSwipe={(direction, zone) => neighbourTab(direction, zone) !== undefined}
+        onSwipe={(direction, zone) => { const next = neighbourTab(direction, zone); if (next) setActiveTab(next); }}
         onRefresh={() => reload().catch((e) => setError((e as Error).message))}
       />
       <aside className="rail" aria-label={t('ui.app.main_navigation')}>
