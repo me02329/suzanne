@@ -35,5 +35,45 @@ l'installation depuis cette source), ou, téléphone branché en débogage USB :
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
-L'APK est signé avec la clé de débogage de la machine qui l'a construit : pour
-mettre à jour l'app sans la désinstaller, reconstruis-la sur la même machine.
+L'APK debug est signé avec la clé de débogage de la machine qui l'a construit :
+pour les vraies mises à jour, passe par les releases GitHub ci-dessous.
+
+## Release GitHub (APK à installer depuis le téléphone)
+
+Le workflow `.github/workflows/android-release.yml` construit un APK **signé
+avec la clé release** et l'attache à une release GitHub à chaque tag
+`android-v*` :
+
+```bash
+git tag android-v1.1.0
+git push origin android-v1.1.0
+```
+
+Sur le téléphone : page **Releases** du dépôt → télécharger
+`Suzanne-1.1.0.apk` → l'ouvrir. Une nouvelle version s'installe par-dessus
+l'ancienne (même clé, `versionCode` croissant).
+
+### Clé de signature (une fois)
+
+La clé release (`suzanne-release.jks`) **ne va jamais dans git**. Si elle est
+perdue, aucune mise à jour ne pourra s'installer par-dessus l'app existante :
+garde-la avec ses mots de passe dans une sauvegarde. Le workflow la lit dans
+les secrets du dépôt :
+
+| Secret | Contenu |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | le fichier `.jks` encodé en base64 |
+| `ANDROID_KEYSTORE_PASSWORD` | mot de passe du magasin |
+| `ANDROID_KEY_ALIAS` | alias de la clé (`suzanne`) |
+| `ANDROID_KEY_PASSWORD` | mot de passe de la clé |
+
+```bash
+base64 -w0 suzanne-release.jks | gh secret set ANDROID_KEYSTORE_BASE64
+gh secret set ANDROID_KEYSTORE_PASSWORD   # puis colle le mot de passe
+gh secret set ANDROID_KEY_ALIAS --body suzanne
+gh secret set ANDROID_KEY_PASSWORD
+```
+
+En local, les mêmes valeurs passent par les variables `SUZANNE_KEYSTORE`,
+`SUZANNE_KEYSTORE_PASSWORD`, `SUZANNE_KEY_ALIAS`, `SUZANNE_KEY_PASSWORD`
+(`.\gradlew.bat assembleRelease`).
