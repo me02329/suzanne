@@ -125,6 +125,7 @@ reglages.assistant.new_conversation,Nouvelle conversation,New conversation
 reglages.assistant.new,Nouvelle,New
 reglages.assistant.set,Définis,Set
 reglages.assistant.on_server_or_in_preferences,côté serveur ou dans Préférences.,on the server or in Preferences.
+reglages.assistant.configure,Configurer la clé,Set up the key
 reglages.assistant.openai_billing,facturation OpenAI,OpenAI billing
 reglages.assistant.retry,Réessayer,Retry
 reglages.assistant.thinking,Réflexion…,Thinking…

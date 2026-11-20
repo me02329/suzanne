@@ -1,5 +1,6 @@
 import { Dispatch, KeyboardEvent, MutableRefObject, SetStateAction, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertTriangle, Check, Loader2, RotateCcw, Send, Sparkles, Wand2, Wrench, X } from 'lucide-react';
+import { AlertTriangle, Check, KeyRound, Loader2, RotateCcw, Send, Sparkles, Wand2, Wrench, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { AiPendingAction } from '@suzanne/shared';
@@ -72,6 +73,7 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
   abortRef: MutableRefObject<AbortController | null>;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [draft, setDraft] = useState('');
   const [health, setHealth] = useState<AiHealthStatus | null>(null);
   const [testing, setTesting] = useState(false);
@@ -290,6 +292,12 @@ export function Assistant({ userId, month, currency, run, messages, setMessages,
             )}
             <span className="ai-endpoint"> · {health.baseUrl}</span>
           </span>
+          {/* Clé absente ou refusée : accès direct au réglage (Réglages › Préférences). */}
+          {(!health.configured || health.error?.kind === 'auth' || health.error?.kind === 'model_unavailable') && (
+            <button type="button" className="secondary ai-configure" onClick={() => navigate('/settings#assistant')}>
+              <KeyRound size={14} /> {t('reglages.assistant.configure')}
+            </button>
+          )}
           <button type="button" className="ghost-button" onClick={refreshHealth} disabled={testing}>
             {testing ? <Loader2 className="spin-icon" size={14} /> : null}  {t('reglages.assistant.retry')}
           </button>
