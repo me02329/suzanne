@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Serveur auto-hébergé, souvent joint en http sur un réseau privé : http
+     autorisé. https fonctionne aussi. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <!-- Certificats ajoutés par l'utilisateur (CA d'un serveur perso, ex. Caddy interne). -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
