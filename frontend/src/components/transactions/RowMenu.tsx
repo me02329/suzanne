@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { useTranslation } from 'react-i18next';
 import { Copy, HandCoins, Info, Link2, MoreHorizontal, Paperclip, Repeat, Split, Trash2 } from 'lucide-react';
 import { refundedAmount, type Transaction } from '@suzanne/shared';
+import { useDismiss } from '../../lib/useDismiss';
 
 export interface RowMenuItem {
   key: string;
@@ -23,8 +24,8 @@ export interface TxActionHandlers {
   onDelete: (t: Transaction) => void;
 }
 
-// Actions secondaires d'une ligne (menu « ⋯ »). Pointer et modifier restent
-// visibles sur la ligne ; tout le reste vit ici.
+// Actions secondaires d'une ligne (menu « ⋯ »). Seul « pointer » reste
+// visible sur la ligne ; le tableau ajoute « Modifier » en tête de ce menu.
 export function useTxMenuItems() {
   const { t } = useTranslation();
   return (tx: Transaction, h: TxActionHandlers, opts: { withSplit?: boolean } = {}): RowMenuItem[] => {
@@ -69,8 +70,10 @@ export function RowMenu({ items, label }: { items: RowMenuItem[]; label?: string
   // Position calculée depuis le bouton ; suit le défilement (un menu qui se
   // fermerait au moindre scroll serait inutilisable au doigt).
   const place = useCallback(() => {
-    const rect = buttonRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    const button = buttonRef.current;
+    const rect = button?.getBoundingClientRect();
+    // Bouton disparu (ligne retirée, vue changée) ou hors de l'écran : on ferme.
+    if (!button?.isConnected || !rect || (rect.width === 0 && rect.height === 0)) { setOpen(false); return; }
     if (rect.bottom < 0 || rect.top > window.innerHeight) { setOpen(false); return; }
     const up = rect.bottom + 300 > window.innerHeight && rect.top > 300;
     setPos({ top: up ? rect.top - 4 : rect.bottom + 4, right: Math.max(8, window.innerWidth - rect.right), up });
@@ -86,27 +89,18 @@ export function RowMenu({ items, label }: { items: RowMenuItem[]; label?: string
     if (open && placed) menuRef.current?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
   }, [open, placed]);
 
+  // Clic / toucher ailleurs, autre menu ouvert, largeur changée : fermeture
+  // commune. Le défilement repositionne (voir place) au lieu de fermer.
+  useDismiss(open, () => setOpen(false), [buttonRef, menuRef], { closeOnScroll: false, escape: false });
   useEffect(() => {
     if (!open) return;
-    const close = () => setOpen(false);
-    const onDown = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node;
-      if (menuRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
-      setOpen(false);
-    };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); buttonRef.current?.focus(); }
     };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('touchstart', onDown);
     document.addEventListener('keydown', onKey, true);
-    window.addEventListener('resize', close);
     window.addEventListener('scroll', place, true);
     return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('touchstart', onDown);
       document.removeEventListener('keydown', onKey, true);
-      window.removeEventListener('resize', close);
       window.removeEventListener('scroll', place, true);
     };
   }, [open, place]);

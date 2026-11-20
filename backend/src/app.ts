@@ -42,6 +42,11 @@ export function createApp() {
     '/assets',
     express.static(path.join(publicDir, 'assets'), { immutable: true, maxAge: '1y' }),
   );
+  // Fichier d'asset absent (bundle d'un déploiement précédent, demandé par un
+  // onglet resté ouvert ou un cache) : 404, et surtout PAS index.html en 200 —
+  // le navigateur chargerait du HTML à la place du JavaScript (écran blanc) et
+  // le service worker pourrait le mettre en cache.
+  app.use('/assets', (_req, res) => res.status(404).type('text/plain').send('Not found'));
   // index.html ne doit jamais être mis en cache, sinon il référence un bundle disparu
   // après un déploiement → écran blanc tant qu'on n'a pas fait un hard refresh.
   app.use(

@@ -1,0 +1,24 @@
+/* Gestes tactiles (TouchGestures) : tirer pour actualiser, glisser entre onglets. */
+
+/* Le geste « tirer pour actualiser » natif du navigateur rechargerait toute la
+   page : on le remplace par une actualisation des données. */
+html.touch-gestures, html.touch-gestures body { overscroll-behavior-y: contain; }
+/* Pendant un glissé, le contenu se décale : rien ne doit dépasser de l'écran
+   (sinon une barre de défilement horizontale apparaît et l'écran paraît coupé). */
+html.touch-gestures .shell .main { overflow-x: clip; }
+
+.pull-indicator {
+  --pull: 0px;
+  position: fixed; z-index: 60; left: 50%; top: calc(env(safe-area-inset-top) + 8px);
+  display: grid; place-items: center; width: 40px; height: 40px; margin-left: -20px;
+  border: 1px solid var(--border); border-radius: 50%;
+  background: var(--surface-raised); color: var(--muted); box-shadow: var(--shadow-pop);
+  opacity: 0; pointer-events: none;
+  transform: translateY(calc(var(--pull) - 48px)) rotate(calc(var(--pull) * 3.2));
+}
+.pull-indicator.settle { transition: transform 200ms ease-out, opacity 200ms ease-out; }
+.pull-indicator.armed { color: var(--text); border-color: var(--text); }
+.pull-indicator.refreshing svg { animation: spin 0.7s linear infinite; color: var(--text); }
+@media (prefers-reduced-motion: reduce) {
+  .pull-indicator { transform: translateY(calc(var(--pull) - 48px)); }
+}

@@ -5,6 +5,7 @@ import type { SearchResult } from '@suzanne/shared';
 import { searchAnnulable } from '../lib/searchApi';
 import { tabForSearchResult, type Tab } from '../lib/nav';
 import { useTranslation } from 'react-i18next';
+import { useDismiss } from '../lib/useDismiss';
 
 // Recherche de la barre du haut : saisie temporisée, résultats navigables au
 // clavier. Chaque nouvelle frappe annule la requête précédente (une réponse
@@ -45,13 +46,9 @@ export function SearchBox({ userId, onNavigate }: { userId: number; onNavigate: 
     };
   }, [query, userId]);
 
-  useEffect(() => {
-    const onMouseDown = (event: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onMouseDown);
-    return () => document.removeEventListener('mousedown', onMouseDown);
-  }, []);
+  // Résultats sous le champ (ils défilent avec lui) : fermeture au clic /
+  // toucher ailleurs ou à l'ouverture d'un autre menu ; Échap géré au clavier.
+  useDismiss(open, () => setOpen(false), [boxRef], { closeOnScroll: false, escape: false });
 
   const clear = () => {
     setQuery('');

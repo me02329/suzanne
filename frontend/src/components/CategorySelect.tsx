@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Category } from '@suzanne/shared';
 import { CategoryIcon } from '../lib/categoryIcons';
+import { useDismiss } from '../lib/useDismiss';
 import '../styles/components/category-select.css';
 
 // Liste de choix de catégorie, à la place d'un <select> natif : un menu natif
@@ -49,20 +50,25 @@ export function CategorySelect({
   };
   useLayoutEffect(() => { if (open) place(); }, [open]);
 
+  // Fermeture commune (clic / toucher ailleurs, autre menu ouvert, Échap géré
+  // plus bas avec le clavier). Au défilement, la liste suit son bouton — elle
+  // contient un champ de recherche que le clavier mobile fait défiler — mais se
+  // ferme si le bouton sort de l'écran ou disparaît.
+  useDismiss(open, () => setOpen(false), [buttonRef, popRef], { closeOnScroll: false, escape: false });
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (popRef.current?.contains(e.target as Node) || buttonRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
+    const follow = (event: Event) => {
+      if (event.target instanceof Node && popRef.current?.contains(event.target)) return;
+      const button = buttonRef.current;
+      const rect = button?.getBoundingClientRect();
+      if (!button?.isConnected || !rect || rect.bottom < 0 || rect.top > window.innerHeight) { setOpen(false); return; }
+      place();
     };
-    const reposition = () => place();
-    document.addEventListener('mousedown', close);
-    window.addEventListener('resize', reposition);
-    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('scroll', follow, true);
+    window.addEventListener('resize', follow);
     return () => {
-      document.removeEventListener('mousedown', close);
-      window.removeEventListener('resize', reposition);
-      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('scroll', follow, true);
+      window.removeEventListener('resize', follow);
     };
   }, [open]);
 
@@ -104,7 +110,7 @@ export function CategorySelect({
         onKeyDown={(e) => { if (!open && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openMenu(); } }}
       >
         {selected && <span className="cat-select-dot" style={{ background: selected.color }} aria-hidden />}
-        {selected && <CategoryIcon name={selected.icon} size={14} className="cat-select-icon" />}
+        {selected && <CategoryIcon name={selected.icon} size={14} className="cat-select-icon" color={selected.color} />}
         <span className={selected ? 'cat-select-label' : 'cat-select-label placeholder'}>{selected?.name ?? noneLabel}</span>
         <ChevronDown size={14} className="cat-select-chevron" aria-hidden />
       </button>
@@ -139,7 +145,7 @@ export function CategorySelect({
                 {c ? (
                   <>
                     <span className="cat-select-dot" style={{ background: c.color }} aria-hidden />
-                    <CategoryIcon name={c.icon} size={14} className="cat-select-icon" />
+                    <CategoryIcon name={c.icon} size={14} className="cat-select-icon" color={c.color} />
                     <span className="cat-select-label">{c.name}</span>
                   </>
                 ) : <span className="cat-select-label placeholder">{noneLabel}</span>}

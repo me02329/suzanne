@@ -125,6 +125,7 @@ reglages.assistant.new_conversation,Nouvelle conversation,New conversation
 reglages.assistant.new,Nouvelle,New
 reglages.assistant.set,Définis,Set
 reglages.assistant.on_server_or_in_preferences,côté serveur ou dans Préférences.,on the server or in Preferences.
+reglages.assistant.configure,Configurer la clé,Set up the key
 reglages.assistant.openai_billing,facturation OpenAI,OpenAI billing
 reglages.assistant.retry,Réessayer,Retry
 reglages.assistant.thinking,Réflexion…,Thinking…
@@ -168,7 +169,6 @@ reglages.bank.app_active,application active,application active
 reglages.bank.app_id,Application,Application
 reglages.bank.app_inactive,application inactive : lie tes comptes dans le Control Panel,application inactive: link your accounts in the Control Panel
 reglages.bank.balance,solde {{amount}} au {{date}},balance {{amount}} on {{date}}
-reglages.bank.bank_account,Compte bancaire,Bank account
 reglages.bank.beta,bêta,beta
 reglages.bank.callback_error,La banque n'a pas autorisé l'accès : {{error}},The bank did not grant access: {{error}}
 reglages.bank.check,Vérifier la configuration,Check configuration
@@ -176,8 +176,6 @@ reglages.bank.confirm_disconnect,Déconnecter {{bank}} ? La synchronisation s'ar
 reglages.bank.connect_bank,Connecter une banque,Connect a bank
 reglages.bank.connect_intro,"Choisis ta banque : tu seras redirigé vers elle pour te connecter et autoriser la lecture de tes comptes, puis renvoyé ici.","Pick your bank: you will be redirected to it to sign in and allow read access to your accounts, then sent back here."
 reglages.bank.connected,Banque connectée : associe maintenant chaque compte à un compte Suzanne.,Bank connected: now map each account to a Suzanne account.
-reglages.bank.connection_1,banque connectée,connected bank
-reglages.bank.connections_n,banques connectées,connected banks
 reglages.bank.consent_days,consentement {{n}} j,{{n}}-day consent
 reglages.bank.consent_until,accès jusqu'au {{date}} ({{n}} j),access until {{date}} ({{n}} d)
 reglages.bank.copy,Copier,Copy
@@ -186,7 +184,6 @@ reglages.bank.disconnect,Déconnecter,Disconnect
 reglages.bank.disconnected,Banque déconnectée,Bank disconnected
 reglages.bank.guide_intro,"Suzanne peut récupérer chaque jour les opérations et le solde de tes comptes, avec les libellés complets, grâce à Enable Banking (agrégateur DSP2 agréé, gratuit pour un usage personnel). L'activation se fait une fois, sur le serveur.","Suzanne can fetch your transactions and balances every day, with full labels, through Enable Banking (a licensed PSD2 aggregator, free for personal use). Set it up once, on the server."
 reglages.bank.guide_title,Activer la synchronisation bancaire,Enable bank sync
-reglages.bank.last_result,Dernière synchro,Last sync
 reglages.bank.last_sync,Dernière synchronisation : {{date}},Last sync: {{date}}
 reglages.bank.link_first,Associe d'abord un compte bancaire à un compte Suzanne.,First map a bank account to a Suzanne account.
 reglages.bank.link_saved,Association enregistrée,Mapping saved
@@ -202,7 +199,6 @@ reglages.bank.redirect_elsewhere,"L'URL de retour configurée n'est pas celle de
 reglages.bank.redirect_not_registered,URL de retour non déclarée sur l'application,redirect URL not registered on the application
 reglages.bank.redirect_url,URL de retour,Redirect URL
 reglages.bank.renew,Renouveler l'accès,Renew access
-reglages.bank.result,"{{imported}} importée(s), {{adopted}} reconnue(s), {{pending}} en attente","{{imported}} imported, {{adopted}} matched, {{pending}} pending"
 reglages.bank.search_bank,Rechercher une banque,Search a bank
 reglages.bank.security_consent,"Le consentement est limité dans le temps (souvent 180 jours) et révocable à tout moment, ici (« Déconnecter ») ou depuis ta banque.","Consent is time-limited (often 180 days) and can be revoked at any time, here (« Disconnect ») or from your bank."
 reglages.bank.security_credentials,Tes identifiants bancaires ne passent jamais par Suzanne : tu te connectes sur le site ou l'appli de ta banque.,Your bank credentials never go through Suzanne: you sign in on your bank's own site or app.
@@ -212,7 +208,6 @@ reglages.bank.security_read_only,Lecture seule : l'application n'a que le servic
 reglages.bank.security_title,Sécurité et confidentialité,Security and privacy
 reglages.bank.server_title,Configuration du serveur,Server configuration
 reglages.bank.status_error,Erreur de synchronisation,Sync error
-reglages.bank.status_expired,Accès expiré : renouvelle-le,Access expired: renew it
 reglages.bank.step_account,Crée un compte Enable Banking,Create an Enable Banking account
 reglages.bank.step_account_hint,Inscription gratuite sur le,Free sign-up on the
 reglages.bank.step_app,Ajoute une application « Production »,Add a « Production » application
@@ -230,7 +225,7 @@ reglages.bank.sync_from,Depuis le,From
 reglages.bank.sync_from_hint,"Première date importée. Les opérations déjà présentes (import CSV) sont reconnues, pas dupliquées.","First imported date. Transactions already present (CSV import) are matched, not duplicated."
 reglages.bank.sync_now,Synchroniser,Sync now
 reglages.bank.synced,"Synchronisé : {{imported}} nouvelle(s) opération(s), {{adopted}} reconnue(s)","Synced: {{imported}} new transaction(s), {{adopted}} matched"
-reglages.bank.map_first,"Pour synchroniser, choisis ci-dessous le compte Suzanne où importer chaque compte bancaire (au moins un), puis clique « Synchroniser ».","To sync, pick below the Suzanne account each bank account should import into (at least one), then click « Sync now »."
+reglages.bank.map_first,Choisis où importer au moins un compte pour pouvoir synchroniser.,Pick where to import at least one account to be able to sync.
 reglages.bank.waiting_title,Connexion à {{bank}},Connecting to {{bank}}
 reglages.bank.waiting_intro,Ta banque s'est ouverte dans un nouvel onglet : connecte-toi et autorise l'accès. Cette page se mettra à jour toute seule une fois la connexion créée.,Your bank opened in a new tab: sign in and allow access. This page updates on its own once the connection is created.
 reglages.bank.waiting_tab_closed,Onglet bloqué ou fermé ?,Tab blocked or closed?
@@ -251,3 +246,19 @@ reglages.bank.auto_next,Prochaine synchronisation : {{date}},Next sync: {{date}}
 reglages.bank.auto_disabled,Synchronisation automatique désactivée : utilise le bouton « Synchroniser ».,Automatic sync off: use the « Sync » button.
 reglages.bank.auto_reset,Revenir au réglage par défaut ({{hours}}),Back to the default ({{hours}})
 reglages.bank.auto_saved,Synchronisation automatique enregistrée,Automatic sync saved
+reglages.bank.overview_ok,Tout est à jour,All up to date
+reglages.bank.overview_attention_one,1 banque demande ton attention,1 bank needs your attention
+reglages.bank.overview_attention_other,{{count}} banques demandent ton attention,{{count}} banks need your attention
+reglages.bank.synced_ago,Synchronisée {{when}},Synced {{when}}
+reglages.bank.pill_until,Accès jusqu'au {{date}},Access until {{date}}
+reglages.bank.pill_soon_one,Accès expire demain,Access expires tomorrow
+reglages.bank.pill_soon_other,Accès expire dans {{count}} j,Access expires in {{count}} d
+reglages.bank.pill_expired,Accès expiré,Access expired
+reglages.bank.res_new_one,1 nouvelle,1 new
+reglages.bank.res_new_other,{{count}} nouvelles,{{count}} new
+reglages.bank.res_matched_one,1 reconnue,1 matched
+reglages.bank.res_matched_other,{{count}} reconnues,{{count}} matched
+reglages.bank.res_pending_one,1 en attente,1 pending
+reglages.bank.res_pending_other,{{count}} en attente,{{count}} pending
+reglages.bank.res_none,rien de nouveau,nothing new
+reglages.bank.sync_from_set,Choisir la date de départ,Pick a start date

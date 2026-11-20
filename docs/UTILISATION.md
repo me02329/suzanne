@@ -87,8 +87,8 @@ La table du mois permet ensuite de travailler vite :
 
 - clique directement sur la colonne **Compte** pour changer le compte ;
 - clique directement sur la colonne **Catégorie** pour reclasser la transaction ;
-- utilise le bouton crayon pour modifier tous les champs ;
-- utilise le bouton copier pour dupliquer une opération proche ;
+- clique sur une ligne pour ouvrir le détail de l'opération (d'où **Modifier**) ;
+- le rond à droite pointe / dépointe ; le menu **⋯** regroupe modifier, copier, ventiler, rembourser, pièces jointes et supprimer ;
 - coche plusieurs transactions pour ouvrir **Modifier la sélection** (compte ou catégorie en lot) ou **Pointer / Dépointer** la sélection ;
 - lie une transaction à un récurrent pour garder une trace de son origine.
 

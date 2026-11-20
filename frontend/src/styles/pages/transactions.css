@@ -90,6 +90,7 @@
 .jr-summary-count strong { color: var(--text); font-family: var(--num-font); }
 .jr-summary .income { color: var(--income); font-weight: 600; }
 .jr-summary .expense { color: var(--expense); font-weight: 600; }
+.jr-summary .jr-net { font-weight: 700; }
 .jr-tool {
   display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px;
   border: 0; border-radius: 999px; background: transparent; color: var(--muted);
@@ -114,9 +115,15 @@
 
 /* ---- Tableau desktop --------------------------------------------------- */
 .jr-table-wrap { margin: 0 -6px; width: calc(100% + 12px); }
-.jr-table { min-width: 860px; table-layout: auto; }
+.jr-table { min-width: 720px; table-layout: auto; }
 .jr-table td { padding-top: 8px; padding-bottom: 8px; }
 .jr-table.compact td { padding-top: 4px; padding-bottom: 4px; }
+/* Zébrage : une ligne sur deux légèrement teintée ; survol et sélection restent au-dessus. */
+.jr-table tbody tr:nth-child(even) { background: var(--row-alt); }
+.jr-table tbody tr:hover { background: var(--surface-muted); }
+.jr-table tbody tr.tx-selected { background: var(--accent-soft); }
+/* Clic sur la ligne = détail de l'opération. */
+.jr-table tbody tr:not(.jr-readonly) { cursor: pointer; }
 .jr-table .jr-date { color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .jr-table .jr-label-cell { max-width: 340px; }
 .jr-table td > .jr-label { margin: 0; color: var(--text); font-size: 14.5px; }
@@ -130,10 +137,31 @@
   border: 1px solid var(--border-strong); border-radius: 999px;
   color: var(--muted); font-size: 11.5px; font-weight: 650; white-space: nowrap;
 }
-.jr-type { color: var(--muted); font-size: 13px; }
 .jr-table .inline-select { min-height: 32px; font-weight: 500; color: var(--text); padding-left: 8px; max-width: 200px; font-size: 13.5px; background: transparent; border-color: transparent; }
-.jr-table tr:hover .inline-select { border-color: var(--border); background: var(--surface-raised); }
-.jr-table .inline-select:focus { border-color: var(--accent); background: var(--surface-raised); }
+.jr-table tr:hover .inline-select { border-color: var(--border); background-color: var(--surface-raised); }
+.jr-table .inline-select:focus { border-color: var(--accent); background-color: var(--surface-raised); }
+/* Listes du tableau : le nom (compte, catégorie) reste lisible, la flèche
+   n'apparaît qu'au survol de la ligne ou au focus — sinon une colonne entière
+   de chevrons. Flèche gris moyen, lisible en clair comme en sombre. */
+.jr-table select.inline-select {
+  appearance: none; padding-right: 26px;
+  background-repeat: no-repeat; background-position: right 8px center; background-size: 12px;
+}
+.jr-table tr:hover select.inline-select:not(:disabled), .jr-table select.inline-select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8473' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+.jr-table .cat-select.inline .cat-select-chevron { visibility: hidden; }
+.jr-table tr:hover .cat-select.inline .cat-select-chevron,
+.jr-table .cat-select.inline:focus-visible .cat-select-chevron,
+.jr-table .cat-select.inline[aria-expanded="true"] .cat-select-chevron { visibility: visible; }
+/* Catégorie : grand écran = pastille + nom ; écran moyen = pastille + icône
+   (nom au survol, via le title). */
+.jr-table .cat-select.inline .cat-select-icon { display: none; }
+@media (max-width: 1279px) {
+  .jr-table .cat-select.inline { width: auto; }
+  .jr-table .cat-select.inline .cat-select-icon { display: block; }
+  .jr-table .cat-select.inline .cat-select-label:not(.placeholder) { display: none; }
+}
 .jr-stack { display: grid; gap: 2px; }
 .jr-splits { display: grid; gap: 2px; font-size: 13px; }
 .jr-splits > span { display: flex; align-items: center; gap: 6px; }
@@ -141,7 +169,7 @@
 .jr-splits .jr-num { color: var(--muted); }
 .jr-amount-col { text-align: right !important; }
 .jr-table th.jr-amount-col .th-sort { flex-direction: row-reverse; }
-.jr-amt { font-weight: 600; font-size: 14.5px; }
+.jr-amt { font-weight: 700; font-size: 14.5px; }
 .jr-amt.income { color: var(--income); }
 .jr-amt.expense { color: var(--expense); }
 .jr-amt.transfer { color: var(--text); }
@@ -194,18 +222,31 @@
 /* ---- Liste mobile (groupée par jour) --------------------------------- */
 .jr-list { display: grid; }
 .jr-day ul { list-style: none; margin: 0; padding: 0; }
-.jr-day-head {
-  margin: 0; padding: 14px 0 4px;
-  font-family: var(--font-sans); font-size: 12.5px; font-weight: 650; letter-spacing: 0.02em; color: var(--muted);
+/* En-tête du jour : une bande fine sur toute la largeur, d'une teinte froide
+   (--day-band) qu'on ne retrouve nulle part ailleurs ; elle replie / déplie
+   le jour au toucher. */
+.jr-day-head { margin: 0; font: inherit; }
+.jr-day + .jr-day .jr-day-head { margin-top: 6px; }
+.jr-day-toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 30px; padding: 3px 8px 3px 6px;
+  border: 0; border-radius: 0; background: var(--day-band); color: var(--text);
+  font-family: var(--font-sans); font-size: 12px; font-weight: 650; letter-spacing: 0.02em; text-align: left; cursor: pointer;
 }
-.jr-day:first-child .jr-day-head { padding-top: 2px; }
+.jr-day-chevron { flex: none; width: 14px; height: 14px; color: var(--muted); transition: transform 150ms ease; }
+.jr-day.collapsed .jr-day-chevron { transform: rotate(-90deg); }
+.jr-day-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-day-count { flex: none; color: var(--muted); font-size: 11.5px; font-weight: 600; }
+.jr-day-total { flex: 0 0 auto; font-size: 12px; font-weight: 700; letter-spacing: -0.02em; }
+.jr-day-total.income { color: var(--income); }
+.jr-day-total.expense { color: var(--expense); }
 .jr-day li + li { border-top: 1px solid var(--border); }
 .jr-item {
-  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 58px; padding: 9px 2px;
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 58px; padding: 9px 8px;
   border: 0; border-radius: 0; background: transparent; color: var(--text);
   font: inherit; text-align: left; cursor: pointer;
 }
 .jr-item:disabled { cursor: default; opacity: 1; }
+.jr-day li:nth-child(even) > .jr-item:not(.selected) { background: var(--row-alt); }
 .jr-item.selected { background: var(--accent-soft); }
 .jr-item-main { display: grid; gap: 3px; flex: 1 1 auto; min-width: 0; }
 .jr-item-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; }

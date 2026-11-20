@@ -39,6 +39,12 @@ export function Settings() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Arrivée depuis l'assistant (« Configurer la clé ») : on va droit à la section IA.
+  useEffect(() => {
+    if (loading || window.location.hash !== '#assistant') return;
+    document.getElementById('assistant')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [loading]);
+
   // Le serveur refuse (400) de changer l'adresse sans nouvelle clé : une clé
   // déjà enregistrée ne doit pas partir vers un autre serveur.
   const urlChanged = data != null && baseUrl.trim() !== (data.base_url ?? '');
@@ -117,7 +123,7 @@ export function Settings() {
         </label>
       </section>
 
-      <section className="panel st-pref st-pref-ai">
+      <section className="panel st-pref st-pref-ai" id="assistant">
         <div className="st-pref-head">
           <h2>{t('reglages.settings.ai_assistant')}</h2>
           <p>{t('reglages.settings.key_and_model_used_by')} <code>AI_*</code>  {t('reglages.settings.variables')}</p>{/* i18n-ignore */}

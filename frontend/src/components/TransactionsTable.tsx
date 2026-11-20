@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Circle, Info, Pencil } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp, ChevronsUpDown, Circle, Pencil } from 'lucide-react';
 import { CategoryHint, CategoryName } from './CategoryName';
 import { CategorySelect } from './CategorySelect';
 import { refundedAmount, type Account, type Category, type Transaction } from '@suzanne/shared';
@@ -12,8 +12,11 @@ import type { TxSort, TxSortKey } from './transactions/useTransactionFilters';
 
 export type { TxSort, TxSortKey } from './transactions/useTransactionFilters';
 
-// Journal desktop. Par ligne : pointer + modifier visibles, le reste dans
-// « ⋯ ». Les opérations de bourse (kind 'trade') sont en lecture seule.
+// Journal desktop. Par ligne : seul « pointer » reste visible (c'est aussi un
+// état), le reste vit dans « ⋯ » ; un clic sur la ligne ouvre le détail. Le type
+// n'a pas de colonne : signe et couleur du montant, badge « Transfert » et comptes
+// source → destination le portent. Les opérations de bourse (kind 'trade') sont
+// en lecture seule.
 export function TransactionsTable({
   transactions,
   emptyMessage,
@@ -92,7 +95,6 @@ export function TransactionsTable({
             </th>
             {sortableTh('date', t('operations.date'))}
             {sortableTh('label', t('operations.label'))}
-            {sortableTh('type', t('operations.type'))}
             <th>{t('operations.account')}</th>
             <th>{t('commun.category')}</th>
             {sortableTh('amount', t('operations.amount'), 'jr-amount-col')}
@@ -117,7 +119,6 @@ export function TransactionsTable({
               .filter((c): c is Category => c != null);
             const selected = selectedIds.has(tx.id);
             const category = refundOnly ? refundCategories[0] : categoryById.get(tx.category_id ?? -1);
-            const accent = categoryById.get(splits[0]?.category_id ?? -1)?.color ?? category?.color ?? 'transparent';
             const label = txLabel(tx, categoryById);
             const accountName = (id: number | null) => accountById.get(id ?? -1)?.name ?? t('operations.no_account');
             return (
@@ -125,18 +126,27 @@ export function TransactionsTable({
                 key={tx.id}
                 data-tx={tx.id}
                 className={[selected ? 'tx-selected' : '', tx.id === highlightId ? 'tx-highlight' : '', readOnly ? 'jr-readonly' : ''].filter(Boolean).join(' ') || undefined}
-                style={{ ['--tx-accent' as string]: accent }}
+                onClick={readOnly ? undefined : (e) => {
+                  // Clic sur la ligne (hors contrôles) : ouvrir le détail.
+                  // Les menus en portail (catégorie, « ⋯ ») propagent leurs clics via React :
+                  // seul un clic réellement dans la ligne compte.
+                  const target = e.target as HTMLElement;
+                  if (!e.currentTarget.contains(target) || target.closest('button, a, input, select, label')) return;
+                  if (window.getSelection()?.toString()) return;
+                  actions.onDetails(tx);
+                }}
               >
                 <td className="select-cell">
                   {!readOnly && (
                     <input type="checkbox" aria-label={t('operations.select_label', { label })} checked={selected} onChange={(e) => onSelect(tx.id, e.target.checked)} />
                   )}
                 </td>
-                <td className="nowrap tx-accent jr-date" title={formatTxDate(tx.date)}>{formatTxDay(tx.date, !tx.date.startsWith(thisYear))}</td>
+                <td className="nowrap jr-date" title={formatTxDate(tx.date)}>{formatTxDay(tx.date, !tx.date.startsWith(thisYear))}</td>
                 <td className="jr-label-cell">
                   <span className="jr-label" title={label}>{label}</span>
                   <span className="jr-badges">
                     {readOnly && <span className="jr-badge">{t('operations.stock_market')}</span>}
+                    {tx.type === 'transfer' && !readOnly && <span className="jr-badge">⇄ {typeLabel('transfer')}</span>}
                     {tx.type !== 'transfer' && accountById.get(tx.account_id ?? -1)?.professional && <span className="jr-badge jr-badge-pro" title={t('operations.pro_badge_hint')}>{t('operations.pro_badge')}</span>}
                     {linked && <span className="jr-badge" title={t('operations.linked_to_recurring_item')}>↻ {t('operations.recurring_2')}</span>}
                     {refunded > 0 && (
@@ -163,7 +173,6 @@ export function TransactionsTable({
                     ))}
                   </span>
                 </td>
-                <td><span className={`jr-type ${tx.type}`}>{typeLabel(tx.type)}</span></td>
                 <td>
                   {readOnly ? (
                     <span className="jr-muted">{accountName(tx.account_id)}</span>
@@ -229,6 +238,7 @@ export function TransactionsTable({
                         categories={categories.filter((c) => c.type === tx.type)}
                         noneLabel={t('operations.no_category')}
                         ariaLabel={t('commun.category')}
+                        title={category?.name}
                       />
                     </CategoryHint>
                   )}
@@ -247,13 +257,10 @@ export function TransactionsTable({
                       >
                         {tx.cleared ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                       </button>
-                      <button type="button" className="icon-ghost" aria-label={t('operations.detail.open')} title={t('operations.detail.open')} onClick={() => actions.onDetails(tx)}>
-                        <Info size={16} />
-                      </button>
-                      <button type="button" className="icon-ghost" aria-label={t('operations.edit')} title={t('operations.edit')} onClick={() => onEdit(tx)}>
-                        <Pencil size={16} />
-                      </button>
-                      <RowMenu items={menuItems(tx, actions)} />
+                      <RowMenu items={[
+                        { key: 'edit', label: t('operations.edit'), icon: <Pencil size={16} />, onSelect: () => onEdit(tx) },
+                        ...menuItems(tx, actions),
+                      ]} />
                     </div>
                   )}
                 </td>

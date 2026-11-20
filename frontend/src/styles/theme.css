@@ -36,6 +36,10 @@
   --shadow: none;
   --shadow-pop: 0 18px 40px -18px rgba(40, 32, 12, 0.35), 0 2px 6px rgba(40, 32, 12, 0.08);
   --focus: 0 0 0 3px rgba(74, 106, 0, 0.28);
+  /* Zébrage des listes d'opérations : à peine perceptible, sous le survol. */
+  --row-alt: rgba(64, 52, 20, 0.04);
+  /* Bande des en-têtes de jour : teinte froide, absente du reste de la palette. */
+  --day-band: #e2e7ea;
 }
 
 [data-theme="dark"] {
@@ -64,6 +68,8 @@
   --shadow: none;
   --shadow-pop: 0 18px 40px -16px rgba(0, 0, 0, 0.7);
   --focus: 0 0 0 3px rgba(201, 239, 77, 0.3);
+  --row-alt: rgba(255, 248, 230, 0.035);
+  --day-band: #252a2f;
 }
 
 :root {
@@ -528,7 +534,8 @@ a.stat-link:hover { border-color: var(--border-strong); }
   .topbar-tools .search-box { display: none; }
   .topbar-tools.search-open { position: absolute; inset: calc(10px + env(safe-area-inset-top)) 12px auto 12px; z-index: 35; padding: 8px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-pop); }
   .topbar-tools.search-open .search-box { display: block; flex: 1 1 auto; }
-  .topbar-tools.search-open .month-picker { display: none; }
+  .topbar-tools.search-open .month-picker,
+  .topbar-tools.search-open .topbar-bank-sync { display: none; }
   .topbar-title { flex: 1 1 auto; }
   .topbar-kicker { font-size: 10.5px; }
   .month-picker select { font-size: 14px; padding: 0 2px; }

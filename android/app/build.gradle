@@ -1,0 +1,48 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Signature « release » : fournie par l'environnement (secrets GitHub en CI,
+// voir .github/workflows/android-release.yml). Sans ces variables, l'APK
+// release n'est pas signé et seul le build debug est installable.
+def keystorePath = System.getenv('SUZANNE_KEYSTORE')
+def hasReleaseKey = keystorePath != null && new File(keystorePath).exists()
+
+android {
+    namespace 'app.suzanne'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'app.suzanne'
+        minSdk 29
+        targetSdk 35
+        // Version : fournie par le tag en CI (android-v1.2.0 → 1.2.0) ; le
+        // versionCode doit croître à chaque release pour que la mise à jour
+        // s'installe par-dessus l'ancienne version.
+        versionCode((System.getenv('SUZANNE_VERSION_CODE') ?: '1') as int)
+        versionName(System.getenv('SUZANNE_VERSION_NAME') ?: '1.0')
+    }
+
+    signingConfigs {
+        if (hasReleaseKey) {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv('SUZANNE_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('SUZANNE_KEY_ALIAS')
+                keyPassword System.getenv('SUZANNE_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (hasReleaseKey) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

@@ -114,7 +114,10 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
     if ([category, q, monthParam, txParam, typeParam, focusParam, accountParam, periodParam].every((v) => v === null)) return;
     if (periodParam === 'all') setAllPeriods(true);
     else if (monthParam !== null) setAllPeriods(false);
-    if (focusParam === 'quick') {
+    // Bouton « + » : sur mobile la saisie rapide est masquée (elle mangeait le
+    // haut de l'écran) → on ouvre directement le formulaire complet.
+    if (focusParam === 'quick' && mobile) setDialog({ kind: 'form', mode: 'create' });
+    else if (focusParam === 'quick') {
       const input = quickAmountRef.current;
       input?.scrollIntoView({ block: 'center' });
       input?.focus();
@@ -249,15 +252,17 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
         </div>
       )}
 
-      <QuickEntry
-        ref={quickAmountRef}
-        userId={userId}
-        accounts={accounts}
-        categories={categories}
-        tags={tags}
-        run={run}
-        onMore={(draft) => setDialog({ kind: 'form', mode: 'create', draft })}
-      />
+      {!mobile && (
+        <QuickEntry
+          ref={quickAmountRef}
+          userId={userId}
+          accounts={accounts}
+          categories={categories}
+          tags={tags}
+          run={run}
+          onMore={(draft) => setDialog({ kind: 'form', mode: 'create', draft })}
+        />
+      )}
 
       <div className="panel jr-panel">
         <FilterBar state={filters} categories={categories} tags={tags} mobile={mobile} accounts={accounts} />
@@ -267,6 +272,14 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
           <span className="jr-totals">
             <span className="jr-num income" title={t('commun.income')}>+{money(totals.income)}</span>
             <span className="jr-num expense" title={totals.refunds > 0 ? t('operations.expenses_net_refunds') : t('commun.expenses')}>{totals.expenses < 0 ? '+' : '−'}{money(Math.abs(totals.expenses))}</span>
+            {(() => {
+              const net = totals.income - totals.expenses;
+              return (
+                <span className={`jr-num jr-net ${net >= 0 ? 'income' : 'expense'}`} title={t('operations.net_balance')}>
+                  = {net >= 0 ? '+' : '−'}{money(Math.abs(net))}
+                </span>
+              );
+            })()}
             {totals.refunds > 0.004 && (
               <span className="jr-num jr-muted" title={t('operations.refunds_received_they_cancel_refunded', { gross: money(totals.expenses + totals.refunds) })}>
                 ↺ {t('operations.incl_amount_refunded', { amount: money(totals.refunds) })}

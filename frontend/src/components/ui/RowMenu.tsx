@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { MoreHorizontal } from 'lucide-react';
+import { useDismiss } from '../../lib/useDismiss';
 
 export interface RowMenuItem {
   label: string;
@@ -31,15 +32,12 @@ export function RowMenu({ items, label = 'Plus d’actions' }: { items: RowMenuI
 
   useLayoutEffect(() => { if (open) place(); }, [open]);
 
+  // Clic / toucher ailleurs, défilement, autre menu ouvert : fermeture commune.
+  useDismiss(open, () => setOpen(false), [buttonRef, menuRef], { escape: false });
   useEffect(() => {
     if (!open) return;
     menuRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus({ preventScroll: true });
     const close = () => setOpen(false);
-    const onDown = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node;
-      if (menuRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
-      close();
-    };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
@@ -54,18 +52,8 @@ export function RowMenu({ items, label = 'Plus d’actions' }: { items: RowMenuI
         buttons[next]?.focus();
       }
     };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('touchstart', onDown);
     document.addEventListener('keydown', onKey, true);
-    window.addEventListener('resize', close);
-    window.addEventListener('scroll', close, true);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('touchstart', onDown);
-      document.removeEventListener('keydown', onKey, true);
-      window.removeEventListener('resize', close);
-      window.removeEventListener('scroll', close, true);
-    };
+    return () => document.removeEventListener('keydown', onKey, true);
   }, [open]);
 
   const select = (item: RowMenuItem) => {

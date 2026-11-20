@@ -71,7 +71,26 @@ ui.app.goals,Objectifs,Goals
 ui.app.new_transaction_2,Nouvelle transaction,New transaction
 ui.app.previous_next_month,Mois précédent / suivant,Previous / next month
 ui.app.this_help,Cette aide,This help
+ui.icon_picker.group_digital,Numérique,Digital
+ui.icon_picker.group_family,Famille,Family
+ui.icon_picker.group_food,Alimentation,Food
+ui.icon_picker.group_health,Santé,Health
+ui.icon_picker.group_home,Logement,Home
+ui.icon_picker.group_insurance,Assurances et juridique,Insurance & legal
+ui.icon_picker.group_leisure,Loisirs et culture,Leisure & culture
+ui.icon_picker.group_misc,Divers,Other
+ui.icon_picker.group_money,Argent,Money
+ui.icon_picker.group_pets,Animaux,Pets
+ui.icon_picker.group_shopping,Shopping et soins,Shopping & care
+ui.icon_picker.group_sport,Sport,Sport
+ui.icon_picker.group_transport,Transport,Transport
+ui.icon_picker.group_travel,Vacances et sorties,Holidays & outings
+ui.icon_picker.group_utilities,Énergie et abonnements,Utilities & subscriptions
+ui.icon_picker.group_work,Éducation et travail,Education & work
+ui.icon_picker.no_match,Aucune icône ne correspond.,No matching icon.
 ui.icon_picker.none,Aucune icône,No icon
+ui.icon_picker.search,"Chercher une icône (ex. pain, voiture)","Search icons (French keywords, e.g. pain, voiture)"
+ui.icon_picker.suggestion,Suggestion :,Suggestion:
 ui.icon_picker.unknown,"Icône actuelle « {{name}} » inconnue : choisis-en une dans la liste.","Current icon “{{name}}” is unknown: pick one from the list."
 ui.category_select.search,Rechercher une catégorie…,Search a category…
 ui.category_select.no_match,Aucune catégorie ne correspond.,No matching category.

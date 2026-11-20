@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Search } from 'lucide-react';
 import { http } from '../lib/api';
+import { useDismiss } from '../lib/useDismiss';
 
 export interface SymbolHit {
   symbol: string;
@@ -84,12 +85,9 @@ export function SymbolSearch({ value, onChange, onPick, pea = false }: {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [value, open, touched, pea]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
+  // Suggestions sous le champ : fermeture au clic / toucher ailleurs ou à
+  // l'ouverture d'un autre menu ; Échap géré par le champ.
+  useDismiss(open, () => setOpen(false), [ref], { closeOnScroll: false, escape: false });
 
   const pick = async (hit: SymbolHit) => {
     setOpen(false);

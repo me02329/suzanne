@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Thème sombre du système : mêmes teintes que le thème sombre de l'app web. -->
+    <color name="paper">#11100C</color>
+    <color name="surface">#1A1914</color>
+    <color name="ink">#ECE8DC</color>
+    <color name="muted">#A39D8C</color>
+    <color name="border">#423E33</color>
+    <color name="accent">#C9EF4D</color>
+    <color name="expense">#F0806B</color>
+
+    <style name="Theme.Suzanne" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/paper</item>
+        <item name="android:statusBarColor">@color/paper</item>
+        <item name="android:navigationBarColor">@color/paper</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:colorAccent">@color/ink</item>
+        <item name="android:colorPrimary">@color/ink</item>
+    </style>
+</resources>

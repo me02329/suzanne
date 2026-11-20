@@ -69,12 +69,18 @@ export function RebalanceCard({ userId, buckets, money, run }: {
         <div className="rb-setup">
           <p className="acc-muted">{t('analyses.rebalance.intro')}</p>
           <div className="rb-presets">
-            {(Object.keys(ALLOCATION_PRESETS) as Array<keyof typeof ALLOCATION_PRESETS>).map((p) => (
-              <button key={p} type="button" className="secondary" onClick={() => startEdit(ALLOCATION_PRESETS[p])}>
-                {t(PRESET_TEXT[p])}
-                <small>{BUCKETS.map((b) => ALLOCATION_PRESETS[p][b]).join(' / ')}</small>
-              </button>
-            ))}
+            {(Object.keys(ALLOCATION_PRESETS) as Array<keyof typeof ALLOCATION_PRESETS>).map((p) => {
+              // Profil actif : la saisie en cours correspond exactement à ce profil.
+              const active = draftValues != null && BUCKETS.every((b) => draftValues[b] === ALLOCATION_PRESETS[p][b]);
+              return (
+                <button key={p} type="button" className="secondary" aria-pressed={active} onClick={() => startEdit(ALLOCATION_PRESETS[p])}>
+                  <strong>{t(PRESET_TEXT[p])}</strong>
+                  <small title={BUCKETS.map((b) => `${t(BUCKET_TEXT[b])} ${ALLOCATION_PRESETS[p][b]} %`).join(' · ')}>
+                    {BUCKETS.map((b) => ALLOCATION_PRESETS[p][b]).join(' / ')}
+                  </small>
+                </button>
+              );
+            })}
           </div>
           {draft && (
             <>
