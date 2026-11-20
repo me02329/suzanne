@@ -3,6 +3,26 @@ import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import { CATEGORY_ICON_GROUPS, categoryIcon, normalizeWords } from '../lib/categoryIcons';
 
+// Noms des groupes : clés écrites en toutes lettres (vérifiées par i18n:check).
+const GROUP_TEXT: Record<string, string> = {
+  food: 'ui.icon_picker.group_food',
+  shopping: 'ui.icon_picker.group_shopping',
+  home: 'ui.icon_picker.group_home',
+  utilities: 'ui.icon_picker.group_utilities',
+  insurance: 'ui.icon_picker.group_insurance',
+  transport: 'ui.icon_picker.group_transport',
+  travel: 'ui.icon_picker.group_travel',
+  leisure: 'ui.icon_picker.group_leisure',
+  sport: 'ui.icon_picker.group_sport',
+  health: 'ui.icon_picker.group_health',
+  family: 'ui.icon_picker.group_family',
+  pets: 'ui.icon_picker.group_pets',
+  work: 'ui.icon_picker.group_work',
+  digital: 'ui.icon_picker.group_digital',
+  money: 'ui.icon_picker.group_money',
+  misc: 'ui.icon_picker.group_misc',
+};
+
 // Choix d'une icône de catégorie. Les icônes sont rangées par groupe : un clic
 // sur un groupe (Alimentation, Logement…) affiche ses icônes ; la recherche
 // (mots-clés français) parcourt tout le catalogue. Les icônes prennent la
@@ -85,7 +105,7 @@ export function IconPicker({ name, defaultValue, color, suggestion }: {
                 onClick={() => setGroupId(g.id)}
               >
                 <First size={14} strokeWidth={1.8} aria-hidden />
-                {t(`ui.icon_picker.group_${g.id}`, { defaultValue: g.label })}
+                {GROUP_TEXT[g.id] ? t(GROUP_TEXT[g.id]!) : g.label}
               </button>
             );
           })}
