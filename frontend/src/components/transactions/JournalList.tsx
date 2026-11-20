@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react';
 import type { Account, Category, Transaction } from '@suzanne/shared';
-import { txLabel } from '../../lib/format';
+import { money, txLabel } from '../../lib/format';
 import type { SelectionState } from './useSelection';
 import { formatDayHeader, formatTxDay, groupByDay, isReadOnly, txAmountLabel, txTone } from './txUtils';
 
@@ -75,7 +75,25 @@ export function JournalList({ rows, grouped, emptyMessage, categoryById, account
     <div className="jr-list" ref={listRef}>
       {groups.map((group) => (
         <section key={group.day || 'all'} className="jr-day">
-          {grouped && <h3 className="jr-day-head">{formatDayHeader(group.day, !group.day.startsWith(thisYear))}</h3>}
+          {grouped && (() => {
+            // Solde du jour : revenus − dépenses (transferts et comptes pro exclus,
+            // comme le résumé du journal).
+            const net = group.rows.reduce((sum, tx) => {
+              if (accountById.get(tx.account_id ?? -1)?.professional) return sum;
+              return tx.type === 'income' ? sum + tx.amount : tx.type === 'expense' ? sum - tx.amount : sum;
+            }, 0);
+            const hasFlows = group.rows.some((tx) => tx.type !== 'transfer');
+            return (
+              <h3 className="jr-day-head">
+                <span>{formatDayHeader(group.day, !group.day.startsWith(thisYear))}</span>
+                {hasFlows && (
+                  <span className={`jr-num jr-day-total ${net >= 0 ? 'income' : 'expense'}`} title={t('operations.day_balance')}>
+                    {net >= 0 ? '+' : '−'}{money(Math.abs(net))}
+                  </span>
+                )}
+              </h3>
+            );
+          })()}
           <ul>{group.rows.map(item)}</ul>
         </section>
       ))}

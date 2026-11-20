@@ -76,7 +76,7 @@ export function FilterBar({ state, categories, tags, mobile, accounts = [] }: {
         type="search"
         value={filters.query}
         onChange={(e) => state.setQuery(e.target.value)}
-        placeholder={t('operations.search_word_excludes')}
+        placeholder={mobile ? t('operations.search') : t('operations.search_word_excludes')}
         title={t('operations.every_word_must_appear_word')}
         aria-label={t('operations.search_journal')}
       />

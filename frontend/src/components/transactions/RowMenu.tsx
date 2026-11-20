@@ -23,8 +23,8 @@ export interface TxActionHandlers {
   onDelete: (t: Transaction) => void;
 }
 
-// Actions secondaires d'une ligne (menu « ⋯ »). Pointer et modifier restent
-// visibles sur la ligne ; tout le reste vit ici.
+// Actions secondaires d'une ligne (menu « ⋯ »). Seul « pointer » reste
+// visible sur la ligne ; le tableau ajoute « Modifier » en tête de ce menu.
 export function useTxMenuItems() {
   const { t } = useTranslation();
   return (tx: Transaction, h: TxActionHandlers, opts: { withSplit?: boolean } = {}): RowMenuItem[] => {
