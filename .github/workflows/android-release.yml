@@ -21,6 +21,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Mode local (ADR 0011) : l'app web + le serveur embarqué, copiés dans
+      # l'APK par Gradle depuis frontend/dist-local.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build du mode local
+        working-directory: .
+        run: |
+          npm ci
+          (cd backend && npx prisma generate)
+          npm run build:local
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
