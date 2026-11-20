@@ -8,6 +8,8 @@ dist
 docs/audit-*.md
 docs/improvement-ideas.md
 frontend/dist
+frontend/dist-local
+frontend/.local-build
 backend/dist
 backend/public
 

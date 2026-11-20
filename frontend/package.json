@@ -6,14 +6,17 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
+    "build:local": "node ../tools/build-local-db.mjs && vite build --config vite.local.config.ts",
     "preview": "vite preview"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource-variable/instrument-sans": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.2.8",
+    "@noble/hashes": "^2.4.0",
     "@suzanne/shared": "0.1.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "buffer": "^6.0.3",
     "i18next": "^26.3.1",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",

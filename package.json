@@ -29,6 +29,7 @@
     "test:watch": "vitest",
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "test:local": "vitest run -c vitest.local.config.ts",
+    "build:local": "npm run build -w @suzanne/shared && npm run build:local -w @suzanne/frontend",
     "screenshots": "node tools/screenshots.mjs",
     "i18n:check": "tsx tools/i18n-check.mts",
     "i18n:migrate": "tsx tools/i18n-migrate.mts",
