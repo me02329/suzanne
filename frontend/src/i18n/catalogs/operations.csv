@@ -71,6 +71,8 @@ operations.created_on_d,Créé le {{d}},Created on {{d}}
 operations.credited_account,Compte crédité,Credited account
 operations.date,Date,Date
 operations.day_balance,Solde du jour,Day balance
+operations.day_count_one,1 opération,1 transaction
+operations.day_count_other,{{count}} opérations,{{count}} transactions
 operations.date_newest_first,"Date, récentes d'abord","Date, newest first"
 operations.date_oldest_first,"Date, anciennes d'abord","Date, oldest first"
 operations.delete,Supprimer,Delete
