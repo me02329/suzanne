@@ -1,7 +1,7 @@
 # ADR 0011 — Mode « local » : un profil dont les données vivent sur le téléphone
 
 - Date : 20 novembre 2026
-- Statut : **proposé** (à trancher ; aucun code écrit)
+- Statut : **accepté — variante A′** (voir « Résultats du prototype » en fin de document)
 
 ## Contexte
 
@@ -93,3 +93,47 @@ les identités stables et la sauvegarde idempotente en sont déjà les fondation
 - `android/` gagne un module natif (nodejs-mobile) : le build de l'APK devient plus long et
   plus lourd ; le mode serveur seul reste possible (variante de build).
 - Le profil local n'est pas partagé avec le foyer (pas de multi-appareil sans serveur).
+
+## Résultats du prototype (20 novembre 2026) — variante A′ retenue
+
+**L'option A telle que décrite est bloquée** : nodejs-mobile, seul moyen d'exécuter Node sur
+Android, est figé sur Node 18 (dernière version 18.20.4, octobre 2024 —
+[releases](https://github.com/nodejs-mobile/nodejs-mobile/releases)) alors que Prisma 7 exige
+Node 20.19 ou plus ([exigences système](https://www.prisma.io/docs/orm/v7/reference/system-requirements)).
+
+**Variante A′ : le même backend, exécuté dans la WebView.** Prisma 7 n'a plus de moteur natif :
+son client « edge » embarque le moteur de requêtes en WebAssembly ; PGlite est Postgres compilé
+en WebAssembly, persistant dans IndexedDB ; l'adaptateur `pglite-prisma-adapter` (≥ Prisma 7.1)
+les relie. Mesures du prototype (branche `spike/mode-local-pglite`) :
+
+- Backend sur PGlite (Node) : **test golden identique**, 69/70 tests d'intégration (le 70ᵉ
+  est un effet de vitesse sur deux synchros bancaires simultanées, fonction exclue en local).
+  Seul écart de comportement : une violation d'unicité remonte en `23505` (SQLSTATE) au lieu de
+  `P2002` — à accepter dans le gestionnaire d'erreurs.
+- Prisma edge + PGlite **dans Chromium et dans la WebView Android** : écriture, lecture,
+  transactions interactives, persistance après redémarrage de l'app.
+- Premier lancement : 39 migrations = 5,6 s sur PC, 174 s sur émulateur sans accélération →
+  **base pré-migrée livrée en instantané** (`dumpDataDir`, 6,6 Mo compressé) : 1,7 s sur PC,
+  ~10 s sur l'émulateur ; relance ~0,8 s sur PC.
+
+**Architecture retenue :**
+
+- Build « local » distinct du frontend (Vite) avec alias : `express` → petit routeur compatible
+  (Router get/post/put/patch/delete/use, paramètres d'URL, `json/status/send/setHeader`,
+  `write/end` pour le flux de l'assistant), `@prisma/client` → client edge, module prisma du
+  navigateur (PGlite), `Buffer` / `node:crypto` → équivalents navigateur. **Le code des routes
+  et du métier n'est pas modifié** ; l'extension « corbeille » (soft-delete) est partagée entre
+  les deux modules prisma.
+- Branchement par interception de `fetch` sur `/api/…` (couvre `http`, téléchargements,
+  recherche, flux de l'assistant) avec de vraies `Response` (JSON sérialisé comme sur le réseau).
+- Le gestionnaire local tourne aussi sous Node : le test golden passe par lui (même chemin que
+  le téléphone, hors navigateur).
+- Android : fichiers du mode local livrés dans l'APK, servis depuis une origine https interne
+  fixe (contexte sécurisé, IndexedDB lié à l'origine — elle ne doit jamais changer).
+- Mises à jour : noms des migrations appliquées conservés sur l'appareil ; au lancement, les
+  manquantes sont appliquées après un export automatique.
+- **Coupé en local** : synchro bancaire (clé privée, appels au fournisseur) ; assistant IA
+  selon que le fournisseur autorise les appels depuis un navigateur (CORS).
+- À vérifier pendant le développement : requêtes concurrentes sur l'unique connexion PGlite
+  (sinon sérialiser), empreintes d'import identiques à `node:crypto`, golden sous d'autres
+  fuseaux horaires, durabilité après arrêt forcé, instantané servi en `.tar.gz` brut.
