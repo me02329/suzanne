@@ -35,7 +35,9 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   const prisma = asPrismaKnownError(err);
   if (prisma) {
     console.error('[api]', err);
-    if (prisma.code === 'P2002') { res.status(409).json({ error: 'Cette entrée existe déjà.' }); return; }
+    // 23505 : même violation d'unicité, remontée avec le code SQLSTATE brut par
+    // l'adaptateur PGlite (mode local, ADR 0011) au lieu du P2002 de Prisma.
+    if (prisma.code === 'P2002' || prisma.code === '23505') { res.status(409).json({ error: 'Cette entrée existe déjà.' }); return; }
     if (prisma.code === 'P2025') { res.status(404).json({ error: 'Ressource introuvable.' }); return; }
     res.status(500).json({ error: 'Erreur de base de données.' });
     return;
