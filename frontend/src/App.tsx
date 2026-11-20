@@ -32,6 +32,7 @@ import { Modal } from './components/Modal';
 import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
 import { BankSyncButton } from './components/BankSyncButton';
+import { TouchGestures } from './components/TouchGestures';
 import { SuzanneMark } from './components/SuzanneMark';
 import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
@@ -376,6 +377,11 @@ export default function App() {
     navigate(pathForTab(nextTab));
     setMoreOpen(false);
   };
+  // Glisser à gauche / à droite (tactile) : onglet voisin dans la section.
+  const neighbourTab = (direction: 'next' | 'prev') => {
+    const index = section.tabs.findIndex((item) => item.tab === tab);
+    return index < 0 ? undefined : section.tabs[index + (direction === 'next' ? 1 : -1)]?.tab;
+  };
   const openUnassignedTransactions = () => {
     setTransactionIssueFilter('unassigned_account');
     setActiveTab('transactions');
@@ -408,6 +414,11 @@ export default function App() {
 
   return (
     <div className="shell">
+      <TouchGestures
+        canSwipe={(direction) => neighbourTab(direction) !== undefined}
+        onSwipe={(direction) => { const next = neighbourTab(direction); if (next) setActiveTab(next); }}
+        onRefresh={() => reload().catch((e) => setError((e as Error).message))}
+      />
       <aside className="rail" aria-label={t('ui.app.main_navigation')}>
         <div className="rail-brand">
           <span className="rail-mark" aria-hidden><SuzanneMark size={24} /></span>
