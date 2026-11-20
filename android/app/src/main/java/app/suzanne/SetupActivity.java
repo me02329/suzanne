@@ -33,6 +33,7 @@ public class SetupActivity extends Activity {
     private EditText input;
     private Button connect;
     private Button saveAnyway;
+    private Button trust;
     private TextView message;
     private String pendingUrl;
 
@@ -107,6 +108,17 @@ public class SetupActivity extends Activity {
         connect.setOnClickListener(v -> check());
         column.addView(connect, block(dp(18)));
 
+        // Certificat inconnu : l'équivalent retenu de « Continuer quand même ».
+        trust = button(R.string.setup_trust, ink, getColor(R.color.paper));
+        trust.setVisibility(View.GONE);
+        trust.setOnClickListener(v -> {
+            String host = pendingUrl == null ? null : android.net.Uri.parse(pendingUrl).getHost();
+            if (host == null) return;
+            ServerPrefs.trustHost(this, host);
+            check();
+        });
+        column.addView(trust, block(dp(10)));
+
         saveAnyway = button(R.string.setup_save_anyway, 0x00000000, ink);
         saveAnyway.setBackground(rounded(0x00000000, getColor(R.color.border), 999));
         saveAnyway.setVisibility(View.GONE);
@@ -122,6 +134,7 @@ public class SetupActivity extends Activity {
     private void check() {
         java.util.List<String> candidates = ServerPrefs.candidates(input.getText().toString());
         saveAnyway.setVisibility(View.GONE);
+        trust.setVisibility(View.GONE);
         if (candidates.isEmpty()) { showMessage(getString(R.string.setup_invalid)); return; }
         pendingUrl = candidates.get(0);
         connect.setEnabled(false);
@@ -143,15 +156,20 @@ public class SetupActivity extends Activity {
                 if (outcome.ok) { open(outcome.url); return; }
                 pendingUrl = outcome.url;
                 input.setText(outcome.url);
-                showMessage(outcome.error);
-                saveAnyway.setVisibility(View.VISIBLE);
+                if (outcome.ssl) {
+                    showMessage(getString(R.string.setup_trust_explain));
+                    trust.setVisibility(View.VISIBLE);
+                } else {
+                    showMessage(outcome.error);
+                    saveAnyway.setVisibility(View.VISIBLE);
+                }
             });
         });
     }
 
     /** Résultat d'une vérification : adresse finale (redirections suivies) et erreur éventuelle. */
     private static final class Probe {
-        final boolean ok; final String url; final String error;
+        final boolean ok; final String url; final String error; boolean ssl;
         Probe(boolean ok, String url, String error) { this.ok = ok; this.url = url; this.error = error; }
     }
 
@@ -165,10 +183,14 @@ public class SetupActivity extends Activity {
         String base = ServerPrefs.base(url);
         Fetch manifest = fetch(base + "/manifest.webmanifest");
         if (manifest.exception != null) {
-            String ssl = getString(R.string.setup_ssl);
-            return new Probe(false, base, manifest.exception.equals(ssl)
-                    ? getString(R.string.setup_ssl_failed, ssl)
-                    : getString(R.string.setup_unreachable, manifest.exception));
+            if (manifest.ssl) {
+                // Adresse https atteinte (redirection comprise) : c'est elle qu'on approuvera.
+                String httpsBase = manifest.finalUrl != null ? manifest.finalUrl.replaceFirst("/manifest\\.webmanifest.*$", "") : base;
+                Probe p = new Probe(false, httpsBase, getString(R.string.setup_ssl_failed, manifest.exception));
+                p.ssl = true;
+                return p;
+            }
+            return new Probe(false, base, getString(R.string.setup_unreachable, manifest.exception));
         }
         String finalBase = manifest.finalUrl != null ? manifest.finalUrl.replaceFirst("/manifest\\.webmanifest.*$", "") : base;
         if (manifest.code == 200 && manifest.body.contains("Suzanne")) return new Probe(true, finalBase, null);
@@ -188,7 +210,7 @@ public class SetupActivity extends Activity {
     }
 
     private static final class Fetch {
-        int code; String body = ""; String finalUrl; String location; String exception;
+        int code; String body = ""; String finalUrl; String location; String exception; boolean ssl;
     }
 
     /** GET avec suivi des redirections (5 au plus), corps limité à 256 Ko. */
@@ -198,7 +220,11 @@ public class SetupActivity extends Activity {
         for (int hop = 0; hop < 5; hop++) {
             HttpURLConnection connection = null;
             try {
+                f.finalUrl = current;
                 connection = (HttpURLConnection) new URL(current).openConnection();
+                if (connection instanceof javax.net.ssl.HttpsURLConnection && ServerPrefs.isTrusted(this, new URL(current).getHost())) {
+                    ((javax.net.ssl.HttpsURLConnection) connection).setSSLSocketFactory(ServerPrefs.lenientSocketFactory());
+                }
                 connection.setInstanceFollowRedirects(false);
                 connection.setConnectTimeout(8000);
                 connection.setReadTimeout(8000);
@@ -227,6 +253,7 @@ public class SetupActivity extends Activity {
             } catch (javax.net.ssl.SSLException e) {
                 // Certificat non reconnu (ex. autorité locale de Caddy, `tls internal`).
                 f.exception = getString(R.string.setup_ssl);
+                f.ssl = true;
                 return f;
             } catch (Exception e) {
                 f.exception = e.getClass().getSimpleName() + (e.getMessage() != null ? " : " + e.getMessage() : "");

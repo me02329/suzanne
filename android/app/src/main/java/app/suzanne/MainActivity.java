@@ -167,12 +167,18 @@ public class MainActivity extends Activity {
                 if (request.isForMainFrame()) showError(String.valueOf(error.getDescription()));
             }
 
-            // Certificat non reconnu : on refuse (jamais de contournement
-            // silencieux) mais on explique, au lieu d'une page blanche.
+            // Certificat non reconnu : accepté seulement pour le serveur que
+            // l'utilisateur a explicitement approuvé (« Faire confiance à ce
+            // serveur »), et seulement si le certificat porte bien son nom ;
+            // refusé partout ailleurs, avec une explication plutôt qu'une page blanche.
             @Override
             public void onReceivedSslError(WebView v, android.webkit.SslErrorHandler handler, android.net.http.SslError error) {
+                Uri uri = Uri.parse(error.getUrl());
+                boolean approved = isOwnServer(uri) && ServerPrefs.isTrusted(MainActivity.this, uri.getHost())
+                        && error.getPrimaryError() == android.net.http.SslError.SSL_UNTRUSTED;
+                if (approved) { handler.proceed(); return; }
                 handler.cancel();
-                if (isOwnServer(Uri.parse(error.getUrl()))) showError(getString(R.string.setup_ssl));
+                if (isOwnServer(uri)) showError(getString(R.string.setup_ssl));
             }
         });
 
