@@ -10,5 +10,8 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+  // src/local/bootstrap.ts n'existe que dans le build « local » (ADR 0011) : il
+  // importe le serveur embarqué (backend), dont le client Prisma n'est pas encore
+  // généré quand la CI vérifie le frontend.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/local/bootstrap.ts"]
 }
