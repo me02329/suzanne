@@ -1,7 +1,9 @@
 // Bump CACHE_VERSION à chaque changement de stratégie : l'activate purge les
 // anciens caches. Les assets hashés s'accumuleraient sinon à chaque
 // déploiement, donc le cache runtime est aussi borné (MAX_RUNTIME_ENTRIES, FIFO).
-const CACHE_VERSION = 'v3';
+// v4 : purge des caches qui ont pu stocker index.html sous une URL /assets/
+// (ancien serveur : asset absent → page HTML en 200 → écran blanc).
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `suzanne-${CACHE_VERSION}`;
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png'];
 const MAX_RUNTIME_ENTRIES = 80;
@@ -41,7 +43,9 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(request).then((cached) => cached ?? fetch(request).then((response) => {
-      if (response.ok && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/'))) {
+      // Jamais de HTML en cache sous une URL d'asset (repli SPA d'un serveur).
+      const isHtml = (response.headers.get('content-type') ?? '').includes('text/html');
+      if (response.ok && !isHtml && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/'))) {
         const clone = response.clone();
         event.waitUntil(putWithTrim(request, clone));
       }
