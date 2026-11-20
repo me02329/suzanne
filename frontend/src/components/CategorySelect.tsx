@@ -104,7 +104,7 @@ export function CategorySelect({
         onKeyDown={(e) => { if (!open && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openMenu(); } }}
       >
         {selected && <span className="cat-select-dot" style={{ background: selected.color }} aria-hidden />}
-        {selected && <CategoryIcon name={selected.icon} size={14} className="cat-select-icon" />}
+        {selected && <CategoryIcon name={selected.icon} size={14} className="cat-select-icon" color={selected.color} />}
         <span className={selected ? 'cat-select-label' : 'cat-select-label placeholder'}>{selected?.name ?? noneLabel}</span>
         <ChevronDown size={14} className="cat-select-chevron" aria-hidden />
       </button>
@@ -139,7 +139,7 @@ export function CategorySelect({
                 {c ? (
                   <>
                     <span className="cat-select-dot" style={{ background: c.color }} aria-hidden />
-                    <CategoryIcon name={c.icon} size={14} className="cat-select-icon" />
+                    <CategoryIcon name={c.icon} size={14} className="cat-select-icon" color={c.color} />
                     <span className="cat-select-label">{c.name}</span>
                   </>
                 ) : <span className="cat-select-label placeholder">{noneLabel}</span>}

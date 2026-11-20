@@ -225,9 +225,25 @@
 
 /* Choix d'icône de catégorie : grille d'icônes cliquables. */
 .st-field-label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
-.icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 4px; max-height: 196px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 10px; }
-.icon-picker-item { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
-.icon-picker-item:hover { background: var(--surface-muted); color: var(--text); }
-.icon-picker-item.selected { border-color: var(--icon-picker-color, var(--text)); color: var(--icon-picker-color, var(--text)); background: var(--surface-muted); }
+.icon-picker { display: grid; gap: 8px; min-width: 0; }
+.icon-picker-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.icon-picker-search { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); color: var(--muted); }
+.icon-picker-search input { flex: 1 1 auto; min-width: 0; min-height: 34px; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13.5px; box-shadow: none; }
+.icon-picker-suggest { display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 36px; padding: 0 10px; border: 1px dashed var(--border-strong); border-radius: 8px; background: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.icon-picker-suggest svg { color: var(--icon-picker-color, var(--text)); }
+.icon-picker-suggest:hover { border-color: var(--text); color: var(--text); }
+/* Groupes : toutes les pastilles visibles d'un coup d'œil (sur plusieurs lignes). */
+.icon-picker-groups { display: flex; flex-wrap: wrap; gap: 5px; }
+.icon-picker-group { display: inline-flex; align-items: center; gap: 5px; flex: none; min-height: 28px; padding: 0 9px; border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.icon-picker-group:hover { color: var(--text); border-color: var(--border-strong); }
+.icon-picker-group.active { border-color: var(--text); background: var(--text); color: var(--bg); }
+.icon-picker-group.has-selected:not(.active) { border-color: var(--icon-picker-color, var(--text)); }
+.icon-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; min-height: 84px; max-height: 196px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 10px; align-content: start; }
+/* Icônes dans la couleur de la catégorie : on voit le rendu final. */
+.icon-picker-item { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--icon-picker-color, var(--muted)); cursor: pointer; }
+.icon-picker-item:hover { background: var(--surface-muted); }
+.icon-picker-item.selected { border-color: var(--icon-picker-color, var(--text)); background: color-mix(in srgb, var(--icon-picker-color, var(--text)) 14%, transparent); }
+.icon-picker-top .icon-picker-item { flex: none; color: var(--muted); }
 .icon-picker-none { font-size: 16px; line-height: 1; }
+.icon-picker-empty { grid-column: 1 / -1; margin: 0; padding: 18px 4px; text-align: center; font-size: 13px; }
 .st-cat-icon { flex: none; color: var(--muted); }

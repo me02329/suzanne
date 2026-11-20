@@ -16,8 +16,6 @@ operations.all_accounts,Tous les comptes,All accounts
 operations.all_categories,Toutes les catégories,All categories
 operations.all_dates,Toutes les dates,All dates
 operations.all_except,Tout sauf,All except
-operations.all_periods,Toutes les périodes,All periods
-operations.all_periods_hint,"Afficher les opérations de tous les mois (les filtres restent actifs)","Show transactions from every month (filters still apply)"
 operations.all_tags,Tous les tags,All tags
 operations.all_transactions_splits_budgets_recurrin,"Toutes les transactions, ventilations, budgets, récurrents, règles et factures de « {{name}} » seront réaffectés à la catégorie cible, puis « {{name}} » sera supprimée. Action irréversible.","All transactions, splits, budgets, recurring entries, rules and bills of “{{name}}” will be reassigned to the target category, then “{{name}}” will be deleted. This cannot be undone."
 operations.all_types,Tous les types,All types
@@ -33,18 +31,9 @@ operations.amount_split,{{amount}} ventilés,{{amount}} split
 operations.an_allocation_exceeds_refundable_remaind,Une allocation dépasse le reste remboursable de sa dépense.,An allocation exceeds the refundable remainder of its expense.
 operations.an_income_allocates_more_than,Un revenu alloue plus que son montant.,An income allocates more than its amount.
 operations.apply,Appliquer,Apply
+operations.assign_missing_icons_one,Donner une icône à la catégorie qui n'en a pas,Give an icon to the category without one
+operations.assign_missing_icons_other,Donner une icône aux {{count}} catégories sans icône,Give an icon to the {{count}} categories without one
 operations.attachments,Pièces jointes,Attachments
-operations.attachments_modal.actions,Actions,Actions
-operations.attachments_modal.add_file,Ajouter un fichier,Add a file
-operations.attachments_modal.added_on,Ajouté le,Added on
-operations.attachments_modal.close,Fermer,Close
-operations.attachments_modal.delete,Supprimer,Delete
-operations.attachments_modal.delete_this_attachment,Supprimer cette pièce jointe ?,Delete this attachment?
-operations.attachments_modal.file,Fichier,File
-operations.attachments_modal.loading,Chargement…,Loading…
-operations.attachments_modal.open_download,Ouvrir / télécharger,Open / download
-operations.attachments_modal.receipts_and_proofs_images_or,"Reçus et justificatifs (images ou PDF, 8 Mo max), stockés dans la base.","Receipts and proofs (images or PDF, 8 MB max), stored in the database."
-operations.attachments_modal.size,Taille,Size
 operations.back_to_current_month,Revenir au mois courant,Back to the current month
 operations.by_type,Par type,By type
 operations.categories,catégories,categories
@@ -81,65 +70,15 @@ operations.create_refund,Créer le remboursement,Create the refund
 operations.created_on_d,Créé le {{d}},Created on {{d}}
 operations.credited_account,Compte crédité,Credited account
 operations.date,Date,Date
+operations.day_balance,Solde du jour,Day balance
 operations.date_newest_first,"Date, récentes d'abord","Date, newest first"
 operations.date_oldest_first,"Date, anciennes d'abord","Date, oldest first"
-operations.day_balance,Solde du jour,Day balance
 operations.delete,Supprimer,Delete
 operations.delete_name_category_its_transactions,Supprimer la catégorie « {{name}} » ? Ses transactions resteront mais perdront leur catégorie.,Delete the “{{name}}” category? Its transactions will remain but lose their category.
 operations.delete_name_tag_transactions_carrying,Supprimer le tag « {{name}} » ? Les transactions qui le portent ne seront pas supprimées.,Delete the “{{name}}” tag? Transactions carrying it won't be deleted.
 operations.description,Description,Description
 operations.deselect,Désélectionner,Deselect
 operations.destination_account,Compte destination,Destination account
-operations.detail.account,Compte,Account
-operations.detail.accounts,Comptes,Accounts
-operations.detail.attachments,Pièces jointes,Attachments
-operations.detail.balance_after,Solde après,Balance after
-operations.detail.bank_code,Code d'opération,Transaction code
-operations.detail.booking_date,Date de comptabilisation,Booking date
-operations.detail.category,Catégorie,Category
-operations.detail.cleared,Pointée,Cleared
-operations.detail.counterparty,Contrepartie,Counterparty
-operations.detail.created_at,Ajoutée le,Added on
-operations.detail.edit,Modifier,Edit
-operations.detail.exchange_rate,Taux de change,Exchange rate
-operations.detail.full_label,Libellé complet,Full label
-operations.detail.id,Identifiant,ID
-operations.detail.loading,Chargement…,Loading…
-operations.detail.mcc,Code commerçant (MCC),Merchant category code
-operations.detail.no,Non,No
-operations.detail.no_account,Sans compte,No account
-operations.detail.no_bank_data,Pas de données bancaires pour cette opération (saisie ou importée avant la synchronisation) : elle en aura si elle passe par une synchro.,No bank data for this transaction (entered or imported before syncing): it will get some if a sync matches it.
-operations.detail.no_label,Sans libellé,No label
-operations.detail.note,Note,Note
-operations.detail.open,Détails,Details
-operations.detail.origin,Provenance,Source
-operations.detail.origin_import,"Import de relevé (CSV, OFX ou QIF)","Statement import (CSV, OFX or QIF)"
-operations.detail.origin_manual,"Saisie dans Suzanne, ou import ancien sans référence","Entered in Suzanne, or an older import without reference"
-operations.detail.origin_sync,Synchronisation bancaire ({{bank}}),Bank sync ({{bank}})
-operations.detail.purchase_date,Date d'achat (carte),Purchase date (card)
-operations.detail.recurring,Récurrent,Recurring
-operations.detail.recurring_linked,Liée à une opération récurrente,Linked to a recurring item
-operations.detail.reference,Référence bancaire,Bank reference
-operations.detail.refunded_by,Remboursée par,Refunded by
-operations.detail.refunds,Rembourse,Refunds
-operations.detail.section_bank,Données bancaires · {{bank}},Bank data · {{bank}}
-operations.detail.section_operation,Opération,Transaction
-operations.detail.section_origin,Origine,Origin
-operations.detail.split,Ventilation,Split
-operations.detail.status,Statut à la banque,Bank status
-operations.detail.synced_at,Synchronisée le,Synced on
-operations.detail.tags,Tags,Tags
-operations.detail.the_bank,la banque,the bank
-operations.detail.title,Détails de l'opération,Transaction details
-operations.detail.transaction_date,Date de l'opération,Transaction date
-operations.detail.type_adjustment,Ajustement,Adjustment
-operations.detail.type_expense,Dépense,Expense
-operations.detail.type_income,Revenu,Income
-operations.detail.type_trade,Ordre de bourse,Trade
-operations.detail.type_transfer,Virement entre comptes,Transfer between accounts
-operations.detail.uncategorized,Sans catégorie,Uncategorized
-operations.detail.value_date,Date de valeur,Value date
-operations.detail.yes,Oui,Yes
 operations.done,Terminé,Done
 operations.e_g_walmart_salary_rent,"Ex: Carrefour, salaire, loyer...","e.g. Walmart, salary, rent..."
 operations.each_split_line_needs_category,Chaque ligne de ventilation doit avoir une catégorie et un montant.,Each split line needs a category and an amount.
@@ -164,6 +103,8 @@ operations.filter_mode,Mode du filtre,Filter mode
 operations.filters,Filtres,Filters
 operations.from_account,Depuis le compte,From account
 operations.icon,Icône,Icon
+operations.icons_assigned_one,Icône attribuée : modifiable dans la catégorie,Icon assigned: you can change it in the category
+operations.icons_assigned_other,{{count}} icônes attribuées : modifiables dans chaque catégorie,{{count}} icons assigned: you can change them in each category
 operations.incl_amount_refunded,dont {{amount}} remboursés,incl. {{amount}} refunded
 operations.income,Revenu,Income
 operations.income_2,revenus,income
@@ -181,7 +122,6 @@ operations.link_to_expenses,Lier à des dépenses,Link to expenses
 operations.link_to_recurring_entry,Lier à une récurrence,Link to a recurring entry
 operations.linked_to_recurring_item,Liée à une récurrence,Linked to a recurring item
 operations.loading_existing_links,Chargement des liens existants…,Loading existing links…
-operations.loading_history,Chargement de tout l'historique…,Loading the full history…
 operations.mark_as_cleared_matched_with,Pointer (rapprochée du relevé),Mark as cleared (matched with statement)
 operations.merge,Fusionner,Merge
 operations.merge_into,Fusionner dans,Merge into
@@ -196,6 +136,7 @@ operations.n_active_filter_reset,{{n}} filtre actif · Réinitialiser,{{n}} acti
 operations.n_active_filters_reset,{{n}} filtres actifs · Réinitialiser,{{n}} active filters · Reset
 operations.n_expenses,↩ {{n}} dépenses,↩ {{n}} expenses
 operations.n_selected,{{n}} choisies,{{n}} selected
+operations.net_balance,Solde net (revenus − dépenses),Net balance (income − expenses)
 operations.n_selected_2,{{n}} sélectionnée,{{n}} selected
 operations.n_selected_3,{{n}} sélectionnées,{{n}} selected
 operations.n_transactions_cleared,{{n}} transactions pointées,{{n}} transactions cleared
@@ -204,7 +145,6 @@ operations.n_transactions_tagged_name,{{n}} transactions taguées « {{name}} »
 operations.n_transactions_uncleared,{{n}} transactions dépointées,{{n}} transactions uncleared
 operations.n_transactions_updated,{{n}} transactions modifiées,{{n}} transactions updated
 operations.name_merged_into_target,« {{name}} » fusionnée dans « {{target}} »,“{{name}}” merged into “{{target}}”
-operations.net_balance,Solde net (revenus − dépenses),Net balance (income − expenses)
 operations.new_category,Nouvelle catégorie,New category
 operations.new_refund,Nouveau remboursement,New refund
 operations.new_tag,Nouveau tag,New tag
@@ -219,7 +159,6 @@ operations.no_other_income_category_available,Aucune autre catégorie de revenu 
 operations.no_results,Aucun résultat,No results
 operations.no_tag,Sans tag,No tag
 operations.no_tags_yet,Aucun tag pour l'instant.,No tags yet.
-operations.no_transactions,Aucune opération.,No transactions.
 operations.no_transactions_found,Aucune opération trouvée.,No transactions found.
 operations.no_transactions_match_filters,Aucune opération ne correspond aux filtres.,No transactions match the filters.
 operations.no_transactions_this_month,Aucune transaction sur ce mois.,No transactions this month.
@@ -234,51 +173,9 @@ operations.pagination,Pagination,Pagination
 operations.period,Période,Period
 operations.preview,Aperçu,Preview
 operations.previous,Précédent,Previous
-operations.pro_badge,PRO,PRO
-operations.pro_badge_hint,Compte professionnel : hors de tes revenus et dépenses personnels,Business account: excluded from your personal income and expenses
-operations.pro_excluded,{{count}} pro hors totaux,"{{count}} business, not counted"
-operations.pro_excluded_hint,"Opérations de comptes professionnels (société) : affichées, mais pas comptées dans tes revenus et dépenses personnels.","Business account transactions: shown, but not counted in your personal income and expenses."
 operations.quick_entry,Saisie rapide,Quick entry
-operations.quick_tag.hint,Tag posé sur l’opération ; il reste sélectionné pour les saisies suivantes,Tag added to the transaction; it stays selected for the next entries
-operations.quick_tag.label,Tag,Tag
-operations.quick_tag.none,Tag,Tag
 operations.received,Reçu,Received
 operations.recurring,Récurrence,Recurring
-operations.recurring.account,Compte,Account
-operations.recurring.active,actif,active
-operations.recurring.add_rent_subscriptions_insurance_to,"Ajoute loyer, abonnements, assurances… pour suivre tes charges fixes.","Add rent, subscriptions, insurance… to track your fixed charges."
-operations.recurring.amount,Montant,Amount
-operations.recurring.cancel,Annuler,Cancel
-operations.recurring.category,Catégorie,Category
-operations.recurring.day_month,Jour du mois,Day of month
-operations.recurring.e_g_rent_netflix,"ex. Loyer, Netflix…","e.g. Rent, Netflix…"
-operations.recurring.edit,Modifier,Edit
-operations.recurring.end_optional,Fin (optionnel),End (optional)
-operations.recurring.every_interval,Tous les (intervalle),Every (interval)
-operations.recurring.every_month,Chaque mois,Every month
-operations.recurring.every_week,Chaque semaine,Every week
-operations.recurring.every_year,Chaque année,Every year
-operations.recurring.expense,Dépense,Expense
-operations.recurring.expenses,Dépenses,Expenses
-operations.recurring.generate_this_month,Générer ce mois,Generate this month
-operations.recurring.income,revenus,income
-operations.recurring.income_2,Revenus,Income
-operations.recurring.income_3,Revenu,Income
-operations.recurring.label,Libellé,Label
-operations.recurring.month,/ mois,/ month
-operations.recurring.month_2,/ mois ·,/ month ·
-operations.recurring.month_3,Mois,Month
-operations.recurring.new_recurring_item,Nouveau récurrent,New recurring item
-operations.recurring.no_occurrences_will_be_generated,Aucune occurrence ne sera générée après cette date.,No occurrences will be generated after this date.
-operations.recurring.no_recurring_expenses,Aucune dépense récurrente,No recurring expenses
-operations.recurring.none,Aucun,None
-operations.recurring.none_2,Aucune,None
-operations.recurring.paused,En pause,Paused
-operations.recurring.recurring_charges,Charges récurrentes,Recurring charges
-operations.recurring.repeat,Répéter,Repeat
-operations.recurring.type,Type,Type
-operations.recurring.wk,/ sem ·,/ wk ·
-operations.recurring.year_periodic,/ an en périodique ·,/ year periodic ·
 operations.recurring_2,récurrente,recurring
 operations.recurring_link_removed,Lien récurrence retiré,Recurring link removed
 operations.refund,Remboursement,Refund
@@ -287,11 +184,6 @@ operations.refund_3,Rembourser…,Refund…
 operations.refund_4,↩ remboursement,↩ refund
 operations.refund_expense,Rembourser la dépense,Refund the expense
 operations.refund_label,Remboursement : {{label}},Refund: {{label}}
-operations.refund_link.category_follows_expense,"Catégorie de la dépense remboursée : pour la changer, modifie la dépense ou délie le remboursement","Category of the refunded expense: to change it, edit the expense or unlink the refund"
-operations.refund_link.pick_expense,"« {{label}} » rembourse ces dépenses. Choisis celle à afficher :","“{{label}}” refunds these expenses. Pick the one to show:"
-operations.refund_link.refunded_expenses,Dépenses remboursées,Refunded expenses
-operations.refund_link.show_expense,Voir la dépense remboursée,View the refunded expense
-operations.refund_link.show_expenses,Voir les {{n}} dépenses remboursées,View the {{n}} refunded expenses
 operations.refund_link_removed,Lien de remboursement retiré,Refund link removed
 operations.refund_n_expenses,Remboursement : {{n}} dépenses,Refund: {{n}} expenses
 operations.refund_n_expenses_2,Rembourser {{n}} dépenses,Refund {{n}} expenses
@@ -309,62 +201,6 @@ operations.remove_line,Retirer la ligne,Remove line
 operations.rename_like_recurring_entry,Renommer comme la récurrence,Rename like the recurring entry
 operations.replace_amount_with_recurring_one,Remplacer le montant par celui de la récurrence,Replace the amount with the recurring one
 operations.reset,Réinitialiser,Reset
-operations.review.accept_named,Valider « {{name}} »,Accept “{{name}}”
-operations.review.accept_suggestions_one,Valider la proposition,Accept the suggestion
-operations.review.accept_suggestions_other,Valider les {{count}} propositions,Accept the {{count}} suggestions
-operations.review.analyzing,Analyse en cours…,Analyzing…
-operations.review.attach_to_account,Rattacher au compte,Attach to account
-operations.review.attached_to,Rattachée à {{name}},Attached to {{name}}
-operations.review.categorized_as,Catégorisée « {{name}} »,Categorized as “{{name}}”
-operations.review.categorized_count_one,{{count}} opération catégorisée,{{count}} transaction categorized
-operations.review.categorized_count_other,{{count}} opérations catégorisées,{{count}} transactions categorized
-operations.review.choose,Choisir…,Choose…
-operations.review.clean_note,"Rien à signaler : pas de transaction orpheline, sans catégorie, ni de doublon probable.","Nothing to report: no orphan, uncategorized or likely duplicate transaction."
-operations.review.clean_title,Aucune anomalie,No issues
-operations.review.col_account,Compte,Account
-operations.review.col_actions,Actions,Actions
-operations.review.col_amount,Montant,Amount
-operations.review.col_category,Catégorie,Category
-operations.review.col_date,Date,Date
-operations.review.col_gap,Écart,Gap
-operations.review.col_label,Libellé,Label
-operations.review.col_tx_a,Transaction A,Transaction A
-operations.review.col_tx_b,Transaction B,Transaction B
-operations.review.days,{{n}} j,{{n}} d
-operations.review.delete_b,Supprimer B (corbeille),Delete B (trash)
-operations.review.dismissed_restored,Doublons validés réaffichés,Dismissed duplicates shown again
-operations.review.duplicate_trashed,Doublon déplacé vers la corbeille,Duplicate moved to the trash
-operations.review.duplicates_note,"Même compte, même type, même montant, même commerçant, à ≤ 2 jours d’écart — souvent un import rejoué ou une double saisie. ✓ = « ce n’est pas un doublon » (la paire ne sera plus proposée) ; sinon supprime l’une des deux.","Same account, type, amount and merchant, ≤ 2 days apart — often a replayed import or a double entry. ✓ = “not a duplicate” (the pair won’t be suggested again); otherwise delete one of them."
-operations.review.duplicates_title,Doublons probables ({{n}}),Likely duplicates ({{n}})
-operations.review.no_account_note,Ces revenus/dépenses ne sont rattachés à aucun compte — ils ne pèsent pas dans les soldes. Choisis le compte pour régler le signalement.,These income/expenses are not attached to any account — they don’t count in balances. Pick the account to resolve the issue.
-operations.review.no_account_title,Sans compte ({{n}}),No account ({{n}})
-operations.review.no_category_note,"Choisis la catégorie directement ici. Quand une catégorie est proposée (règle ou même libellé déjà catégorisé), ✓ la valide.","Pick the category right here. When a category is suggested (rule or same label already categorized), ✓ accepts it."
-operations.review.no_category_title,Sans catégorie ({{n}}),Uncategorized ({{n}})
-operations.review.no_label,Sans libellé,No label
-operations.review.no_pending_duplicate,Aucun doublon en attente.,No pending duplicate.
-operations.review.not_duplicate,Pas un doublon : valider,Not a duplicate: confirm
-operations.review.not_duplicate_done,Validé : ce n’est pas un doublon,Confirmed: not a duplicate
-operations.review.show_dismissed_one,Réafficher le doublon validé,Show the dismissed duplicate again
-operations.review.show_dismissed_other,Réafficher les {{count}} validés,Show the {{count}} dismissed again
-operations.review.suggested,Proposée :,Suggested:
-operations.review.unavailable,Analyse indisponible.,Analysis unavailable.
-operations.review.view_in_journal,Voir dans le journal,View in the journal
-operations.rules.actions,Actions,Actions
-operations.rules.applies_to_imports_and_to,"S'applique aux imports, et aux opérations sans catégorie via « Appliquer ».","Applies to imports, and to uncategorised transactions via “Apply”."
-operations.rules.apply,Appliquer,Apply
-operations.rules.cancel,Annuler,Cancel
-operations.rules.category,Catégorie,Category
-operations.rules.choose_category,Choisir une catégorie…,Choose a category…
-operations.rules.created_on,Créée le,Created on
-operations.rules.edit,Modifier,Edit
-operations.rules.edit_rule,Modifier la règle,Edit the rule
-operations.rules.if_label_contains,Si le libellé contient,If the label contains
-operations.rules.keyword,Mot-clé,Keyword
-operations.rules.new_rule,Nouvelle règle,New rule
-operations.rules.rule,règle,rule
-operations.rules.the_keyword_found_in_label,le mot-clé trouvé dans le libellé décide de la catégorie,the keyword found in the label decides the category
-operations.rules.then_file_under,alors classer dans,then file under
-operations.rules.to_uncategorised_transactions," aux opérations sans catégorie"," to uncategorised transactions"
 operations.save,Enregistrer,Save
 operations.search,Rechercher,Search
 operations.search_expenses,Chercher une dépense,Search expenses
@@ -391,20 +227,6 @@ operations.split_note,Note de ventilation,Split note
 operations.split_saved,Ventilation enregistrée,Split saved
 operations.split_transaction,Ventiler la transaction,Split the transaction
 operations.start_end_total,{{start}}–{{end}} sur {{total}},{{start}}–{{end}} of {{total}}
-operations.statement_import_modal.account,Compte,Account
-operations.statement_import_modal.auto,Auto,Auto
-operations.statement_import_modal.characters_key_to_change,caractères · touche pour changer,characters · key to change
-operations.statement_import_modal.date_format_qif,Format de date (QIF),Date format (QIF)
-operations.statement_import_modal.dd_mm_yyyy,JJ/MM/AAAA,DD/MM/YYYY
-operations.statement_import_modal.duplicates_already_present_or_repeated,"Les doublons (déjà présents ou répétés dans le fichier) sont ignorés, et tes règles de catégorie s’appliquent.","Duplicates (already present or repeated in the file) are skipped, and your category rules apply."
-operations.statement_import_modal.format,Format,Format
-operations.statement_import_modal.import,Importer,Import
-operations.statement_import_modal.import_ofx_qif_statement,Importer un relevé OFX / QIF,Import an OFX / QIF statement
-operations.statement_import_modal.imported,importée,imported
-operations.statement_import_modal.mm_dd_yyyy,MM/JJ/AAAA,MM/DD/YYYY
-operations.statement_import_modal.none,Aucun,None
-operations.statement_import_modal.skipped,ignorée,skipped
-operations.statement_import_modal.yyyy_mm_dd,AAAA-MM-JJ,YYYY-MM-DD
 operations.stock_market,Bourse,Stock market
 operations.sync_account_category_type,Synchroniser compte / catégorie / type,Sync account / category / type
 operations.tag,tag,tag
@@ -426,7 +248,6 @@ operations.transaction_added,Transaction ajoutée,Transaction added
 operations.transaction_cleared,Transaction pointée,Transaction cleared
 operations.transaction_copied,Transaction copiée,Transaction copied
 operations.transaction_linked_to_recurring,Transaction liée à la récurrence,Transaction linked to recurring
-operations.transaction_list.no_transactions,Aucune transaction.,No transactions.
 operations.transaction_moved_to_trash,Transaction déplacée vers la corbeille,Transaction moved to trash
 operations.transaction_type,Type de transaction,Transaction type
 operations.transaction_uncleared,Transaction dépointée,Transaction uncleared
@@ -437,20 +258,203 @@ operations.transactions_without_account_all_periods,Transactions sans compte · 
 operations.transfer,Transfert,Transfer
 operations.transfers,Transferts,Transfers
 operations.trash,Corbeille,Trash
-operations.trash_modal.actions,Actions,Actions
-operations.trash_modal.amount,Montant,Amount
-operations.trash_modal.close,Fermer,Close
-operations.trash_modal.date,Date,Date
-operations.trash_modal.delete_permanently,Supprimer définitivement,Delete permanently
-operations.trash_modal.delete_permanently_this_cannot_be,Supprimer définitivement ? Cette action est irréversible.,Delete permanently? This cannot be undone.
-operations.trash_modal.deleted_transactions_are_kept_here,Les transactions supprimées sont conservées ici. Restaure-les ou supprime-les définitivement (irréversible).,Deleted transactions are kept here. Restore them or delete them permanently (irreversible).
-operations.trash_modal.label,Libellé,Label
-operations.trash_modal.loading,Chargement…,Loading…
-operations.trash_modal.restore,Restaurer,Restore
-operations.trash_modal.trash,Corbeille,Trash
 operations.type,Type,Type
 operations.type_filter,Filtre de type,Type filter
 operations.unclear,Dépointer,Unclear
 operations.uncleared,Non pointées,Uncleared
 operations.view_n_transactions,Voir {{n}} opérations,View {{n}} transactions
 operations.what_category_covers_e_g,"Ce que couvre la catégorie, ex. « Séminaires, salons, déplacements pro remboursés ou non »","What the category covers, e.g. “Seminars, trade fairs, business travel, reimbursed or not”"
+operations.transaction_list.no_transactions,Aucune transaction.,No transactions.
+operations.review.categorized_as,Catégorisée « {{name}} »,Categorized as “{{name}}”
+operations.review.categorized_count_one,{{count}} opération catégorisée,{{count}} transaction categorized
+operations.review.categorized_count_other,{{count}} opérations catégorisées,{{count}} transactions categorized
+operations.review.attached_to,Rattachée à {{name}},Attached to {{name}}
+operations.review.not_duplicate_done,Validé : ce n’est pas un doublon,Confirmed: not a duplicate
+operations.review.dismissed_restored,Doublons validés réaffichés,Dismissed duplicates shown again
+operations.review.duplicate_trashed,Doublon déplacé vers la corbeille,Duplicate moved to the trash
+operations.review.analyzing,Analyse en cours…,Analyzing…
+operations.review.unavailable,Analyse indisponible.,Analysis unavailable.
+operations.review.no_label,Sans libellé,No label
+operations.review.view_in_journal,Voir dans le journal,View in the journal
+operations.review.col_date,Date,Date
+operations.review.col_label,Libellé,Label
+operations.review.col_amount,Montant,Amount
+operations.review.col_account,Compte,Account
+operations.review.col_category,Catégorie,Category
+operations.review.col_actions,Actions,Actions
+operations.review.col_tx_a,Transaction A,Transaction A
+operations.review.col_tx_b,Transaction B,Transaction B
+operations.review.col_gap,Écart,Gap
+operations.review.days,{{n}} j,{{n}} d
+operations.review.clean_title,Aucune anomalie,No issues
+operations.review.clean_note,"Rien à signaler : pas de transaction orpheline, sans catégorie, ni de doublon probable.","Nothing to report: no orphan, uncategorized or likely duplicate transaction."
+operations.review.no_account_title,Sans compte ({{n}}),No account ({{n}})
+operations.review.no_account_note,Ces revenus/dépenses ne sont rattachés à aucun compte — ils ne pèsent pas dans les soldes. Choisis le compte pour régler le signalement.,These income/expenses are not attached to any account — they don’t count in balances. Pick the account to resolve the issue.
+operations.review.attach_to_account,Rattacher au compte,Attach to account
+operations.review.choose,Choisir…,Choose…
+operations.review.no_category_title,Sans catégorie ({{n}}),Uncategorized ({{n}})
+operations.review.accept_suggestions_one,Valider la proposition,Accept the suggestion
+operations.review.accept_suggestions_other,Valider les {{count}} propositions,Accept the {{count}} suggestions
+operations.review.no_category_note,"Choisis la catégorie directement ici. Quand une catégorie est proposée (règle ou même libellé déjà catégorisé), ✓ la valide.","Pick the category right here. When a category is suggested (rule or same label already categorized), ✓ accepts it."
+operations.review.suggested,Proposée :,Suggested:
+operations.review.accept_named,Valider « {{name}} »,Accept “{{name}}”
+operations.review.duplicates_title,Doublons probables ({{n}}),Likely duplicates ({{n}})
+operations.review.show_dismissed_one,Réafficher le doublon validé,Show the dismissed duplicate again
+operations.review.show_dismissed_other,Réafficher les {{count}} validés,Show the {{count}} dismissed again
+operations.review.duplicates_note,"Même compte, même type, même montant, même commerçant, à ≤ 2 jours d’écart — souvent un import rejoué ou une double saisie. ✓ = « ce n’est pas un doublon » (la paire ne sera plus proposée) ; sinon supprime l’une des deux.","Same account, type, amount and merchant, ≤ 2 days apart — often a replayed import or a double entry. ✓ = “not a duplicate” (the pair won’t be suggested again); otherwise delete one of them."
+operations.review.no_pending_duplicate,Aucun doublon en attente.,No pending duplicate.
+operations.review.not_duplicate,Pas un doublon : valider,Not a duplicate: confirm
+operations.review.delete_b,Supprimer B (corbeille),Delete B (trash)
+operations.statement_import_modal.import_ofx_qif_statement,Importer un relevé OFX / QIF,Import an OFX / QIF statement
+operations.statement_import_modal.characters_key_to_change,caractères · touche pour changer,characters · key to change
+operations.statement_import_modal.format,Format,Format
+operations.statement_import_modal.account,Compte,Account
+operations.statement_import_modal.none,Aucun,None
+operations.statement_import_modal.date_format_qif,Format de date (QIF),Date format (QIF)
+operations.statement_import_modal.auto,Auto,Auto
+operations.statement_import_modal.dd_mm_yyyy,JJ/MM/AAAA,DD/MM/YYYY
+operations.statement_import_modal.mm_dd_yyyy,MM/JJ/AAAA,MM/DD/YYYY
+operations.statement_import_modal.yyyy_mm_dd,AAAA-MM-JJ,YYYY-MM-DD
+operations.statement_import_modal.duplicates_already_present_or_repeated,"Les doublons (déjà présents ou répétés dans le fichier) sont ignorés, et tes règles de catégorie s’appliquent.","Duplicates (already present or repeated in the file) are skipped, and your category rules apply."
+operations.statement_import_modal.imported,importée,imported
+operations.statement_import_modal.skipped,ignorée,skipped
+operations.statement_import_modal.import,Importer,Import
+operations.trash_modal.trash,Corbeille,Trash
+operations.trash_modal.deleted_transactions_are_kept_here,Les transactions supprimées sont conservées ici. Restaure-les ou supprime-les définitivement (irréversible).,Deleted transactions are kept here. Restore them or delete them permanently (irreversible).
+operations.trash_modal.loading,Chargement…,Loading…
+operations.trash_modal.date,Date,Date
+operations.trash_modal.label,Libellé,Label
+operations.trash_modal.amount,Montant,Amount
+operations.trash_modal.actions,Actions,Actions
+operations.trash_modal.restore,Restaurer,Restore
+operations.trash_modal.delete_permanently,Supprimer définitivement,Delete permanently
+operations.trash_modal.close,Fermer,Close
+operations.attachments_modal.receipts_and_proofs_images_or,"Reçus et justificatifs (images ou PDF, 8 Mo max), stockés dans la base.","Receipts and proofs (images or PDF, 8 MB max), stored in the database."
+operations.attachments_modal.add_file,Ajouter un fichier,Add a file
+operations.attachments_modal.loading,Chargement…,Loading…
+operations.attachments_modal.file,Fichier,File
+operations.attachments_modal.size,Taille,Size
+operations.attachments_modal.added_on,Ajouté le,Added on
+operations.attachments_modal.actions,Actions,Actions
+operations.attachments_modal.open_download,Ouvrir / télécharger,Open / download
+operations.attachments_modal.delete,Supprimer,Delete
+operations.attachments_modal.close,Fermer,Close
+operations.trash_modal.delete_permanently_this_cannot_be,Supprimer définitivement ? Cette action est irréversible.,Delete permanently? This cannot be undone.
+operations.attachments_modal.delete_this_attachment,Supprimer cette pièce jointe ?,Delete this attachment?
+operations.recurring.recurring_charges,Charges récurrentes,Recurring charges
+operations.recurring.month,/ mois,/ month
+operations.recurring.year_periodic,/ an en périodique ·,/ year periodic ·
+operations.recurring.wk,/ sem ·,/ wk ·
+operations.recurring.income,revenus,income
+operations.recurring.month_2,/ mois ·,/ month ·
+operations.recurring.active,actif,active
+operations.recurring.generate_this_month,Générer ce mois,Generate this month
+operations.recurring.new_recurring_item,Nouveau récurrent,New recurring item
+operations.recurring.expenses,Dépenses,Expenses
+operations.recurring.no_recurring_expenses,Aucune dépense récurrente,No recurring expenses
+operations.recurring.add_rent_subscriptions_insurance_to,"Ajoute loyer, abonnements, assurances… pour suivre tes charges fixes.","Add rent, subscriptions, insurance… to track your fixed charges."
+operations.recurring.income_2,Revenus,Income
+operations.recurring.paused,En pause,Paused
+operations.recurring.edit,Modifier,Edit
+operations.recurring.label,Libellé,Label
+operations.recurring.e_g_rent_netflix,"ex. Loyer, Netflix…","e.g. Rent, Netflix…"
+operations.recurring.type,Type,Type
+operations.recurring.expense,Dépense,Expense
+operations.recurring.income_3,Revenu,Income
+operations.recurring.amount,Montant,Amount
+operations.recurring.repeat,Répéter,Repeat
+operations.recurring.every_week,Chaque semaine,Every week
+operations.recurring.every_month,Chaque mois,Every month
+operations.recurring.every_year,Chaque année,Every year
+operations.recurring.every_interval,Tous les (intervalle),Every (interval)
+operations.recurring.month_3,Mois,Month
+operations.recurring.day_month,Jour du mois,Day of month
+operations.recurring.account,Compte,Account
+operations.recurring.none,Aucun,None
+operations.recurring.category,Catégorie,Category
+operations.recurring.none_2,Aucune,None
+operations.recurring.end_optional,Fin (optionnel),End (optional)
+operations.recurring.no_occurrences_will_be_generated,Aucune occurrence ne sera générée après cette date.,No occurrences will be generated after this date.
+operations.recurring.cancel,Annuler,Cancel
+operations.rules.if_label_contains,Si le libellé contient,If the label contains
+operations.rules.then_file_under,alors classer dans,then file under
+operations.rules.choose_category,Choisir une catégorie…,Choose a category…
+operations.rules.applies_to_imports_and_to,"S'applique aux imports, et aux opérations sans catégorie via « Appliquer ».","Applies to imports, and to uncategorised transactions via “Apply”."
+operations.rules.cancel,Annuler,Cancel
+operations.rules.rule,règle,rule
+operations.rules.the_keyword_found_in_label,le mot-clé trouvé dans le libellé décide de la catégorie,the keyword found in the label decides the category
+operations.rules.apply,Appliquer,Apply
+operations.rules.to_uncategorised_transactions," aux opérations sans catégorie"," to uncategorised transactions"
+operations.rules.new_rule,Nouvelle règle,New rule
+operations.rules.keyword,Mot-clé,Keyword
+operations.rules.category,Catégorie,Category
+operations.rules.created_on,Créée le,Created on
+operations.rules.actions,Actions,Actions
+operations.rules.edit,Modifier,Edit
+operations.rules.edit_rule,Modifier la règle,Edit the rule
+operations.quick_tag.label,Tag,Tag
+operations.quick_tag.none,Tag,Tag
+operations.quick_tag.hint,Tag posé sur l’opération ; il reste sélectionné pour les saisies suivantes,Tag added to the transaction; it stays selected for the next entries
+operations.refund_link.show_expense,Voir la dépense remboursée,View the refunded expense
+operations.refund_link.show_expenses,Voir les {{n}} dépenses remboursées,View the {{n}} refunded expenses
+operations.refund_link.category_follows_expense,"Catégorie de la dépense remboursée : pour la changer, modifie la dépense ou délie le remboursement","Category of the refunded expense: to change it, edit the expense or unlink the refund"
+operations.refund_link.refunded_expenses,Dépenses remboursées,Refunded expenses
+operations.refund_link.pick_expense,"« {{label}} » rembourse ces dépenses. Choisis celle à afficher :","“{{label}}” refunds these expenses. Pick the one to show:"
+operations.all_periods,Toutes les périodes,All periods
+operations.all_periods_hint,"Afficher les opérations de tous les mois (les filtres restent actifs)","Show transactions from every month (filters still apply)"
+operations.loading_history,Chargement de tout l'historique…,Loading the full history…
+operations.no_transactions,Aucune opération.,No transactions.
+operations.pro_badge,PRO,PRO
+operations.pro_badge_hint,Compte professionnel : hors de tes revenus et dépenses personnels,Business account: excluded from your personal income and expenses
+operations.pro_excluded,{{count}} pro hors totaux,"{{count}} business, not counted"
+operations.pro_excluded_hint,"Opérations de comptes professionnels (société) : affichées, mais pas comptées dans tes revenus et dépenses personnels.","Business account transactions: shown, but not counted in your personal income and expenses."
+operations.detail.open,Détails,Details
+operations.detail.title,Détails de l'opération,Transaction details
+operations.detail.loading,Chargement…,Loading…
+operations.detail.no_account,Sans compte,No account
+operations.detail.no_label,Sans libellé,No label
+operations.detail.type_expense,Dépense,Expense
+operations.detail.type_income,Revenu,Income
+operations.detail.type_transfer,Virement entre comptes,Transfer between accounts
+operations.detail.type_trade,Ordre de bourse,Trade
+operations.detail.type_adjustment,Ajustement,Adjustment
+operations.detail.section_operation,Opération,Transaction
+operations.detail.accounts,Comptes,Accounts
+operations.detail.account,Compte,Account
+operations.detail.split,Ventilation,Split
+operations.detail.uncategorized,Sans catégorie,Uncategorized
+operations.detail.category,Catégorie,Category
+operations.detail.purchase_date,Date d'achat (carte),Purchase date (card)
+operations.detail.tags,Tags,Tags
+operations.detail.cleared,Pointée,Cleared
+operations.detail.yes,Oui,Yes
+operations.detail.no,Non,No
+operations.detail.recurring,Récurrent,Recurring
+operations.detail.recurring_linked,Liée à une opération récurrente,Linked to a recurring item
+operations.detail.refunds,Rembourse,Refunds
+operations.detail.refunded_by,Remboursée par,Refunded by
+operations.detail.note,Note,Note
+operations.detail.section_bank,Données bancaires · {{bank}},Bank data · {{bank}}
+operations.detail.full_label,Libellé complet,Full label
+operations.detail.counterparty,Contrepartie,Counterparty
+operations.detail.transaction_date,Date de l'opération,Transaction date
+operations.detail.booking_date,Date de comptabilisation,Booking date
+operations.detail.value_date,Date de valeur,Value date
+operations.detail.bank_code,Code d'opération,Transaction code
+operations.detail.mcc,Code commerçant (MCC),Merchant category code
+operations.detail.balance_after,Solde après,Balance after
+operations.detail.exchange_rate,Taux de change,Exchange rate
+operations.detail.reference,Référence bancaire,Bank reference
+operations.detail.status,Statut à la banque,Bank status
+operations.detail.section_origin,Origine,Origin
+operations.detail.origin,Provenance,Source
+operations.detail.origin_sync,Synchronisation bancaire ({{bank}}),Bank sync ({{bank}})
+operations.detail.the_bank,la banque,the bank
+operations.detail.origin_import,"Import de relevé (CSV, OFX ou QIF)","Statement import (CSV, OFX or QIF)"
+operations.detail.origin_manual,"Saisie dans Suzanne, ou import ancien sans référence","Entered in Suzanne, or an older import without reference"
+operations.detail.synced_at,Synchronisée le,Synced on
+operations.detail.created_at,Ajoutée le,Added on
+operations.detail.id,Identifiant,ID
+operations.detail.no_bank_data,Pas de données bancaires pour cette opération (saisie ou importée avant la synchronisation) : elle en aura si elle passe par une synchro.,No bank data for this transaction (entered or imported before syncing): it will get some if a sync matches it.
+operations.detail.attachments,Pièces jointes,Attachments
+operations.detail.edit,Modifier,Edit

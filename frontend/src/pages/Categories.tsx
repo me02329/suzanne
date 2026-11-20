@@ -1,5 +1,5 @@
-import { FormEvent, useState } from 'react';
-import { GitMerge, Pencil, Plus, Trash2 } from 'lucide-react';
+import { FormEvent, useMemo, useState } from 'react';
+import { GitMerge, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Category } from '@suzanne/shared';
 import { api } from '../lib/api';
@@ -7,7 +7,7 @@ import { DataTable } from '../components/DataTable';
 import { IconButton } from '../components/IconButton';
 import { Modal } from '../components/Modal';
 import { IconPicker } from '../components/IconPicker';
-import { CategoryIcon } from '../lib/categoryIcons';
+import { CategoryIcon, categoryIcon, suggestCategoryIcon } from '../lib/categoryIcons';
 import { RowMenu } from '../components/ui/RowMenu';
 import type { Run } from '../lib/run';
 import '../styles/pages/settings.css';
@@ -23,7 +23,12 @@ function CategoryForm({ initial, onSubmit, onCancel, submitLabel }: {
 }) {
   const { t } = useTranslation();
   const [type, setType] = useState<Category['type']>(initial?.type ?? 'expense');
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  // Suivis en direct : l'icône prend la couleur choisie et une icône est
+  // suggérée d'après le nom.
+  const [color, setColor] = useState(initial?.color ?? DEFAULT_COLOR);
+  const [name, setName] = useState(initial?.name ?? '');
+  const suggestion = useMemo(() => suggestCategoryIcon(name), [name]);
+  const submit =(event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     onSubmit({
@@ -36,16 +41,16 @@ function CategoryForm({ initial, onSubmit, onCancel, submitLabel }: {
   };
   return (
     <form className="form st-form" onSubmit={submit}>
-      <label className="full">{t('commun.name')}<input name="name" defaultValue={initial?.name} required maxLength={60} autoComplete="off" /></label>
+      <label className="full">{t('commun.name')}<input name="name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} autoComplete="off" /></label>
       <fieldset className="full st-segment">
         <legend>{t('operations.type')}</legend>
         <button type="button" className={type === 'expense' ? 'active' : ''} aria-pressed={type === 'expense'} onClick={() => setType('expense')}>{t('operations.expense')}</button>
         <button type="button" className={type === 'income' ? 'active' : ''} aria-pressed={type === 'income'} onClick={() => setType('income')}>{t('operations.income')}</button>
       </fieldset>
-      <label>{t('operations.color')}<input name="color" type="color" defaultValue={initial?.color ?? DEFAULT_COLOR} /></label>
+      <label>{t('operations.color')}<input name="color" type="color" value={color} onChange={(e) => setColor(e.target.value)} /></label>
       <div className="full">
         <span className="st-field-label">{t('operations.icon')}</span>
-        <IconPicker name="icon" defaultValue={initial?.icon} color={initial?.color} />
+        <IconPicker name="icon" defaultValue={initial?.icon} color={color} suggestion={suggestion} />
       </div>
       <label className="full">{t('operations.description')}
         <textarea name="description" defaultValue={initial?.description ?? ''} rows={3} maxLength={500} placeholder={t('operations.what_category_covers_e_g')} />
@@ -94,6 +99,17 @@ export function Categories({ userId, categories, run }: { userId: number; catego
       .then((ok) => { if (ok) setEditing(null); });
   };
 
+  // Catégories sans icône (ou avec un nom d'icône inconnu) : une icône devinée
+  // d'après le nom (« tag » à défaut), appliquée en un clic et modifiable ensuite.
+  const missingIcons = categories
+    .filter((c) => categoryIcon(c.icon) == null)
+    .map((c) => ({ category: c, icon: suggestCategoryIcon(c.name) ?? 'tag' }));
+  const assignMissingIcons = () => {
+    void run(async () => {
+      for (const { category, icon } of missingIcons) await api.updateCategory(userId, category.id, { icon });
+    }, t('operations.icons_assigned', { count: missingIcons.length }));
+  };
+
   const table = (rows: Category[], empty: string) => (
     <DataTable empty={rows.length === 0 ? empty : null}>
       <thead><tr><th>{t('commun.name')}</th><th>{t('operations.description')}</th><th className="actions-cell"><span className="sr-only">{t('operations.actions')}</span></th></tr></thead>
@@ -103,7 +119,7 @@ export function Categories({ userId, categories, run }: { userId: number; catego
             <td className="cell-primary">
               <span className="st-name">
                 <span className="dot" style={{ background: c.color }} aria-hidden="true" />
-                <CategoryIcon name={c.icon} className="st-cat-icon" />
+                <CategoryIcon name={c.icon} className="st-cat-icon" color={c.color} />
                 <strong title={c.name}>{c.name}</strong>
               </span>
             </td>
@@ -133,6 +149,16 @@ export function Categories({ userId, categories, run }: { userId: number; catego
           <strong>{categories.length}</strong> {categories.length > 1 ? t('operations.categories') : t('operations.category')}
           <span className="st-sub">{expenses.length} {t('operations.expenses')}, {incomes.length} {t('operations.income_2')}</span>
         </p>
+        {missingIcons.length > 0 && (
+          <button
+            type="button"
+            className="secondary"
+            title={missingIcons.map(({ category }) => category.name).join(', ')}
+            onClick={assignMissingIcons}
+          >
+            <Wand2 size={16} /> {t('operations.assign_missing_icons', { count: missingIcons.length })}
+          </button>
+        )}
         <button type="button" className="primary accent" onClick={() => setCreating(true)}>
           <Plus size={16} /> {t('operations.new_category')}
         </button>
