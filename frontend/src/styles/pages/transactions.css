@@ -117,6 +117,10 @@
 .jr-table { min-width: 860px; table-layout: auto; }
 .jr-table td { padding-top: 8px; padding-bottom: 8px; }
 .jr-table.compact td { padding-top: 4px; padding-bottom: 4px; }
+/* Zébrage : une ligne sur deux légèrement teintée ; survol et sélection restent au-dessus. */
+.jr-table tbody tr:nth-child(even) { background: var(--row-alt); }
+.jr-table tbody tr:hover { background: var(--surface-muted); }
+.jr-table tbody tr.tx-selected { background: var(--accent-soft); }
 .jr-table .jr-date { color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .jr-table .jr-label-cell { max-width: 340px; }
 .jr-table td > .jr-label { margin: 0; color: var(--text); font-size: 14.5px; }
@@ -141,7 +145,7 @@
 .jr-splits .jr-num { color: var(--muted); }
 .jr-amount-col { text-align: right !important; }
 .jr-table th.jr-amount-col .th-sort { flex-direction: row-reverse; }
-.jr-amt { font-weight: 600; font-size: 14.5px; }
+.jr-amt { font-weight: 700; font-size: 14.5px; }
 .jr-amt.income { color: var(--income); }
 .jr-amt.expense { color: var(--expense); }
 .jr-amt.transfer { color: var(--text); }
@@ -201,11 +205,12 @@
 .jr-day:first-child .jr-day-head { padding-top: 2px; }
 .jr-day li + li { border-top: 1px solid var(--border); }
 .jr-item {
-  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 58px; padding: 9px 2px;
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 58px; padding: 9px 8px;
   border: 0; border-radius: 0; background: transparent; color: var(--text);
   font: inherit; text-align: left; cursor: pointer;
 }
 .jr-item:disabled { cursor: default; opacity: 1; }
+.jr-day li:nth-child(even) > .jr-item:not(.selected) { background: var(--row-alt); }
 .jr-item.selected { background: var(--accent-soft); }
 .jr-item-main { display: grid; gap: 3px; flex: 1 1 auto; min-width: 0; }
 .jr-item-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; }
