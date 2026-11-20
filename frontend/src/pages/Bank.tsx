@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Check, Copy, ExternalLink, Landmark, Link2, Loader2, Plus, RefreshCw, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, Clock, Copy, ExternalLink, Landmark, Link2, Loader2, Plus, RefreshCw, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react';
 import type { Account } from '@suzanne/shared';
 import { api, type BankAspsp, type BankAutoSync, type BankCheck, type BankConnection, type BankLink, type BankStatus } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { money } from '../lib/format';
 import { formatTxDate } from '../components/transactions/txUtils';
 import { Modal } from '../components/Modal';
+import { RowMenu } from '../components/ui/RowMenu';
 import type { Run } from '../lib/run';
 import '../styles/pages/settings.css';
 import '../styles/pages/bank.css';
@@ -36,8 +37,26 @@ function parseReturnUrl(value: string): { code: string; state: string } | null {
 }
 
 // `embedded` : section de la page Réglages → Données (titre, pas de pleine page).
+type ConnectionState = 'active' | 'soon' | 'expired' | 'error';
+
+/** État d'une connexion : accès valide, à renouveler bientôt (≤ 7 j), expiré ou en erreur. */
+function connectionState(c: BankConnection): ConnectionState {
+  const daysLeft = Math.ceil((new Date(c.valid_until).getTime() - Date.now()) / DAY);
+  return c.expired || c.status === 'expired' || c.status === 'revoked' ? 'expired' : c.status === 'error' ? 'error' : daysLeft <= 7 ? 'soon' : 'active';
+}
+
+/** « il y a 3 h », « hier »… dans la langue de l'interface. */
+function timeAgo(iso: string, lang: string): string {
+  const minutes = Math.round((new Date(iso).getTime() - Date.now()) / 60_000);
+  const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+  if (Math.abs(minutes) < 60) return rtf.format(minutes, 'minute');
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return rtf.format(hours, 'hour');
+  return rtf.format(Math.round(hours / 24), 'day');
+}
+
 export function Bank({ userId, accounts, run, embedded = false }: { userId: number; accounts: Account[]; run: Run; embedded?: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const [status, setStatus] = useState<BankStatus | null>(null);
@@ -87,19 +106,17 @@ export function Bank({ userId, accounts, run, embedded = false }: { userId: numb
 
   if (!status) return <section className="st-page bank-page"><p className="muted"><Loader2 size={16} className="spin-icon" /> {t('reglages.bank.loading')}</p></section>;
 
+  // En-tête : l'état d'ensemble d'abord (tout va bien / quelque chose à faire),
+  // puis la dernière synchronisation. Le détail vit dans chaque carte.
+  const attention = status.connections.filter((c) => connectionState(c) !== 'active' || !c.links.some((l) => l.account_id != null)).length;
+  const lastSync = status.connections.map((c) => c.last_sync_at).filter((d): d is string => d != null).sort().pop() ?? null;
+  const connectButton = (
+    <button type="button" className="secondary" onClick={() => setConnecting({ country: 'FR' })}><Plus size={16} /> {t('reglages.bank.connect_bank')}</button>
+  );
+
   return (
     <section className={embedded ? 'bank-page bank-embedded' : 'st-page bank-page'} aria-labelledby={embedded ? 'bank-title' : undefined}>
       {embedded && <h2 id="bank-title" className="st-list-title">{t('reglages.bank.section_title')}</h2>}
-      <div className="st-toolbar">
-        <p className="st-summary">
-          <strong>{status.connections.length}</strong> {t(status.connections.length > 1 ? 'reglages.bank.connections_n' : 'reglages.bank.connection_1')}
-        </p>
-        {status.configured && (
-          <div className="st-toolbar-actions">
-            <button type="button" className="primary" onClick={() => setConnecting({ country: 'FR' })}><Plus size={16} /> {t('reglages.bank.connect_bank')}</button>
-          </div>
-        )}
-      </div>
 
       {callbackError && (
         <div className="bank-alert error"><TriangleAlert size={16} /> <span>{t('reglages.bank.callback_error', { error: callbackError })}</span></div>
@@ -107,23 +124,41 @@ export function Bank({ userId, accounts, run, embedded = false }: { userId: numb
 
       {status.configured ? (
         <>
-          {status.connections.length === 0 && (
+          {status.connections.length === 0 ? (
             <div className="pg-card bank-empty">
-              <Landmark size={22} aria-hidden />
+              <span className="bank-logo" aria-hidden><Landmark size={20} /></span>
               <p>{t('reglages.bank.no_connection')}</p>
+              <button type="button" className="primary" onClick={() => setConnecting({ country: 'FR' })}><Plus size={16} /> {t('reglages.bank.connect_bank')}</button>
+            </div>
+          ) : (
+            <div className="bank-overview">
+              <div className="bank-overview-text">
+                <strong className={attention > 0 ? 'bank-state warn' : 'bank-state ok'}>
+                  {attention > 0 ? <TriangleAlert size={17} aria-hidden /> : <CheckCircle2 size={17} aria-hidden />}
+                  {attention > 0 ? t('reglages.bank.overview_attention', { count: attention }) : t('reglages.bank.overview_ok')}
+                </strong>
+                <span className="muted">
+                  {lastSync ? t('reglages.bank.synced_ago', { when: timeAgo(lastSync, i18n.language) }) : t('reglages.bank.never_synced')}
+                </span>
+              </div>
+              {connectButton}
             </div>
           )}
           {status.connections.map((c) => (
             <ConnectionCard key={c.id} userId={userId} connection={c} accounts={accounts} run={run} onChanged={refresh} onRenew={() => setConnecting({ country: c.aspsp_country, bank: c.aspsp_name })} />
           ))}
           {status.auto_sync && status.connections.length > 0 && <AutoSyncCard userId={userId} autoSync={status.auto_sync} run={run} onChanged={refresh} />}
-          <ServerPanel userId={userId} status={status} onPasted={completeCallback} />
+          <div className="bank-more">
+            <ServerPanel userId={userId} status={status} onPasted={completeCallback} />
+            <SecurityNote />
+          </div>
         </>
       ) : (
-        <SetupGuide status={status} />
+        <>
+          <SetupGuide status={status} />
+          <SecurityNote />
+        </>
       )}
-
-      <SecurityNote />
 
       {connecting && <ConnectModal userId={userId} initial={connecting} onPasted={completeCallback} onClose={() => { setConnecting(null); refresh(); }} />}
     </section>
@@ -159,28 +194,24 @@ function AutoSyncCard({ userId, autoSync, run, onChanged }: { userId: number; au
   const label = (h: number) => t('reglages.bank.auto_hour', { h });
   const next = autoSync.next_at ? new Date(autoSync.next_at) : null;
 
+  // Une ligne : « Synchro automatique [2 fois par jour] à [7 h] [19 h] », puis
+  // la prochaine échéance ; la limite DSP2 en info au survol du titre.
   return (
     <article className="pg-card bank-auto">
-      <header>
-        <h3><RefreshCw size={18} aria-hidden /> {t('reglages.bank.auto_title')}</h3>
-        <p className="muted">{t('reglages.bank.auto_hint', { n: autoSync.max_slots })}</p>
-      </header>
       <div className="bank-auto-row">
-        <label>
-          <span>{t('reglages.bank.auto_frequency')}</span>
-          <select value={autoSync.hours.length} onChange={(e) => setCount(Number(e.target.value))}>
+        <h3 title={t('reglages.bank.auto_hint', { n: autoSync.max_slots })}><Clock size={17} aria-hidden /> {t('reglages.bank.auto_title')}</h3>
+        <div className="bank-auto-controls">
+          <select value={autoSync.hours.length} onChange={(e) => setCount(Number(e.target.value))} aria-label={t('reglages.bank.auto_frequency')}>
             <option value={0}>{t('reglages.bank.auto_off')}</option>
             {Array.from({ length: autoSync.max_slots }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{t('reglages.bank.auto_times', { count: n })}</option>)}
           </select>
-        </label>
-        {autoSync.hours.map((hour, index) => (
-          <label key={index}>
-            <span>{t('reglages.bank.auto_at')}</span>
-            <select value={hour} onChange={(e) => setHour(index, Number(e.target.value))}>
+          {autoSync.hours.length > 0 && <span className="muted">{t('reglages.bank.auto_at').toLowerCase()}</span>}
+          {autoSync.hours.map((hour, index) => (
+            <select key={index} value={hour} onChange={(e) => setHour(index, Number(e.target.value))} aria-label={`${t('reglages.bank.auto_at')} (${index + 1})`}>
               {HOURS.map((h) => <option key={h} value={h} disabled={h !== hour && autoSync.hours.includes(h)}>{label(h)}</option>)}
             </select>
-          </label>
-        ))}
+          ))}
+        </div>
       </div>
       <p className="muted bank-auto-next">
         {autoSync.hours.length === 0 ? t('reglages.bank.auto_disabled')
@@ -427,10 +458,10 @@ function ConnectModal({ userId, initial, onPasted, onClose }: {
 function ConnectionCard({ userId, connection: c, accounts, run, onChanged, onRenew }: {
   userId: number; connection: BankConnection; accounts: Account[]; run: Run; onChanged: () => void; onRenew: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [syncing, setSyncing] = useState(false);
   const daysLeft = Math.ceil((new Date(c.valid_until).getTime() - Date.now()) / DAY);
-  const state = c.expired || c.status === 'expired' ? 'expired' : c.status === 'error' ? 'error' : daysLeft <= 7 ? 'soon' : 'active';
+  const state = connectionState(c);
   const linked = c.links.filter((l) => l.account_id != null).length;
 
   const sync = async () => {
@@ -442,81 +473,110 @@ function ConnectionCard({ userId, connection: c, accounts, run, onChanged, onRen
     setSyncing(false);
     onChanged();
   };
-  const remove = async () => {
-    if (!window.confirm(t('reglages.bank.confirm_disconnect', { bank: c.aspsp_name }))) return;
-    if (await run(() => api.deleteBankConnection(userId, c.id), t('reglages.bank.disconnected'))) onChanged();
+  const needsRenew = state !== 'active';
+  const disconnect = {
+    label: t('reglages.bank.disconnect'), icon: <Trash2 size={16} />, danger: true,
+    // Irréversible (consentement révoqué) : confirmation native.
+    confirm: t('reglages.bank.confirm_disconnect', { bank: c.aspsp_name }),
+    onSelect: () => void run(() => api.deleteBankConnection(userId, c.id), t('reglages.bank.disconnected')).then((ok) => { if (ok) onChanged(); }),
   };
 
+  // En-tête : banque, fraîcheur, état de l'accès, puis Synchroniser (+ Renouveler
+  // seulement s'il y a lieu) ; le reste dans « ⋯ ».
   return (
-    <article className="pg-card bank-card">
-      <header>
-        <div>
-          <h3><Landmark size={18} aria-hidden /> {c.aspsp_name}</h3>
-          <p className="muted">
-            {c.last_sync_at ? t('reglages.bank.last_sync', { date: new Date(c.last_sync_at).toLocaleString() }) : t('reglages.bank.never_synced')}
+    <article className={`pg-card bank-card is-${state}`}>
+      <header className="bank-card-head">
+        <span className="bank-logo" aria-hidden><Landmark size={18} /></span>
+        <div className="bank-card-title">
+          <h3>{c.aspsp_name}</h3>
+          <p className="muted" title={c.last_sync_at ? new Date(c.last_sync_at).toLocaleString() : undefined}>
+            {c.last_sync_at ? t('reglages.bank.synced_ago', { when: timeAgo(c.last_sync_at, i18n.language) }) : t('reglages.bank.never_synced')}
           </p>
         </div>
-        <span className={`bank-badge ${state}`}>
-          {state === 'expired' ? t('reglages.bank.status_expired')
+        <span className={`bank-pill is-${state}`} title={t('reglages.bank.consent_until', { date: formatTxDate(c.valid_until.slice(0, 10)), n: daysLeft })}>
+          {state === 'expired' ? t('reglages.bank.pill_expired')
             : state === 'error' ? t('reglages.bank.status_error')
-            : t('reglages.bank.consent_until', { date: formatTxDate(c.valid_until.slice(0, 10)), n: daysLeft })}
+            : state === 'soon' ? t('reglages.bank.pill_soon', { count: Math.max(1, daysLeft) })
+            : t('reglages.bank.pill_until', { date: formatTxDate(c.valid_until.slice(0, 10)) })}
         </span>
+        <div className="bank-card-actions">
+          {needsRenew && <button type="button" className="secondary" onClick={onRenew}><Link2 size={15} /> {t('reglages.bank.renew')}</button>}
+          {state !== 'expired' && (
+            <button type="button" className="primary" onClick={() => void sync()} disabled={syncing || linked === 0} title={linked === 0 ? t('reglages.bank.link_first') : undefined}>
+              {syncing ? <Loader2 size={15} className="spin-icon" /> : <RefreshCw size={15} />} {t('reglages.bank.sync_now')}
+            </button>
+          )}
+          <RowMenu items={needsRenew ? [disconnect] : [{ label: t('reglages.bank.renew'), icon: <Link2 size={16} />, onSelect: onRenew }, disconnect]} />
+        </div>
       </header>
       {c.last_error && state !== 'active' && <div className="bank-alert error"><TriangleAlert size={16} /> <span>{c.last_error}</span></div>}
       {linked === 0 && state !== 'expired' && (
         <div className="bank-alert info"><Link2 size={16} /> <span>{t('reglages.bank.map_first')}</span></div>
       )}
 
-      <table className="bank-links">
-        <thead>
-          <tr><th>{t('reglages.bank.bank_account')}</th><th>{t('reglages.bank.suzanne_account')}</th><th>{t('reglages.bank.sync_from')}</th><th>{t('reglages.bank.last_result')}</th></tr>
-        </thead>
-        <tbody>
-          {c.links.map((l) => <LinkRow key={l.id} userId={userId} link={l} accounts={accounts} run={run} onChanged={onChanged} />)}
-        </tbody>
-      </table>
-
-      <div className="bank-row bank-actions">
-        <button type="button" className="primary" onClick={() => void sync()} disabled={syncing || linked === 0 || state === 'expired'} title={linked === 0 ? t('reglages.bank.link_first') : undefined}>
-          {syncing ? <Loader2 size={14} className="spin-icon" /> : <RefreshCw size={14} />} {t('reglages.bank.sync_now')}
-        </button>
-        {(state === 'expired' || state === 'soon' || state === 'error') && (
-          <button type="button" className="secondary" onClick={onRenew}><Link2 size={14} /> {t('reglages.bank.renew')}</button>
-        )}
-        <button type="button" className="secondary danger" onClick={() => void remove()}><Trash2 size={14} /> {t('reglages.bank.disconnect')}</button>
-      </div>
+      <ul className="bank-accounts">
+        {c.links.map((l) => <LinkRow key={l.id} userId={userId} link={l} accounts={accounts} run={run} onChanged={onChanged} />)}
+      </ul>
     </article>
   );
 }
 
+// Un compte bancaire : d'où (banque) → où (compte Suzanne), et ce qu'on en sait
+// (solde en grand, résultat de la dernière synchro en petit).
 function LinkRow({ userId, link: l, accounts, run, onChanged }: { userId: number; link: BankLink; accounts: Account[]; run: Run; onChanged: () => void }) {
   const { t } = useTranslation();
+  const [editingFrom, setEditingFrom] = useState(false);
   const options = pickableAccounts(accounts, l.account_id).filter((a) => !['loan', 'receivable'].includes(a.type));
   const update = async (body: { account_id?: number | null; sync_from?: string | null }) => {
     if (await run(() => api.updateBankLink(userId, l.id, body), t('reglages.bank.link_saved'))) onChanged();
   };
   const r = l.last_result;
+  const mapped = l.account_id != null;
+  const summary = r == null ? null
+    : [
+        r.imported > 0 ? t('reglages.bank.res_new', { count: r.imported }) : null,
+        r.adopted > 0 ? t('reglages.bank.res_matched', { count: r.adopted }) : null,
+        r.pending > 0 ? t('reglages.bank.res_pending', { count: r.pending }) : null,
+      ].filter(Boolean).join(' · ') || t('reglages.bank.res_none');
   return (
-    <tr>
-      <td>
+    <li className={mapped ? 'bank-account' : 'bank-account unmapped'}>
+      <div className="bank-account-src">
         <strong>{l.remote_name ?? t('reglages.bank.account')}</strong>
-        <span className="muted">{l.iban_last4 ? ` ···${l.iban_last4}` : ''}{l.currency ? ` · ${l.currency}` : ''}</span>
-        {/^(carte|card)\b/i.test(l.remote_name ?? '') && l.account_id == null && <small className="bank-card-hint">{t('reglages.bank.card_hint')}</small>}
-      </td>
-      <td>
+        <span className="muted">{l.iban_last4 ? `···${l.iban_last4}` : ''}{l.currency && l.currency !== 'EUR' ? ` · ${l.currency}` : ''}</span>
+        {editingFrom || l.sync_from ? (
+          <label className="bank-account-from">
+            <span>{t('reglages.bank.sync_from')}</span>
+            <input
+              type="date"
+              value={l.sync_from ?? ''}
+              autoFocus={editingFrom && !l.sync_from}
+              onChange={(e) => void update({ sync_from: e.target.value || null })}
+              onBlur={() => setEditingFrom(false)}
+              title={t('reglages.bank.sync_from_hint')}
+            />
+          </label>
+        ) : (
+          <button type="button" className="link-button bank-account-from" title={t('reglages.bank.sync_from_hint')} onClick={() => setEditingFrom(true)}>
+            {t('reglages.bank.sync_from_set')}
+          </button>
+        )}
+      </div>
+      <ArrowRight size={16} className="bank-account-arrow" aria-hidden />
+      <div className="bank-account-dest">
         <select value={l.account_id ?? ''} onChange={(e) => void update({ account_id: e.target.value ? Number(e.target.value) : null })} aria-label={t('reglages.bank.suzanne_account')}>
           <option value="">{t('reglages.bank.not_synced')}</option>
           {options.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
-      </td>
-      <td>
-        <input type="date" value={l.sync_from ?? ''} onChange={(e) => void update({ sync_from: e.target.value || null })} aria-label={t('reglages.bank.sync_from')} title={t('reglages.bank.sync_from_hint')} />
-      </td>
-      <td className="muted">
-        {r ? t('reglages.bank.result', { imported: r.imported, adopted: r.adopted, pending: r.pending })
-          + (r.balance ? ` · ${t('reglages.bank.balance', { amount: money(r.balance.amount, l.currency ?? 'EUR'), date: formatTxDate(r.balance.date) })}` : '')
-          : '—'}
-      </td>
-    </tr>
+        {/^(carte|card)\b/i.test(l.remote_name ?? '') && !mapped && <small className="bank-card-hint">{t('reglages.bank.card_hint')}</small>}
+      </div>
+      <div className="bank-account-result">
+        {r?.balance ? (
+          <span className="bank-balance" title={t('reglages.bank.balance', { amount: money(r.balance.amount, l.currency ?? 'EUR'), date: formatTxDate(r.balance.date) })}>
+            {money(r.balance.amount, l.currency ?? 'EUR')}
+          </span>
+        ) : null}
+        {summary && <span className="muted">{summary}</span>}
+      </div>
+    </li>
   );
 }
