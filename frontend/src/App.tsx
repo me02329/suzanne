@@ -31,6 +31,7 @@ import { useGlobalShortcuts } from './lib/useGlobalShortcuts';
 import { Modal } from './components/Modal';
 import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
+import { BankSyncButton } from './components/BankSyncButton';
 import { SuzanneMark } from './components/SuzanneMark';
 import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
@@ -440,6 +441,7 @@ export default function App() {
               {searchOpen ? <X size={18} /> : <Search size={18} />}
             </button>
             {userId && <SearchBox userId={userId} onNavigate={(next) => { setSearchOpen(false); setActiveTab(next); }} />}
+            {userId && section.id === 'ops' && <BankSyncButton userId={userId} run={run} />}
             {controls}
             {loading && <span className="spinner" aria-label={t('ui.app.loading')} />}
           </div>
