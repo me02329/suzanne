@@ -19,18 +19,28 @@ final class ServerPrefs {
     }
 
     /**
-     * Normalise une saisie : ajoute http:// si absent, retire la barre finale.
-     * Renvoie null si ce n'est pas une adresse http(s) utilisable.
+     * Adresses à essayer pour une saisie, dans l'ordre. Avec un schéma
+     * (http:// ou https://) : telle quelle. Sans schéma : https:// d'abord (cas
+     * d'un nom de domaine), puis http:// (serveur sur un réseau local).
+     * Barre finale retirée. Liste vide si la saisie n'est pas une adresse.
      */
-    static String normalize(String input) {
-        if (input == null) return null;
+    static java.util.List<String> candidates(String input) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (input == null) return out;
         String url = input.trim();
-        if (url.isEmpty()) return null;
-        if (!url.matches("(?i)^https?://.*")) url = "http://" + url;
         while (url.endsWith("/")) url = url.substring(0, url.length() - 1);
-        android.net.Uri uri = android.net.Uri.parse(url);
-        if (uri.getHost() == null || uri.getHost().isEmpty()) return null;
-        return url;
+        if (url.isEmpty()) return out;
+        if (url.matches("(?i)^https?://.*")) out.add(url);
+        else { out.add("https://" + url); out.add("http://" + url); }
+        out.removeIf((u) -> { android.net.Uri uri = android.net.Uri.parse(u); return uri.getHost() == null || uri.getHost().isEmpty(); });
+        return out;
+    }
+
+    /** Origine (schéma + hôte + port) et chemin d'une adresse, sans barre finale. */
+    static String base(String url) {
+        String u = url;
+        while (u.endsWith("/")) u = u.substring(0, u.length() - 1);
+        return u;
     }
 
     private static SharedPreferences prefs(Context context) {

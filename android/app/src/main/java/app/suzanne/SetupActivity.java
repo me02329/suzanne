@@ -120,48 +120,122 @@ public class SetupActivity extends Activity {
     }
 
     private void check() {
-        String url = ServerPrefs.normalize(input.getText().toString());
+        java.util.List<String> candidates = ServerPrefs.candidates(input.getText().toString());
         saveAnyway.setVisibility(View.GONE);
-        if (url == null) { showMessage(getString(R.string.setup_invalid)); return; }
-        input.setText(url);
-        pendingUrl = url;
+        if (candidates.isEmpty()) { showMessage(getString(R.string.setup_invalid)); return; }
+        pendingUrl = candidates.get(0);
         connect.setEnabled(false);
         connect.setText(R.string.setup_checking);
         message.setVisibility(View.GONE);
         executor.execute(() -> {
-            String error = probe(url);
+            // Premier candidat qui répond « Suzanne » ; sinon, l'erreur du premier
+            // (https) — la plus parlante quand on a tapé un nom de domaine.
+            Probe first = null;
+            for (String candidate : candidates) {
+                Probe result = probe(candidate);
+                if (result.ok) { first = result; break; }
+                if (first == null) first = result;
+            }
+            Probe outcome = first;
             runOnUiThread(() -> {
                 connect.setEnabled(true);
                 connect.setText(R.string.setup_connect);
-                if (error == null) { open(url); return; }
-                showMessage(error);
+                if (outcome.ok) { open(outcome.url); return; }
+                pendingUrl = outcome.url;
+                input.setText(outcome.url);
+                showMessage(outcome.error);
                 saveAnyway.setVisibility(View.VISIBLE);
             });
         });
     }
 
-    /** null si le serveur répond et sert bien Suzanne ; sinon le message d'erreur. */
-    private String probe(String url) {
-        HttpURLConnection connection = null;
-        try {
-            connection = (HttpURLConnection) new URL(url + "/manifest.webmanifest").openConnection();
-            connection.setConnectTimeout(6000);
-            connection.setReadTimeout(6000);
-            int code = connection.getResponseCode();
-            if (code != 200) return getString(R.string.setup_not_suzanne);
-            try (InputStream in = connection.getInputStream()) {
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                byte[] buffer = new byte[4096];
-                int n;
-                while ((n = in.read(buffer)) > 0 && out.size() < 65536) out.write(buffer, 0, n);
-                return out.toString("UTF-8").contains("Suzanne") ? null : getString(R.string.setup_not_suzanne);
-            }
-        } catch (Exception e) {
-            String reason = e.getClass().getSimpleName() + (e.getMessage() != null ? " : " + e.getMessage() : "");
-            return getString(R.string.setup_unreachable, reason);
-        } finally {
-            if (connection != null) connection.disconnect();
+    /** Résultat d'une vérification : adresse finale (redirections suivies) et erreur éventuelle. */
+    private static final class Probe {
+        final boolean ok; final String url; final String error;
+        Probe(boolean ok, String url, String error) { this.ok = ok; this.url = url; this.error = error; }
+    }
+
+    /**
+     * Le serveur sert-il Suzanne ? On regarde le manifeste de l'app web, puis la
+     * page d'accueil (titre « Suzanne ») : l'un des deux suffit. Les
+     * redirections sont suivies à la main (HttpURLConnection ne suit pas
+     * http → https) et l'adresse finale est retenue.
+     */
+    private Probe probe(String url) {
+        String base = ServerPrefs.base(url);
+        Fetch manifest = fetch(base + "/manifest.webmanifest");
+        if (manifest.exception != null) {
+            String ssl = getString(R.string.setup_ssl);
+            return new Probe(false, base, manifest.exception.equals(ssl)
+                    ? getString(R.string.setup_ssl_failed, ssl)
+                    : getString(R.string.setup_unreachable, manifest.exception));
         }
+        String finalBase = manifest.finalUrl != null ? manifest.finalUrl.replaceFirst("/manifest\\.webmanifest.*$", "") : base;
+        if (manifest.code == 200 && manifest.body.contains("Suzanne")) return new Probe(true, finalBase, null);
+        Fetch home = fetch(finalBase + "/");
+        if (home.exception == null && home.code == 200 && home.body.contains("Suzanne")) {
+            String homeBase = home.finalUrl != null ? ServerPrefs.base(home.finalUrl) : finalBase;
+            return new Probe(true, homeBase, null);
+        }
+        // Explication la plus utile : code HTTP, redirection inattendue, page sans Suzanne.
+        Fetch shown = manifest.code == 200 ? home : manifest;
+        String detail;
+        if (shown.exception != null) detail = shown.exception;
+        else if (shown.code == 401 || shown.code == 403) detail = getString(R.string.setup_auth, shown.code);
+        else if (shown.code != 200) detail = "HTTP " + shown.code + (shown.location != null ? " → " + shown.location : "");
+        else detail = getString(R.string.setup_no_marker, shown.finalUrl);
+        return new Probe(false, finalBase, getString(R.string.setup_not_suzanne, detail));
+    }
+
+    private static final class Fetch {
+        int code; String body = ""; String finalUrl; String location; String exception;
+    }
+
+    /** GET avec suivi des redirections (5 au plus), corps limité à 256 Ko. */
+    private Fetch fetch(String start) {
+        Fetch f = new Fetch();
+        String current = start;
+        for (int hop = 0; hop < 5; hop++) {
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection) new URL(current).openConnection();
+                connection.setInstanceFollowRedirects(false);
+                connection.setConnectTimeout(8000);
+                connection.setReadTimeout(8000);
+                connection.setRequestProperty("User-Agent", "SuzanneAndroid");
+                f.code = connection.getResponseCode();
+                f.finalUrl = current;
+                if (f.code >= 300 && f.code < 400) {
+                    String location = connection.getHeaderField("Location");
+                    if (location == null) return f;
+                    f.location = location;
+                    current = new URL(new URL(current), location).toString();
+                    continue;
+                }
+                f.location = null;
+                InputStream in = f.code >= 400 ? connection.getErrorStream() : connection.getInputStream();
+                if (in != null) {
+                    try (InputStream stream = in) {
+                        ByteArrayOutputStream out = new ByteArrayOutputStream();
+                        byte[] buffer = new byte[4096];
+                        int n;
+                        while ((n = stream.read(buffer)) > 0 && out.size() < 262144) out.write(buffer, 0, n);
+                        f.body = out.toString("UTF-8");
+                    }
+                }
+                return f;
+            } catch (javax.net.ssl.SSLException e) {
+                // Certificat non reconnu (ex. autorité locale de Caddy, `tls internal`).
+                f.exception = getString(R.string.setup_ssl);
+                return f;
+            } catch (Exception e) {
+                f.exception = e.getClass().getSimpleName() + (e.getMessage() != null ? " : " + e.getMessage() : "");
+                return f;
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        }
+        return f;
     }
 
     private void open(String url) {

@@ -166,6 +166,14 @@ public class MainActivity extends Activity {
             public void onReceivedError(WebView v, WebResourceRequest request, WebResourceError error) {
                 if (request.isForMainFrame()) showError(String.valueOf(error.getDescription()));
             }
+
+            // Certificat non reconnu : on refuse (jamais de contournement
+            // silencieux) mais on explique, au lieu d'une page blanche.
+            @Override
+            public void onReceivedSslError(WebView v, android.webkit.SslErrorHandler handler, android.net.http.SslError error) {
+                handler.cancel();
+                if (isOwnServer(Uri.parse(error.getUrl()))) showError(getString(R.string.setup_ssl));
+            }
         });
 
         view.setWebChromeClient(new WebChromeClient() {
