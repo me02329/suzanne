@@ -196,7 +196,7 @@ BASE=http://localhost:5174 npm run screenshots -- captures --month 2026-10
 `compose.yml` attend un PostgreSQL joignable via `DATABASE_URL` et un réseau Docker externe `proxy`.
 
 ```bash
-git clone https://github.com/<owner>/suzanne-lite.git suzanne && cd suzanne
+git clone https://github.com/<owner>/suzanne.git && cd suzanne
 cat > .env <<ENV
 DATABASE_URL=postgres://suzanne:<mot-de-passe>@postgres:5432/suzanne
 APP_TOKEN=<secret-long-et-aléatoire>
