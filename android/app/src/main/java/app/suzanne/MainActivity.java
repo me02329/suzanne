@@ -136,6 +136,10 @@ public class MainActivity extends Activity {
 
     @SuppressLint("SetJavaScriptEnabled")
     private WebView buildWebView() {
+        // Build de debug : WebView inspectable depuis chrome://inspect sur le PC.
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
         WebView view = new WebView(this);
         WebSettings s = view.getSettings();
         s.setJavaScriptEnabled(true);
@@ -149,6 +153,13 @@ public class MainActivity extends Activity {
         view.addJavascriptInterface(new Bridge(), "SuzanneAndroid");
 
         view.setWebViewClient(new WebViewClient() {
+            // Mode local : https://suzanne.local/… est servi depuis l'APK, sans réseau.
+            @Override
+            public android.webkit.WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest request) {
+                if (!ServerPrefs.LOCAL_HOST.equalsIgnoreCase(request.getUrl().getHost())) return null;
+                return serveLocal(request.getUrl());
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest request) {
                 Uri uri = request.getUrl();
@@ -218,6 +229,47 @@ public class MainActivity extends Activity {
             }
         });
         return view;
+    }
+
+    /**
+     * Fichier du mode local (assets/local/). Une adresse sans extension est une
+     * page de l'app (/transactions…) : on renvoie index.html, comme le serveur.
+     */
+    private android.webkit.WebResourceResponse serveLocal(Uri uri) {
+        String path = uri.getPath() == null || uri.getPath().isEmpty() ? "/" : uri.getPath();
+        boolean isPage = path.equals("/") || !path.substring(path.lastIndexOf('/') + 1).contains(".");
+        String asset = "local" + (isPage ? "/index.html" : path);
+        java.util.Map<String, String> headers = new java.util.HashMap<>();
+        headers.put("Cache-Control", isPage ? "no-cache" : "max-age=31536000, immutable");
+        try {
+            java.io.InputStream in = getAssets().open(asset);
+            return new android.webkit.WebResourceResponse(mimeType(asset), isText(asset) ? "utf-8" : null, 200, "OK", headers, in);
+        } catch (java.io.IOException e) {
+            return new android.webkit.WebResourceResponse("text/plain", "utf-8", 404, "Not Found", headers,
+                    new java.io.ByteArrayInputStream(("Introuvable : " + path).getBytes(StandardCharsets.UTF_8)));
+        }
+    }
+
+    private static String mimeType(String name) {
+        String n = name.toLowerCase(Locale.ROOT);
+        if (n.endsWith(".html")) return "text/html";
+        if (n.endsWith(".js") || n.endsWith(".mjs")) return "text/javascript";
+        if (n.endsWith(".css")) return "text/css";
+        if (n.endsWith(".wasm")) return "application/wasm"; // requis par WebAssembly.compileStreaming
+        if (n.endsWith(".json") || n.endsWith(".webmanifest")) return "application/json";
+        if (n.endsWith(".svg")) return "image/svg+xml";
+        if (n.endsWith(".png")) return "image/png";
+        if (n.endsWith(".woff2")) return "font/woff2";
+        if (n.endsWith(".woff")) return "font/woff";
+        // .pgz : base pré-migrée du mode local (tar gzip) ; type gzip pour que
+        // PGlite la décompresse.
+        if (n.endsWith(".gz") || n.endsWith(".pgz")) return "application/gzip";
+        return "application/octet-stream";
+    }
+
+    private static boolean isText(String name) {
+        String n = name.toLowerCase(Locale.ROOT);
+        return n.endsWith(".html") || n.endsWith(".js") || n.endsWith(".mjs") || n.endsWith(".css") || n.endsWith(".json") || n.endsWith(".webmanifest") || n.endsWith(".svg");
     }
 
     private boolean isOwnServer(Uri uri) {

@@ -7,6 +7,19 @@ import android.content.SharedPreferences;
 final class ServerPrefs {
     private static final String FILE = "suzanne";
     private static final String KEY_URL = "server_url";
+
+    /**
+     * Mode local (ADR 0011) : adresse interne, jamais résolue sur le réseau —
+     * l'app sert elle-même ses fichiers (assets/local/). Origine https fixe :
+     * contexte sécurisé, et la base (IndexedDB) y est attachée. NE JAMAIS LA
+     * CHANGER, sinon les données locales deviennent inaccessibles.
+     */
+    static final String LOCAL_ORIGIN = "https://suzanne.local";
+    static final String LOCAL_HOST = "suzanne.local";
+
+    static boolean isLocal(String url) {
+        return url != null && url.startsWith(LOCAL_ORIGIN);
+    }
     private static final String KEY_TRUSTED_HOST = "trusted_host";
 
     private ServerPrefs() {}

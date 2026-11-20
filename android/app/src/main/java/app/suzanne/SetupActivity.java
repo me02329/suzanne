@@ -42,7 +42,8 @@ public class SetupActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(buildLayout());
         String current = ServerPrefs.get(this);
-        if (current != null) input.setText(current);
+        // En mode local, le champ « serveur » reste vide (l'adresse interne n'a pas à être montrée).
+        if (current != null && !ServerPrefs.isLocal(current)) input.setText(current);
     }
 
     @Override
@@ -124,6 +125,27 @@ public class SetupActivity extends Activity {
         saveAnyway.setVisibility(View.GONE);
         saveAnyway.setOnClickListener(v -> { if (pendingUrl != null) open(pendingUrl); });
         column.addView(saveAnyway, block(dp(10)));
+
+        // Mode local (ADR 0011) : Suzanne sans serveur, données sur le téléphone.
+        TextView or = new TextView(this);
+        or.setText(R.string.setup_or);
+        or.setTextColor(muted);
+        or.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        or.setGravity(Gravity.CENTER);
+        column.addView(or, block(dp(26)));
+
+        Button local = button(R.string.setup_local, 0x00000000, ink);
+        local.setBackground(rounded(0x00000000, ink, 999));
+        local.setOnClickListener(v -> open(ServerPrefs.LOCAL_ORIGIN));
+        column.addView(local, block(dp(10)));
+
+        TextView localHint = new TextView(this);
+        localHint.setText(R.string.setup_local_hint);
+        localHint.setTextColor(muted);
+        localHint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        localHint.setGravity(Gravity.CENTER);
+        localHint.setLineSpacing(0, 1.15f);
+        column.addView(localHint, block(dp(8)));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);

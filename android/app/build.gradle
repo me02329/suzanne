@@ -45,4 +45,32 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    // Mode local (ADR 0011) : l'app web + le serveur embarqué, servis par l'app
+    // elle-même (assets/local/), copiés depuis le build « local » du frontend.
+    sourceSets {
+        main {
+            assets.srcDirs += layout.buildDirectory.dir('generated/localWeb')
+        }
+    }
+    // Fichiers déjà compressés : stockés tels quels. (La base pré-migrée est en
+    // .pgz : un .gz serait décompressé et renommé par l'empaquetage.)
+    androidResources {
+        noCompress += ['pgz']
+    }
 }
+
+// Copie de frontend/dist-local (npm run build:local) dans les assets de l'APK.
+def localWebDir = rootProject.file('../frontend/dist-local')
+tasks.register('copyLocalWeb', Copy) {
+    doFirst {
+        if (!new File(localWebDir, 'index.html').exists()) {
+            throw new GradleException("Mode local : ${localWebDir} absent. Lance d'abord, à la racine du dépôt : npm run build:local")
+        }
+    }
+    from localWebDir
+    // Le service worker ne sert pas en mode local (tout est déjà sur l'appareil).
+    exclude 'sw.js'
+    into layout.buildDirectory.dir('generated/localWeb/local')
+}
+tasks.named('preBuild') { dependsOn 'copyLocalWeb' }
