@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
+import { useDismiss } from '../../lib/useDismiss';
 import { NO_SET_FILTER, type SetFilter } from './useTransactionFilters';
 
 export interface SetOption {
@@ -27,14 +28,9 @@ export function SetFilterMenu({ label, allLabel, noneLabel, options, value, onCh
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [open]);
+  // Menu ancré dans la page (il défile avec son bouton) et doté d'une
+  // recherche : on ne ferme pas au défilement.
+  useDismiss(open, () => setOpen(false), [ref], { closeOnScroll: false });
 
   const all = noneLabel ? [{ value: 'none', label: noneLabel }, ...options] : options;
   const nameOf = (id: string) => all.find((o) => o.value === id)?.label ?? id;
