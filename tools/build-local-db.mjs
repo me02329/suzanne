@@ -1,6 +1,8 @@
 // Mode local (ADR 0011) : base PGlite pré-migrée, livrée avec l'app pour un
 // premier lancement instantané (pas de migrations sur le téléphone).
-// Écrit frontend/.local-build/suzanne-db.tar.gz ; la table _suzanne_migrations
+// Écrit frontend/.local-build/suzanne-db.pgz (archive tar gzip ; extension .pgz
+// et non .tar.gz, car l'empaquetage Android décompresse les assets .gz et retire
+// leur extension) ; la table _suzanne_migrations
 // liste les migrations incluses — l'app applique les suivantes à la mise à jour.
 //
 //   node tools/build-local-db.mjs
@@ -26,6 +28,6 @@ await db.query('VACUUM FULL');
 await db.query('CHECKPOINT');
 const archive = Buffer.from(await (await db.dumpDataDir('gzip')).arrayBuffer());
 fs.mkdirSync(outDir, { recursive: true });
-fs.writeFileSync(path.join(outDir, 'suzanne-db.tar.gz'), archive);
+fs.writeFileSync(path.join(outDir, 'suzanne-db.pgz'), archive);
 await db.close();
 console.log(`[build-local-db] ${names.length} migrations en ${Date.now() - t0} ms → ${(archive.length / 1024).toFixed(0)} Ko`);
