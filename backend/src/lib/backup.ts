@@ -49,7 +49,7 @@ export type ExportEntity = (typeof EXPORT_ENTITIES)[number];
 const looseArray = z.array(z.any()).optional();
 export const backupPayloadSchema = z.object({
   version: z.number().optional(),
-  user: z.object({ id: z.number().optional() }).passthrough().nullish(),
+  user: z.object({ id: z.number().optional(), uid: z.string().optional(), name: z.string().optional() }).passthrough().nullish(),
   accounts: looseArray,
   institutions: looseArray,
   categories: looseArray,
@@ -101,7 +101,7 @@ export async function buildExportPayload(user_id: number, entities: readonly Exp
     want.has('sinking_funds') ? prisma.sinkingFund.findMany({ where: { user_id }, orderBy: { id: 'asc' } }) : Promise.resolve([]),
   ]);
   const [user, accountsAll, categoriesAll, institutions, rules, transactions, budgets, recurring, goals, goalContributions, bills, snapshots, tags, holdings, alerts, importMappings] = await Promise.all([
-    prisma.user.findUnique({ where: { id: user_id }, select: { id: true, name: true, created_at: true } }),
+    prisma.user.findUnique({ where: { id: user_id }, select: { id: true, uid: true, name: true, created_at: true } }),
     prisma.account.findMany({ where: { user_id }, orderBy: { id: 'asc' } }),
     prisma.category.findMany({ where: { user_id }, orderBy: { id: 'asc' } }),
     want.has('institutions') ? prisma.institution.findMany({ where: { user_id }, orderBy: { id: 'asc' } }) : none,
@@ -290,7 +290,13 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
   };
   // Ré-import sur le profil d'origine : un id non remappé (entité absente de
   // l'export partiel) désigne directement une ligne existante de ce profil.
-  const sameUser = payload.user?.id === user_id;
+  // « Même profil » = même uid (ADR 0012). Le numéro du profil ne vaut que dans
+  // SA base : entre le serveur et le téléphone, le n°1 de l'un n'est pas le n°1
+  // de l'autre. Il ne sert donc plus que pour une sauvegarde sans uid (antérieure).
+  const payloadUid = typeof payload.user?.uid === 'string' ? payload.user.uid : null;
+  const sameUser = payloadUid
+    ? (await db.user.findUnique({ where: { id: user_id }, select: { uid: true } }))?.uid === payloadUid
+    : payload.user?.id === user_id;
 
   // Identité stable : un uid connu de ce profil = le même élément (même s'il a
   // été renommé ou modifié depuis) ; inconnu = on crée en le conservant ; connu

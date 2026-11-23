@@ -26,10 +26,11 @@ export function createApp() {
     console.warn("[suzanne] APP_TOKEN non défini : l'API est accessible sans authentification.");
   }
   // La restauration d'une sauvegarde JSON embarque les pièces jointes (base64) :
-  // limite relevée pour cette seule route, 25 Mo partout ailleurs.
+  // limite relevée pour ces routes (import, transfert de profil), 25 Mo ailleurs.
   const jsonDefault = express.json({ limit: '25mb' });
   const jsonBackup = express.json({ limit: '250mb' });
-  app.use((req, res, next) => (req.path.endsWith('/import.json') ? jsonBackup : jsonDefault)(req, res, next));
+  const isBackupUpload = (p: string) => p.endsWith('/import.json') || p === '/api/profiles/import';
+  app.use((req, res, next) => (isBackupUpload(req.path) ? jsonBackup : jsonDefault)(req, res, next));
   app.use(healthRouter);
   app.use('/api', appTokenAuth());
   app.use('/api', auditLog());

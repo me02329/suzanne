@@ -25,9 +25,11 @@ import { tagsRouter } from './tags.js';
 import { pricesRouter } from './prices.js';
 import { loansRouter } from './loans.js';
 import { bankRouter } from './bank.js';
+import { profileTransferRouter } from './profileTransfer.js';
 
 export const apiRouter = Router();
 apiRouter.use(usersRouter);
+apiRouter.use(profileTransferRouter);
 apiRouter.use(accountsRouter);
 apiRouter.use(loansRouter);
 apiRouter.use(bankRouter);

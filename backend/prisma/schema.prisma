@@ -85,6 +85,9 @@ enum AlertOperator {
 
 model User {
   id         Int      @id @default(autoincrement())
+  // Identité stable du profil (ADR 0012) : reconnaît « le même profil » entre le
+  // serveur et le téléphone, et lors d'un import de sauvegarde.
+  uid        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name       String   @unique
   created_at DateTime @default(now()) @db.Timestamptz(6)
 
