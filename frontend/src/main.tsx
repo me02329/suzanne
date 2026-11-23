@@ -14,14 +14,27 @@ import '@fontsource/jetbrains-mono/700.css';
 import './styles/global.css';
 import './styles/theme.css';
 
-import { IS_APP, startLocal } from './local/mode';
+import { IS_APP, serverConfigured, startLocal } from './local/mode';
+import { writeActiveProfile } from './lib/activeProfile';
 
 // Mode local (build « local », ADR 0011) : base et serveur embarqués démarrés
 // avant l'app. Build normal : startLocal() ne fait rien.
 void startLocal()
   .catch((error: unknown) => {
     console.error('[suzanne] démarrage du mode local', error);
-    document.getElementById('root')!.textContent = `Démarrage impossible : ${(error as Error)?.message ?? error}`;
+    const root = document.getElementById('root')!;
+    root.textContent = `Données du téléphone illisibles : ${(error as Error)?.message ?? error}`;
+    // Ne pas rester bloqué : les profils du serveur restent accessibles. La
+    // base du téléphone n'est ni effacée ni modifiée.
+    if (IS_APP && serverConfigured()) {
+      const button = document.createElement('button');
+      button.className = 'primary';
+      button.style.cssText = 'display:block;margin-top:16px';
+      button.textContent = 'Ouvrir les profils du serveur';
+      button.onclick = () => { writeActiveProfile({ backend: 'server', userId: null }); window.location.reload(); };
+      root.append(button);
+    }
+    root.style.cssText = 'padding:24px;font:16px/1.5 system-ui,sans-serif';
     throw error;
   })
   .then(() => {
