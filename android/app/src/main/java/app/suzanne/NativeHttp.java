@@ -171,9 +171,13 @@ final class NativeHttp {
             call.reader = new FileInputStream(call.responseBody);
             evalJs.accept("window.__suzanneHttp&&window.__suzanneHttp.ready(" + JSONObject.quote(id) + "," + status + "," + JSONObject.quote(headers.toString()) + ")");
         } catch (Exception e) {
-            String message = e instanceof javax.net.ssl.SSLException
-                    ? "certificat du serveur refusé (fais-lui confiance depuis l'écran de connexion)"
-                    : e.getClass().getSimpleName() + (e.getMessage() != null ? " : " + e.getMessage() : "");
+            String message;
+            if (e instanceof javax.net.ssl.SSLException) message = "certificat du serveur refusé (fais-lui confiance depuis l'écran de connexion)";
+            else if (e instanceof java.net.SocketTimeoutException) message = "pas de réponse dans les temps";
+            else if (e instanceof java.net.UnknownHostException) message = "adresse introuvable";
+            else if (e instanceof java.net.ConnectException || e instanceof java.net.NoRouteToHostException) message = "connexion impossible";
+            else message = e.getClass().getSimpleName() + (e.getMessage() != null ? " : " + e.getMessage() : "");
+            Log.w(TAG, "échec de " + call.method + " " + call.url, e);
             if (!call.cancelled) evalJs.accept("window.__suzanneHttp&&window.__suzanneHttp.fail(" + JSONObject.quote(id) + "," + JSONObject.quote(message) + ")");
             cleanup(id);
         } finally {

@@ -15,8 +15,8 @@ import '../styles/pages/settings.css';
 
 const SIDE_ICON: Record<Backend, typeof Server> = { server: Server, phone: Smartphone };
 
-/** Profils de l'autre côté (app Android) : chargés à part, sans changer de côté. */
-function useOtherSide(other: Backend | null) {
+/** Profils d'un côté (app Android), chargés à part, sans changer de côté actif. */
+function useSideList(other: Backend | null) {
   const [users, setUsers] = useState<User[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -43,7 +43,9 @@ export function UsersPage({ users, currentUserId, run, onOpen }: {
   const active = activeBackend();
   const twoSides = sides.length > 1;
   const other = twoSides ? sides.find((s) => s !== active) ?? null : null;
-  const otherSide = useOtherSide(other);
+  const otherSide = useSideList(other);
+  // Côté actif sans profil : vide, ou injoignable ? (ex. serveur hors ligne)
+  const activeProbe = useSideList(twoSides && users.length === 0 ? active : null);
   const [creating, setCreating] = useState(false);
   const [moving, setMoving] = useState<{ user: User; from: Backend } | null>(null);
 
@@ -51,6 +53,7 @@ export function UsersPage({ users, currentUserId, run, onOpen }: {
 
   const refreshAll = () => {
     void otherSide.reload();
+    void activeProbe.reload();
     void run(async () => undefined, t('reglages.sides.lists_updated'));
   };
 
@@ -122,7 +125,9 @@ export function UsersPage({ users, currentUserId, run, onOpen }: {
       </div>
 
       {ordered.map((side) => {
-        const list = side === active ? users : otherSide.users;
+        const probe = side === active ? activeProbe : otherSide;
+        // Côté actif vide : on attend la sonde pour ne pas dire « aucun profil » à tort.
+        const list = probe.error ? null : side === active ? (users.length > 0 || !twoSides ? users : activeProbe.users) : otherSide.users;
         const Icon = SIDE_ICON[side];
         return (
           <div key={side} className="panel st-list">
@@ -131,8 +136,8 @@ export function UsersPage({ users, currentUserId, run, onOpen }: {
                 <Icon size={16} aria-hidden="true" /> {t(side === 'server' ? 'reglages.sides.server' : 'reglages.sides.phone')}
               </h3>
             )}
-            {side !== active && otherSide.error && <p className="empty">{t('reglages.sides.unreachable', { error: otherSide.error })}</p>}
-            {side !== active && !otherSide.error && list == null && <p className="empty"><Loader2 className="spin-icon" size={16} /> {t('reglages.settings.loading')}</p>}
+            {probe.error && <p className="empty">{t('reglages.sides.unreachable', { error: probe.error })}</p>}
+            {!probe.error && list == null &&<p className="empty"><Loader2 className="spin-icon" size={16} /> {t('reglages.settings.loading')}</p>}
             {list && list.length === 0 && <p className="empty">{t('reglages.no_profiles')}</p>}
             {list && renderList(side, list)}
           </div>
