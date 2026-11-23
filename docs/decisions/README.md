@@ -17,3 +17,4 @@ remplace (statut « remplacé par NNNN »).
 | 0009 | Synchronisation bancaire DSP2 via Enable Banking |
 | 0010 | Comptes professionnels hors des finances personnelles |
 | 0011 | Mode « local » sur téléphone : backend exécuté dans la WebView (Prisma edge + PGlite) |
+| 0012 | Profils « serveur » ou « téléphone », et passage de l'un à l'autre |
