@@ -24,6 +24,19 @@ reglages.hint_delay.2s,2 secondes,2 seconds
 reglages.hint_delay.3s,3 secondes,3 seconds
 reglages.hint_delay.immediate,Immédiat,Immediate
 reglages.hint_delay.never,Jamais,Never
+reglages.tabbar.title,Barre du bas,Bottom bar
+reglages.tabbar.hint,"Sur téléphone : choisis de {{min}} à {{max}} pages et leur ordre, les autres sont dans « Plus ». Glisser en bas de l'écran suit cet ordre. Réglage propre à cet appareil.","On phones: pick {{min}} to {{max}} pages and their order; the others are under “More”. Swiping at the bottom of the screen follows this order. Saved on this device."
+reglages.tabbar.preview,Aperçu de la barre,Bar preview
+reglages.tabbar.in_bar,Dans la barre,In the bar
+reglages.tabbar.in_more,Dans « Plus »,Under “More”
+reglages.tabbar.add,Ajouter,Add
+reglages.tabbar.remove,Retirer {{name}} de la barre,Remove {{name}} from the bar
+reglages.tabbar.up,Monter {{name}},Move {{name}} up
+reglages.tabbar.down,Descendre {{name}},Move {{name}} down
+reglages.tabbar.drag,Glisser pour déplacer {{name}},Drag to move {{name}}
+reglages.tabbar.full,{{n}} pages au plus : retires-en une d'abord,{{n}} pages at most: remove one first
+reglages.tabbar.min,{{n}} pages au moins dans la barre,At least {{n}} pages in the bar
+reglages.tabbar.reset,Revenir à la barre par défaut,Back to the default bar
 reglages.backups_panel.backups,Sauvegardes,Backups
 reglages.backups_panel.create,Créer,Create
 reglages.backups_panel.one_automatic_backup_per_day,"Une sauvegarde automatique par jour, les 14 dernières sont gardées.","One automatic backup per day, the last 14 are kept."

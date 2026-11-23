@@ -247,3 +247,40 @@
 .icon-picker-none { font-size: 16px; line-height: 1; }
 .icon-picker-empty { grid-column: 1 / -1; margin: 0; padding: 18px 4px; text-align: center; font-size: 13px; }
 .st-cat-icon { flex: none; color: var(--muted); }
+
+/* ---- Barre du bas : éditeur (Réglages › Préférences) --------------------- */
+.tb-editor { display: grid; gap: 10px; min-width: 0; }
+/* Aperçu : la barre telle qu'elle apparaîtra en bas de l'écran. */
+.tb-preview {
+  display: grid; grid-template-columns: repeat(var(--tb-cols, 5), 1fr); align-items: center;
+  min-height: 60px; padding: 0 6px; border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface);
+}
+.tb-preview-item { display: grid; justify-items: center; gap: 2px; color: var(--muted); }
+.tb-preview-item small { font-size: 10.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tb-preview-add {
+  justify-self: center; display: grid; place-items: center; width: 38px; height: 38px;
+  border-radius: 13px; background: var(--accent-fill); color: var(--on-accent); transform: rotate(-3deg);
+}
+.tb-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 4px; font-size: 13px; }
+.tb-group-head span { color: var(--muted); font-size: 12.5px; }
+.tb-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tb-row {
+  display: flex; align-items: center; gap: 4px; min-height: 48px; padding: 2px 6px 2px 2px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised);
+  position: relative; transition: box-shadow 120ms;
+}
+.tb-row.dragging { z-index: 2; box-shadow: var(--shadow-pop); transition: none; }
+.tb-row-more { background: transparent; border-style: dashed; padding-left: 12px; }
+.tb-grip {
+  display: grid; place-items: center; width: 44px; height: 44px; flex: none;
+  border: 0; background: none; color: var(--muted); cursor: grab;
+  touch-action: none; /* le doigt déplace la ligne, pas la page */
+}
+.tb-row.dragging .tb-grip { cursor: grabbing; color: var(--text); }
+.tb-name { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 14.5px; }
+.tb-name svg { flex: none; color: var(--muted); }
+.tb-row .icon-ghost { width: 40px; height: 40px; flex: none; }
+.tb-row .icon-ghost:disabled { opacity: 0.3; }
+.tb-add { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; flex: none; }
+.tb-reset { display: inline-flex; align-items: center; gap: 6px; justify-self: start; font-size: 13px; }

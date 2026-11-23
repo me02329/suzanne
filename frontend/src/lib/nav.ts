@@ -89,8 +89,7 @@ export const navSections: NavSection[] = [
   },
 ];
 
-/** Sections de la barre d'onglets mobile (les autres vont dans « Plus »). */
-export const MOBILE_PRIMARY = ['home', 'ops', 'accounts'] as const;
+// Sections de la barre du bas (téléphone) : réglables, voir lib/tabbar.ts.
 
 /** Pages dont le contenu dépend du mois sélectionné (sélecteur affiché). */
 export const MONTH_TABS = new Set<Tab>(['dashboard', 'health', 'alerts', 'transactions', 'budgets', 'bills', 'assistant']);

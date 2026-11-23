@@ -24,7 +24,7 @@ import {
 } from '@suzanne/shared';
 import { api } from './lib/api';
 import { currentMonthIso } from './lib/format';
-import { MOBILE_PRIMARY, MONTH_TABS, navSections, normalizeTab, pathForTab, sectionForTab, tabFromPath, tabLabel, type Tab } from './lib/nav';
+import { MONTH_TABS, navSections, normalizeTab, pathForTab, sectionForTab, tabFromPath, tabLabel, type Tab } from './lib/nav';
 import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
 import { useGlobalShortcuts } from './lib/useGlobalShortcuts';
@@ -33,6 +33,7 @@ import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
 import { BankSyncButton } from './components/BankSyncButton';
 import { TouchGestures, type SwipeZone } from './components/TouchGestures';
+import { addButtonIndex, useTabbar } from './lib/tabbar';
 import { SuzanneMark } from './components/SuzanneMark';
 import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
@@ -85,6 +86,8 @@ export default function App() {
   const { t } = useTranslation();
   const tab = tabFromPath(location.pathname);
   const [lastTab, setLastTab] = usePersistedState<Tab>('active_tab', 'dashboard');
+  // Barre du bas (téléphone) : pages et ordre choisis par l'utilisateur.
+  const tabbarIds = useTabbar();
   const [theme, setTheme] = useTheme();
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -378,16 +381,32 @@ export default function App() {
     setMoreOpen(false);
   };
   // Glisser à gauche / à droite (tactile) : en haut de l'écran, sous-page
-  // voisine dans la section ; en bas, grande page voisine (ordre de la
-  // navigation), ouverte sur son premier onglet.
-  const neighbourTab = (direction: 'next' | 'prev', zone: SwipeZone) => {
+  // voisine dans la section ; en bas, position voisine dans la barre du bas
+  // (pages choisies, puis « Plus », qui ouvre le menu plutôt que d'enchaîner des
+  // pages invisibles dans la barre). Une page de « Plus » compte comme « Plus ».
+  const neighbourTab = (direction: 'next' | 'prev', zone: SwipeZone): Tab | 'more' | undefined => {
     const step = direction === 'next' ? 1 : -1;
     if (zone === 'sections') {
-      const index = navSections.findIndex((s) => s.id === section.id);
-      return index < 0 ? undefined : navSections[index + step]?.tabs[0]?.tab;
+      const positions = [...tabbarIds, 'more'];
+      const here = tabbarIds.includes(section.id) ? positions.indexOf(section.id) : positions.length - 1;
+      const target = positions[here + step];
+      // Sur une page de « Plus », glisser encore vers la gauche rouvre le menu.
+      if (target === undefined) return here === positions.length - 1 && step > 0 ? 'more' : undefined;
+      if (target === 'more') return 'more';
+      return navSections.find((s) => s.id === target)?.tabs[0]?.tab;
     }
     const index = section.tabs.findIndex((item) => item.tab === tab);
     return index < 0 ? undefined : section.tabs[index + step]?.tab;
+  };
+  const addButton = (
+    <button key="add" type="button" className="tabbar-add" aria-label={t('ui.app.new_transaction')} onClick={() => navigate('/transactions?focus=quick')}>
+      <Plus size={24} strokeWidth={2.25} />
+    </button>
+  );
+  const goNeighbour = (direction: 'next' | 'prev', zone: SwipeZone) => {
+    const next = neighbourTab(direction, zone);
+    if (next === 'more') setMoreOpen(true);
+    else if (next) setActiveTab(next);
   };
   const openUnassignedTransactions = () => {
     setTransactionIssueFilter('unassigned_account');
@@ -423,7 +442,7 @@ export default function App() {
     <div className="shell">
       <TouchGestures
         canSwipe={(direction, zone) => neighbourTab(direction, zone) !== undefined}
-        onSwipe={(direction, zone) => { const next = neighbourTab(direction, zone); if (next) setActiveTab(next); }}
+        onSwipe={goNeighbour}
         onRefresh={() => reload().catch((e) => setError((e as Error).message))}
       />
       <aside className="rail" aria-label={t('ui.app.main_navigation')}>
@@ -573,21 +592,21 @@ export default function App() {
         </main>
       </div>
 
-      <nav className="tabbar" aria-label={t('ui.app.navigation')}>
-        {navSections.filter((s) => (MOBILE_PRIMARY as readonly string[]).includes(s.id)).slice(0, 2).map((s) => (
-          <button key={s.id} type="button" className={s.id === section.id ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setActiveTab(s.tabs[0]!.tab)}>
-            {s.icon}<span>{t(s.short)}</span>
-          </button>
-        ))}
-        <button type="button" className="tabbar-add" aria-label={t('ui.app.new_transaction')} onClick={() => navigate('/transactions?focus=quick')}>
-          <Plus size={24} strokeWidth={2.25} />
-        </button>
-        {navSections.filter((s) => s.id === 'accounts').map((s) => (
-          <button key={s.id} type="button" className={s.id === section.id ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setActiveTab(s.tabs[0]!.tab)}>
-            {s.icon}<span>{t(s.short)}</span>
-          </button>
-        ))}
-        <button type="button" className={moreOpen || !(MOBILE_PRIMARY as readonly string[]).includes(section.id) ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setMoreOpen(true)}>
+      {/* Barre du bas : pages choisies dans Réglages › Préférences (2 à 4, dans
+          leur ordre), « + » au milieu, « Plus » au bout. */}
+      <nav className="tabbar" aria-label={t('ui.app.navigation')} style={{ ['--tabbar-cols' as string]: tabbarIds.length + 2 }}>
+        {tabbarIds.flatMap((id, index) => {
+          const s = navSections.find((x) => x.id === id);
+          if (!s) return [];
+          const item = (
+            <button key={s.id} type="button" className={s.id === section.id ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setActiveTab(s.tabs[0]!.tab)}>
+              {s.icon}<span>{t(s.short)}</span>
+            </button>
+          );
+          return index === addButtonIndex(tabbarIds.length) ? [addButton, item] : [item];
+        })}
+        {addButtonIndex(tabbarIds.length) >= tabbarIds.length && addButton}
+        <button type="button" className={moreOpen || !tabbarIds.includes(section.id) ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setMoreOpen(true)}>
           <MoreHorizontal size={20} strokeWidth={1.75} /><span>{t('ui.app.more')}</span>
         </button>
       </nav>
@@ -600,7 +619,7 @@ export default function App() {
               <button type="button" className="icon-ghost" aria-label={t('ui.app.close')} onClick={() => setMoreOpen(false)}><X size={18} /></button>
             </div>
             <div className="sheet-grid">
-              {navSections.filter((s) => !(MOBILE_PRIMARY as readonly string[]).includes(s.id)).map((s) => (
+              {navSections.filter((s) => !tabbarIds.includes(s.id)).map((s) => (
                 <button key={s.id} type="button" className={s.id === section.id ? 'sheet-link active' : 'sheet-link'} onClick={() => setActiveTab(s.tabs[0]!.tab)}>
                   {s.icon}<span>{t(s.label)}</span>
                 </button>

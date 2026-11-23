@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { api, type AiSettings } from '../lib/api';
 import { currentLang, setLanguage, type Lang } from '../i18n';
 import { HINT_DELAY_OPTIONS, setHintDelay, useHintDelay } from '../lib/prefs';
+import { TABBAR_MAX, TABBAR_MIN } from '../lib/tabbar';
+import { TabbarEditor } from '../components/TabbarEditor';
 import '../styles/pages/settings.css';
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -121,6 +123,14 @@ export function Settings() {
             {HINT_DELAY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
           </select>
         </label>
+      </section>
+
+      <section className="panel st-pref">
+        <div className="st-pref-head">
+          <h2>{t('reglages.tabbar.title')}</h2>
+          <p>{t('reglages.tabbar.hint', { min: TABBAR_MIN, max: TABBAR_MAX })}</p>
+        </div>
+        <TabbarEditor />
       </section>
 
       <section className="panel st-pref st-pref-ai" id="assistant">
