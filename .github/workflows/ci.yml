@@ -27,6 +27,11 @@ jobs:
       - name: Test
         run: npm test
 
+      # Mode local (ADR 0011) : les tests d'intégration exécutés à travers le
+      # serveur embarqué du téléphone, sur PGlite (aucun Postgres nécessaire).
+      - name: Tests du mode local
+        run: npm run test:local
+
       # Catalogues de traduction bien formés (bloquant) + état de la migration i18n.
       - name: i18n
         run: npm run i18n:check
