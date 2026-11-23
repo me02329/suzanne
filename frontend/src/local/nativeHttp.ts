@@ -55,7 +55,7 @@ function installCallbacks() {
 const UPLOAD_CHUNK = 768 * 1024; // multiple de 3 : base64 sans remplissage intermédiaire
 const DOWNLOAD_CHUNK = 1024 * 1024;
 
-function toBase64(bytes: Uint8Array): string {
+export function toBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i += 0x8000) {
     binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));

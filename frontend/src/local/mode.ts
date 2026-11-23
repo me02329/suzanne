@@ -4,6 +4,7 @@
 // parler au serveur (pont natif) et au serveur embarqué du téléphone.
 import { authHeaders } from '../lib/authToken';
 import { writeActiveProfile, type Backend } from '../lib/activeProfile';
+import { saveBlob } from '../lib/download';
 
 /** Interface embarquée dans l'app Android ? (constante de build) */
 export const IS_APP = false;
@@ -31,6 +32,11 @@ export function fetchFrom(_backend: Backend, path: string, init: RequestInit = {
 export function switchProfile(backend: Backend, userId: number): void {
   writeActiveProfile({ backend, userId });
   if (backend !== activeBackend()) window.location.reload();
+}
+
+/** Enregistre un fichier sur l'appareil (téléchargement du navigateur). */
+export async function saveFileNow(blob: Blob, filename: string): Promise<void> {
+  saveBlob(blob, filename);
 }
 
 export function serverConfigured(): boolean {

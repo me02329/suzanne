@@ -8,8 +8,8 @@ import { Modal } from '../components/Modal';
 import { RowMenu, type RowMenuItem } from '../components/ui/RowMenu';
 import type { Run } from '../lib/run';
 import type { Backend } from '../lib/activeProfile';
-import { activeBackend, availableBackends, fetchFrom, switchProfile } from '../local/mode';
-import { saveBlob } from '../lib/download';
+import { activeBackend, availableBackends, fetchFrom, saveFileNow, switchProfile } from '../local/mode';
+import { TOKEN_CHANGED } from '../lib/authToken';
 import { stepsFor, transferProfile, type TransferMode, type TransferStep } from '../lib/profileTransfer';
 import '../styles/pages/settings.css';
 
@@ -31,7 +31,12 @@ function useSideList(other: Backend | null) {
       setError((e as Error).message);
     }
   }, [other]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+    const again = () => void load();
+    window.addEventListener(TOKEN_CHANGED, again);
+    return () => window.removeEventListener(TOKEN_CHANGED, again);
+  }, [load]);
   return { users, error, reload: load };
 }
 
@@ -203,7 +208,7 @@ function TransferModal({ user, from, to, onOpen, onClose }: {
     setRunning(true);
     setError(null);
     try {
-      setDone(await transferProfile({ fetchFrom, saveBlob }, { from, to, user, mode, onStep: setStep }));
+      setDone(await transferProfile({ fetchFrom, saveBlob: saveFileNow }, { from, to, user, mode, onStep: setStep }));
     } catch (e) {
       setError((e as Error).message);
     } finally {

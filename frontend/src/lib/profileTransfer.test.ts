@@ -56,6 +56,15 @@ describe('transferProfile', () => {
     expect(calls.some((c) => c.includes('DELETE'))).toBe(false);
   });
 
+  it('sauvegarde impossible : ni import ni suppression', async () => {
+    const { deps, calls } = fakeDeps({
+      'server GET /api/users/3/export.json': ok({ version: 3 }),
+    });
+    deps.saveBlob = async () => { throw new Error('disque plein'); };
+    await expect(transferProfile(deps, { from: 'server', to: 'phone', user, mode: 'move' })).rejects.toThrow(/rien n’a été transféré/);
+    expect(calls).toEqual(['server GET /api/users/3/export.json']);
+  });
+
   it('serveur pas à jour : arrêt avant tout export', async () => {
     const { deps, calls } = fakeDeps({
       'server POST /api/profiles/import': ok({ error: 'Route introuvable' }, 404),

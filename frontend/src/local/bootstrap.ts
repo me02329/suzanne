@@ -6,8 +6,9 @@ import { Buffer } from 'buffer';
 import { PGlite } from '@electric-sql/pglite';
 import snapshotUrl from '../../.local-build/suzanne-db.pgz?url';
 import { migrateWithBackup } from './migrate';
-import { nativeBridge, nativeFetch } from './nativeHttp';
-import { authHeaders } from '../lib/authToken';
+import { nativeBridge, nativeFetch, toBase64 } from './nativeHttp';
+import { saveBlob } from '../lib/download';
+import { authHeaders, notifyUnauthorized } from '../lib/authToken';
 import { readActiveProfile, writeActiveProfile, type Backend } from '../lib/activeProfile';
 
 // Origine fixe (IndexedDB est lié à l'origine et à ce nom) : ne jamais changer.
@@ -72,7 +73,11 @@ async function flushToDisk(db: PGlite): Promise<void> {
   await (db as unknown as { fs: { syncToFs: (relaxed: boolean) => Promise<void> } }).fs.syncToFs(false);
 }
 
+// Base installée pendant ce lancement (première ouverture) ?
+let freshInstall = false;
+
 async function installFromSnapshot(): Promise<PGlite> {
+  freshInstall = true;
   // Base pré-migrée livrée avec l'app plutôt que 39 migrations sur le téléphone.
   const response = await fetch(snapshotUrl);
   if (!response.ok) throw new Error(`Base de départ introuvable (${response.status})`);
@@ -245,7 +250,23 @@ function dispatch(backend: Backend, request: Request): Promise<Response> {
 export function fetchFrom(backend: Backend, path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
   if (backend === 'server') for (const [name, value] of Object.entries(authHeaders())) if (!headers.has(name)) headers.set(name, value);
-  return dispatch(backend, new Request(new URL(path, window.location.origin), { ...init, headers }));
+  return dispatch(backend, new Request(new URL(path, window.location.origin), { ...init, headers })).then((response) => {
+    // Jeton manquant ou refusé, même depuis le côté téléphone : on le demande.
+    if (backend === 'server' && response.status === 401) notifyUnauthorized();
+    return response;
+  });
+}
+
+/**
+ * Enregistre un fichier dans Téléchargements et attend la confirmation de
+ * l'app (une sauvegarde d'avant transfert doit être sur le disque avant
+ * qu'on retire quoi que ce soit).
+ */
+export async function saveFileNow(blob: Blob, filename: string): Promise<void> {
+  const android = (window as { SuzanneAndroid?: { saveFile(base64: string, name: string, mime: string, open: boolean): boolean } }).SuzanneAndroid;
+  if (!android) { saveBlob(blob, filename); return; }
+  const saved = android.saveFile(toBase64(new Uint8Array(await blob.arrayBuffer())), filename, blob.type || 'application/octet-stream', false);
+  if (saved !== true) throw new Error('fichier non enregistré');
 }
 
 /** Ouvre un profil ; changer de côté recharge l'app. */
@@ -266,8 +287,10 @@ export async function startLocal(): Promise<void> {
   if (ACTIVE !== 'phone') return; // la base du téléphone ne s'ouvre qu'au besoin
 
   const { handle, db } = await ensureLocal();
-  // App sans serveur, première ouverture : un profil prêt à l'emploi (comme
-  // l'installation d'un serveur), créé par la même route que l'app.
+  // Côté téléphone, toute première ouverture : un profil prêt à l'emploi (comme
+  // l'installation d'un serveur), créé par la même route que l'app. Pas après
+  // coup : un téléphone vidé par un transfert reste vide.
+  if (!freshInstall) return;
   const users = await handle('GET', '/api/users');
   if (users.status === 200 && users.body === '[]') {
     await handle('POST', '/api/users', { name: 'Moi' });

@@ -35,7 +35,11 @@ export function setAppToken(token: string | null): void {
   } catch {
     // privacy mode / quota : on garde au moins la valeur en mémoire.
   }
+  // Les listes chargées à part (profils de l'autre côté) se rechargent.
+  window.dispatchEvent(new Event(TOKEN_CHANGED));
 }
+
+export const TOKEN_CHANGED = 'suzanne:token-changed';
 
 /** En-têtes d'auth à fusionner dans chaque requête (vide si pas de token). */
 export function authHeaders(): Record<string, string> {

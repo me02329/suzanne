@@ -389,7 +389,7 @@ public class MainActivity extends Activity {
     /** Appelé depuis bridge.js (thread JavaBridge, pas le thread UI). */
     private final class Bridge {
         @JavascriptInterface
-        public void saveFile(String base64, String filename, String mime, boolean open) {
+        public boolean saveFile(String base64, String filename, String mime, boolean open) {
             try {
                 byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
                 String name = safeName(filename, mime);
@@ -411,9 +411,11 @@ public class MainActivity extends Activity {
                         }
                     }
                 });
+                return true;
             } catch (Exception e) {
                 Log.e(TAG, "saveFile", e);
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, R.string.save_failed, Toast.LENGTH_SHORT).show());
+                return false;
             }
         }
 

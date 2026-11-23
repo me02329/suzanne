@@ -8,7 +8,8 @@ export type TransferStep = 'check' | 'export' | 'save' | 'import' | 'verify' | '
 
 export interface TransferDeps {
   fetchFrom(backend: Backend, path: string, init?: RequestInit): Promise<Response>;
-  saveBlob(blob: Blob, filename: string): void;
+  /** Range la sauvegarde sur l'appareil ; rejette si elle n'a pas pu l'être. */
+  saveBlob(blob: Blob, filename: string): Promise<void> | void;
 }
 
 export interface TransferRequest {
@@ -107,15 +108,24 @@ export async function transferProfile(deps: TransferDeps, req: TransferRequest):
   const exported = await deps.fetchFrom(from, `/api/users/${user.id}/export.json`);
   if (!exported.ok) throw new TransferError(await errorOf(exported));
   const text = await exported.text();
-  const payload = JSON.parse(text) as unknown;
 
   if (mode === 'move') {
     step('save');
-    deps.saveBlob(new Blob([text], { type: 'application/json' }), backupName(user.name));
+    try {
+      await deps.saveBlob(new Blob([text], { type: 'application/json' }), backupName(user.name));
+    } catch (error) {
+      throw new TransferError(`Sauvegarde dans Téléchargements impossible (${(error as Error).message}) : rien n’a été transféré.`);
+    }
   }
 
   step('import');
-  const imported = await call<{ user: { id: number }; created: boolean }>(deps, to, '/api/profiles/import', json({ payload }));
+  // Corps construit autour du texte exporté, sans le décoder puis le réencoder :
+  // un gros profil n'existe ainsi qu'en un exemplaire de plus en mémoire.
+  const imported = await call<{ user: { id: number }; created: boolean }>(deps, to, '/api/profiles/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: `{"payload":${text}}`,
+  });
 
   step('verify');
   const [source, destination] = await Promise.all([
