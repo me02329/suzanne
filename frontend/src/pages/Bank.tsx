@@ -6,6 +6,7 @@ import type { Account } from '@suzanne/shared';
 import { api, type BankAspsp, type BankAutoSync, type BankCheck, type BankConnection, type BankLink, type BankStatus } from '../lib/api';
 import { pickableAccounts } from '../lib/account';
 import { money } from '../lib/format';
+import { serverOrigin } from '../lib/serverOrigin';
 import { formatTxDate } from '../components/transactions/txUtils';
 import { Modal } from '../components/Modal';
 import { RowMenu } from '../components/ui/RowMenu';
@@ -226,7 +227,7 @@ function AutoSyncCard({ userId, autoSync, run, onChanged }: { userId: number; au
 
 function SetupGuide({ status }: { status: BankStatus }) {
   const { t } = useTranslation();
-  const callback = `${window.location.origin}/bank/callback`;
+  const callback = `${serverOrigin()}/bank/callback`;
   const env = `ENABLE_BANKING_APP_ID=<id de l'application>\nENABLE_BANKING_KEY_PATH=/run/secrets/enablebanking.pem\nENABLE_BANKING_REDIRECT_URL=${callback}`;
   return (
     <div className="pg-card bank-guide">
@@ -304,7 +305,7 @@ function ServerPanel({ userId, status, onPasted }: { userId: number; status: Ban
   const [check, setCheck] = useState<BankCheck | null>(null);
   const [checking, setChecking] = useState(false);
   const [pasted, setPasted] = useState('');
-  const expected = `${window.location.origin}/bank/callback`;
+  const expected = `${serverOrigin()}/bank/callback`;
   const elsewhere = status.redirect_url !== null && status.redirect_url !== expected;
   const runCheck = async () => {
     setChecking(true);

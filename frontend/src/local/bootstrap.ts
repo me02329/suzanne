@@ -5,8 +5,11 @@ import { Buffer } from 'buffer';
 import { PGlite } from '@electric-sql/pglite';
 import snapshotUrl from '../../.local-build/suzanne-db.pgz?url';
 import { migrateWithBackup } from './migrate';
+import { nativeBridge, nativeFetch, type SuzanneHttpBridge } from './nativeHttp';
 
-export const LOCAL_MODE = true;
+// Build de l'app : vrai quand les données sont sur le téléphone, faux quand
+// l'app est reliée à un serveur (fixé par startLocal, avant le rendu).
+export let LOCAL_MODE = true;
 
 // Origine fixe (IndexedDB est lié à l'origine et à ce nom) : ne jamais changer.
 const DB_NAME = 'suzanne-local';
@@ -182,7 +185,30 @@ function interceptApi(handle: LocalHandler, db: PGlite) {
   };
 }
 
+/**
+ * App reliée à un serveur : même interface embarquée, mais les appels /api/…
+ * partent vers le serveur, par le pont natif (voir nativeHttp.ts). La base
+ * locale n'est pas ouverte.
+ */
+function interceptToServer(bridge: SuzanneHttpBridge, server: string) {
+  const networkFetch = window.fetch.bind(window);
+  const base = server.replace(/\/+$/, '');
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const request = new Request(input, init);
+    const url = new URL(request.url);
+    if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) return networkFetch(input, init);
+    return nativeFetch(bridge, base + url.pathname + url.search, request);
+  };
+}
+
 export async function startLocal(): Promise<void> {
+  const bridge = nativeBridge();
+  const server = bridge?.serverUrl() ?? '';
+  if (bridge && server) {
+    LOCAL_MODE = false;
+    interceptToServer(bridge, server);
+    return;
+  }
   (globalThis as { Buffer?: typeof Buffer }).Buffer ??= Buffer;
   globalThis.__suzanneLocalDb = openDatabase();
   const db = await globalThis.__suzanneLocalDb;
