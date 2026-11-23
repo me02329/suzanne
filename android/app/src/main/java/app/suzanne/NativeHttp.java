@@ -69,9 +69,24 @@ final class NativeHttp {
         this.currentHost = currentHost;
     }
 
-    /** La requête vient-elle de l'interface embarquée, et vise-t-elle le serveur configuré ? */
+    /**
+     * Cours de bourse et taux de change pour les profils du téléphone : le
+     * serveur embarqué interroge Yahoo Finance, qui n'autorise pas les appels
+     * depuis une page (CORS). Seuls ces hôtes, en https, sont ajoutés.
+     */
+    private static final java.util.Set<String> MARKET_HOSTS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "query1.finance.yahoo.com", "query2.finance.yahoo.com"));
+
+    static boolean isMarketData(URL target) {
+        return "https".equalsIgnoreCase(target.getProtocol())
+                && MARKET_HOSTS.contains(target.getHost().toLowerCase(java.util.Locale.ROOT))
+                && (target.getPort() == -1 || target.getPort() == 443);
+    }
+
+    /** La requête vient-elle de l'interface embarquée, et vise-t-elle le serveur configuré (ou Yahoo) ? */
     private String refuse(URL target) {
         if (!ServerPrefs.LOCAL_HOST.equalsIgnoreCase(currentHost.get())) return "appel refusé : page non autorisée";
+        if (isMarketData(target)) return null;
         String server = ServerPrefs.get(context);
         if (server == null || ServerPrefs.isLocal(server)) return "aucun serveur configuré";
         try {
@@ -139,6 +154,8 @@ final class NativeHttp {
             conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
             conn.setReadTimeout(READ_TIMEOUT_MS);
             conn.setRequestMethod(call.method);
+            // Yahoo refuse (429) les clients qui ne ressemblent pas à un navigateur.
+            if (isMarketData(call.url)) conn.setRequestProperty("User-Agent", android.webkit.WebSettings.getDefaultUserAgent(context));
             if (call.headers != null) {
                 for (Iterator<String> it = call.headers.keys(); it.hasNext(); ) {
                     String name = it.next();

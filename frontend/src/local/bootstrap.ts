@@ -275,12 +275,19 @@ export function switchProfile(backend: Backend, userId: number): void {
   if (backend !== ACTIVE) window.location.reload();
 }
 
+// Même liste que NativeHttp.MARKET_HOSTS (l'app refuse tout autre hôte).
+const MARKET_HOSTS = new Set(['query1.finance.yahoo.com', 'query2.finance.yahoo.com']);
+
 export async function startLocal(): Promise<void> {
   // Tous les fetch('/api/…') de l'interface vont au côté actif.
   const networkFetch = window.fetch.bind(window);
   window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = new Request(input, init);
     const url = new URL(request.url);
+    // Cours et taux de change (serveur embarqué) : Yahoo n'autorise pas les
+    // appels depuis une page, l'app les fait pour nous.
+    const bridge = nativeBridge();
+    if (bridge && MARKET_HOSTS.has(url.host)) return nativeFetch(bridge, url.href, request);
     if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) return networkFetch(input, init);
     return dispatch(ACTIVE, request);
   };
