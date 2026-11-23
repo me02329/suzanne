@@ -1,15 +1,14 @@
-// Mode local (ADR 0011) : remplace ./mode.ts dans le build « local ». Démarre,
-// dans la page, la base (PGlite, persistée dans IndexedDB) et le serveur
-// Suzanne embarqué, puis redirige les appels /api/… de l'app vers lui.
+// App Android (ADR 0011, 0012) : remplace ./mode.ts dans le build « app ».
+// L'interface est embarquée ; chaque profil vit sur le serveur (appels par le
+// pont natif) ou sur le téléphone (base PGlite dans IndexedDB + serveur Suzanne
+// embarqué dans la page, démarrés seulement si un profil du téléphone sert).
 import { Buffer } from 'buffer';
 import { PGlite } from '@electric-sql/pglite';
 import snapshotUrl from '../../.local-build/suzanne-db.pgz?url';
 import { migrateWithBackup } from './migrate';
-import { nativeBridge, nativeFetch, type SuzanneHttpBridge } from './nativeHttp';
-
-// Build de l'app : vrai quand les données sont sur le téléphone, faux quand
-// l'app est reliée à un serveur (fixé par startLocal, avant le rendu).
-export let LOCAL_MODE = true;
+import { nativeBridge, nativeFetch } from './nativeHttp';
+import { authHeaders } from '../lib/authToken';
+import { readActiveProfile, writeActiveProfile, type Backend } from '../lib/activeProfile';
 
 // Origine fixe (IndexedDB est lié à l'origine et à ce nom) : ne jamais changer.
 const DB_NAME = 'suzanne-local';
@@ -154,72 +153,124 @@ type LocalHandler = (method: string, url: string, body?: unknown, headers?: Reco
   status: number; headers: Record<string, string>; body: string | Uint8Array | null; stream: ReadableStream<Uint8Array> | null;
 }>;
 
-/** Redirige fetch('/api/…') (même origine) vers le serveur embarqué. */
-function interceptApi(handle: LocalHandler, db: PGlite) {
-  const networkFetch = window.fetch.bind(window);
-  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const request = new Request(input, init);
-    const url = new URL(request.url);
-    if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) return networkFetch(input, init);
-    if (request.signal.aborted) throw new DOMException('Requête annulée', 'AbortError');
+// ---- Serveur embarqué (côté « téléphone »), démarré à la demande -----------
 
-    const text = request.method === 'GET' || request.method === 'HEAD' ? '' : await request.text();
-    let body: unknown;
-    try { body = text ? JSON.parse(text) : undefined; } catch { body = text; }
+let localServer: Promise<{ handle: LocalHandler; db: PGlite }> | null = null;
 
-    const isWrite = request.method !== 'GET' && request.method !== 'HEAD';
-    const run = (async () => {
-      const result = await handle(request.method, url.pathname + url.search, body, Object.fromEntries(request.headers));
-      // Écriture (hors flux de l'assistant) : sur le disque avant de répondre.
-      if (isWrite && !result.stream) await flushToDisk(db);
-      return result;
-    })();
-
-    const result = await new Promise<Awaited<ReturnType<LocalHandler>>>((resolve, reject) => {
-      request.signal.addEventListener('abort', () => reject(new DOMException('Requête annulée', 'AbortError')), { once: true });
-      run.then(resolve, reject);
-    });
-    const noBody = result.status === 204 || result.status === 304;
-    const payload = noBody ? null : (result.stream ?? (result.body as BodyInit | null) ?? '');
-    return new Response(payload, { status: result.status, headers: result.headers });
-  };
+/** Ouvre la base du téléphone et charge le serveur embarqué (une seule fois). */
+function ensureLocal(): Promise<{ handle: LocalHandler; db: PGlite }> {
+  localServer ??= (async () => {
+    (globalThis as { Buffer?: typeof Buffer }).Buffer ??= Buffer;
+    globalThis.__suzanneLocalDb = openDatabase();
+    const db = await globalThis.__suzanneLocalDb;
+    // Chargé après la base : le module prisma local l'attend au chargement.
+    const { handleLocal } = await import('../../../backend/src/local/handler');
+    return { handle: handleLocal as LocalHandler, db };
+  })();
+  return localServer;
 }
 
+/** Requête /api/… exécutée par le serveur embarqué. */
+async function localFetch(request: Request): Promise<Response> {
+  if (request.signal.aborted) throw new DOMException('Requête annulée', 'AbortError');
+  const { handle, db } = await ensureLocal();
+  const url = new URL(request.url);
+  const text = request.method === 'GET' || request.method === 'HEAD' ? '' : await request.text();
+  let body: unknown;
+  try { body = text ? JSON.parse(text) : undefined; } catch { body = text; }
+
+  const isWrite = request.method !== 'GET' && request.method !== 'HEAD';
+  const run = (async () => {
+    const result = await handle(request.method, url.pathname + url.search, body, Object.fromEntries(request.headers));
+    // Écriture (hors flux de l'assistant) : sur le disque avant de répondre.
+    if (isWrite && !result.stream) await flushToDisk(db);
+    return result;
+  })();
+
+  const result = await new Promise<Awaited<ReturnType<LocalHandler>>>((resolve, reject) => {
+    request.signal.addEventListener('abort', () => reject(new DOMException('Requête annulée', 'AbortError')), { once: true });
+    run.then(resolve, reject);
+  });
+  const noBody = result.status === 204 || result.status === 304;
+  const payload = noBody ? null : (result.stream ?? (result.body as BodyInit | null) ?? '');
+  return new Response(payload, { status: result.status, headers: result.headers });
+}
+
+// ---- Serveur distant (côté « serveur »), par le pont natif ------------------
+
+function serverBase(): string {
+  return (nativeBridge()?.serverUrl() ?? '').replace(/\/+$/, '');
+}
+
+export function serverConfigured(): boolean {
+  return serverBase() !== '';
+}
+
+function serverFetch(request: Request): Promise<Response> {
+  const bridge = nativeBridge();
+  const base = serverBase();
+  if (!bridge || !base) return Promise.reject(new TypeError('Aucun serveur configuré dans l’app'));
+  const url = new URL(request.url);
+  return nativeFetch(bridge, base + url.pathname + url.search, request);
+}
+
+// ---- Côté actif --------------------------------------------------------------
+
 /**
- * App reliée à un serveur : même interface embarquée, mais les appels /api/…
- * partent vers le serveur, par le pont natif (voir nativeHttp.ts). La base
- * locale n'est pas ouverte.
+ * Côté du profil actif, fixé au démarrage (changer de côté recharge l'app) :
+ * celui retenu s'il est encore disponible, sinon le serveur s'il y en a un.
  */
-function interceptToServer(bridge: SuzanneHttpBridge, server: string) {
-  const networkFetch = window.fetch.bind(window);
-  const base = server.replace(/\/+$/, '');
-  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const request = new Request(input, init);
-    const url = new URL(request.url);
-    if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) return networkFetch(input, init);
-    return nativeFetch(bridge, base + url.pathname + url.search, request);
-  };
+const ACTIVE: Backend = (() => {
+  const saved = readActiveProfile()?.backend;
+  if (saved === 'phone') return 'phone';
+  if (saved === 'server' && serverConfigured()) return 'server';
+  return serverConfigured() ? 'server' : 'phone';
+})();
+
+export const IS_APP = true;
+
+export function activeBackend(): Backend {
+  return ACTIVE;
+}
+
+export function availableBackends(): Backend[] {
+  return serverConfigured() ? ['server', 'phone'] : ['phone'];
+}
+
+function dispatch(backend: Backend, request: Request): Promise<Response> {
+  return backend === 'phone' ? localFetch(request) : serverFetch(request);
+}
+
+/** Appel à l'API d'un côté donné, quel que soit le côté actif. */
+export function fetchFrom(backend: Backend, path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (backend === 'server') for (const [name, value] of Object.entries(authHeaders())) if (!headers.has(name)) headers.set(name, value);
+  return dispatch(backend, new Request(new URL(path, window.location.origin), { ...init, headers }));
+}
+
+/** Ouvre un profil ; changer de côté recharge l'app. */
+export function switchProfile(backend: Backend, userId: number): void {
+  writeActiveProfile({ backend, userId });
+  if (backend !== ACTIVE) window.location.reload();
 }
 
 export async function startLocal(): Promise<void> {
-  const bridge = nativeBridge();
-  const server = bridge?.serverUrl() ?? '';
-  if (bridge && server) {
-    LOCAL_MODE = false;
-    interceptToServer(bridge, server);
-    return;
-  }
-  (globalThis as { Buffer?: typeof Buffer }).Buffer ??= Buffer;
-  globalThis.__suzanneLocalDb = openDatabase();
-  const db = await globalThis.__suzanneLocalDb;
-  // Chargé après la base : le module prisma local l'attend au chargement.
-  const { handleLocal } = await import('../../../backend/src/local/handler');
-  // Première ouverture : un profil prêt à l'emploi (comme l'installation d'un
-  // serveur), créé par la même route que l'app — catégories par défaut comprises.
-  const users = await handleLocal('GET', '/api/users');
+  // Tous les fetch('/api/…') de l'interface vont au côté actif.
+  const networkFetch = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const request = new Request(input, init);
+    const url = new URL(request.url);
+    if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) return networkFetch(input, init);
+    return dispatch(ACTIVE, request);
+  };
+  if (ACTIVE !== 'phone') return; // la base du téléphone ne s'ouvre qu'au besoin
+
+  const { handle, db } = await ensureLocal();
+  // App sans serveur, première ouverture : un profil prêt à l'emploi (comme
+  // l'installation d'un serveur), créé par la même route que l'app.
+  const users = await handle('GET', '/api/users');
   if (users.status === 200 && users.body === '[]') {
-    await handleLocal('POST', '/api/users', { name: 'Moi' });
+    await handle('POST', '/api/users', { name: 'Moi' });
     await flushToDisk(db);
   }
-  interceptApi(handleLocal as LocalHandler, db);
 }

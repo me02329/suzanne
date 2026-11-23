@@ -2,7 +2,14 @@
 // Le token est stocké en localStorage et envoyé sur toutes les requêtes API.
 // Si le backend n'exige pas de token, tout ça reste invisible.
 
-const STORAGE_KEY = 'suzanne_app_token';
+import { nativeBridge } from '../local/nativeHttp';
+
+// Dans l'app Android, la page est toujours https://suzanne.local : le jeton est
+// rangé sous l'adresse du serveur, pour ne pas le servir à un autre serveur.
+const STORAGE_KEY = (() => {
+  const server = typeof window === 'undefined' ? '' : nativeBridge()?.serverUrl() ?? '';
+  return server ? `suzanne_app_token:${server.replace(/\/+$/, '')}` : 'suzanne_app_token';
+})();
 
 let cached: string | null = readToken();
 let unauthorizedHandler: (() => void) | null = null;

@@ -15,7 +15,7 @@ import { AuditLogPanel } from '../components/AuditLogPanel';
 import type { Run } from '../lib/run';
 import '../styles/pages/settings.css';
 import { Bank } from './Bank';
-import { LOCAL_MODE } from '../local/mode';
+import { activeBackend } from '../local/mode';
 import { useTranslation } from 'react-i18next';
 
 const EXPORT_ENTITIES = [
@@ -265,7 +265,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     <section className="st-page tools-page">
       {/* Synchronisation bancaire en tête : la façon la plus simple de faire entrer ses opérations.
           Absente en mode local (sans serveur : ni clé privée, ni accès au fournisseur). */}
-      {!LOCAL_MODE && <Bank userId={userId} accounts={accounts} run={run} embedded />}
+      {activeBackend() === 'server' && <Bank userId={userId} accounts={accounts} run={run} embedded />}
       <div className="st-tools-grid">
         <section className="panel st-actions" aria-labelledby="tools-import-title">
           <h2 id="tools-import-title" className="st-list-title">{t('reglages.tools.import')}</h2>

@@ -14,7 +14,7 @@ import '@fontsource/jetbrains-mono/700.css';
 import './styles/global.css';
 import './styles/theme.css';
 
-import { LOCAL_MODE, startLocal } from './local/mode';
+import { IS_APP, startLocal } from './local/mode';
 
 // Mode local (build « local », ADR 0011) : base et serveur embarqués démarrés
 // avant l'app. Build normal : startLocal() ne fait rien.
@@ -34,8 +34,8 @@ void startLocal()
     );
   });
 
-// En mode local, pas de service worker : l'app et ses données sont déjà sur l'appareil.
-if (import.meta.env.PROD && !LOCAL_MODE && 'serviceWorker' in navigator) {
+// Dans l'app Android, pas de service worker : l'interface est déjà sur l'appareil.
+if (import.meta.env.PROD && !IS_APP && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {
       /* PWA install remains optional. */

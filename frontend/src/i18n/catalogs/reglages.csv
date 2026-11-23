@@ -37,6 +37,38 @@ reglages.tabbar.drag,Glisser pour déplacer {{name}},Drag to move {{name}}
 reglages.tabbar.full,{{n}} pages au plus : retires-en une d'abord,{{n}} pages at most: remove one first
 reglages.tabbar.min,{{n}} pages au moins dans la barre,At least {{n}} pages in the bar
 reglages.tabbar.reset,Revenir à la barre par défaut,Back to the default bar
+reglages.sides.intro,"Chaque profil vit sur le serveur ou sur ce téléphone, au choix.","Each profile lives either on the server or on this phone."
+reglages.sides.server,Sur le serveur,On the server
+reglages.sides.phone,Sur ce téléphone,On this phone
+reglages.sides.server_short,le serveur,the server
+reglages.sides.phone_short,le téléphone,the phone
+reglages.sides.where,Où le créer ?,Where?
+reglages.sides.open,Ouvrir,Open
+reglages.sides.move_to_phone,Passer sur le téléphone,Move to the phone
+reglages.sides.move_to_server,Passer sur le serveur,Move to the server
+reglages.sides.unreachable,Injoignable pour l'instant ({{error}}),Unreachable right now ({{error}})
+reglages.sides.lists_updated,Profils mis à jour,Profiles updated
+reglages.sides.title_to_phone,Passer « {{name}} » sur le téléphone,Move “{{name}}” to the phone
+reglages.sides.title_to_server,Passer « {{name}} » sur le serveur,Move “{{name}}” to the server
+reglages.sides.mode_move,Déplacer,Move
+reglages.sides.mode_move_hint,"Les données vont sur {{to}}, puis sont retirées de {{from}}. Une sauvegarde est d'abord rangée dans Téléchargements.","The data goes to {{to}}, then is removed from {{from}}. A backup is first saved to Downloads."
+reglages.sides.mode_copy,Copier,Copy
+reglages.sides.mode_copy_hint,"Les données sont copiées sur {{to}} ; le profil reste aussi sur {{from}}, sans lien entre les deux.","The data is copied to {{to}}; the profile also stays on {{from}}, with no link between them."
+reglages.sides.mode_fresh,Repartir de zéro,Start from scratch
+reglages.sides.mode_fresh_hint,"Un profil vide du même nom est créé sur {{to}} ; celui de {{from}} reste intact.","An empty profile with the same name is created on {{to}}; the one on {{from}} is left untouched."
+reglages.sides.merge_note,"Si ce profil existe déjà sur {{to}}, les données y sont fusionnées sans doublon.","If this profile already exists on {{to}}, the data is merged into it without duplicates."
+reglages.sides.phone_limits,"Sur le téléphone, la synchronisation bancaire ne fonctionne pas : elle s'arrêtera pour ce profil.","On the phone, bank sync is not available: it will stop for this profile."
+reglages.sides.start,Lancer,Start
+reglages.sides.close,Fermer,Close
+reglages.sides.step_check,Vérification du serveur,Checking the server
+reglages.sides.step_export,Lecture des données sur {{from}},Reading the data on {{from}}
+reglages.sides.step_save,Sauvegarde dans Téléchargements,Backup to Downloads
+reglages.sides.step_import,Écriture sur {{to}},Writing to {{to}}
+reglages.sides.step_verify,Vérification que tout est arrivé,Checking that everything arrived
+reglages.sides.step_delete,Retrait de {{from}},Removing from {{from}}
+reglages.sides.done_created,« {{name}} » est maintenant sur {{to}}.,“{{name}}” is now on {{to}}.
+reglages.sides.done_merged,« {{name}} » existait déjà sur {{to}} : les données y ont été fusionnées.,“{{name}}” already existed on {{to}}: the data was merged into it.
+reglages.sides.open_there,Ouvrir sur {{to}},Open on {{to}}
 reglages.backups_panel.backups,Sauvegardes,Backups
 reglages.backups_panel.create,Créer,Create
 reglages.backups_panel.one_automatic_backup_per_day,"Une sauvegarde automatique par jour, les 14 dernières sont gardées.","One automatic backup per day, the last 14 are kept."

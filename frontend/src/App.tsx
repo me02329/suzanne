@@ -39,6 +39,8 @@ import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
 import { TokenModal } from './components/TokenModal';
 import { onUnauthorized } from './lib/authToken';
+import { readActiveProfile, writeActiveProfile } from './lib/activeProfile';
+import { activeBackend } from './local/mode';
 import { initialAssistantMessages, type ChatMessage } from './lib/assistantState';
 
 // Pages are code-split: each becomes its own chunk so the initial bundle no
@@ -128,7 +130,8 @@ export default function App() {
   // tab switch mid-stream keeps the cancel button working.
   const [aiStreaming, setAiStreaming] = useState(false);
   const [aiChat, setAiChat] = usePersistedState<{ userId: number | null; messages: ChatMessage[] }>(
-    'ai_chat',
+    // App : un profil du téléphone et un du serveur peuvent avoir le même id.
+    activeBackend() === 'phone' ? 'ai_chat_phone' : 'ai_chat',
     { userId: null, messages: initialAssistantMessages() },
     { pause: aiStreaming },
   );
@@ -163,8 +166,19 @@ export default function App() {
   const reloadUsers = async () => {
     const rows = await api.users();
     setUsers(rows);
-    setUserId((current) => rows.some((u) => u.id === current) ? current : rows[0]?.id ?? null);
+    // Au démarrage : le profil retenu sur cet appareil (s'il est de ce côté).
+    const saved = readActiveProfile();
+    const remembered = saved?.backend === activeBackend() ? saved.userId : null;
+    setUserId((current) => {
+      const wanted = current ?? remembered;
+      return rows.some((u) => u.id === wanted) ? wanted : rows[0]?.id ?? null;
+    });
   };
+
+  // Profil choisi : retenu pour le prochain lancement.
+  useEffect(() => {
+    if (userId != null) writeActiveProfile({ backend: activeBackend(), userId });
+  }, [userId]);
 
   // Month-independent data: only refetched when the user changes (or after a
   // mutation), never on month navigation. Bumps dataVersion because accounts /
@@ -582,7 +596,7 @@ export default function App() {
           <Route path="/anomalies" element={userId ? <Anomalies userId={userId} accounts={accounts} accountById={accountById} categories={categories} categoryById={categoryById} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/rules" element={userId ? <Rules userId={userId} rules={rules} categories={categories} categoryById={categoryById} tags={tags} dataVersion={dataVersion} run={run} /> : null} />
           <Route path="/tools" element={userId ? <Tools userId={userId} accounts={accounts} run={run} /> : null} />
-          <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} />} />
+          <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} onOpen={setUserId} />} />
           <Route path="/simulator" element={userId ? <Simulator userId={userId} accounts={accounts} institutions={institutions} summary={summary} reportCurrency={reportCurrency} /> : null} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to={pathForTab(normalizeTab(lastTab))} replace />} />
