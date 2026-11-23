@@ -1,7 +1,7 @@
 # ADR 0012 — Profils « serveur » ou « téléphone », et passage de l'un à l'autre
 
 - Date : 23 novembre 2026
-- Statut : accepté (en cours de réalisation, par étapes)
+- Statut : accepté — révisé le 23 novembre 2026 (interface toujours embarquée, pont HTTP natif)
 
 ## Contexte
 
@@ -29,7 +29,7 @@ critère par numéro ne vaut plus que pour une sauvegarde sans `uid` (fichiers a
 source, importer côté destination, **vérifier**, puis selon le choix :
 
 - *Déplacer* (proposé par défaut) : l'export est d'abord gardé dans Téléchargements ; la
-  source n'est supprimée qu'**après** vérification (nombre d'éléments, soldes des comptes) ;
+  source n'est supprimée qu'**après** vérification ;
 - *Copier* : la source reste, les deux évoluent séparément ;
 - *Repartir de zéro* : profil vide à destination, source intacte.
 
@@ -39,20 +39,47 @@ est créé **sans** les données par défaut (compte et catégories d'un nouveau
 entreraient en collision avec celles importées). Un nom déjà pris par un autre profil :
 on reprend le profil homonyme s'il est vide, sinon on suffixe le nom.
 
-**Organisation dans l'app Android.** Chaque profil garde l'interface de son côté : un
-profil serveur s'affiche depuis le serveur (à jour sans réinstaller l'app), un profil
-téléphone depuis l'app (`https://suzanne.local`). L'app native tient la liste des profils
-des deux côtés et orchestre le passage (navigation, transfert, reprise si l'app est tuée
-en cours). Écarté : charger toujours l'interface de l'APK et appeler le serveur depuis une
-autre origine (CORS à ouvrir, certificat auto-signé, jeton par origine, interface figée à
-la version de l'APK).
+Vérification : les `uid` de la source (comptes, catégories, opérations, tags,
+établissements, récurrents, objectifs) doivent tous se retrouver à destination, et les
+autres éléments y être au moins aussi nombreux (`GET /users/:id/transfer-check` des deux
+côtés). *Repartir de zéro* crée un profil neuf (nouvel `uid`) : un transfert ultérieur ne
+le fusionnera pas avec l'original. Avant d'exporter quoi que ce soit vers un serveur, l'app
+vérifie qu'il connaît `/profiles/import` ; sinon : « mets à jour ton serveur ».
+
+**Organisation dans l'app Android — l'interface est toujours celle de l'APK.** L'app
+affiche toujours son interface embarquée (`https://suzanne.local`, servie depuis l'APK).
+Le profil actif `{côté, profil}` est retenu sur l'appareil ; tous les `fetch('/api/…')` de
+l'interface vont au côté actif, et changer de côté recharge l'app :
+
+- côté *téléphone* : serveur Suzanne embarqué + PGlite (ADR 0011), démarrés seulement si un
+  profil du téléphone sert (côté actif, page Profils, transfert) ;
+- côté *serveur* : **pont HTTP natif** (`SuzanneHttp`, `NativeHttp.java`). La page confie la
+  requête à l'app, qui l'exécute et rend statut, en-têtes et corps (par morceaux en base64,
+  via des fichiers temporaires ; annulation possible). Le pont n'accepte que les appels de
+  `suzanne.local` vers l'origine du serveur configuré (pas de mandataire ouvert), sans
+  suivre de redirection.
+
+Pourquoi un pont plutôt que `fetch` direct : vérifié sur WebView, un certificat auto-signé
+n'arrive jamais à `onReceivedSslError` pour un `fetch` (échec sans recours), et un serveur
+`http` est bloqué depuis une page `https` (contenu mixte). Le pont réutilise la confiance
+accordée à l'écran de connexion (« Faire confiance à ce serveur ») et évite CORS. Mesuré
+sur émulateur : 100 à 200 ms par appel, ~0,5 Mo/s en envoi.
+
+Écarté : afficher l'interface du serveur pour les profils serveur (première version de cet
+ADR). Deux interfaces de versions différentes dans une même app, des préférences d'appareil
+(barre du bas, thème) perdues à chaque changement de côté, et le passage d'un profil aurait
+dû être orchestré par l'app native.
 
 ## Conséquences
 
 - Migration `users.uid` (remplie pour les profils existants), couverte par le test golden.
-- Côté serveur : import « dans le profil désigné par l'uid » (création si besoin) et
-  résumé de vérification. Un serveur non mis à jour ne propose pas le transfert.
+- Côté serveur : import « dans le profil désigné par l'uid » (`POST /profiles/import`) et
+  résumé de vérification. Un serveur non mis à jour refuse le transfert avant tout export.
+- L'interface de l'app suit les versions de l'APK, plus celles du serveur : une nouveauté
+  d'interface arrive par une mise à jour de l'app ; une nouveauté d'API demande aussi de
+  mettre le serveur à jour.
+- Le jeton d'accès (`APP_TOKEN`) est rangé sous l'adresse du serveur ; les préférences
+  d'appareil vivent sur `suzanne.local` (à ressaisir une fois en passant à cette version).
 - Synchro bancaire : un profil passé sur le téléphone ne se synchronise plus (prévenu dans
   l'assistant de transfert). Les réglages de l'assistant IA sont propres à chaque côté.
-- Le site dans un navigateur ne change pas : la notion de profil « téléphone » n'existe
-  que dans l'app Android.
+- Le site dans un navigateur ne change pas : un seul côté, le serveur.
