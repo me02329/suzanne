@@ -17,7 +17,11 @@ const outDir = path.join(root, 'frontend', '.local-build');
 
 const db = new PGlite();
 const t0 = Date.now();
-const names = fs.readdirSync(migrationsDir).filter((n) => fs.existsSync(path.join(migrationsDir, n, 'migration.sql'))).sort();
+const allNames = fs.readdirSync(migrationsDir).filter((n) => fs.existsSync(path.join(migrationsDir, n, 'migration.sql'))).sort();
+// Test uniquement : SUZANNE_SNAPSHOT_SKIP=N omet les N dernières migrations, pour
+// simuler une mise à jour de l'app (l'app les applique au lancement).
+const skip = Number(process.env.SUZANNE_SNAPSHOT_SKIP ?? 0);
+const names = skip > 0 ? allNames.slice(0, -skip) : allNames;
 await db.exec('CREATE TABLE _suzanne_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
 for (const name of names) {
   await db.exec(fs.readFileSync(path.join(migrationsDir, name, 'migration.sql'), 'utf8'));
