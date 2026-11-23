@@ -56,6 +56,10 @@ public class MainActivity extends Activity {
     private TextView errorText;
     private String serverUrl;
     private String bridgeJs;
+    // Pont HTTP natif vers le serveur (l'interface est toujours celle embarquée).
+    private NativeHttp nativeHttp;
+    // Hôte de la page affichée : le pont n'obéit qu'à l'interface embarquée.
+    private volatile String pageHost = "";
     private ValueCallback<Uri[]> fileCallback;
 
     @Override
@@ -80,7 +84,15 @@ public class MainActivity extends Activity {
         boolean restored = savedInstanceState != null
                 && web.restoreState(savedInstanceState) != null
                 && web.copyBackForwardList().getSize() > 0;
-        if (!restored) web.loadUrl(serverUrl + "/");
+        // L'interface est TOUJOURS celle embarquée dans l'app (ADR 0012) : en mode
+        // serveur, seules les données viennent du serveur, via le pont natif.
+        if (!restored) web.loadUrl(ServerPrefs.LOCAL_ORIGIN + "/");
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (nativeHttp != null) nativeHttp.shutdown();
+        super.onDestroy();
     }
 
     @Override
@@ -151,8 +163,16 @@ public class MainActivity extends Activity {
         s.setUserAgentString(s.getUserAgentString() + " SuzanneAndroid/1.0");
         view.setBackgroundColor(getColor(R.color.paper));
         view.addJavascriptInterface(new Bridge(), "SuzanneAndroid");
+        nativeHttp = new NativeHttp(this, (js) -> runOnUiThread(() -> { if (web != null) web.evaluateJavascript(js, null); }), () -> pageHost);
+        view.addJavascriptInterface(nativeHttp, "SuzanneHttp");
 
         view.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageStarted(WebView v, String url, android.graphics.Bitmap favicon) {
+                String host = Uri.parse(url).getHost();
+                pageHost = host == null ? "" : host;
+            }
+
             // Mode local : https://suzanne.local/… est servi depuis l'APK, sans réseau.
             @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest request) {
@@ -272,9 +292,12 @@ public class MainActivity extends Activity {
         return n.endsWith(".html") || n.endsWith(".js") || n.endsWith(".mjs") || n.endsWith(".css") || n.endsWith(".json") || n.endsWith(".webmanifest") || n.endsWith(".svg");
     }
 
+    /**
+     * Page « de l'app » : uniquement l'interface embarquée. Toute autre adresse
+     * (y compris le serveur, la banque, la documentation) s'ouvre dans le navigateur.
+     */
     private boolean isOwnServer(Uri uri) {
-        Uri server = Uri.parse(serverUrl);
-        return server.getHost() != null && server.getHost().equalsIgnoreCase(uri.getHost()) && server.getPort() == uri.getPort();
+        return ServerPrefs.LOCAL_HOST.equalsIgnoreCase(uri.getHost());
     }
 
     private void openExternally(Uri uri) {

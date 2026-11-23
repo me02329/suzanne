@@ -61,7 +61,17 @@ final class ServerPrefs {
      * inconnue qu'en dernier recours. La vérification du nom d'hôte, elle, reste
      * celle par défaut.
      */
-    static javax.net.ssl.SSLSocketFactory lenientSocketFactory() throws Exception {
+    // Une seule fabrique pour toute l'app : la réutiliser permet à HttpURLConnection
+    // de garder les connexions ouvertes (une nouvelle fabrique par appel imposait
+    // une négociation TLS complète à chaque requête — mesuré : 0,3 à 10 s).
+    private static javax.net.ssl.SSLSocketFactory lenient;
+
+    static synchronized javax.net.ssl.SSLSocketFactory lenientSocketFactory() throws Exception {
+        if (lenient == null) lenient = buildLenientSocketFactory();
+        return lenient;
+    }
+
+    private static javax.net.ssl.SSLSocketFactory buildLenientSocketFactory() throws Exception {
         javax.net.ssl.TrustManagerFactory tmf = javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
         tmf.init((java.security.KeyStore) null);
         final javax.net.ssl.X509TrustManager system = (javax.net.ssl.X509TrustManager) tmf.getTrustManagers()[0];
