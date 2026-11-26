@@ -71,7 +71,12 @@ export function WealthReturnCard({ userId, accounts, summary, currency, money }:
   }, [data, summary, invested]);
 
   if (!result || result.since == null) return null;
-  const pct = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toLocaleString(localeTag(), { maximumFractionDigits: 2 })} %`);
+  // Arrondi d'abord : un −0,001 % ne doit pas s'afficher « +-0 % ».
+  const pct = (v: number | null) => {
+    if (v == null) return '—';
+    const r = Math.round(v * 100) / 100;
+    return `${r > 0 ? '+' : r < 0 ? '−' : ''}${Math.abs(r).toLocaleString(localeTag(), { maximumFractionDigits: 2 })} %`;
+  };
   const years = result.byYear.filter((y) => y.pct != null);
   const maxAbs = Math.max(1, ...years.map((y) => Math.abs(y.pct!)));
 

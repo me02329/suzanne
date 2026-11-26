@@ -7,7 +7,6 @@ import {
   CartesianGrid,
   Cell,
   ComposedChart,
-  Legend,
   Line,
   Pie,
   PieChart,
@@ -348,8 +347,14 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
             <p className="panel-note">{t('patrimoine.base_100_each_series_starts')}</p>
           )}
           <div className="series-toggles wl-toggles">
-            {wealthSeriesConfig.map(({ key, label }) => (
-              <label key={key}><input type="checkbox" checked={wealthSeries[key] ?? false} onChange={() => toggleWealthSeries(key)} /> {label}</label>
+            {/* Ces cases font office de légende (couleur de la série) : une
+                légende dans le graphique, avec beaucoup de comptes, prenait
+                toute la hauteur sur téléphone. */}
+            {wealthSeriesConfig.map(({ key, label, color }) => (
+              <label key={key}>
+                <input type="checkbox" checked={wealthSeries[key] ?? false} onChange={() => toggleWealthSeries(key)} style={{ accentColor: color }} />
+                <span className="wl-swatch" style={{ background: color }} aria-hidden="true" /> {label}
+              </label>
             ))}
           </div>
           <div className="chart-area">
@@ -366,7 +371,6 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
                     width={70}
                   />
                   <Tooltip formatter={wealthTooltipFormatter} labelFormatter={timeTooltipLabel(wealthGranularity === 'day' || wealthGranularity === 'week' ? 'day' : 'month')} />
-                  <Legend />
                   {wealthSeriesConfig.map(({ key, label, color, width }) => {
                     if (!wealthSeries[key]) return null;
                     if (wealthChartMode === 'area') {
