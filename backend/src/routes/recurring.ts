@@ -136,9 +136,51 @@ export async function generateDueRecurringTransactions(user_id: number, today: D
   }
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Une opération déjà là (saisie, import, banque) jusqu'à 3 jours avant ou 5
+// jours après la date prévue est l'occurrence : on la rattache au lieu d'en
+// créer une seconde. Un prélèvement arrive souvent un ou deux jours ouvrés
+// après la date contractuelle, parfois plus autour d'un week-end férié.
+export const ADOPT_BEFORE_DAYS = 3;
+export const ADOPT_AFTER_DAYS = 5;
+
+type RecurringRow = Awaited<ReturnType<typeof prisma.recurringTransaction.findMany>>[number];
+
+/**
+ * Cherche, pour une occurrence, une opération existante à rattacher : même
+ * compte, même montant signé, dans la fenêtre, pas déjà rattachée à un
+ * récurrent ni retenue pour une autre occurrence de ce passage.
+ */
+async function findAdoptable(user_id: number, row: RecurringRow, due: Date, claimed: Set<number>) {
+  if (row.account_id == null) return null;
+  const signed = row.type === 'income' ? row.amount : -row.amount;
+  const candidates = await prisma.transaction.findMany({
+    where: {
+      user_id,
+      recurring_transaction_id: null,
+      kind: 'standard',
+      date: { gte: new Date(due.getTime() - ADOPT_BEFORE_DAYS * DAY_MS), lte: new Date(due.getTime() + ADOPT_AFTER_DAYS * DAY_MS) },
+      lines: { some: { account_id: row.account_id } },
+    },
+    select: { id: true, date: true, lines: { select: { id: true, account_id: true, amount: true, category_id: true } } },
+  });
+  return candidates
+    .filter((c) => !claimed.has(c.id)
+      && c.lines.every((l) => l.account_id === row.account_id)
+      && Math.abs(c.lines.reduce((s, l) => s + l.amount, 0) - signed) < 0.005)
+    .sort((a, b) => Math.abs(a.date.getTime() - due.getTime()) - Math.abs(b.date.getTime() - due.getTime()))[0] ?? null;
+}
+
 async function generateDueRecurringTransactionsUnlocked(user_id: number, today: Date): Promise<number> {
   const rows = await prisma.recurringTransaction.findMany({ where: { user_id, active: true } });
   let generated = 0;
+  // Comptes alimentés par la synchro bancaire : la banque fait foi, on attend
+  // son opération plutôt que d'en inventer une (voir plus bas).
+  const synced = new Set((await prisma.bankLink.findMany({
+    where: { user_id, account_id: { not: null }, connection: { status: 'active' } },
+    select: { account_id: true },
+  })).map((l) => l.account_id!));
+  const claimed = new Set<number>();
 
   // Wrap each recurring row's "create N transactions + bump last_executed" in
   // a single DB transaction so a crash/double-click can't leave us with
@@ -164,7 +206,30 @@ async function generateDueRecurringTransactionsUnlocked(user_id: number, today: 
       select: { date: true },
     });
     const alreadyGenerated = new Set(existing.map((e) => dateKey(e.date)));
-    const newDates = dueDates.filter((d) => !alreadyGenerated.has(dateKey(d)));
+
+    // Chaque occurrence : déjà là (rattachée), à rattacher (opération existante),
+    // à attendre (compte synchronisé, banque pas encore passée) ou à créer.
+    // On s'arrête à la première occurrence en attente : last_executed ne
+    // dépasse jamais une occurrence non résolue.
+    const adoptions: Array<{ id: number; lines: Array<{ id: number; category_id: number | null }> }> = [];
+    const newDates: Date[] = [];
+    let resolvedUntil: Date | null = null;
+    for (const due of dueDates) {
+      if (alreadyGenerated.has(dateKey(due))) { resolvedUntil = due; continue; }
+      const match = await findAdoptable(user_id, row, due, claimed);
+      if (match) {
+        claimed.add(match.id);
+        adoptions.push(match);
+        resolvedUntil = due;
+        continue;
+      }
+      const waitForBank = row.account_id != null && synced.has(row.account_id)
+        && today.getTime() < due.getTime() + (ADOPT_AFTER_DAYS + 1) * DAY_MS;
+      if (waitForBank) break;
+      newDates.push(due);
+      resolvedUntil = due;
+    }
+    if (resolvedUntil == null) continue;
 
     // Le modèle (type / montant / compte / catégorie) devient une opération à
     // lignes via buildLines, comme une saisie manuelle. Un modèle devenu
@@ -186,6 +251,14 @@ async function generateDueRecurringTransactionsUnlocked(user_id: number, today: 
     }
 
     await prisma.$transaction([
+      // Opération rattachée : elle garde son libellé, sa date et son montant
+      // réels ; elle reçoit la catégorie du modèle si elle n'en avait pas.
+      ...adoptions.flatMap((match) => [
+        prisma.transaction.update({ where: { id: match.id }, data: { recurring_transaction_id: row.id } }),
+        ...(row.category_id != null && match.lines.every((l) => l.category_id == null)
+          ? [prisma.transactionLine.updateMany({ where: { transaction_id: match.id }, data: { category_id: row.category_id } })]
+          : []),
+      ]),
       ...newDates.map((date) => prisma.transaction.create({
         data: {
           user_id,
@@ -199,9 +272,9 @@ async function generateDueRecurringTransactionsUnlocked(user_id: number, today: 
       prisma.recurringTransaction.update({
         where: { id: row.id },
         data: {
-          last_executed: dueDates[dueDates.length - 1],
-          // Dernière occurrence atteinte/dépassée : on désactive (plus rien à venir).
-          ...(row.end_date && startOfUtcDay(today) >= row.end_date ? { active: false } : {}),
+          last_executed: resolvedUntil,
+          // Dernière occurrence atteinte/dépassée et résolue : on désactive (plus rien à venir).
+          ...(row.end_date && startOfUtcDay(today) >= row.end_date && resolvedUntil.getTime() === dueDates[dueDates.length - 1]!.getTime() ? { active: false } : {}),
         },
       }),
     ]);

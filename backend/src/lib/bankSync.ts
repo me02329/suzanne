@@ -11,6 +11,7 @@ import {
   type Aspsp, type BankBalance, type BankTransaction, type EnableBankingConfig,
 } from './enableBanking.js';
 import { dedupeAndInsert, loadRules, matchRule, type ParsedImportRow } from '../routes/import_export.js';
+import { generateDueRecurringTransactions } from '../routes/recurring.js';
 import { bankScheduleKey, isSyncDue, parseSyncSchedule, scheduleFromSetting, type SyncSchedule } from './bankSchedule.js';
 
 const DAY = 86400_000;
@@ -384,6 +385,9 @@ async function syncLinkUnlocked(user_id: number, linkId: number): Promise<SyncRe
   });
   const { rest, adopted } = await adoptExisting(user_id, account_id, rows);
   const inserted = await dedupeAndInsert(user_id, account_id, rest, 0);
+  // Récurrents de ce compte qui attendaient la banque : l'opération arrivée
+  // est rattachée et complétée (catégorie) tout de suite.
+  await generateDueRecurringTransactions(user_id, today).catch((error) => console.error('[bank] récurrents après synchro', error));
 
   // Solde comptabilisé → relevé (le rapprochement compare aux opérations).
   const bal = pickBalance(balances);
