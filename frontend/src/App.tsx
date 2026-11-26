@@ -52,6 +52,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default:
 const Wealth = lazy(() => import('./pages/Wealth').then((m) => ({ default: m.Wealth })));
 const Statistics = lazy(() => import('./pages/Statistics').then((m) => ({ default: m.Statistics })));
 const Transactions = lazy(() => import('./pages/Transactions').then((m) => ({ default: m.Transactions })));
+const Guide = lazy(() => import('./pages/Guide').then((m) => ({ default: m.Guide })));
 const Accounts = lazy(() => import('./pages/Accounts').then((m) => ({ default: m.Accounts })));
 const AccountDetail = lazy(() => import('./pages/AccountDetail').then((m) => ({ default: m.AccountDetail })));
 const Categories = lazy(() => import('./pages/Categories').then((m) => ({ default: m.Categories })));
@@ -599,6 +600,7 @@ export default function App() {
           <Route path="/users" element={<UsersPage users={users} currentUserId={userId} run={runUsers} onOpen={setUserId} />} />
           <Route path="/simulator" element={userId ? <Simulator userId={userId} accounts={accounts} institutions={institutions} summary={summary} reportCurrency={reportCurrency} /> : null} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/guide" element={<Guide />} />
           <Route path="*" element={<Navigate to={pathForTab(normalizeTab(lastTab))} replace />} />
         </Routes>
         </div>

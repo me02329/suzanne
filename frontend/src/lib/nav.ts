@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import type { SearchResult } from '@suzanne/shared';
 
-export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'bills' | 'goals' | 'investments' | 'alerts' | 'anomalies' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health' | 'simulator' | 'loans' | 'bank' | 'diversification';
+export type Tab = 'dashboard' | 'wealth' | 'assistant' | 'transactions' | 'statistics' | 'accounts' | 'categories' | 'budgets' | 'recurring' | 'bills' | 'goals' | 'investments' | 'alerts' | 'anomalies' | 'rules' | 'tools' | 'users' | 'settings' | 'tags' | 'forecast' | 'health' | 'simulator' | 'loans' | 'bank' | 'diversification' | 'guide';
 
 // Navigation à deux niveaux : 7 sections (barre latérale / barre du bas) et des
 // onglets à l'intérieur de chaque section. Une question par section (ADR 0006) :
@@ -85,6 +85,7 @@ export const navSections: NavSection[] = [
       { tab: 'tools', label: 'ui.tab.data' },
       { tab: 'users', label: 'ui.tab.users' },
       { tab: 'settings', label: 'ui.tab.settings' },
+      { tab: 'guide', label: 'ui.tab.guide' },
     ],
   },
 ];

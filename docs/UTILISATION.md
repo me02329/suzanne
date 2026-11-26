@@ -1,6 +1,7 @@
 # Guide d'utilisation — suzanne
 
 Ce guide explique comment utiliser suzanne au quotidien pour suivre comptes, dépenses, revenus et budgets. Il s'adresse à l'utilisateur final ; pour l'installation, le déploiement et l'API, voir le [README](../README.md).
+nSituation par situation (mensualité de prêt, virement entre tes comptes, remboursement, synchro bancaire…), voir aussi le [guide des cas d'usage](GUIDE.md), affiché dans l'app sous Réglages › Guide.
 
 ## Sommaire
 
