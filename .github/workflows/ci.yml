@@ -73,3 +73,12 @@ jobs:
 
       - name: Integration tests
         run: npm run test:integration
+
+  # L'image de production (celle du serveur) : ce qu'elle copie doit suffire
+  # au build (vu : docs/GUIDE.md absent de l'image, build du VPS en échec).
+  docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build de l'image
+        run: docker build -t suzanne:ci .

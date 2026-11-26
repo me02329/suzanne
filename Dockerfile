@@ -12,6 +12,8 @@ RUN npm install --no-audit --no-fund
 COPY shared ./shared
 COPY backend ./backend
 COPY frontend ./frontend
+# Guide des cas d'usage : source unique, affichée dans l'app (Réglages > Guide).
+COPY docs/GUIDE.md ./docs/GUIDE.md
 RUN npm run build
 RUN npm prune --omit=dev
 
