@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { Category } from '@suzanne/shared';
 import { CategoryIcon } from '../lib/categoryIcons';
 import { useDismiss } from '../lib/useDismiss';
+import { useClampToViewport } from '../lib/useClampToViewport';
 import '../styles/components/category-select.css';
 
 // Liste de choix de catégorie, à la place d'un <select> natif : un menu natif
@@ -32,6 +33,10 @@ export function CategorySelect({
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const [pos, setPos] = useState<{ left: number; top: number; width: number; above: boolean } | null>(null);
+  // Téléphone : panneau depuis le bas de l'écran, sans ouvrir le clavier
+  // d'office (il refermait la liste en faisant « disparaître » le bouton).
+  const [sheet, setSheet] = useState(false);
+  useClampToViewport(popRef, open && pos !== null && !sheet, [pos]);
   const selected = categories.find((c) => String(c.id) === value) ?? null;
 
   const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -42,13 +47,14 @@ export function CategorySelect({
   }, [categories, query]);
 
   const place = () => {
+    if (sheet) { setPos({ left: 0, top: 0, width: 0, above: false }); return; }
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
     const width = Math.max(rect.width, 260);
     const above = rect.bottom + 340 > window.innerHeight && rect.top > 340;
     setPos({ left: Math.min(rect.left, window.innerWidth - width - 8), top: above ? rect.top - 6 : rect.bottom + 6, width, above });
   };
-  useLayoutEffect(() => { if (open) place(); }, [open]);
+  useLayoutEffect(() => { if (open) place(); }, [open, sheet]);
 
   // Fermeture commune (clic / toucher ailleurs, autre menu ouvert, Échap géré
   // plus bas avec le clavier). Au défilement, la liste suit son bouton — elle
@@ -56,7 +62,7 @@ export function CategorySelect({
   // ferme si le bouton sort de l'écran ou disparaît.
   useDismiss(open, () => setOpen(false), [buttonRef, popRef], { closeOnScroll: false, escape: false });
   useEffect(() => {
-    if (!open) return;
+    if (!open || sheet) return;
     const follow = (event: Event) => {
       if (event.target instanceof Node && popRef.current?.contains(event.target)) return;
       const button = buttonRef.current;
@@ -70,11 +76,12 @@ export function CategorySelect({
       window.removeEventListener('scroll', follow, true);
       window.removeEventListener('resize', follow);
     };
-  }, [open]);
+  }, [open, sheet]);
 
   const openMenu = () => {
     if (disabled) return;
     setQuery('');
+    setSheet(window.matchMedia('(max-width: 640px), (pointer: coarse)').matches);
     setActive(Math.max(0, categories.findIndex((c) => String(c.id) === value) + 1));
     setOpen(true);
   };
@@ -115,15 +122,18 @@ export function CategorySelect({
         <ChevronDown size={14} className="cat-select-chevron" aria-hidden />
       </button>
       {open && pos && createPortal(
+        <>
+        {sheet && <div className="cat-select-backdrop" aria-hidden />}
         <div
           ref={popRef}
-          className={`cat-select-pop${pos.above ? ' above' : ''}`}
-          style={{ left: pos.left, top: pos.top, width: pos.width }}
+          className={sheet ? 'cat-select-pop sheet' : `cat-select-pop${pos.above ? ' above' : ''}`}
+          style={sheet ? undefined : { left: pos.left, top: pos.top, width: pos.width }}
           onKeyDown={onKey}
         >
+          {sheet && <div className="cat-select-sheet-head"><span className="modal-grip" aria-hidden /><strong>{ariaLabel ?? t('ui.category_select.title')}</strong></div>}
           <input
             className="cat-select-search"
-            autoFocus
+            autoFocus={!sheet}
             value={query}
             placeholder={t('ui.category_select.search')}
             aria-label={t('ui.category_select.search')}
@@ -159,7 +169,8 @@ export function CategorySelect({
               ? <><strong>{current.name}</strong><span>{current.description}</span></>
               : <span className="cat-select-desc-empty">{current ? t('ui.category_select.no_description') : t('ui.category_select.hint')}</span>}
           </div>
-        </div>,
+        </div>
+        </>,
         document.body,
       )}
     </>

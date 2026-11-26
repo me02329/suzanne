@@ -36,3 +36,22 @@
 .cat-select-desc strong { font-size: 12.5px; }
 .cat-select-desc span { color: var(--muted); }
 .cat-select-desc-empty { align-self: center; font-style: italic; }
+
+/* Téléphone : panneau depuis le bas (comme une feuille native), au-dessus du
+   clavier quand on touche la recherche. La description (survol) n'y sert pas. */
+.cat-select-backdrop {
+  position: fixed; inset: 0; z-index: 999; background: rgba(23, 21, 15, 0.42);
+  animation: backdrop-in 200ms ease-out;
+}
+.cat-select-pop.sheet {
+  left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: min(72dvh, 560px);
+  border-radius: 20px 20px 0 0; border-bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: cat-sheet-up 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.cat-select-sheet-head { display: grid; justify-items: center; gap: 8px; padding: 8px 16px 2px; }
+.cat-select-sheet-head strong { justify-self: start; font-family: var(--font-display); font-size: 18px; }
+.cat-select-pop.sheet .cat-select-search { margin: 8px 12px; padding: 11px 12px; font-size: 16px; }
+.cat-select-pop.sheet .cat-select-option { padding: 12px 10px; font-size: 15px; }
+.cat-select-pop.sheet .cat-select-desc { display: none; }
+@keyframes cat-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }

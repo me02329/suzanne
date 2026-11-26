@@ -76,7 +76,20 @@ public class MainActivity extends Activity {
         errorView = buildErrorView();
         errorView.setVisibility(View.GONE);
         root.addView(errorView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        root.setFitsSystemWindows(true);
+        // Barres système et clavier : la page se pose entre les deux. Depuis
+        // Android 15 (bord à bord imposé), adjustResize ne redimensionne plus la
+        // fenêtre quand le clavier s'ouvre : sans cela, il recouvrait les champs
+        // et les listes (choix de catégorie refermé, champ caché).
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            root.setOnApplyWindowInsetsListener((v, insets) -> {
+                android.graphics.Insets bars = insets.getInsets(android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.displayCutout());
+                android.graphics.Insets ime = insets.getInsets(android.view.WindowInsets.Type.ime());
+                v.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, ime.bottom));
+                return android.view.WindowInsets.CONSUMED;
+            });
+        } else {
+            root.setFitsSystemWindows(true);
+        }
         setContentView(root);
 
         // Restauration (activité recréée par le système) : seulement si un
