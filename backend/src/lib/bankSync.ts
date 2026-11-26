@@ -8,7 +8,7 @@ import { HttpError } from '../middleware/errors.js';
 import { round2 } from './money.js';
 import {
   EnableBankingClient, EnableBankingError, enableBankingConfigFromEnv, toBankRow,
-  type Aspsp, type BankBalance, type BankTransaction, type EnableBankingConfig,
+  type Aspsp, type BankBalance, type BankTransaction, type EnableBankingConfig, type SessionAccount,
 } from './enableBanking.js';
 import { dedupeAndInsert, loadRules, matchRule, type ParsedImportRow } from '../routes/import_export.js';
 import { generateDueRecurringTransactions } from '../routes/recurring.js';
@@ -93,10 +93,38 @@ export async function startAuthorization(user_id: number, aspsp_name: string, co
   return { url, valid_until: validUntil.toISOString() };
 }
 
+const linkFields = (acc: SessionAccount) => ({
+  remote_uid: acc.uid,
+  remote_name: acc.name ?? acc.product ?? acc.details ?? null,
+  iban_last4: acc.account_id?.iban ? acc.account_id.iban.slice(-4) : null,
+  currency: acc.currency && /^[A-Z]{3}$/.test(acc.currency) && acc.currency !== 'XXX' ? acc.currency : null,
+});
+
+/**
+ * Comptes d'une session. Normalement donnés par POST /sessions ; certaines
+ * banques (vu avec Revolut) renvoient une liste vide alors que l'utilisateur a
+ * choisi ses comptes chez elles. Repli : la session relue (identifiants des
+ * comptes), puis le détail de chacun.
+ */
+async function sessionAccounts(client: EnableBankingClient, sessionId: string, given: SessionAccount[] | undefined): Promise<SessionAccount[]> {
+  if (given && given.length > 0) return given;
+  const session = await client.getSession(sessionId);
+  const raw = Array.isArray(session.accounts) ? session.accounts : [];
+  const uids = raw.map((a) => (typeof a === 'string' ? a : (a as { uid?: string })?.uid)).filter((u): u is string => typeof u === 'string' && u.length > 0);
+  const out: SessionAccount[] = [];
+  for (const uid of uids) {
+    const details = await client.accountDetails(uid).catch(() => ({})) as Partial<SessionAccount>;
+    out.push({ ...details, uid });
+  }
+  return out;
+}
+
 /** Retour de la banque : crée la connexion et un lien par compte autorisé. */
 export async function completeAuthorization(user_id: number, code: string, state: string) {
   const { a, c } = verifyState(state, user_id);
-  const session = await bankClient().createSession(code);
+  const client = bankClient();
+  const session = await client.createSession(code);
+  const accounts = await sessionAccounts(client, session.session_id, session.accounts);
   const validUntil = session.access?.valid_until ? new Date(session.access.valid_until) : new Date(Date.now() + DEFAULT_HISTORY_DAYS * DAY);
   const connection = await prisma.bankConnection.create({
     data: {
@@ -105,19 +133,34 @@ export async function completeAuthorization(user_id: number, code: string, state
       aspsp_country: session.aspsp?.country ?? c,
       session_id: session.session_id,
       valid_until: validUntil,
-      links: {
-        create: session.accounts.map((acc) => ({
-          user_id,
-          remote_uid: acc.uid,
-          remote_name: acc.name ?? acc.product ?? acc.details ?? null,
-          iban_last4: acc.account_id?.iban ? acc.account_id.iban.slice(-4) : null,
-          currency: acc.currency && /^[A-Z]{3}$/.test(acc.currency) && acc.currency !== 'XXX' ? acc.currency : null,
-        })),
-      },
+      links: { create: accounts.map((acc) => ({ user_id, ...linkFields(acc) })) },
     },
     include: { links: true },
   });
+  if (accounts.length === 0) console.warn(`[bank] ${connection.aspsp_name} : aucun compte renvoyé pour la session ${session.session_id}`);
   return connection;
+}
+
+/**
+ * Relit chez la banque la liste des comptes d'une connexion et ajoute ceux qui
+ * manquent (connexion créée sans compte, ou compte ajouté depuis). Les liens
+ * existants et leurs associations ne bougent pas.
+ */
+export async function refreshConnectionAccounts(user_id: number, connectionId: number) {
+  const connection = await prisma.bankConnection.findFirst({ where: { id: connectionId, user_id }, include: { links: true } });
+  if (!connection) throw new HttpError(404, 'Connexion bancaire introuvable');
+  let accounts: SessionAccount[];
+  try {
+    accounts = await sessionAccounts(bankClient(), connection.session_id, undefined);
+  } catch (error) {
+    throw new HttpError(isRateLimited(error) ? 429 : 502, syncErrorMessage(error));
+  }
+  const known = new Set(connection.links.map((l) => l.remote_uid));
+  const fresh = accounts.filter((acc) => !known.has(acc.uid));
+  if (fresh.length > 0) {
+    await prisma.bankLink.createMany({ data: fresh.map((acc) => ({ user_id, connection_id: connection.id, ...linkFields(acc) })) });
+  }
+  return { found: accounts.length, added: fresh.length };
 }
 
 // ---- Synchronisation -------------------------------------------------------

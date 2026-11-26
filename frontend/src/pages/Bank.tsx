@@ -474,6 +474,10 @@ function ConnectionCard({ userId, connection: c, accounts, run, onChanged, onRen
     setSyncing(false);
     onChanged();
   };
+  const refreshAccounts = () => run(() => api.refreshBankAccounts(userId, c.id), (result) => {
+    const r = result as { found: number; added: number };
+    return r.found === 0 ? t('reglages.bank.refresh_none') : t('reglages.bank.refresh_done', { found: r.found, added: r.added });
+  }).then((ok) => { if (ok) onChanged(); });
   const needsRenew = state !== 'active';
   const disconnect = {
     label: t('reglages.bank.disconnect'), icon: <Trash2 size={16} />, danger: true,
@@ -507,11 +511,18 @@ function ConnectionCard({ userId, connection: c, accounts, run, onChanged, onRen
               {syncing ? <Loader2 size={15} className="spin-icon" /> : <RefreshCw size={15} />} {t('reglages.bank.sync_now')}
             </button>
           )}
-          <RowMenu items={needsRenew ? [disconnect] : [{ label: t('reglages.bank.renew'), icon: <Link2 size={16} />, onSelect: onRenew }, disconnect]} />
+          <RowMenu items={needsRenew ? [disconnect] : [{ label: t('reglages.bank.refresh_accounts'), icon: <RefreshCw size={16} />, onSelect: () => void refreshAccounts() }, { label: t('reglages.bank.renew'), icon: <Link2 size={16} />, onSelect: onRenew }, disconnect]} />
         </div>
       </header>
       {c.last_error && state !== 'active' && <div className="bank-alert error"><TriangleAlert size={16} /> <span>{c.last_error}</span></div>}
-      {linked === 0 && state !== 'expired' && (
+      {c.links.length === 0 && state !== 'expired' && (
+        // Banque qui n'a renvoyé aucun compte à la connexion (vu avec Revolut).
+        <div className="bank-alert info">
+          <TriangleAlert size={16} /> <span>{t('reglages.bank.no_accounts')}</span>
+          <button type="button" className="secondary" onClick={() => void refreshAccounts()}><RefreshCw size={14} /> {t('reglages.bank.refresh_accounts')}</button>
+        </div>
+      )}
+      {c.links.length > 0 && linked === 0 && state !== 'expired' && (
         <div className="bank-alert info"><Link2 size={16} /> <span>{t('reglages.bank.map_first')}</span></div>
       )}
 

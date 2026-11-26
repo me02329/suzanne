@@ -192,6 +192,7 @@ export const api = {
   bankAuth: (userId: number, aspsp_name: string, country: string) => http<{ url: string }>(`/users/${userId}/bank/auth`, { method: 'POST', body: JSON.stringify({ aspsp_name, country }) }),
   bankCallback: (userId: number, code: string, state: string) => http<BankConnection>(`/users/${userId}/bank/callback`, { method: 'POST', body: JSON.stringify({ code, state }) }),
   updateBankLink: (userId: number, id: number, body: { account_id?: number | null; sync_from?: string | null }) => http<BankLink>(`/users/${userId}/bank/links/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  refreshBankAccounts: (userId: number, id: number) => http<{ found: number; added: number }>(`/users/${userId}/bank/connections/${id}/accounts`, { method: 'POST' }),
   syncBankConnection: (userId: number, id: number) => http<{ results: Array<NonNullable<BankLink['last_result']>> }>(`/users/${userId}/bank/connections/${id}/sync`, { method: 'POST' }),
   setBankSchedule: (userId: number, hours: number[] | null, timeZone?: string) => http<BankAutoSync>(`/users/${userId}/bank/schedule`, { method: 'PUT', body: JSON.stringify({ hours, ...(timeZone ? { time_zone: timeZone } : {}) }) }),
   deleteBankConnection: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/bank/connections/${id}`, { method: 'DELETE' }),

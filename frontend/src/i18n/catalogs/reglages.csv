@@ -271,6 +271,10 @@ reglages.bank.sync_from_hint,"Première date importée. Les opérations déjà p
 reglages.bank.sync_now,Synchroniser,Sync now
 reglages.bank.synced,"Synchronisé : {{imported}} nouvelle(s) opération(s), {{adopted}} reconnue(s)","Synced: {{imported}} new transaction(s), {{adopted}} matched"
 reglages.bank.map_first,Choisis où importer au moins un compte pour pouvoir synchroniser.,Pick where to import at least one account to be able to sync.
+reglages.bank.no_accounts,"La banque n'a renvoyé aucun compte à la connexion. Relis la liste : les comptes choisis chez elle apparaîtront ici.","The bank returned no account when connecting. Reload the list: the accounts you picked at the bank will show up here."
+reglages.bank.refresh_accounts,Rafraîchir les comptes,Refresh accounts
+reglages.bank.refresh_none,"Toujours aucun compte : reconnecte la banque en cochant les comptes à partager.","Still no account: reconnect the bank and tick the accounts to share."
+reglages.bank.refresh_done,"{{found}} compte(s) chez la banque, {{added}} ajouté(s)","{{found}} account(s) at the bank, {{added}} added"
 reglages.bank.waiting_title,Connexion à {{bank}},Connecting to {{bank}}
 reglages.bank.waiting_intro,Ta banque s'est ouverte dans un nouvel onglet : connecte-toi et autorise l'accès. Cette page se mettra à jour toute seule une fois la connexion créée.,Your bank opened in a new tab: sign in and allow access. This page updates on its own once the connection is created.
 reglages.bank.waiting_tab_closed,Onglet bloqué ou fermé ?,Tab blocked or closed?

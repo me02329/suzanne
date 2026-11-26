@@ -7,7 +7,7 @@ import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { dateString, idParam } from '../lib/validation.js';
 import { assertAccountOwned } from '../lib/transactionHelpers.js';
 import {
-  bankClient, bankConfig, bankSyncSchedule, completeAuthorization, deleteConnection, listAspsps, startAuthorization, syncConnection, syncLink, userSyncSchedule,
+  bankClient, bankConfig, bankSyncSchedule, completeAuthorization, deleteConnection, listAspsps, refreshConnectionAccounts, startAuthorization, syncConnection, syncLink, userSyncSchedule,
 } from '../lib/bankSync.js';
 import { bankScheduleKey, MAX_SYNC_SLOTS, nextSlot, validTimeZone } from '../lib/bankSchedule.js';
 
@@ -148,6 +148,12 @@ bankRouter.patch('/users/:user_id/bank/links/:id', asyncHandler(async (req, res)
 bankRouter.post('/users/:user_id/bank/connections/:id/sync', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   res.json({ results: await syncConnection(user_id, idParam.parse(req.params.id)) });
+}));
+
+// Relit la liste des comptes chez la banque (connexion arrivée sans compte).
+bankRouter.post('/users/:user_id/bank/connections/:id/accounts', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  res.json(await refreshConnectionAccounts(user_id, idParam.parse(req.params.id)));
 }));
 
 bankRouter.post('/users/:user_id/bank/links/:id/sync', asyncHandler(async (req, res) => {
