@@ -27,6 +27,14 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Retour de la banque (synchro) : la page de retour, ouverte dans le
+                 navigateur, renvoie le code à l'app par suzanne://bank/callback?… -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="suzanne" android:host="bank" />
+            </intent-filter>
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />

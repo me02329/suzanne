@@ -110,7 +110,13 @@ async function sessionAccounts(client: EnableBankingClient, sessionId: string, g
   if (given && given.length > 0) return given;
   const session = await client.getSession(sessionId);
   const raw = Array.isArray(session.accounts) ? session.accounts : [];
-  const uids = raw.map((a) => (typeof a === 'string' ? a : (a as { uid?: string })?.uid)).filter((u): u is string => typeof u === 'string' && u.length > 0);
+  // accounts_data : autre forme de la liste (objets { uid }), au cas où.
+  const data = Array.isArray(session.accounts_data) ? session.accounts_data : [];
+  const uids = [...new Set([...raw, ...data].map((a) => (typeof a === 'string' ? a : (a as { uid?: string })?.uid)).filter((u): u is string => typeof u === 'string' && u.length > 0))];
+  if (uids.length === 0) {
+    // Diagnostic (sans données personnelles) : état de la session chez Enable Banking.
+    console.warn(`[bank] session ${sessionId} sans compte : status=${String(session.status)} authorized=${String(session.authorized ?? '?')} aspsp=${JSON.stringify((session as { aspsp?: unknown }).aspsp ?? null)}`);
+  }
   const out: SessionAccount[] = [];
   for (const uid of uids) {
     const details = await client.accountDetails(uid).catch(() => ({})) as Partial<SessionAccount>;

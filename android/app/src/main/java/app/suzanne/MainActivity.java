@@ -99,7 +99,21 @@ public class MainActivity extends Activity {
                 && web.copyBackForwardList().getSize() > 0;
         // L'interface est TOUJOURS celle embarquée dans l'app (ADR 0012) : en mode
         // serveur, seules les données viennent du serveur, via le pont natif.
-        if (!restored) web.loadUrl(ServerPrefs.LOCAL_ORIGIN + "/");
+        String bankReturn = bankReturnUrl(getIntent());
+        if (bankReturn != null) web.loadUrl(bankReturn);
+        else if (!restored) web.loadUrl(ServerPrefs.LOCAL_ORIGIN + "/");
+    }
+
+    /**
+     * Retour de la banque renvoyé par la page de retour (navigateur) :
+     * suzanne://bank/callback?code=…&state=… → la même page dans l'interface de
+     * l'app, qui termine la connexion avec le profil et le jeton de l'app.
+     */
+    private static String bankReturnUrl(Intent intent) {
+        Uri data = intent == null ? null : intent.getData();
+        if (data == null || !"suzanne".equals(data.getScheme()) || !"bank".equals(data.getHost())) return null;
+        String query = data.getEncodedQuery();
+        return ServerPrefs.LOCAL_ORIGIN + "/bank/callback" + (query != null ? "?" + query : "");
     }
 
     @Override
@@ -112,6 +126,8 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (handleChangeServer(intent)) return;
+        String bankReturn = bankReturnUrl(intent);
+        if (bankReturn != null && web != null) { setIntent(intent); web.loadUrl(bankReturn); return; }
         if (ACTION_RELOAD.equals(intent.getAction())) {
             // Nouveau serveur choisi : on repart de zéro.
             recreate();

@@ -17,6 +17,7 @@ import './styles/motion.css';
 
 import { IS_APP, serverConfigured, startLocal } from './local/mode';
 import { writeActiveProfile } from './lib/activeProfile';
+import { BankHandoff, isAndroidBankReturn } from './components/BankHandoff';
 
 // Mode local (build « local », ADR 0011) : base et serveur embarqués démarrés
 // avant l'app. Build normal : startLocal() ne fait rien.
@@ -41,9 +42,11 @@ void startLocal()
   .then(() => {
     createRoot(document.getElementById('root')!).render(
       <React.StrictMode>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        {!IS_APP && isAndroidBankReturn() ? <BankHandoff /> : (
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        )}
       </React.StrictMode>,
     );
   });
