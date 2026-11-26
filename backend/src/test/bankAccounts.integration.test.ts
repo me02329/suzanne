@@ -31,7 +31,7 @@ describe('comptes d’une connexion bancaire', () => {
   it('banque qui ne renvoie aucun compte à la connexion : comptes relus depuis la session', async () => {
     const u = (await api.post('/api/users').send({ name: 'Revolut' }).expect(201)).body.id as number;
     const state = signState({ u, a: 'Revolut', c: 'FR' });
-    await api.post(`/api/users/${u}/bank/callback`).send({ code: 'code-1', state }).expect((res) => { if (res.status >= 300) throw new Error(`${res.status} ${JSON.stringify(res.body)}`); });
+    await api.post(`/api/users/${u}/bank/callback`).send({ code: 'code-1', state }).expect(201);
 
     const status = (await api.get(`/api/users/${u}/bank`).expect(200)).body;
     expect(status.connections).toHaveLength(1);
