@@ -176,7 +176,8 @@ model Account {
   linked_account         Account?               @relation("LinkedAccount", fields: [linked_account_id], references: [id], onDelete: SetNull)
   linked_by              Account[]              @relation("LinkedAccount")
   transaction_lines      TransactionLine[]
-  recurring_transactions RecurringTransaction[]
+  recurring_transactions RecurringTransaction[] @relation("RecurringSource")
+  recurring_incoming     RecurringTransaction[] @relation("RecurringDestination")
   snapshots              AccountSnapshot[]
   savings_goals          SavingsGoal[]
   bills                  Bill[]
@@ -433,6 +434,9 @@ model RecurringTransaction {
   uid String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id       Int
   account_id    Int?
+  // Virement (type = transfer) : compte de destination (ex. le compte d'un
+  // prêt pour une mensualité, un livret pour une épargne programmée).
+  to_account_id Int?
   category_id   Int?
   amount        Float
   type          TransactionType
@@ -449,8 +453,9 @@ model RecurringTransaction {
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
 
   user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  account  Account?  @relation(fields: [account_id], references: [id], onDelete: SetNull)
-  category Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  account    Account?  @relation("RecurringSource", fields: [account_id], references: [id], onDelete: SetNull)
+  to_account Account?  @relation("RecurringDestination", fields: [to_account_id], references: [id], onDelete: SetNull)
+  category   Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
   transactions Transaction[]
 
   @@index([user_id, active])

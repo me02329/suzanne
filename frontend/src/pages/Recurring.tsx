@@ -50,6 +50,8 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
   const incomeGroups = useMemo(() => groupByCadence(recurring.filter((r) => r.type === 'income'), rateFor), [recurring, rateFor]);
   const expenseTotals = useMemo(() => cadenceTotals(recurring.filter((r) => r.type === 'expense' && r.active), rateFor), [recurring, rateFor]);
   const incomeTotals = useMemo(() => cadenceTotals(recurring.filter((r) => r.type === 'income' && r.active), rateFor), [recurring, rateFor]);
+  // Virements programmés (mensualité de prêt, épargne) : ni dépense ni revenu.
+  const transferGroups = useMemo(() => groupByCadence(recurring.filter((r) => r.type === 'transfer'), rateFor), [recurring, rateFor]);
   const activeCount = recurring.filter((r) => r.active).length;
 
   const renderGroups = (groups: CadenceGroup[], prefix: string) => groups.map((group) => {
@@ -73,6 +75,7 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
                 native={native}
                 unit={group.unit}
                 account={accountById.get(r.account_id ?? -1)}
+                toAccount={accountById.get(r.to_account_id ?? -1)}
                 category={categoryById.get(r.category_id ?? -1)}
                 onEdit={() => setForm(r)}
                 onSkip={() => void run(() => api.skipRecurring(userId, r.id), 'Prochaine occurrence sautée')}
@@ -118,6 +121,13 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
         )}
       </div>
 
+      {transferGroups.length > 0 && (
+        <div className="pg-card">
+          <div className="pg-card-head"><h2>{t('operations.recurring.transfers')}</h2></div>
+          {renderGroups(transferGroups, 'tr')}
+        </div>
+      )}
+
       {incomeGroups.length > 0 && (
         <div className="pg-card">
           <div className="pg-card-head"><h2>{t('operations.recurring.income_2')}</h2></div>
@@ -139,11 +149,12 @@ export function Recurring({ userId, recurring, accounts, categories, categoryByI
   );
 }
 
-function RecurringRow({ r, native, unit, account, category, onEdit, onSkip, onToggleActive, onDelete }: {
+function RecurringRow({ r, native, unit, account, toAccount, category, onEdit, onSkip, onToggleActive, onDelete }: {
   r: RecurringTransaction;
   native: number;
   unit: string;
   account: Account | undefined;
+  toAccount: Account | undefined;
   category: Category | undefined;
   onEdit: () => void;
   onSkip: () => void;
@@ -154,7 +165,10 @@ function RecurringRow({ r, native, unit, account, category, onEdit, onSkip, onTo
   const occurrence = formatRelativeDate(r.active ? nextRecurringOccurrence(r) : null);
   const soon = occurrence.days != null && occurrence.days <= 7;
   const income = r.type === 'income';
-  const meta = [account?.name, category?.name].filter(Boolean).join(' · ');
+  const transfer = r.type === 'transfer';
+  const meta = transfer
+    ? `${account?.name ?? '?'} → ${toAccount?.name ?? '?'}`
+    : [account?.name, category?.name].filter(Boolean).join(' · ');
   return (
     <li className={r.active ? 'lrow' : 'lrow muted'}>
       <div className="lrow-main">
@@ -168,8 +182,8 @@ function RecurringRow({ r, native, unit, account, category, onEdit, onSkip, onTo
           {meta && <> · {meta}</>}
         </span>
       </div>
-      <div className={`lrow-amount ${income ? 'income' : 'expense'}`}>
-        {income ? '+' : '−'}{money(native, account?.currency ?? 'EUR')}<small>{unit}</small>
+      <div className={`lrow-amount ${transfer ? '' : income ? 'income' : 'expense'}`}>
+        {transfer ? '' : income ? '+' : '−'}{money(native, account?.currency ?? 'EUR')}<small>{unit}</small>
       </div>
       <div className="lrow-actions">
         <button type="button" className="icon-button neutral" aria-label={`Modifier ${r.description}`} title={t('operations.recurring.edit')} onClick={onEdit}>
@@ -202,7 +216,7 @@ function RecurringFormModal({ userId, editing, accounts, categories, run, onClos
 }) {
   const { t } = useTranslation();
   const [freq, setFreq] = useState<RecurringFrequency>(editing?.frequency ?? 'monthly');
-  const [type, setType] = useState<'expense' | 'income'>(editing?.type ?? 'expense');
+  const [type, setType] = useState<'expense' | 'income' | 'transfer'>(editing?.type ?? 'expense');
   const [error, setError] = useState<string | null>(null);
   const currentMonth = new Date().getMonth() + 1;
   const categoryOptions = categories.filter((c) => c.type === type || c.id === editing?.category_id);
@@ -212,9 +226,14 @@ function RecurringFormModal({ userId, editing, accounts, categories, run, onClos
     const data = new FormData(event.currentTarget);
     const amount = positiveAmount(data.get('amount'));
     if (amount == null) { setError('Indique un montant supérieur à 0.'); return; }
+    if (type === 'transfer' && (!data.get('account_id') || !data.get('to_account_id') || data.get('account_id') === data.get('to_account_id'))) {
+      setError(t('operations.recurring.transfer_accounts_required'));
+      return;
+    }
     const body = {
       account_id: numberOrNull(data.get('account_id')),
-      category_id: numberOrNull(data.get('category_id')),
+      to_account_id: type === 'transfer' ? numberOrNull(data.get('to_account_id')) : null,
+      category_id: type === 'transfer' ? null : numberOrNull(data.get('category_id')),
       amount,
       type,
       description: String(data.get('description')).trim(),
@@ -235,9 +254,10 @@ function RecurringFormModal({ userId, editing, accounts, categories, run, onClos
       <form className="pg-form" onSubmit={submit}>
         <label className="full">{t('operations.recurring.label')}<input name="description" defaultValue={editing?.description ?? ''} placeholder={t('operations.recurring.e_g_rent_netflix')} required autoFocus /></label>
         <label>{t('operations.recurring.type')}
-          <select value={type} onChange={(e) => setType(e.target.value as 'expense' | 'income')}>
+          <select value={type} onChange={(e) => { setType(e.target.value as 'expense' | 'income' | 'transfer'); setError(null); }}>
             <option value="expense">{t('operations.recurring.expense')}</option>
             <option value="income">{t('operations.recurring.income_3')}</option>
+            <option value="transfer">{t('operations.recurring.transfer')}</option>
           </select>
         </label>
         <label>{t('operations.recurring.amount')}
@@ -261,18 +281,28 @@ function RecurringFormModal({ userId, editing, accounts, categories, run, onClos
         {freq !== 'weekly' && (
           <label>{t('operations.recurring.day_month')}<input name="day_of_month" type="number" inputMode="numeric" min="1" max="31" defaultValue={editing?.day_of_month ?? 1} /></label>
         )}
-        <label>{t('operations.recurring.account')}
-          <select name="account_id" defaultValue={editing?.account_id ?? ''}>
+        <label>{type === 'transfer' ? t('operations.recurring.from_account') : t('operations.recurring.account')}
+          <select name="account_id" defaultValue={editing?.account_id ?? ''} required={type === 'transfer'}>
             <option value="">{t('operations.recurring.none')}</option>
             {pickableAccounts(accounts, editing?.account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </label>
-        <label>{t('operations.recurring.category')}
-          <select name="category_id" defaultValue={editing?.category_id ?? ''}>
-            <option value="">{t('operations.recurring.none_2')}</option>
-            {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </label>
+        {type === 'transfer' ? (
+          <label>{t('operations.recurring.to_account')}
+            <select name="to_account_id" defaultValue={editing?.to_account_id ?? ''} required>
+              <option value="">{t('operations.recurring.choose')}</option>
+              {pickableAccounts(accounts, editing?.to_account_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </label>
+        ) : (
+          <label>{t('operations.recurring.category')}
+            <select name="category_id" defaultValue={editing?.category_id ?? ''}>
+              <option value="">{t('operations.recurring.none_2')}</option>
+              {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
+        )}
+        {type === 'transfer' && <p className="hint full">{t('operations.recurring.transfer_hint')}</p>}
         <label className="full">{t('operations.recurring.end_optional')}
           <input name="end_date" type="date" defaultValue={editing?.end_date ? editing.end_date.slice(0, 10) : ''} />
           <span className="hint">{t('operations.recurring.no_occurrences_will_be_generated')}</span>

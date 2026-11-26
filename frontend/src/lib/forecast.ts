@@ -154,15 +154,18 @@ export function buildForecast({
   // debit is applied — the optimistic, less alarming ordering).
   const events: ForecastEvent[] = [];
   for (const r of recurring) {
-    if (!r.active) continue;
+    // Virements : ramenés par l'appelant à une entrée ou une sortie de la
+    // trésorerie suivie (voir liquidView dans lib/balances.ts).
+    if (!r.active || r.type === 'transfer') continue;
+    const type = r.type;
     const amount = round2(Math.abs(r.amount) * rateFor(r.account_id));
-    const signed = r.type === 'income' ? amount : -amount;
+    const signed = type === 'income' ? amount : -amount;
     for (const date of expandOccurrences(r, today, horizonEnd)) {
       events.push({
         date,
         recurringId: r.id,
         description: r.description,
-        type: r.type,
+        type,
         amount,
         signed,
         accountId: r.account_id,

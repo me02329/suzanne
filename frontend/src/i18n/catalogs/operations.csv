@@ -363,6 +363,13 @@ operations.recurring.e_g_rent_netflix,"ex. Loyer, Netflix…","e.g. Rent, Netfli
 operations.recurring.type,Type,Type
 operations.recurring.expense,Dépense,Expense
 operations.recurring.income_3,Revenu,Income
+operations.recurring.transfer,Virement,Transfer
+operations.recurring.transfers,Virements programmés,Scheduled transfers
+operations.recurring.from_account,Depuis le compte,From account
+operations.recurring.to_account,Vers le compte,To account
+operations.recurring.choose,Choisir…,Choose…
+operations.recurring.transfer_accounts_required,Choisis deux comptes différents pour le virement.,Pick two different accounts for the transfer.
+operations.recurring.transfer_hint,"Mensualité de prêt : choisis le compte du prêt en arrivée, le reste dû baissera à chaque échéance. Ni dépense ni revenu. Sur un compte synchronisé, l'opération de la banque est reconnue et devient ce virement.","Loan instalment: pick the loan account as destination, the outstanding amount drops at each instalment. Neither expense nor income. On a synced account, the bank's transaction is recognised and becomes this transfer."
 operations.recurring.amount,Montant,Amount
 operations.recurring.repeat,Répéter,Repeat
 operations.recurring.every_week,Chaque semaine,Every week

@@ -16,6 +16,33 @@ export function isLiquidRecurring(r: RecurringTransaction, accountById: Map<numb
   return account ? LIQUID_GROUPS.has(accountGroupOf(account)) : true;
 }
 
+const isLiquidAccount = (id: number | null, accountById: Map<number, Account>) => {
+  if (id == null) return true;
+  const account = accountById.get(id);
+  return account ? LIQUID_GROUPS.has(accountGroupOf(account)) : true;
+};
+
+/**
+ * Récurrents vus depuis la trésorerie (comptes liquides) : un virement entre
+ * deux comptes liquides ne change rien (écarté) ; vers un prêt, un placement…
+ * c'est une sortie ; depuis l'un d'eux, une entrée. Dépenses et revenus : tels
+ * quels s'ils touchent un compte liquide.
+ */
+export function liquidView(recurring: RecurringTransaction[], accountById: Map<number, Account>): RecurringTransaction[] {
+  const out: RecurringTransaction[] = [];
+  for (const r of recurring) {
+    if (r.type !== 'transfer') {
+      if (isLiquidRecurring(r, accountById)) out.push(r);
+      continue;
+    }
+    const from = isLiquidAccount(r.account_id, accountById);
+    const to = isLiquidAccount(r.to_account_id, accountById);
+    if (from && !to) out.push({ ...r, type: 'expense' });
+    else if (!from && to) out.push({ ...r, type: 'income', account_id: r.to_account_id });
+  }
+  return out;
+}
+
 // Sum of the liquid accounts' balances, already converted to the report
 // currency by the dashboard endpoint. Returns 0 when the summary is absent.
 export function liquidBalance(summary: DashboardSummary | null): number {

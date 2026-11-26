@@ -169,6 +169,7 @@ export async function buildExportPayload(user_id: number, entities: readonly Exp
       end_date: day(r.end_date),
       last_executed: day(r.last_executed),
       account_name: refAccount(r.account_id),
+      to_account_name: refAccount(r.to_account_id),
       category_ref: refCategory(r.category_id),
     })),
     goals: goals.map((g) => ({ ...g, deadline: day(g.deadline), account_name: refAccount(g.account_id) })),
@@ -231,7 +232,7 @@ const ACCOUNT_TYPES = new Set<string>(Object.values(AccountType));
 const ASSET_CLASSES = new Set<string>(Object.values(AssetClass));
 const ALERT_TYPES = new Set<string>(Object.values(AlertType));
 const TX_TYPES = new Set(['expense', 'income', 'transfer']);
-const RECURRING_TYPES = new Set(['expense', 'income']);
+const RECURRING_TYPES = new Set(['expense', 'income', 'transfer']);
 const FREQUENCIES = new Set(['weekly', 'monthly', 'yearly']);
 const BILL_FREQUENCIES = new Set(['monthly', 'yearly']);
 // Pas de SVG (script exécutable) : mêmes types sûrs que l'upload devrait imposer.
@@ -459,8 +460,8 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
 
   // --- Récurrents -----------------------------------------------------------
   const recurringMap = new Map<number, number>();
-  const recurringKey = (r: { account_id: number | null; category_id: number | null; type: string; amount: number; description: string; frequency: string; interval: number; day_of_month: number | null; month_of_year: number | null }) =>
-    [r.account_id, r.category_id, r.type, round2(r.amount).toFixed(2), normText(r.description), r.frequency, r.interval, r.day_of_month, r.month_of_year].join('|');
+  const recurringKey = (r: { account_id: number | null; to_account_id: number | null; category_id: number | null; type: string; amount: number; description: string; frequency: string; interval: number; day_of_month: number | null; month_of_year: number | null }) =>
+    [r.account_id, r.to_account_id, r.category_id, r.type, round2(r.amount).toFixed(2), normText(r.description), r.frequency, r.interval, r.day_of_month, r.month_of_year].join('|');
   const recurringIndex = new MultiIndex();
   const existingRecurring = await db.recurringTransaction.findMany({ where: { user_id } });
   const recurringById = new Map(existingRecurring.map((r) => [r.id, r]));
@@ -471,15 +472,19 @@ async function importInTransaction(db: Prisma.TransactionClient, user_id: number
     if (!RECURRING_TYPES.has(type) || !FREQUENCIES.has(frequency)) { summary.recurring.skipped += 1; continue; }
     const data = {
       account_id: resolveAccount(raw.account_id, raw.account_name),
-      category_id: resolveCategory(raw.category_id, raw.category_ref),
+      // Virement récurrent (format v3 récent) : compte d'arrivée, remappé.
+      to_account_id: type === 'transfer' ? resolveAccount(raw.to_account_id, raw.to_account_name) : null,
+      category_id: type === 'transfer' ? null : resolveCategory(raw.category_id, raw.category_ref),
       amount: round2(num(raw.amount)),
-      type: type as 'expense' | 'income',
+      type: type as 'expense' | 'income' | 'transfer',
       description: String(raw.description ?? '').slice(0, 500),
       frequency: frequency as 'weekly' | 'monthly' | 'yearly',
       interval: Math.max(1, Math.trunc(num(raw.interval, 1))),
       day_of_month: intOrNull(raw.day_of_month),
       month_of_year: intOrNull(raw.month_of_year),
     };
+    // Virement dont un compte n'a pas été retrouvé : inutilisable, ignoré.
+    if (data.type === 'transfer' && (data.account_id == null || data.to_account_id == null || data.account_id === data.to_account_id)) { summary.recurring.skipped += 1; continue; }
     const lastExecuted = parseDay(raw.last_executed);
     const hit = await uidLookup('recurringTransaction', raw.uid);
     const existingId = hit.reuseId ?? recurringIndex.take(recurringKey(data));

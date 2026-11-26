@@ -35,6 +35,7 @@ import {
   type LegacyInput,
 } from '../lib/ledger.js';
 import { serializeTransaction, transactionInclude } from '../routes/transactions.js';
+import { recurringRefs } from '../routes/recurring.js';
 import { nextRecurringOccurrence, recurringMonthlyEquivalent } from '@suzanne/shared';
 
 // The AI proposes a write action; the user confirms it from the chat UI.
@@ -477,15 +478,11 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
 
     case 'create_recurring': {
       const body = createRecurringSchema.parse(normalizeModelBooleans(action.payload));
-      if (body.account_id) await assertAccountOwned(userId, body.account_id);
-      if (body.category_id) await assertCategoryOwned(userId, body.category_id);
       return await prisma.recurringTransaction.create({
         data: {
           user_id: userId,
-          account_id: body.account_id ?? null,
-          category_id: body.category_id ?? null,
+          ...(await recurringRefs(userId, body)),
           amount: body.amount,
-          type: body.type,
           description: body.description,
           frequency: body.frequency,
           interval: body.interval,
@@ -499,15 +496,11 @@ export async function confirmAiAction(userId: number, action: PendingAiAction) {
       const body = z.object({ recurring_id: z.coerce.number().int().positive() }).and(updateRecurringSchema).parse(normalizeModelBooleans(action.payload));
       const existing = await prisma.recurringTransaction.findFirst({ where: { id: body.recurring_id, user_id: userId } });
       if (!existing) throw new Error('Récurrent introuvable');
-      if (body.account_id) await assertAccountOwned(userId, body.account_id);
-      if (body.category_id) await assertCategoryOwned(userId, body.category_id);
       return await prisma.recurringTransaction.update({
         where: { id: body.recurring_id },
         data: {
-          ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
-          ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
+          ...(await recurringRefs(userId, body, existing)),
           ...(body.amount != null ? { amount: body.amount } : {}),
-          ...(body.type != null ? { type: body.type } : {}),
           ...(body.description != null ? { description: body.description } : {}),
           ...(body.frequency != null ? { frequency: body.frequency } : {}),
           ...(body.interval != null ? { interval: body.interval } : {}),

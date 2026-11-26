@@ -51,6 +51,59 @@ describe('récurrents : pas de doublon avec une opération déjà là', () => {
   });
 });
 
+describe('récurrent « virement » (mensualité de prêt)', () => {
+  async function loanSetup(name: string) {
+    const { u, acc, rec: box } = await setup(name);
+    await prisma.recurringTransaction.delete({ where: { id: box } }); // seul le prêt nous intéresse ici
+    const loan = (await api.post(`/api/users/${u}/accounts`).send({ name: 'Prêt auto', type: 'loan', currency: 'EUR', initial_balance: -10000, initial_balance_date: '2026-01-01' }).expect(201)).body.id as number;
+    const rec = (await api.post(`/api/users/${u}/recurring-transactions`).send({
+      type: 'transfer', account_id: acc, to_account_id: loan, amount: 250, description: 'Mensualité prêt auto', frequency: 'monthly', interval: 1, day_of_month: 10,
+    }).expect(201)).body;
+    expect(rec).toMatchObject({ type: 'transfer', to_account_id: loan, category_id: null });
+    await prisma.recurringTransaction.update({ where: { id: rec.id }, data: { last_executed: day('2026-09-10') } });
+    return { u, acc, loan, rec: rec.id as number };
+  }
+
+  it('refuse un virement sans compte d’arrivée ou vers le même compte', async () => {
+    const { u, acc } = await setup('Virement invalide');
+    await api.post(`/api/users/${u}/recurring-transactions`).send({ type: 'transfer', account_id: acc, amount: 10, description: 'x', frequency: 'monthly' }).expect(400);
+    await api.post(`/api/users/${u}/recurring-transactions`).send({ type: 'transfer', account_id: acc, to_account_id: acc, amount: 10, description: 'x', frequency: 'monthly' }).expect(400);
+  });
+
+  it('crée un virement vers le prêt : le reste dû baisse, aucune dépense', async () => {
+    const { u, loan } = await loanSetup('Virement créé');
+    expect(await generateDueRecurringTransactions(u, day('2026-10-20'))).toBe(1);
+    const txs = await occurrences(u);
+    expect(txs).toHaveLength(1);
+    expect(txs[0]!.lines.map((l) => l.amount).sort((a, b) => a - b)).toEqual([-250, 250]);
+    const loans = (await api.get(`/api/users/${u}/loans`).expect(200)).body as Array<{ account_id: number; outstanding: number; repaid: number }>;
+    expect(loans.find((l) => l.account_id === loan)).toMatchObject({ outstanding: 9750, repaid: 250 });
+    const stats = (await api.get(`/api/users/${u}/dashboard?month=2026-10`).expect(200)).body as { totals?: { expenses?: number } };
+    if (stats.totals?.expenses != null) expect(stats.totals.expenses).toBe(0);
+  });
+
+  it('compte synchronisé : la sortie apportée par la banque devient le virement', async () => {
+    const { u, acc, loan, rec } = await loanSetup('Virement banque');
+    await linkToBank(u, acc);
+    const bank = (await api.post(`/api/users/${u}/transactions`).send({ type: 'expense', amount: 250, date: '2026-10-12', account_id: acc, description: 'PRLV ORGANISME CREDIT' }).expect(201)).body.id as number;
+    expect(await generateDueRecurringTransactions(u, day('2026-10-13'))).toBe(0);
+    const tx = (await api.get(`/api/users/${u}/transactions/${bank}`).expect(200)).body;
+    expect(tx).toMatchObject({ type: 'transfer', account_id: acc, to_account_id: loan, recurring_transaction_id: rec, description: 'PRLV ORGANISME CREDIT' });
+  });
+
+  it('sauvegarde : le compte d’arrivée est conservé d’un profil à l’autre', async () => {
+    const { u } = await loanSetup('Virement sauvegarde');
+    const payload = (await api.get(`/api/users/${u}/export.json`).expect(200)).body;
+    const v = (await api.post('/api/users').send({ name: 'Copie virement' }).expect(201)).body.id as number;
+    await api.post(`/api/users/${v}/import.json`).send({ payload }).expect(200);
+    const recs = (await api.get(`/api/users/${v}/recurring-transactions`).expect(200)).body as Array<{ type: string; to_account_id: number | null; account_id: number | null }>;
+    const transfer = recs.find((r) => r.type === 'transfer')!;
+    const accounts = (await api.get(`/api/users/${v}/accounts`).expect(200)).body as Array<{ id: number; name: string }>;
+    expect(accounts.find((a) => a.id === transfer.to_account_id)?.name).toBe('Prêt auto');
+    expect(transfer.account_id).not.toBe(transfer.to_account_id);
+  });
+});
+
 describe('récurrents : compte synchronisé, on attend la banque', () => {
   it('ne crée rien tant que la banque peut encore apporter l’opération, puis la rattache', async () => {
     const { u, acc, rec } = await setup('Récurrent attend');

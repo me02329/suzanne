@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { asyncHandler } from '../middleware/errors.js';
+import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { nextRecurringOccurrence } from '@suzanne/shared';
+import { assertAccountOwned, assertCategoryOwned } from '../lib/transactionHelpers.js';
 import { createRecurringSchema, idParam, updateRecurringSchema } from '../lib/validation.js';
 import { dateKey, startOfUtcDay } from '../lib/dates.js';
 import { buildLines, linesCreateData, type BuiltLines } from '../lib/ledger.js';
@@ -16,16 +17,41 @@ recurringRouter.get('/users/:user_id/recurring-transactions', asyncHandler(async
   }));
 }));
 
+type RefFields = { type?: 'expense' | 'income' | 'transfer'; account_id?: number | null; to_account_id?: number | null; category_id?: number | null };
+
+/**
+ * Comptes et catégorie d'un récurrent, fusionnés avec l'existant (mise à
+ * jour) puis vérifiés : appartiennent à l'utilisateur ; un virement a ses deux
+ * comptes, distincts, et pas de catégorie ; une dépense / un revenu n'a pas de
+ * compte d'arrivée.
+ */
+export async function recurringRefs(user_id: number, body: RefFields, existing?: RefFields) {
+  const pick = <K extends keyof RefFields>(key: K) => (body[key] !== undefined ? body[key] ?? null : existing?.[key] ?? null);
+  const type = (body.type ?? existing?.type ?? 'expense') as 'expense' | 'income' | 'transfer';
+  const account_id = pick('account_id') as number | null;
+  let to_account_id = pick('to_account_id') as number | null;
+  let category_id = pick('category_id') as number | null;
+  if (type === 'transfer') {
+    if (account_id == null || to_account_id == null) throw new HttpError(400, 'Un virement récurrent a besoin d’un compte de départ et d’un compte d’arrivée');
+    if (account_id === to_account_id) throw new HttpError(400, 'Les deux comptes du virement doivent être différents');
+    category_id = null;
+  } else {
+    to_account_id = null;
+  }
+  if (account_id != null) await assertAccountOwned(user_id, account_id);
+  if (to_account_id != null) await assertAccountOwned(user_id, to_account_id, 'Compte d’arrivée');
+  if (category_id != null) await assertCategoryOwned(user_id, category_id);
+  return { type, account_id, to_account_id, category_id };
+}
+
 recurringRouter.post('/users/:user_id/recurring-transactions', asyncHandler(async (req, res) => {
   const user_id = idParam.parse(req.params.user_id);
   const body = createRecurringSchema.parse(req.body);
   const row = await prisma.recurringTransaction.create({
     data: {
       user_id,
-      account_id: body.account_id ?? null,
-      category_id: body.category_id ?? null,
+      ...(await recurringRefs(user_id, body)),
       amount: body.amount,
-      type: body.type,
       description: body.description,
       frequency: body.frequency,
       interval: body.interval,
@@ -50,10 +76,8 @@ recurringRouter.patch('/users/:user_id/recurring-transactions/:id', asyncHandler
   const row = await prisma.recurringTransaction.update({
     where: { id },
     data: {
-      ...(body.account_id !== undefined ? { account_id: body.account_id ?? null } : {}),
-      ...(body.category_id !== undefined ? { category_id: body.category_id ?? null } : {}),
+      ...(await recurringRefs(user_id, body, existing)),
       ...(body.amount != null ? { amount: body.amount } : {}),
-      ...(body.type != null ? { type: body.type } : {}),
       ...(body.description != null ? { description: body.description } : {}),
       ...(body.frequency != null ? { frequency: body.frequency } : {}),
       ...(body.interval != null ? { interval: body.interval } : {}),
@@ -158,16 +182,27 @@ async function findAdoptable(user_id: number, row: RecurringRow, due: Date, clai
     where: {
       user_id,
       recurring_transaction_id: null,
-      kind: 'standard',
+      kind: row.type === 'transfer' ? { in: ['standard', 'transfer'] } : 'standard',
       date: { gte: new Date(due.getTime() - ADOPT_BEFORE_DAYS * DAY_MS), lte: new Date(due.getTime() + ADOPT_AFTER_DAYS * DAY_MS) },
       lines: { some: { account_id: row.account_id } },
     },
-    select: { id: true, date: true, lines: { select: { id: true, account_id: true, amount: true, category_id: true } } },
+    select: { id: true, date: true, kind: true, lines: { select: { id: true, account_id: true, amount: true, category_id: true } } },
   });
+  const fits = (c: (typeof candidates)[number]) => {
+    const own = c.lines.filter((l) => l.account_id === row.account_id);
+    if (Math.abs(own.reduce((s, l) => s + l.amount, 0) - signed) >= 0.005) return false;
+    // Virement attendu : soit déjà ce virement (même compte d'arrivée), soit une
+    // simple sortie du compte de départ (la banque ne voit que ce côté-là), qui
+    // deviendra le virement.
+    if (row.type === 'transfer') {
+      return c.kind === 'transfer'
+        ? c.lines.some((l) => l.account_id === row.to_account_id)
+        : c.lines.length === 1;
+    }
+    return c.lines.every((l) => l.account_id === row.account_id);
+  };
   return candidates
-    .filter((c) => !claimed.has(c.id)
-      && c.lines.every((l) => l.account_id === row.account_id)
-      && Math.abs(c.lines.reduce((s, l) => s + l.amount, 0) - signed) < 0.005)
+    .filter((c) => !claimed.has(c.id) && fits(c))
     .sort((a, b) => Math.abs(a.date.getTime() - due.getTime()) - Math.abs(b.date.getTime() - due.getTime()))[0] ?? null;
 }
 
@@ -211,7 +246,7 @@ async function generateDueRecurringTransactionsUnlocked(user_id: number, today: 
     // à attendre (compte synchronisé, banque pas encore passée) ou à créer.
     // On s'arrête à la première occurrence en attente : last_executed ne
     // dépasse jamais une occurrence non résolue.
-    const adoptions: Array<{ id: number; lines: Array<{ id: number; category_id: number | null }> }> = [];
+    const adoptions: Array<{ id: number; kind: string; lines: Array<{ id: number; account_id: number | null; amount: number; category_id: number | null }> }> = [];
     const newDates: Date[] = [];
     let resolvedUntil: Date | null = null;
     for (const due of dueDates) {
@@ -242,6 +277,7 @@ async function generateDueRecurringTransactionsUnlocked(user_id: number, today: 
           amount: row.amount,
           account_id: row.account_id,
           category_id: row.category_id,
+          to_account_id: row.to_account_id,
           date: dateKey(newDates[0]!),
         });
       } catch (e) {
@@ -253,12 +289,24 @@ async function generateDueRecurringTransactionsUnlocked(user_id: number, today: 
     await prisma.$transaction([
       // Opération rattachée : elle garde son libellé, sa date et son montant
       // réels ; elle reçoit la catégorie du modèle si elle n'en avait pas.
-      ...adoptions.flatMap((match) => [
-        prisma.transaction.update({ where: { id: match.id }, data: { recurring_transaction_id: row.id } }),
-        ...(row.category_id != null && match.lines.every((l) => l.category_id == null)
-          ? [prisma.transactionLine.updateMany({ where: { transaction_id: match.id }, data: { category_id: row.category_id } })]
-          : []),
-      ]),
+      ...adoptions.flatMap((match) => {
+        // Virement attendu, et la banque n'a apporté que la sortie : l'opération
+        // devient le virement (ligne d'arrivée ajoutée, plus de catégorie —
+        // ce n'est ni une dépense ni un revenu).
+        if (row.type === 'transfer' && match.kind !== 'transfer') {
+          return [
+            prisma.transaction.update({ where: { id: match.id }, data: { recurring_transaction_id: row.id, kind: 'transfer' } }),
+            prisma.transactionLine.updateMany({ where: { transaction_id: match.id }, data: { category_id: null, refund: false } }),
+            prisma.transactionLine.create({ data: { user_id, transaction_id: match.id, account_id: row.to_account_id, amount: row.amount, position: 1 } }),
+          ];
+        }
+        return [
+          prisma.transaction.update({ where: { id: match.id }, data: { recurring_transaction_id: row.id } }),
+          ...(row.type !== 'transfer' && row.category_id != null && match.lines.every((l) => l.category_id == null)
+            ? [prisma.transactionLine.updateMany({ where: { transaction_id: match.id }, data: { category_id: row.category_id } })]
+            : []),
+        ];
+      }),
       ...newDates.map((date) => prisma.transaction.create({
         data: {
           user_id,

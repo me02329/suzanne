@@ -203,9 +203,11 @@ export interface RecurringTransaction {
   id: number;
   user_id: number;
   account_id: number | null;
+  /** Virement (type transfer) : compte d'arrivée (prêt, livret…). */
+  to_account_id: number | null;
   category_id: number | null;
   amount: number;
-  type: Exclude<TransactionType, 'transfer'>;
+  type: TransactionType;
   description: string;
   frequency: RecurringFrequency;
   interval: number;
@@ -626,9 +628,10 @@ export interface CreateBudgetBody {
 
 export interface CreateRecurringBody {
   account_id?: number | null;
+  to_account_id?: number | null;
   category_id?: number | null;
   amount: number;
-  type: Exclude<TransactionType, 'transfer'>;
+  type: TransactionType;
   description: string;
   frequency: RecurringFrequency;
   interval?: number;

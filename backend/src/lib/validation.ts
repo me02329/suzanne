@@ -190,11 +190,13 @@ export const createBudgetSchema = z.object({
   rollover: z.coerce.boolean().optional(),
 });
 
-export const createRecurringSchema = z.object({
+const recurringFields = z.object({
   account_id: z.coerce.number().int().positive().nullish(),
+  // Virement : compte de destination (mensualité de prêt, épargne programmée).
+  to_account_id: z.coerce.number().int().positive().nullish(),
   category_id: z.coerce.number().int().positive().nullish(),
   amount,
-  type: z.enum(['expense', 'income']),
+  type: z.enum(['expense', 'income', 'transfer']),
   description: z.string().trim().min(1).max(500),
   frequency: z.enum(['weekly', 'monthly', 'yearly']),
   interval: z.coerce.number().int().min(1).max(120).default(1),
@@ -203,7 +205,14 @@ export const createRecurringSchema = z.object({
   active: z.coerce.boolean().default(true),
   end_date: dateString.nullish(),
 });
-export const updateRecurringSchema = createRecurringSchema.partial();
+export const createRecurringSchema = recurringFields.superRefine((r, ctx) => {
+  if (r.type !== 'transfer') return;
+  if (r.account_id == null || r.to_account_id == null) ctx.addIssue({ code: 'custom', path: ['to_account_id'], message: 'Un virement récurrent a besoin d’un compte de départ et d’un compte d’arrivée' });
+  else if (r.account_id === r.to_account_id) ctx.addIssue({ code: 'custom', path: ['to_account_id'], message: 'Les deux comptes du virement doivent être différents' });
+});
+// Mise à jour partielle : la cohérence du virement est vérifiée par la route,
+// sur le résultat fusionné avec l'existant.
+export const updateRecurringSchema = recurringFields.partial();
 
 export const createInstitutionSchema = z.object({
   name: z.string().trim().min(1).max(120),

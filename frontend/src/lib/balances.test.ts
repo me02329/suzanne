@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Account, RecurringTransaction } from '@suzanne/shared';
-import { isLiquidRecurring } from './balances';
+import { isLiquidRecurring, liquidView } from './balances';
 
 function account(overrides: Partial<Account>): Account {
   return {
@@ -12,7 +12,7 @@ function account(overrides: Partial<Account>): Account {
 
 function recurring(overrides: Partial<RecurringTransaction>): RecurringTransaction {
   return {
-    id: 1, user_id: 1, account_id: null, category_id: null, amount: 100, type: 'expense',
+    id: 1, user_id: 1, account_id: null, to_account_id: null, category_id: null, amount: 100, type: 'expense',
     description: 'Test', frequency: 'monthly', interval: 1, day_of_month: 1, month_of_year: null, active: true,
     last_executed: null, created_at: '',
     ...overrides,
@@ -45,5 +45,21 @@ describe('isLiquidRecurring', () => {
 
   it('keeps an orphaned account_id rather than silently dropping it', () => {
     expect(isLiquidRecurring(recurring({ account_id: 999 }), accountById)).toBe(true);
+  });
+});
+
+describe('liquidView (virements récurrents)', () => {
+  const accountById = new Map<number, Account>([
+    [1, account({ id: 1, type: 'checking' })],
+    [2, account({ id: 2, type: 'livret_a' })],
+    [5, account({ id: 5, type: 'loan' })],
+  ]);
+  it('mensualité vers un prêt = sortie ; entre deux comptes liquides = rien ; depuis un prêt = entrée', () => {
+    const out = liquidView([
+      recurring({ id: 1, type: 'transfer', account_id: 1, to_account_id: 5 }),
+      recurring({ id: 2, type: 'transfer', account_id: 1, to_account_id: 2 }),
+      recurring({ id: 3, type: 'transfer', account_id: 5, to_account_id: 1 }),
+    ], accountById);
+    expect(out.map((r) => [r.id, r.type, r.account_id])).toEqual([[1, 'expense', 1], [3, 'income', 1]]);
   });
 });

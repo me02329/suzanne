@@ -233,13 +233,13 @@ async function recurringProjections(user_id: number, account_id: number | null, 
       date: { gte: new Date(dates[0]! - pad), lte: new Date(dates[dates.length - 1]! + pad) },
       lines: { some: { account_id } },
     },
-    select: { id: true, date: true, description: true, recurring_transaction_id: true, lines: { select: { amount: true } }, recurring_transaction: { select: { description: true, amount: true } } },
+    select: { id: true, date: true, description: true, recurring_transaction_id: true, lines: { select: { amount: true } }, recurring_transaction: { select: { description: true, amount: true, category_id: true } } },
   });
   return generated
     .filter((t) => t.recurring_transaction && t.lines.length === 1
       && (t.description ?? '') === t.recurring_transaction.description
       && Math.abs(Math.abs(t.lines[0]!.amount) - t.recurring_transaction.amount) < 0.01)
-    .map((t) => ({ id: t.id, date: t.date.getTime(), amount: t.lines[0]!.amount, recurring_transaction_id: t.recurring_transaction_id!, description: t.description ?? '' }));
+    .map((t) => ({ id: t.id, date: t.date.getTime(), amount: t.lines[0]!.amount, recurring_transaction_id: t.recurring_transaction_id!, category_id: t.recurring_transaction!.category_id, description: t.description ?? '' }));
 }
 
 export async function dedupeAndInsert(user_id: number, account_id: number | null, parsedRows: ParsedImportRow[], baseSkipped: number) {
@@ -252,6 +252,8 @@ export async function dedupeAndInsert(user_id: number, account_id: number | null
   const projections = await recurringProjections(user_id, account_id, parsedRows);
   const replaced: Array<{ projection_id: number; line: number; description: string; date: string }> = [];
   const recurringLink = new Map<ParsedImportRow, number>();
+  // Catégorie du récurrent remplacé, pour une ligne de relevé qui n'en a pas.
+  const recurringCategory = new Map<ParsedImportRow, number | null>();
   const seenInFile = new Set<string>();
   const duplicates: Array<{ line: number; date: string; amount: number; description: string; reason: 'existing' | 'file' }> = [];
   const toCreate = parsedRows.filter((row) => {
@@ -328,6 +330,7 @@ export async function dedupeAndInsert(user_id: number, account_id: number | null
     if (!match) continue;
     usedProjections.add(match.id);
     recurringLink.set(row, match.recurring_transaction_id);
+    recurringCategory.set(row, match.category_id);
     replaced.push({ projection_id: match.id, line: row.line, description: match.description, date: new Date(match.date).toISOString().slice(0, 10) });
   }
   if (toCreate.length > 0) {
@@ -365,7 +368,7 @@ export async function dedupeAndInsert(user_id: number, account_id: number | null
               create: [{
                 user_id: row.user_id,
                 account_id: row.account_id,
-                category_id: row.category_id,
+                category_id: row.category_id ?? recurringCategory.get(row) ?? null,
                 amount: row.type === 'income' ? row.amount : -row.amount,
                 note: row.note ?? null,
               }],

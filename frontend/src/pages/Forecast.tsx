@@ -15,7 +15,7 @@ import type { Account, Category, DashboardSummary, RecurringTransaction, Savings
 import { money as moneyFmt, moneyCompact as moneyCompactFmt, formatRelativeDate } from '../lib/format';
 import { useChartTheme, useIsNarrow } from '../lib/chartTheme';
 import { usePersistedState } from '../lib/storage';
-import { isLiquidRecurring, liquidBalance } from '../lib/balances';
+import { liquidBalance, liquidView } from '../lib/balances';
 import { buildForecast, groupForecastEvents } from '../lib/forecast';
 import { EmptyChart } from '../components/EmptyChart';
 import '../styles/pages/plan.css';
@@ -59,7 +59,7 @@ export function Forecast({ recurring, accounts, goals, summary, reportCurrency, 
   // recurring on an investment/crypto/liability account would distort a
   // projection meant to track cash alone.
   const liquidRecurring = useMemo(
-    () => recurring.filter((r) => isLiquidRecurring(r, accountById)),
+    () => liquidView(recurring, accountById),
     [recurring, accountById],
   );
 
