@@ -55,3 +55,16 @@
 .loans-mode span { font-weight: 400; }
 /* Cartes (même rendu que les pages Planifier, dont le style n'est pas chargé ici). */
 .loans-page .pg-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); min-width: 0; padding: 16px 18px; }
+
+/* Rattacher une opération : liste de choix */
+.loan-link-pick { display: grid; gap: 8px; }
+.loan-link-list { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; }
+.loan-link-list li + li { border-top: 1px solid var(--border); }
+.loan-link-list button {
+  display: grid; grid-template-columns: 5.6em minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%;
+  padding: 10px 12px; border: 0; background: transparent; color: var(--text); text-align: left; font-size: 13.5px; cursor: pointer;
+}
+.loan-link-list button.on { background: var(--surface-muted); box-shadow: inset 3px 0 0 var(--text); }
+.loan-link-label { display: grid; min-width: 0; }
+.loan-link-label, .loan-link-label small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loan-link-label small { color: var(--muted); font-size: 12px; }

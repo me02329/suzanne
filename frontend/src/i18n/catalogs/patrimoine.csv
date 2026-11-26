@@ -393,6 +393,25 @@ patrimoine.loans.transactions,Opérations,Transactions
 patrimoine.loans.what_happened,Que s'est-il passé ?,What happened?
 patrimoine.loans.which_loan,Prêt concerné,Which loan
 patrimoine.loans.who_placeholder,"ex. Papa, Alex, ma banque","e.g. Dad, Alex, my bank"
+patrimoine.loans.link_menu,Rattacher à un prêt,Link to a loan
+patrimoine.loans.link_existing,Rattacher une opération,Link a transaction
+patrimoine.loans.link_hint,"Une mensualité déjà là (banque, import) devient le remboursement de ce prêt","An instalment already there (bank, import) becomes this loan's repayment"
+patrimoine.loans.link_title,Rattacher à un prêt,Link to a loan
+patrimoine.loans.link_loan,Prêt,Loan
+patrimoine.loans.link_search,"Chercher (libellé, montant)","Search (label, amount)"
+patrimoine.loans.link_no_candidate,Aucune opération correspondante sur les 13 derniers mois.,No matching transaction in the last 13 months.
+patrimoine.loans.link_pick_tx,Choisis l'opération à rattacher.,Pick the transaction to link.
+patrimoine.loans.link_pick_loan,Choisis le prêt.,Pick the loan.
+patrimoine.loans.link_interest,Dont intérêts et assurance (facultatif),Of which interest and insurance (optional)
+patrimoine.loans.link_interest_category,Catégorie des intérêts,Interest category
+patrimoine.loans.link_interest_invalid,Les intérêts doivent être inférieurs à la mensualité.,Interest must be lower than the instalment.
+patrimoine.loans.link_split,"Capital remboursé : {{principal}} · intérêts et assurance (dépense) : {{interest}}","Principal repaid: {{principal}} · interest and insurance (expense): {{interest}}"
+patrimoine.loans.link_explain_borrowed,"L'opération devient un virement vers le prêt : le reste dû baisse et ce n'est plus une dépense. Les intérêts et l'assurance, s'il y en a, restent une dépense à part, à la même date. Le solde de ton compte ne change pas.","The transaction becomes a transfer to the loan: the outstanding amount drops and it is no longer an expense. Interest and insurance, if any, stay a separate expense on the same date. Your account balance does not change."
+patrimoine.loans.link_explain_lent,"La rentrée d'argent devient le remboursement reçu : ce n'est plus un revenu, et ce qu'on te doit baisse.","The incoming money becomes the repayment received: it is no longer income, and what you are owed drops."
+patrimoine.loans.link_submit,Rattacher,Link
+patrimoine.loans.link_done,Opération rattachée à {{name}},Transaction linked to {{name}}
+patrimoine.loans.link_no_borrowed,"Aucun emprunt : crée d'abord le prêt dans Patrimoine › Prêts.","No loan yet: create it first in Wealth › Loans."
+patrimoine.loans.link_no_lent,"Aucun prêt accordé : crée-le d'abord dans Patrimoine › Prêts.","No money lent yet: create it first in Wealth › Loans."
 patrimoine.property,Biens,Property
 patrimoine.business,Société,Company
 patrimoine.wrapper.per_title,Fiscalité du PER,Retirement plan taxation

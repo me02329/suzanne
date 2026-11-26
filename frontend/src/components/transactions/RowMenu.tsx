@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, HandCoins, Info, Link2, MoreHorizontal, Paperclip, Repeat, Split, Trash2 } from 'lucide-react';
+import { Copy, HandCoins, Info, Landmark, Link2, MoreHorizontal, Paperclip, Repeat, Split, Trash2 } from 'lucide-react';
 import { refundedAmount, type Transaction } from '@suzanne/shared';
 import { useDismiss } from '../../lib/useDismiss';
 
@@ -22,6 +22,8 @@ export interface TxActionHandlers {
   onRefund: (t: Transaction) => void;
   onAttachments: (t: Transaction) => void;
   onDelete: (t: Transaction) => void;
+  /** Rattacher à un prêt (absent : action non proposée). */
+  onLoan?: (t: Transaction) => void;
 }
 
 // Actions secondaires d'une ligne (menu « ⋯ »). Seul « pointer » reste
@@ -49,6 +51,11 @@ export function useTxMenuItems() {
     } else if (tx.type === 'income') {
       const linked = (tx.refund_allocations?.length ?? 0) > 0 || tx.refunds_transaction_id != null;
       items.push({ key: 'refund', label: t('operations.link_to_expenses'), icon: <Link2 size={16} />, on: linked, onSelect: () => h.onRefund(tx) });
+    }
+    // Mensualité ou remboursement reçu arrivé comme dépense / rentrée simple.
+    if (h.onLoan && tx.type !== 'transfer' && (tx.splits ?? []).length === 0 && tx.account_id != null) {
+      const onLoan = h.onLoan;
+      items.push({ key: 'loan', label: t('patrimoine.loans.link_menu'), icon: <Landmark size={16} />, onSelect: () => onLoan(tx) });
     }
     items.push(
       { key: 'attachments', label: t('operations.attachments'), icon: <Paperclip size={16} />, onSelect: () => h.onAttachments(tx) },

@@ -50,3 +50,44 @@ describe('prêts : un compte par prêt', () => {
     expect(loan).toMatchObject({ direction: 'lent', principal: 300, repaid: 100, outstanding: 200, status: 'active' });
   });
 });
+
+describe('prêts : rattacher une opération existante', () => {
+  it('une mensualité apportée par la banque devient le remboursement, intérêts à part', async () => {
+    const { u, account, courant, maison, tx, loans } = await setup();
+    const auto = (await api.post(`/api/users/${u}/accounts`).send({ name: 'Prêt auto', type: 'loan', currency: 'EUR', initial_balance: -12000, initial_balance_date: '2026-01-01' }).expect(201)).body.id as number;
+    void account;
+    // Arrivée de la banque comme une dépense, déjà catégorisée par erreur.
+    const bank = (await tx({ type: 'expense', amount: 312.4, date: '2026-10-05', account_id: courant, category_id: maison, description: 'PRLV ORGANISME CREDIT' })).body.id as number;
+    const balanceBefore = (await api.get(`/api/users/${u}/accounts`).expect(200)).body.find((a: { id: number }) => a.id === courant);
+
+    const candidates = (await api.get(`/api/users/${u}/loans/${auto}/candidates`).expect(200)).body as Array<{ transaction_id: number }>;
+    expect(candidates.map((c) => c.transaction_id)).toContain(bank);
+
+    const linked = (await api.post(`/api/users/${u}/loans/${auto}/link`).send({ transaction_id: bank, interest_amount: 40.15, interest_category_id: maison }).expect(200)).body;
+    expect(linked).toMatchObject({ principal: 272.25, interest: 40.15 });
+
+    const moved = (await api.get(`/api/users/${u}/transactions/${bank}`).expect(200)).body;
+    expect(moved).toMatchObject({ type: 'transfer', amount: 272.25, account_id: courant, to_account_id: auto, description: 'PRLV ORGANISME CREDIT' });
+    const loan = (await loans()).find((l) => l.account_id === auto)!;
+    expect(loan).toMatchObject({ outstanding: 11727.75, repaid: 272.25 });
+    // Le compte courant n'a pas bougé : 272,25 de virement + 40,15 de dépense.
+    const balanceAfter = (await api.get(`/api/users/${u}/accounts`).expect(200)).body.find((a: { id: number }) => a.id === courant);
+    expect(balanceAfter?.balance ?? null).toEqual(balanceBefore?.balance ?? null);
+    const all = (await api.get(`/api/users/${u}/transactions?period=all`).expect(200)).body as Array<{ type: string; amount: number; category_id: number | null }>;
+    expect(all.filter((t) => t.type === 'expense')).toEqual([expect.objectContaining({ amount: 40.15, category_id: maison })]);
+
+    // Déjà rattachée : plus proposée, et refusée une seconde fois.
+    const again = (await api.get(`/api/users/${u}/loans/${auto}/candidates`).expect(200)).body as Array<{ transaction_id: number }>;
+    expect(again.map((c) => c.transaction_id)).not.toContain(bank);
+    await api.post(`/api/users/${u}/loans/${auto}/link`).send({ transaction_id: bank }).expect(400);
+  });
+
+  it('refuse le mauvais sens et des intérêts supérieurs à la mensualité', async () => {
+    const { u, courant, tx } = await setup();
+    const auto = (await api.post(`/api/users/${u}/accounts`).send({ name: 'Prêt', type: 'loan', currency: 'EUR', initial_balance: -1000, initial_balance_date: '2026-01-01' }).expect(201)).body.id as number;
+    const salary = (await tx({ type: 'income', amount: 100, date: '2026-10-01', account_id: courant, description: 'Salaire' })).body.id as number;
+    await api.post(`/api/users/${u}/loans/${auto}/link`).send({ transaction_id: salary }).expect(400);
+    const pay = (await tx({ type: 'expense', amount: 100, date: '2026-10-02', account_id: courant, description: 'Mensualité' })).body.id as number;
+    await api.post(`/api/users/${u}/loans/${auto}/link`).send({ transaction_id: pay, interest_amount: 100 }).expect(400);
+  });
+});

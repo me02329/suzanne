@@ -10,6 +10,7 @@ import { parseAmount } from '../components/home/amount';
 import { useChartTheme } from '../lib/chartTheme';
 import { Modal } from '../components/Modal';
 import { CategorySelect } from '../components/CategorySelect';
+import { LoanLinkModal } from '../components/LoanLinkModal';
 import { formatTxDate } from '../components/transactions/txUtils';
 import type { Run } from '../lib/run';
 import '../styles/pages/loans.css';
@@ -45,6 +46,7 @@ export function Loans({ userId, accounts, institutions, categories, dataVersion,
   const [loans, setLoans] = useState<LoanSummary[] | null>(null);
   const [creating, setCreating] = useState(false);
   const [repaying, setRepaying] = useState<LoanSummary | null>(null);
+  const [linking, setLinking] = useState<LoanSummary | null>(null);
   const [open, setOpen] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -90,7 +92,7 @@ export function Loans({ userId, accounts, institutions, categories, dataVersion,
       ) : (
         <div className="loans-grid">
           {active.map((loan) => (
-            <LoanCard key={loan.account_id} loan={loan} institution={institutionById.get(loan.institution_id ?? -1)} open={open.has(loan.account_id)} onToggle={() => toggle(loan.account_id)} onRepay={() => setRepaying(loan)} />
+            <LoanCard key={loan.account_id} loan={loan} institution={institutionById.get(loan.institution_id ?? -1)} open={open.has(loan.account_id)} onToggle={() => toggle(loan.account_id)} onRepay={() => setRepaying(loan)} onLink={() => setLinking(loan)} />
           ))}
         </div>
       )}
@@ -115,6 +117,9 @@ export function Loans({ userId, accounts, institutions, categories, dataVersion,
       {creating && (
         <NewLoanModal userId={userId} accounts={accounts} institutions={institutions} categories={categories} loans={active} run={run} onClose={() => setCreating(false)} />
       )}
+      {linking && (
+        <LoanLinkModal userId={userId} accounts={accounts} categories={categories} loanAccountId={linking.account_id} run={run} onClose={() => setLinking(null)} />
+      )}
       {repaying && (
         <RepayModal userId={userId} loan={repaying} accounts={accounts} run={run} onClose={() => setRepaying(null)} />
       )}
@@ -122,12 +127,13 @@ export function Loans({ userId, accounts, institutions, categories, dataVersion,
   );
 }
 
-function LoanCard({ loan, institution, open, onToggle, onRepay }: {
+function LoanCard({ loan, institution, open, onToggle, onRepay, onLink }: {
   loan: LoanSummary;
   institution: Institution | undefined;
   open: boolean;
   onToggle: () => void;
   onRepay: () => void;
+  onLink: () => void;
 }) {
   const { t } = useTranslation();
   const theme = useChartTheme();
@@ -157,6 +163,7 @@ function LoanCard({ loan, institution, open, onToggle, onRepay }: {
       </p>
       <div className="loan-actions">
         <button type="button" className="primary" onClick={onRepay}>{t('patrimoine.loans.record_repayment')}</button>
+        <button type="button" className="secondary" onClick={onLink} title={t('patrimoine.loans.link_hint')}>{t('patrimoine.loans.link_existing')}</button>
         <button type="button" className="secondary" aria-expanded={open} onClick={onToggle}>
           {t('patrimoine.loans.history')} <ChevronDown size={14} className={open ? 'loan-chevron open' : 'loan-chevron'} aria-hidden />
         </button>

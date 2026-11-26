@@ -18,6 +18,7 @@ import { JournalList } from '../components/transactions/JournalList';
 import { RefundModal } from '../components/transactions/RefundModal';
 import { RecurringLinkModal } from '../components/transactions/RecurringLinkModal';
 import { RowMenu, useTxMenuItems, type TxActionHandlers } from '../components/transactions/RowMenu';
+import { LoanLinkModal } from '../components/LoanLinkModal';
 import { TransactionFormModal, type TxDraft, type TxFormMode } from '../components/transactions/TransactionFormModal';
 import { TransactionDetailModal } from '../components/transactions/TransactionDetailModal';
 import { useTransactionFilters } from '../components/transactions/useTransactionFilters';
@@ -31,6 +32,7 @@ type Dialog =
   | { kind: 'refund'; txs: Transaction[]; fromSelection?: boolean }
   | { kind: 'recurring'; tx: Transaction }
   | { kind: 'attachments'; tx: Transaction }
+  | { kind: 'loan'; tx: Transaction }
   | { kind: 'bulkEdit' }
   | { kind: 'trash' }
   | { kind: 'refunded'; tx: Transaction; expenses: RefundedExpense[] }
@@ -191,6 +193,7 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
     });
   }, [run, t, userId]);
 
+  const hasLoans = accounts.some((a) => !a.archived && (a.type === 'loan' || a.type === 'receivable'));
   const handlers: TxActionHandlers = useMemo(() => ({
     onDetails: (tx) => setDialog({ kind: 'detail', id: tx.id }),
     onCopy: (tx) => setDialog({ kind: 'form', mode: 'copy', tx }),
@@ -199,7 +202,8 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
     onRefund: (tx) => setDialog({ kind: 'refund', txs: [tx] }),
     onAttachments: (tx) => setDialog({ kind: 'attachments', tx }),
     onDelete: deleteTx,
-  }), [deleteTx]);
+    onLoan: hasLoans ? (tx) => setDialog({ kind: 'loan', tx }) : undefined,
+  }), [deleteTx, hasLoans]);
 
   // Aller à une opération (même hors du mois affiché) : filtres remis à zéro,
   // bascule sur son mois puis surlignage (même mécanisme que ?tx=…).
@@ -385,6 +389,9 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
             ? <RowMenu items={menuItems(dialog.tx, handlers)} label={t('operations.more_actions')} />
             : undefined}
         />
+      )}
+      {dialog?.kind === 'loan' && (
+        <LoanLinkModal userId={userId} accounts={accounts} categories={categories} tx={dialog.tx} run={run} onClose={closeDialog} />
       )}
       {dialog?.kind === 'refund' && (
         <RefundModal seed={dialog.txs} userId={userId} accounts={accounts} accountById={accountById} categoryById={categoryById} run={run} onClose={closeDialog} onDone={dialog.fromSelection ? selection.clear : undefined} />
