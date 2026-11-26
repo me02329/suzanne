@@ -49,7 +49,7 @@ export function PeaTracking({ flows, history, ccy, asOf, fmt }: InsightProps) {
         <div className="pi-chart">
           {months.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={months} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+              <ComposedChart data={months} margin={{ top: 10, right: 14, left: 2, bottom: 0 }}>
                 <CartesianGrid stroke={theme.grid} vertical={false} />
                 <XAxis dataKey="month" {...timeAxisProps(months.map((m) => m.month), theme.tick, 'month')} minTickGap={24} />
                 <YAxis yAxisId="m" tickFormatter={(v) => compact(Number(v))} tick={theme.tick} tickLine={false} axisLine={false} width={56} />
@@ -68,7 +68,7 @@ export function PeaTracking({ flows, history, ccy, asOf, fmt }: InsightProps) {
         <div className="pi-chart">
           {rows.length > 1 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <ComposedChart data={rows} margin={{ top: 10, right: 20, left: 2, bottom: 0 }}>
                 <defs>
                   <linearGradient id="piValue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={theme.net} stopOpacity={0.28} />
@@ -76,7 +76,7 @@ export function PeaTracking({ flows, history, ccy, asOf, fmt }: InsightProps) {
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke={theme.grid} vertical={false} />
-                <XAxis dataKey="date" tickFormatter={(d) => formatDateFr(String(d), { month: 'short', year: '2-digit' })} tick={theme.tick} tickLine={false} axisLine={false} minTickGap={32} />
+                <XAxis dataKey="date" tickFormatter={(d) => formatDateFr(String(d), { month: 'short', year: '2-digit' })} tick={theme.tick} tickLine={false} axisLine={false} minTickGap={32} padding={{ left: 8, right: 8 }} />
                 <YAxis tickFormatter={(v) => compact(Number(v))} tick={theme.tick} tickLine={false} axisLine={false} width={56} />
                 <Tooltip {...theme.tooltip} labelFormatter={(d) => formatDateFr(String(d))} formatter={(v, name) => [fmt(Number(v)), name]} />
                 <Area dataKey="value" name="Valeur" type="monotone" stroke={theme.net} strokeWidth={2} fill="url(#piValue)" dot={false} isAnimationActive={false} />

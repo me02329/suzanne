@@ -24,7 +24,7 @@
 .pi-hero-value { font-family: var(--num-font); font-size: clamp(32px, 4vw, 44px); font-weight: 600; letter-spacing: -0.04em; line-height: 1.1; }
 
 /* ---- Graphiques ----------------------------------------------------- */
-.pi-chart { height: 260px; padding: 14px 10px 6px 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.pi-chart { height: 260px; padding: 14px 8px 6px 6px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); min-width: 0; }
 
 /* ---- Composition ---------------------------------------------------- */
 .pi-compo {

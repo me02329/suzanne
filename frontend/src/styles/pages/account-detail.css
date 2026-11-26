@@ -28,8 +28,9 @@
   .ad-fold-body { padding: 12px 14px 16px; }
   .ad-field { max-width: none; }
   .ad .acc-hero-actions { grid-template-columns: 1fr 1fr; }
-  .ad .pg-section-head .acc-seg { width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); }
-  .ad .pg-section-head .acc-seg button { padding: 0 6px; font-size: 13px; }
+  /* Une seule ligne, autant de colonnes égales que de choix (4 ou 5 selon le bloc). */
+  .ad .pg-section-head .acc-seg { width: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  .ad .pg-section-head .acc-seg button { padding: 0 4px; font-size: 13px; white-space: nowrap; }
 }
 /* Cartes par capacité du type de compte : valorisation (biens), intérêts (livrets). */
 .ad-valuation, .ad-interest, .ad-fees { display: grid; gap: 12px; padding: 14px 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); min-width: 0; }
