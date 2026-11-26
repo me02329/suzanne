@@ -37,6 +37,7 @@ import { SuzanneMark } from './components/SuzanneMark';
 import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
 import { DialogHost } from './components/Dialogs';
+import { SelectPicker } from './components/SelectPicker';
 import { TokenModal } from './components/TokenModal';
 import { onUnauthorized } from './lib/authToken';
 import { readActiveProfile, writeActiveProfile } from './lib/activeProfile';
@@ -659,6 +660,7 @@ export default function App() {
         {notice && <Toast kind="success" message={notice.message} action={notice.action} onDismiss={() => setNotice(null)} />}
       </div>
       <DialogHost />
+      <SelectPicker />
     </div>
   );
 }

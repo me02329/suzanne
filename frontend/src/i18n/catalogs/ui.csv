@@ -96,6 +96,8 @@ ui.dialog.prompt_title,Saisir,Enter
 ui.dialog.alert_title,Information,Information
 ui.dialog.ok,OK,OK
 ui.dialog.confirm,Confirmer,Confirm
+ui.select.search,Rechercher…,Search…
+ui.select.no_match,Aucun choix ne correspond.,No matching choice.
 ui.category_select.search,Rechercher une catégorie…,Search a category…
 ui.category_select.no_match,Aucune catégorie ne correspond.,No matching category.
 ui.category_select.no_description,Pas de description pour cette catégorie.,No description for this category.

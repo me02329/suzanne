@@ -1307,14 +1307,15 @@ tr.row-muted td { opacity: 0.55; }
   white-space: nowrap;
 }
 
+/* Teinte posée sur un fond plein : un message ne laisse pas voir la page dessous. */
 .toast.toast-error {
-  background: var(--expense-soft);
+  background: linear-gradient(var(--expense-soft), var(--expense-soft)), var(--surface-raised);
   color: var(--expense);
   border: 1px solid var(--expense-border);
 }
 
 .toast.toast-success {
-  background: var(--income-soft);
+  background: linear-gradient(var(--income-soft), var(--income-soft)), var(--surface-raised);
   color: var(--income);
   border: 1px solid var(--income-border);
 }
