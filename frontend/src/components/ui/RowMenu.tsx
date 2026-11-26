@@ -1,6 +1,8 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useDismiss } from '../../lib/useDismiss';
+import { useClampToViewport } from '../../lib/useClampToViewport';
 
 export interface RowMenuItem {
   label: string;
@@ -21,6 +23,7 @@ export function RowMenu({ items, label = 'Plus d’actions' }: { items: RowMenuI
   const [pos, setPos] = useState<{ top: number; right: number; up: boolean } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  useClampToViewport(menuRef, open && pos !== null, [pos]);
   const menuId = useId();
 
   const place = () => {
@@ -77,7 +80,7 @@ export function RowMenu({ items, label = 'Plus d’actions' }: { items: RowMenuI
       >
         <MoreHorizontal size={16} />
       </button>
-      {open && pos && (
+      {open && pos && createPortal(
         <div
           ref={menuRef}
           id={menuId}
@@ -98,7 +101,10 @@ export function RowMenu({ items, label = 'Plus d’actions' }: { items: RowMenuI
               {item.label}
             </button>
           ))}
-        </div>
+        </div>,
+        // Au niveau du document : aucun parent animé ou déplacé (fenêtre,
+        // glissement de page) ne décale le menu.
+        document.body,
       )}
     </>
   );

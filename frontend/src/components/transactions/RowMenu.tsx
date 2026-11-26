@@ -1,8 +1,10 @@
+import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, HandCoins, Info, Landmark, Link2, MoreHorizontal, Paperclip, Repeat, Split, Trash2 } from 'lucide-react';
 import { refundedAmount, type Transaction } from '@suzanne/shared';
 import { useDismiss } from '../../lib/useDismiss';
+import { useClampToViewport } from '../../lib/useClampToViewport';
 
 export interface RowMenuItem {
   key: string;
@@ -73,6 +75,7 @@ export function RowMenu({ items, label }: { items: RowMenuItem[]; label?: string
   const [pos, setPos] = useState<{ top: number; right: number; up: boolean } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  useClampToViewport(menuRef, open && pos !== null, [pos]);
 
   // Position calculée depuis le bouton ; suit le défilement (un menu qui se
   // fermerait au moindre scroll serait inutilisable au doigt).
@@ -126,7 +129,7 @@ export function RowMenu({ items, label }: { items: RowMenuItem[]; label?: string
       >
         <MoreHorizontal size={18} />
       </button>
-      {open && pos && (
+      {open && pos && createPortal(
         <div
           ref={menuRef}
           className={`jr-menu${pos.up ? ' up' : ''}`}
@@ -146,7 +149,10 @@ export function RowMenu({ items, label }: { items: RowMenuItem[]; label?: string
               <span>{item.label}</span>
             </button>
           ))}
-        </div>
+        </div>,
+        // Au niveau du document : aucun parent animé ou déplacé (fenêtre,
+        // glissement de page) ne décale le menu.
+        document.body,
       )}
     </>
   );

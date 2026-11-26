@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -99,7 +100,10 @@ export function Modal({ title, children, onClose, wide = false, footer }: {
     return () => document.removeEventListener('keydown', onKey);
   }, [id, requestClose]);
 
-  return (
+  // Au niveau du document (portail) : une fenêtre ouverte depuis un élément
+  // animé ou déplacé (autre fenêtre, glissement de page, ligne de tableau)
+  // resterait sinon calée sur lui au lieu de l'écran.
+  return createPortal(
     <div className={`modal-backdrop${closing ? ' closing' : ''}`} role="presentation" onMouseDown={requestClose}>
       <div
         ref={dialogRef}
@@ -120,6 +124,7 @@ export function Modal({ title, children, onClose, wide = false, footer }: {
         {children}
         {footer && <div className="modal-actions modal-footer">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

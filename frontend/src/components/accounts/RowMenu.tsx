@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreHorizontal } from 'lucide-react';
 import { useDismiss } from '../../lib/useDismiss';
+import { useClampToViewport } from '../../lib/useClampToViewport';
 import '../../styles/pages/accounts.css';
 
 export interface RowMenuItem {
@@ -21,6 +22,7 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
   const [pos, setPos] = useState<{ top: number; right: number; up: boolean } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  useClampToViewport(menuRef, open && pos != null, [pos]);
 
   useLayoutEffect(() => {
     if (!open) { setPos(null); return; }
