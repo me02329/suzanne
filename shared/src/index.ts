@@ -389,7 +389,21 @@ export interface AnomalyReport {
   duplicates: DuplicatePair[];
   /** Paires validées « pas un doublon » (masquées). */
   dismissed_duplicates?: number;
+  /** Virements probables arrivés en deux opérations (sortie + entrée), à relier. */
+  transfer_pairs?: TransferPairSuggestion[];
 }
+
+export interface TransferPairSide {
+  id: number;
+  date: string;
+  description: string | null;
+  account_id: number;
+  /** Signé : < 0 sortie, > 0 entrée. */
+  amount: number;
+  currency: string;
+}
+
+export interface TransferPairSuggestion { out: TransferPairSide; in: TransferPairSide }
 
 // Métadonnées d'une pièce jointe (le binaire se télécharge à part).
 export interface Attachment {

@@ -27,6 +27,15 @@ export function BulkBar({ selection, userId, tags, run, onEdit, onRefund }: {
   const nIncome = selected.filter((tx) => tx.type === 'income').length;
   const nExpense = selected.filter((tx) => tx.type === 'expense').length;
   const canRefund = nIncome + nExpense === count && !(nIncome > 1 && nExpense > 1);
+  // Deux côtés d'un même virement (une sortie, une entrée, deux comptes) : à relier.
+  const outTx = selected.find((tx) => tx.type === 'expense');
+  const inTx = selected.find((tx) => tx.type === 'income');
+  const canTransfer = count === 2 && outTx != null && inTx != null && outTx.account_id != null && inTx.account_id != null && outTx.account_id !== inTx.account_id
+    && (outTx.splits ?? []).length === 0 && (inTx.splits ?? []).length === 0;
+  const linkTransfer = () => {
+    if (!outTx || !inTx) return;
+    void run(() => api.linkTransferPair(userId, outTx.id, inTx.id), t('operations.review.transfer_linked')).then((ok) => { if (ok) clear(); });
+  };
 
   const setCleared = (cleared: boolean) => {
     void run(
@@ -60,6 +69,9 @@ export function BulkBar({ selection, userId, tags, run, onEdit, onRefund }: {
         <button type="button" className="secondary" onClick={onRefund} title={t('operations.one_income_can_refund_several')}>
           {nIncome === 0 ? t('operations.refund_2') : nExpense === 0 ? t('operations.link_to_expense') : t('operations.link_refund')}
         </button>
+      )}
+      {canTransfer && (
+        <button type="button" className="secondary" onClick={linkTransfer} title={t('operations.review.link_transfer_hint')}>{t('operations.review.link_transfer')}</button>
       )}
       <button type="button" className="secondary" onClick={() => setCleared(true)}>{t('operations.clear_2')}</button>
       <button type="button" className="secondary" onClick={() => setCleared(false)}>{t('operations.unclear')}</button>

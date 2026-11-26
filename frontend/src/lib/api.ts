@@ -217,6 +217,8 @@ export const api = {
   deleteAccount: (userId: number, id: number) => http<{ deleted: boolean }>(`/users/${userId}/accounts/${id}`, { method: 'DELETE' }),
   institutions: (userId: number) => http<Institution[]>(`/users/${userId}/institutions`),
   loans: (userId: number) => http<LoanSummary[]>(`/users/${userId}/loans`),
+  linkTransferPair: (userId: number, outId: number, inId: number) => http<{ transaction_id: number }>(`/users/${userId}/transfer-pairs/link`, { method: 'POST', body: JSON.stringify({ out_id: outId, in_id: inId }) }),
+  dismissTransferPair: (userId: number, outId: number, inId: number) => http<{ dismissed: boolean }>(`/users/${userId}/transfer-pairs/dismiss`, { method: 'POST', body: JSON.stringify({ out_id: outId, in_id: inId }) }),
   loanCandidates: (userId: number, loanAccountId: number) => http<LoanCandidate[]>(`/users/${userId}/loans/${loanAccountId}/candidates`),
   linkToLoan: (userId: number, loanAccountId: number, body: { transaction_id: number; interest_amount?: number; interest_category_id?: number | null }) =>
     http<{ transaction_id: number; principal: number; interest: number }>(`/users/${userId}/loans/${loanAccountId}/link`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),

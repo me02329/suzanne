@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../prisma.js';
+import type { Prisma } from '@prisma/client';
+import { prisma, prismaBase } from '../prisma.js';
 import { asyncHandler, HttpError } from '../middleware/errors.js';
 import { idParam } from '../lib/validation.js';
 import { detectAnomalies, type AnomalyTx } from '../lib/anomalies.js';
+import { detectTransferPairs, type PairCandidate, type TransferPair } from '../lib/transferPairs.js';
 import { bucketByRule } from '../lib/categoryRules.js';
 import { LEDGER_TX_SELECT, legacyView, LINES_ORDERED, LINE_SELECT } from '../lib/ledger.js';
 
@@ -74,7 +76,92 @@ anomaliesRouter.get('/users/:user_id/anomalies', asyncHandler(async (req, res) =
     if (suggested != null && typeOf.get(suggested) !== t.type) suggested = null;
     return { ...t, suggested_category_id: suggested };
   });
-  res.json({ ...report, no_category, duplicates, dismissed_duplicates: report.duplicates.length - duplicates.length });
+  res.json({
+    ...report, no_category, duplicates, dismissed_duplicates: report.duplicates.length - duplicates.length,
+    transfer_pairs: await transferPairsFor(user_id, hidden),
+  });
+}));
+
+// ---- Virements à relier ------------------------------------------------------
+
+const PAIR_HISTORY_DAYS = 400;
+
+/** Opérations simples (une ligne, sur un compte) qui pourraient être les deux côtés d'un virement. */
+async function transferPairsFor(user_id: number, dismissed: Set<string>): Promise<TransferPair[]> {
+  const rows = await prisma.transaction.findMany({
+    where: { user_id, kind: 'standard', date: { gte: new Date(Date.now() - PAIR_HISTORY_DAYS * 86400000) } },
+    select: { id: true, date: true, description: true, lines: { select: { account_id: true, amount: true, account: { select: { currency: true } } } } },
+  });
+  const candidates: PairCandidate[] = rows
+    .filter((t) => t.lines.length === 1 && t.lines[0]!.account_id != null)
+    .map((t) => ({ id: t.id, date: t.date, description: t.description, account_id: t.lines[0]!.account_id!, amount: t.lines[0]!.amount, currency: t.lines[0]!.account?.currency ?? 'EUR' }));
+  return detectTransferPairs(candidates, dismissed);
+}
+
+const linkPairSchema = z.object({ out_id: z.coerce.number().int().positive(), in_id: z.coerce.number().int().positive() });
+
+/**
+ * Relie deux opérations en un virement : la sortie devient le virement et
+ * reçoit la ligne de l'entrée (sans catégorie : ni dépense ni revenu) ; l'entrée
+ * disparaît, ses tags, pièces jointes et données bancaires passent sur le
+ * virement. Montants différents seulement entre deux devises.
+ */
+anomaliesRouter.post('/users/:user_id/transfer-pairs/link', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const body = linkPairSchema.parse(req.body);
+  if (body.out_id === body.in_id) throw new HttpError(400, 'Choisis deux opérations différentes');
+  const select = {
+    id: true, kind: true, import_fingerprint: true, bank_data: true, recurring_transaction_id: true,
+    lines: { select: { id: true, account_id: true, amount: true, account: { select: { currency: true } } } },
+  } as const;
+  const [out, inc] = await Promise.all([
+    prisma.transaction.findFirst({ where: { id: body.out_id, user_id }, select }),
+    prisma.transaction.findFirst({ where: { id: body.in_id, user_id }, select }),
+  ]);
+  if (!out || !inc) throw new HttpError(404, 'Opération introuvable');
+  const o = out.lines[0];
+  const i = inc.lines[0];
+  if (out.kind !== 'standard' || inc.kind !== 'standard' || out.lines.length !== 1 || inc.lines.length !== 1 || !o?.account_id || !i?.account_id) {
+    throw new HttpError(400, 'Seules deux opérations simples, chacune sur un compte, peuvent être reliées en virement');
+  }
+  if (o.account_id === i.account_id) throw new HttpError(400, 'Un virement relie deux comptes différents');
+  if (!(o.amount < 0 && i.amount > 0)) throw new HttpError(400, 'Il faut une sortie d’argent et une entrée d’argent');
+  if (o.account?.currency === i.account?.currency && Math.abs(o.amount + i.amount) >= 0.005) {
+    throw new HttpError(400, 'Les deux montants doivent être égaux (même devise)');
+  }
+  const bankData = [out.bank_data, inc.bank_data].flatMap((d) => (Array.isArray(d) ? d : d != null ? [d] : []));
+  await prismaBase.$transaction(async (db) => {
+    await db.transactionLine.update({ where: { id: o.id }, data: { category_id: null, refund: false, refund_of_id: null, position: 0 } });
+    await db.transactionLine.update({ where: { id: i.id }, data: { transaction_id: out.id, category_id: null, refund: false, refund_of_id: null, position: 1 } });
+    // Tags et pièces jointes de l'entrée : rattachés au virement.
+    const tags = await db.transactionTag.findMany({ where: { transaction_id: inc.id }, select: { tag_id: true } });
+    if (tags.length > 0) await db.transactionTag.createMany({ data: tags.map((t) => ({ transaction_id: out.id, tag_id: t.tag_id })), skipDuplicates: true });
+    await db.attachment.updateMany({ where: { transaction_id: inc.id }, data: { transaction_id: out.id } });
+    await db.transaction.update({
+      where: { id: out.id },
+      data: {
+        kind: 'transfer',
+        // Empreinte : celle de la sortie, sinon celle de l'entrée (une nouvelle
+        // synchro reconnaît aussi l'autre côté, par compte et montant).
+        import_fingerprint: out.import_fingerprint ?? inc.import_fingerprint,
+        recurring_transaction_id: out.recurring_transaction_id ?? inc.recurring_transaction_id,
+        ...(bankData.length > 0 ? { bank_data: bankData as Prisma.InputJsonValue } : {}),
+      },
+    });
+    await db.transaction.delete({ where: { id: inc.id } });
+  });
+  res.json({ transaction_id: out.id });
+}));
+
+/** « Ce n'est pas un virement » : la paire n'est plus proposée. */
+anomaliesRouter.post('/users/:user_id/transfer-pairs/dismiss', asyncHandler(async (req, res) => {
+  const user_id = idParam.parse(req.params.user_id);
+  const body = linkPairSchema.parse(req.body);
+  const [a_id, b_id] = body.out_id < body.in_id ? [body.out_id, body.in_id] : [body.in_id, body.out_id];
+  const owned = await prisma.transaction.count({ where: { user_id, id: { in: [a_id, b_id] } } });
+  if (owned !== 2) throw new HttpError(404, 'Opération introuvable');
+  await prisma.duplicateDismissal.upsert({ where: { user_id_a_id_b_id: { user_id, a_id, b_id } }, create: { user_id, a_id, b_id }, update: {} });
+  res.json({ dismissed: true });
 }));
 
 const pairSchema = z.object({ a_id: z.coerce.number().int().positive(), b_id: z.coerce.number().int().positive() });

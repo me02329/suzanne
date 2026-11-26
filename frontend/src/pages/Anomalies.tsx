@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Check, CircleSlash, Copy, ExternalLink, Loader2, ScanLine, Tags, Trash2 } from 'lucide-react';
-import type { Account, AnomalyReport, AnomalyTxRef, Category } from '@suzanne/shared';
+import { ArrowLeftRight, Check, CircleSlash, Copy, ExternalLink, Link2, Loader2, ScanLine, Tags, Trash2 } from 'lucide-react';
+import type { Account, AnomalyReport, AnomalyTxRef, Category, TransferPairSuggestion } from '@suzanne/shared';
 import { api, http } from '../lib/api';
 import { money } from '../lib/format';
 import { pickableAccounts } from '../lib/account';
@@ -76,6 +76,12 @@ export function Anomalies({ userId, accounts, accountById, categories, categoryB
       t('operations.review.not_duplicate_done'),
     );
   };
+  const linkTransfer = (p: TransferPairSuggestion) => {
+    void run(() => api.linkTransferPair(userId, p.out.id, p.in.id), t('operations.review.transfer_linked'));
+  };
+  const notTransfer = (p: TransferPairSuggestion) => {
+    void run(() => api.dismissTransferPair(userId, p.out.id, p.in.id), t('operations.review.not_transfer_done'));
+  };
   const restoreDismissed = () => {
     void run(() => http(`/users/${userId}/anomalies/duplicates/dismiss`, { method: 'DELETE' }), t('operations.review.dismissed_restored'));
   };
@@ -90,7 +96,8 @@ export function Anomalies({ userId, accounts, accountById, categories, categoryB
   if (loading) return <p className="empty"><Loader2 className="spin-icon" size={16} /> {t('operations.review.analyzing')}</p>;
   if (!report) return <p className="empty">{t('operations.review.unavailable')}</p>;
 
-  const clean = report.no_account.length === 0 && report.no_category.length === 0 && report.duplicates.length === 0;
+  const pairs = report.transfer_pairs ?? [];
+  const clean = report.no_account.length === 0 && report.no_category.length === 0 && report.duplicates.length === 0 && pairs.length === 0;
   const suggestedCount = report.no_category.filter((r) => r.suggested_category_id != null).length;
   const noLabel = <span className="muted">{t('operations.review.no_label')}</span>;
   const viewLabel = t('operations.review.view_in_journal');
@@ -186,6 +193,32 @@ export function Anomalies({ userId, accounts, accountById, categories, categoryB
                   </tr>
                 );
               })}
+            </tbody>
+          </DataTable>
+        </Panel>
+      )}
+
+      {pairs.length > 0 && (
+        <Panel title={t('operations.review.transfers_title', { n: pairs.length })} icon={<ArrowLeftRight />}>
+          <p className="panel-note">{t('operations.review.transfers_note')}</p>
+          <DataTable scroll empty={null}>
+            <thead><tr><th className="amount-cell">{col.amount}</th><th>{t('operations.review.col_out')}</th><th>{t('operations.review.col_in')}</th><th className="actions-cell">{col.actions}</th></tr></thead>
+            <tbody>
+              {pairs.map((p) => (
+                <tr key={`${p.out.id}-${p.in.id}`}>
+                  <td className="amount-cell" data-label={col.amount}>{money(Math.abs(p.out.amount), p.out.currency)}</td>
+                  <td data-label={t('operations.review.col_out')}>
+                    <button type="button" className="link-button" onClick={() => navigate(`/transactions?tx=${p.out.id}`)}>{accountName(p.out.account_id)} · {formatDay(p.out.date)} · {p.out.description ?? '—'}</button>
+                  </td>
+                  <td data-label={t('operations.review.col_in')}>
+                    <button type="button" className="link-button" onClick={() => navigate(`/transactions?tx=${p.in.id}`)}>{accountName(p.in.account_id)} · {formatDay(p.in.date)} · {p.in.description ?? '—'}</button>
+                  </td>
+                  <td className="actions-cell">
+                    <IconButton label={t('operations.review.link_transfer')} tone="neutral" icon={<Link2 size={16} />} onClick={() => linkTransfer(p)} />
+                    <IconButton label={t('operations.review.not_transfer')} tone="neutral" icon={<CircleSlash size={16} />} onClick={() => notTransfer(p)} />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </DataTable>
         </Panel>

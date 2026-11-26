@@ -307,6 +307,15 @@ operations.review.duplicates_note,"Même compte, même type, même montant, mêm
 operations.review.no_pending_duplicate,Aucun doublon en attente.,No pending duplicate.
 operations.review.not_duplicate,Pas un doublon : valider,Not a duplicate: confirm
 operations.review.delete_b,Supprimer B (corbeille),Delete B (trash)
+operations.review.transfers_title,Virements à relier ({{n}}),Transfers to link ({{n}})
+operations.review.transfers_note,"Un virement entre deux de tes comptes arrivé en deux opérations (une sortie, une entrée, même montant, à quelques jours d'écart) est compté comme une dépense et un revenu. Relié, il devient un seul virement : ni dépense ni revenu.","A transfer between two of your accounts that arrived as two transactions (one out, one in, same amount, a few days apart) counts as an expense and an income. Linked, it becomes a single transfer: neither expense nor income."
+operations.review.col_out,Sortie,Out
+operations.review.col_in,Entrée,In
+operations.review.link_transfer,Lier en virement,Link as transfer
+operations.review.link_transfer_hint,"Une sortie et une entrée sur deux comptes : un seul virement, ni dépense ni revenu","One out and one in on two accounts: a single transfer, neither expense nor income"
+operations.review.not_transfer,Pas un virement,Not a transfer
+operations.review.not_transfer_done,Paire écartée,Pair dismissed
+operations.review.transfer_linked,Opérations reliées en un virement,Transactions linked as one transfer
 operations.statement_import_modal.import_ofx_qif_statement,Importer un relevé OFX / QIF,Import an OFX / QIF statement
 operations.statement_import_modal.characters_key_to_change,caractères · touche pour changer,characters · key to change
 operations.statement_import_modal.format,Format,Format
