@@ -30,6 +30,7 @@ import {
   moneyCompact as moneyCompactFmt,
   todayIso,
 } from '../lib/format';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 import { timeAxisProps, timeTooltipLabel } from '../lib/timeAxis';
 import { localeTag } from '../i18n';
 import { useChartTheme } from '../lib/chartTheme';
@@ -277,7 +278,7 @@ export function Wealth({ userId, summary, accounts, reportCurrency, dataVersion,
       <header className="acc-hero">
         <div className="acc-hero-main">
           <span className="acc-kicker">{t('patrimoine.net_worth')}</span>
-          <strong className={`acc-hero-value num${(netWorth ?? 0) < 0 ? ' expense' : ''}`}>{money(netWorth ?? 0)}</strong>
+          <strong className={`acc-hero-value num${(netWorth ?? 0) < 0 ? ' expense' : ''}`}><AnimatedNumber value={netWorth ?? 0} format={(v) => money(v)} /></strong>
           <span className="acc-hero-sub"><span>{t('patrimoine.snapshot_as_today_independent_selected')}</span></span>
         </div>
       </header>

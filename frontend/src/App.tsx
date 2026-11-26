@@ -24,7 +24,7 @@ import {
 } from '@suzanne/shared';
 import { api } from './lib/api';
 import { currentMonthIso } from './lib/format';
-import { MONTH_TABS, navSections, normalizeTab, pathForTab, sectionForTab, tabFromPath, tabLabel, type Tab } from './lib/nav';
+import { MONTH_TABS, navItems, navSections, normalizeTab, pathForTab, sectionForTab, tabFromPath, tabLabel, type Tab } from './lib/nav';
 import type { Run } from './lib/run';
 import { usePersistedState } from './lib/storage';
 import { useGlobalShortcuts } from './lib/useGlobalShortcuts';
@@ -88,6 +88,15 @@ export default function App() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const tab = tabFromPath(location.pathname);
+  // Sens du glissement entre pages : vers la gauche quand on avance dans les
+  // onglets (ordre de la navigation), vers la droite quand on revient.
+  const tabIndex = navItems.findIndex((item) => item.tab === tab);
+  const lastTabIndex = useRef(tabIndex);
+  const pageDir = useRef<'forward' | 'back' | undefined>(undefined);
+  if (lastTabIndex.current !== tabIndex) {
+    pageDir.current = tabIndex > lastTabIndex.current ? 'forward' : 'back';
+    lastTabIndex.current = tabIndex;
+  }
   const [lastTab, setLastTab] = usePersistedState<Tab>('active_tab', 'dashboard');
   // Barre du bas (téléphone) : pages et ordre choisis par l'utilisateur.
   const tabbarIds = useTabbar();
@@ -518,7 +527,7 @@ export default function App() {
         <Suspense fallback={<div className="page-loading">{t('ui.app.loading_2')}</div>}>
         {/* Keyed by pathname so the wrapper remounts on every navigation and
             replays the fade — whatever element the page uses as its root. */}
-        <div className="page-fade" key={location.pathname}>
+        <div className="page-fade" key={location.pathname} data-dir={pageDir.current}>
         <Routes>
           <Route path="/" element={<Navigate to={pathForTab(normalizeTab(lastTab))} replace />} />
           <Route

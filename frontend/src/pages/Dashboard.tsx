@@ -15,6 +15,7 @@ import {
 } from '@suzanne/shared';
 import { useTranslation } from 'react-i18next';
 import { currentMonthIso, formatMonth, formatMonthLong, formatRelativeDate, money as moneyFmt } from '../lib/format';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 import { seriesColor, useChartTheme } from '../lib/chartTheme';
 import { CADENCE_META, cadenceAmount, cadenceOf, cadenceTotals } from '../lib/subscriptions';
 import { useBudgetStatus } from '../components/home/useBudgetStatus';
@@ -151,7 +152,7 @@ export function Dashboard({ summary, transactions, budgets, recurring, billsStat
       <div className="home-hero">
         <div className="home-hero-main">
           <span className="pg-kicker">{t('accueil.net_worth')}</span>
-          <strong className="home-hero-value">{money(netWorth)}</strong>
+          <strong className="home-hero-value"><AnimatedNumber value={netWorth} format={(v) => money(v)} /></strong>
           <div className="home-hero-split">
             <span>{t('commun.assets')} <b>{money(summary?.balance_assets ?? 0)}</b></span>
             <span>{t('commun.liabilities')} <b>{money(summary?.balance_liabilities ?? 0)}</b></span>

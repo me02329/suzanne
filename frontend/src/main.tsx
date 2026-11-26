@@ -13,6 +13,7 @@ import '@fontsource/jetbrains-mono/600.css';
 import '@fontsource/jetbrains-mono/700.css';
 import './styles/global.css';
 import './styles/theme.css';
+import './styles/motion.css';
 
 import { IS_APP, serverConfigured, startLocal } from './local/mode';
 import { writeActiveProfile } from './lib/activeProfile';

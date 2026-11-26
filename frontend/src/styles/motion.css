@@ -1,0 +1,96 @@
+/* Mouvement : ce qui fait « app » plutôt que « page web ». Fin mais perceptible.
+   Chargé en dernier. Tout est coupé par prefers-reduced-motion (global.css).
+
+   Courbes : --ease-out-app (sorties franches, arrivées douces, façon iOS) et
+   --ease-spring (léger rebond pour ce qu'on touche). */
+:root {
+  --ease-out-app: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --page-shift: 28px;
+}
+
+/* ---- Toucher : pas de flash bleu de navigateur, un retour sous le doigt ---- */
+html { -webkit-tap-highlight-color: transparent; }
+button, a, [role='button'], .tabbar, .tabbar-item, .pg-tabs, .tx-row { -webkit-touch-callout: none; }
+button, .tabbar, .tabbar-item, .modal-header, .pg-kicker { user-select: none; -webkit-user-select: none; }
+button, a, [role='button'], [role='option'], .lrow, .tx-row, .cat-select-option { touch-action: manipulation; }
+
+button:not(:disabled), .lrow, .cat-select-option, .loan-link-list button {
+  transition: scale 160ms var(--ease-out-app), background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+button:not(:disabled):active { scale: 0.96; }
+.lrow:active, .cat-select-option:active, .loan-link-list button:active { scale: 0.985; }
+/* Le gros bouton « + » : un rebond franc. */
+.tabbar-add { transition: scale 260ms var(--ease-spring), box-shadow 200ms ease; }
+.tabbar-add:active { scale: 0.88; }
+
+/* ---- Changement de page : glissement dans le sens de la navigation ---------- */
+.page-fade { animation: page-in 300ms var(--ease-out-app) both; }
+.page-fade[data-dir='forward'] { animation-name: page-in-forward; }
+.page-fade[data-dir='back'] { animation-name: page-in-back; }
+@keyframes page-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes page-in-forward { from { opacity: 0; transform: translateX(var(--page-shift)); } to { opacity: 1; transform: none; } }
+@keyframes page-in-back { from { opacity: 0; transform: translateX(calc(-1 * var(--page-shift))); } to { opacity: 1; transform: none; } }
+
+/* ---- Apparition en cascade des cartes et des lignes d'une page ---------------
+   Rejoue à l'ouverture de la page (le conteneur est remonté), pas à chaque
+   mise à jour des données. Limité aux premiers éléments. */
+.page-fade :is(.pg-card, .panel, .kpi, .loan-card, .home-hero, .bank-card):not(.modal *) {
+  animation: rise-in 420ms var(--ease-out-app) both;
+}
+.page-fade :is(.lrows, .st-people, .loan-movements, .jr-day-list) > li {
+  animation: rise-in 360ms var(--ease-out-app) both;
+}
+.page-fade :is(.pg-card, .panel, .kpi, .loan-card, .bank-card):nth-child(2),
+.page-fade :is(.lrows, .st-people) > li:nth-child(2) { animation-delay: 45ms; }
+.page-fade :is(.pg-card, .panel, .kpi, .loan-card, .bank-card):nth-child(3),
+.page-fade :is(.lrows, .st-people) > li:nth-child(3) { animation-delay: 90ms; }
+.page-fade :is(.pg-card, .panel, .kpi, .loan-card, .bank-card):nth-child(4),
+.page-fade :is(.lrows, .st-people) > li:nth-child(4) { animation-delay: 135ms; }
+.page-fade :is(.pg-card, .panel, .kpi, .loan-card, .bank-card):nth-child(5),
+.page-fade :is(.lrows, .st-people) > li:nth-child(5) { animation-delay: 180ms; }
+.page-fade :is(.pg-card, .panel, .kpi, .loan-card, .bank-card):nth-child(n + 6),
+.page-fade :is(.lrows, .st-people) > li:nth-child(n + 6) { animation-delay: 220ms; }
+@keyframes rise-in { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+/* ---- Barre du bas : l'onglet actif s'allume, l'icône rebondit ---------------- */
+.tabbar-item { transition: color 200ms ease; }
+.tabbar-item svg { transition: scale 320ms var(--ease-spring), translate 320ms var(--ease-spring); }
+.tabbar-item.active svg { translate: 0 -2px; scale: 1.12; }
+.tabbar-item:active svg { scale: 0.85; }
+
+/* Onglets du haut (Journal / À vérifier / …) : le soulignement glisse. */
+.pg-tabs a, .pg-tabs button { transition: color 200ms ease; }
+
+/* ---- Fenêtres : elles montent et redescendent comme des feuilles natives ---- */
+@media (max-width: 640px) {
+  .modal, .modal.wide { animation: sheet-in 380ms var(--ease-out-app) both; }
+  .modal.closing { animation: sheet-out 220ms cubic-bezier(0.4, 0, 1, 1) forwards; }
+  /* Le voile fonce (sa couleur, pas son opacité) : la feuille, qui est dedans,
+     reste opaque pendant qu'elle monte. */
+  .modal-backdrop { animation: veil-in 300ms ease-out both; }
+  .modal-backdrop.closing { animation: veil-out 220ms ease-in forwards; }
+}
+@keyframes veil-in { from { background-color: transparent; } }
+@keyframes veil-out { to { background-color: transparent; } }
+@keyframes sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheet-out { from { transform: none; } to { transform: translateY(100%); } }
+@media (min-width: 641px) {
+  .modal { animation: modal-in 260ms var(--ease-out-app) both; }
+}
+
+/* ---- Notifications : arrivent avec un léger ressort -------------------------- */
+.toast { animation: toast-pop 420ms var(--ease-spring) both; }
+@keyframes toast-pop { from { opacity: 0; transform: translateY(18px) scale(0.94); } to { opacity: 1; transform: none; } }
+
+/* ---- Menus et listes flottants : s'ouvrent depuis leur bouton ---------------- */
+.jr-menu, .row-menu, .cat-select-pop:not(.sheet) { animation: pop-in 180ms var(--ease-out-app) both; transform-origin: top right; }
+.jr-menu.up, .row-menu.up { transform-origin: bottom right; }
+@keyframes pop-in { from { opacity: 0; scale: 0.94; } to { opacity: 1; scale: 1; } }
+
+/* ---- Barres de progression : se remplissent à l'affichage -------------------- */
+.loan-progress span, .budget-bar > span, .progress > span, .bar-fill {
+  animation: grow-x 700ms var(--ease-out-app) both;
+  transform-origin: left center;
+}
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: none; } }
