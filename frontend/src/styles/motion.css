@@ -20,9 +20,9 @@ button:not(:disabled), .lrow, .cat-select-option, .loan-link-list button {
 }
 button:not(:disabled):active { scale: 0.96; }
 .lrow:active, .cat-select-option:active, .loan-link-list button:active { scale: 0.985; }
-/* Le gros bouton « + » : un rebond franc. */
-.tabbar-add { transition: scale 260ms var(--ease-spring), box-shadow 200ms ease; }
-.tabbar-add:active { scale: 0.88; }
+/* Bouton flottant « + » (Journal) : un rebond franc. */
+.fab { transition: scale 260ms var(--ease-spring), box-shadow 200ms ease; }
+.fab:active { scale: 0.88; }
 
 /* ---- Changement de page : glissement dans le sens de la navigation ---------- */
 .page-fade { animation: page-in 300ms var(--ease-out-app) both; }
@@ -53,11 +53,11 @@ button:not(:disabled):active { scale: 0.96; }
 .page-fade :is(.lrows, .st-people) > li:nth-child(n + 6) { animation-delay: 220ms; }
 @keyframes rise-in { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
 
-/* ---- Barre du bas : l'onglet actif s'allume, l'icône rebondit ---------------- */
-.tabbar-item { transition: color 200ms ease; }
-.tabbar-item svg { transition: scale 320ms var(--ease-spring), translate 320ms var(--ease-spring); }
-.tabbar-item.active svg { translate: 0 -2px; scale: 1.12; }
+/* ---- Barre du bas : la pastille active s'étire (theme.css), l'icône rebondit -- */
+.tabbar-item svg { transition: scale 320ms var(--ease-spring); }
 .tabbar-item:active svg { scale: 0.85; }
+.tabbar-item.active svg { animation: tab-pop 420ms var(--ease-spring); }
+@keyframes tab-pop { from { scale: 0.7; } to { scale: 1; } }
 
 /* Onglets du haut (Journal / À vérifier / …) : le soulignement glisse. */
 .pg-tabs a, .pg-tabs button { transition: color 200ms ease; }
@@ -94,3 +94,7 @@ button:not(:disabled):active { scale: 0.96; }
   transform-origin: left center;
 }
 @keyframes grow-x { from { transform: scaleX(0); } to { transform: none; } }
+
+/* La pastille de la barre du bas s'étire en douceur (prime sur la règle
+   générale des boutons ci-dessus). */
+.tabbar .tabbar-item { transition: flex-grow 340ms var(--ease-out-app), background-color 220ms ease, color 200ms ease, scale 160ms var(--ease-out-app); }

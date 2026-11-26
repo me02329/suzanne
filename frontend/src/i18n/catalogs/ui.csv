@@ -57,8 +57,6 @@ ui.app.loading,Chargement,Loading
 ui.app.loading_2,Chargement…,Loading…
 ui.app.navigation,Navigation,Navigation
 ui.app.new_transaction,Nouvelle opération,New transaction
-ui.app.more,Plus,More
-ui.app.close,Fermer,Close
 ui.app.keyboard_shortcuts,Raccourcis clavier,Keyboard shortcuts
 ui.app.overview,Vue générale,Overview
 ui.app.net_worth,Patrimoine,Net worth
@@ -93,6 +91,11 @@ ui.icon_picker.search,"Chercher une icône (ex. pain, voiture)","Search icons (F
 ui.icon_picker.suggestion,Suggestion :,Suggestion:
 ui.icon_picker.unknown,"Icône actuelle « {{name}} » inconnue : choisis-en une dans la liste.","Current icon “{{name}}” is unknown: pick one from the list."
 ui.category_select.title,Catégorie,Category
+ui.dialog.confirm_title,Confirmer,Confirm
+ui.dialog.prompt_title,Saisir,Enter
+ui.dialog.alert_title,Information,Information
+ui.dialog.ok,OK,OK
+ui.dialog.confirm,Confirmer,Confirm
 ui.category_select.search,Rechercher une catégorie…,Search a category…
 ui.category_select.no_match,Aucune catégorie ne correspond.,No matching category.
 ui.category_select.no_description,Pas de description pour cette catégorie.,No description for this category.

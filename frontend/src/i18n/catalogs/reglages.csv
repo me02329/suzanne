@@ -24,19 +24,6 @@ reglages.hint_delay.2s,2 secondes,2 seconds
 reglages.hint_delay.3s,3 secondes,3 seconds
 reglages.hint_delay.immediate,Immédiat,Immediate
 reglages.hint_delay.never,Jamais,Never
-reglages.tabbar.title,Barre du bas,Bottom bar
-reglages.tabbar.hint,"Sur téléphone : choisis de {{min}} à {{max}} pages et leur ordre, les autres sont dans « Plus ». Glisser en bas de l'écran suit cet ordre. Réglage propre à cet appareil.","On phones: pick {{min}} to {{max}} pages and their order; the others are under “More”. Swiping at the bottom of the screen follows this order. Saved on this device."
-reglages.tabbar.preview,Aperçu de la barre,Bar preview
-reglages.tabbar.in_bar,Dans la barre,In the bar
-reglages.tabbar.in_more,Dans « Plus »,Under “More”
-reglages.tabbar.add,Ajouter,Add
-reglages.tabbar.remove,Retirer {{name}} de la barre,Remove {{name}} from the bar
-reglages.tabbar.up,Monter {{name}},Move {{name}} up
-reglages.tabbar.down,Descendre {{name}},Move {{name}} down
-reglages.tabbar.drag,Glisser pour déplacer {{name}},Drag to move {{name}}
-reglages.tabbar.full,{{n}} pages au plus : retires-en une d'abord,{{n}} pages at most: remove one first
-reglages.tabbar.min,{{n}} pages au moins dans la barre,At least {{n}} pages in the bar
-reglages.tabbar.reset,Revenir à la barre par défaut,Back to the default bar
 reglages.sides.intro,"Chaque profil vit sur le serveur ou sur ce téléphone, au choix.","Each profile lives either on the server or on this phone."
 reglages.sides.server,Sur le serveur,On the server
 reglages.sides.phone,Sur ce téléphone,On this phone
@@ -165,6 +152,13 @@ reglages.settings.recommended_model,", modèle conseillé",", recommended model"
 reglages.settings.cheap_can_use_tools,"(peu cher, sait utiliser les outils).","(cheap, can use tools)."
 reglages.settings.any_openai_compatible_endpoint_works,Tout endpoint compatible OpenAI marche aussi : Ollama en local (,Any OpenAI-compatible endpoint works too: Ollama locally (
 reglages.settings.a_proxy_to_another_provider,"), un proxy vers un autre fournisseur, etc.","), a proxy to another provider, etc."
+reglages.settings.clear_key_confirm,Supprimer la clé API enregistrée ?,Delete the saved API key?
+reglages.backups.download_failed,Téléchargement impossible : {{error}},Download failed: {{error}}
+reglages.tools.export_failed,Export échoué : {{error}},Export failed: {{error}}
+reglages.tools.csv_export_failed,Export CSV échoué : {{error}},CSV export failed: {{error}}
+reglages.tools.invalid_json,Ce fichier n'est pas un JSON valide.,This file is not valid JSON.
+reglages.tools.mapping_name,Nom du profil d'import,Import profile name
+reglages.tools.mapping_name_placeholder,"ex. nom de la banque","e.g. bank name"
 reglages.assistant.examples,Exemples,Examples
 reglages.assistant.new_conversation,Nouvelle conversation,New conversation
 reglages.assistant.new,Nouvelle,New

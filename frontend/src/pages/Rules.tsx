@@ -10,6 +10,7 @@ import type { Run } from '../lib/run';
 import '../styles/pages/settings.css';
 import { localeTag } from '../i18n';
 import { useTranslation } from 'react-i18next';
+import { confirmDialog } from '../components/Dialogs';
 
 type RuleBody = { pattern: string; category_id: number };
 
@@ -75,8 +76,8 @@ export function Rules({ userId, rules, categories, categoryById, tags = [], data
       undo: () => api.setRule(userId, { pattern: rule.pattern, category_id: rule.category_id }),
     });
   };
-  const applyAll = () => {
-    if (!window.confirm('Appliquer les règles à toutes les opérations sans catégorie ?')) return;
+  const applyAll = async () => {
+    if (!(await confirmDialog(t('operations.rules.apply_all_confirm')))) return;
     void run(
       () => api.applyRules(userId),
       (result) => {

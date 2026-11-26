@@ -3,6 +3,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import { MoreHorizontal } from 'lucide-react';
 import { useDismiss } from '../../lib/useDismiss';
 import { useClampToViewport } from '../../lib/useClampToViewport';
+import { confirmDialog } from '../Dialogs';
 
 export interface RowMenuItem {
   label: string;
@@ -61,8 +62,8 @@ export function RowMenu({ items, label = 'Plus d’actions' }: { items: RowMenuI
 
   const select = (item: RowMenuItem) => {
     setOpen(false);
-    if (item.confirm && !window.confirm(item.confirm)) return;
-    item.onSelect();
+    if (!item.confirm) { item.onSelect(); return; }
+    void confirmDialog(item.confirm, { danger: item.danger }).then((ok) => { if (ok) item.onSelect(); });
   };
 
   return (

@@ -1,7 +1,8 @@
+import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, Rows2, Rows3, Trash2 } from 'lucide-react';
+import { CalendarRange, CheckSquare, ChevronLeft, ChevronRight, Plus, Rows2, Rows3, Trash2 } from 'lucide-react';
 import type { Account, Category, RecurringTransaction, Tag, Transaction } from '@suzanne/shared';
 import { api, http } from '../lib/api';
 import { money, txLabel } from '../lib/format';
@@ -435,6 +436,14 @@ export function Transactions({ userId, month, transactions, unassignedTransactio
             ))}
           </ul>
         </Modal>
+      )}
+      {/* Nouvelle opération : bouton flottant sur téléphone (avec la synchro
+          bancaire, la saisie à la main est rare : il n'est que sur le Journal). */}
+      {mobile && !dialog && createPortal(
+        <button type="button" className="fab" aria-label={t('ui.app.new_transaction')} onClick={() => setDialog({ kind: 'form', mode: 'create' })}>
+          <Plus size={26} strokeWidth={2.25} />
+        </button>,
+        document.body,
       )}
     </section>
   );

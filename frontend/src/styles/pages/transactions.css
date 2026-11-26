@@ -447,3 +447,15 @@ button.jr-badge-link:hover { color: var(--text); border-color: var(--text); }
 .jr-quick .cat-select.jr-quick-extra { align-self: stretch; }
 /* Opération d'un compte professionnel (société) : hors des totaux perso. */
 .jr-badge-pro { color: #0f766e; border-color: rgba(15, 118, 110, 0.35); background: rgba(15, 118, 110, 0.08); font-weight: 700; letter-spacing: 0.04em; }
+
+/* Bouton flottant « nouvelle opération » (téléphone), au-dessus de la barre du bas. */
+.fab {
+  position: fixed; z-index: 30; right: 18px;
+  bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom));
+  display: grid; place-items: center; width: 58px; height: 58px;
+  border: 0; border-radius: 20px; cursor: pointer;
+  background: var(--accent-fill); color: var(--on-accent);
+  box-shadow: 0 12px 26px -10px rgba(74, 106, 0, 0.6), 0 2px 6px rgba(23, 21, 15, 0.12);
+  animation: fab-in 420ms var(--ease-spring, ease) both;
+}
+@keyframes fab-in { from { opacity: 0; scale: 0.6; } to { opacity: 1; scale: 1; } }

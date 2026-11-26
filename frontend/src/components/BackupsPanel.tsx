@@ -10,6 +10,7 @@ import { RowMenu } from './ui/RowMenu';
 import type { Run } from '../lib/run';
 import { useTranslation } from 'react-i18next';
 import { localeTag } from '../i18n';
+import { alertDialog } from './Dialogs';
 
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
@@ -43,7 +44,7 @@ export function BackupsPanel({ userId, run }: { userId: number; run: Run }) {
     try {
       saveBlob(await api.backupBlob(userId, b.id), `suzanne-backup-${b.created_at.slice(0, 10)}-${b.id}.json`);
     } catch (e) {
-      window.alert(`Téléchargement impossible : ${(e as Error).message}`);
+      void alertDialog(t('reglages.backups.download_failed', { error: (e as Error).message }));
     }
   };
   const restore = (b: BackupMeta) => {

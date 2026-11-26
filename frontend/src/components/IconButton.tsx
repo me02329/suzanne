@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Trash2 } from 'lucide-react';
+import { confirmDialog } from './Dialogs';
 
 export type IconButtonTone = 'danger' | 'neutral' | 'accent';
 
@@ -23,7 +24,10 @@ export function IconButton({
   disabled?: boolean;
   className?: string;
 }) {
-  const handle = () => { if (!confirm || window.confirm(confirm)) onClick(); };
+  const handle = () => {
+    if (!confirm) { onClick(); return; }
+    void confirmDialog(confirm, { danger: tone !== 'neutral' && tone !== 'accent' }).then((ok) => { if (ok) onClick(); });
+  };
   const toneClass = tone === 'neutral' ? 'icon-button neutral' : tone === 'accent' ? 'icon-button accent' : 'icon-button';
   return (
     <button type="button" className={className ? `${toneClass} ${className}` : toneClass} aria-label={label} title={label} onClick={handle} disabled={disabled}>

@@ -17,6 +17,7 @@ import '../styles/pages/settings.css';
 import { Bank } from './Bank';
 import { activeBackend } from '../local/mode';
 import { useTranslation } from 'react-i18next';
+import { alertDialog, promptDialog } from '../components/Dialogs';
 
 const EXPORT_ENTITIES = [
   { key: 'transactions', label: 'Transactions' },
@@ -109,7 +110,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
       saveBlob(blob, `suzanne-export-${suffix}.json`);
       if (options?.closeModal ?? true) setExportOpen(false);
     } catch (e) {
-      window.alert(`Export échoué : ${(e as Error).message}`);
+      void alertDialog(t('reglages.tools.export_failed', { error: (e as Error).message }));
     } finally {
       setExporting(false);
     }
@@ -120,7 +121,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     try {
       saveBlob(await api.exportCsv(userId), `suzanne-transactions-${todayIso()}.csv`);
     } catch (e) {
-      window.alert(`Export CSV échoué : ${(e as Error).message}`);
+      void alertDialog(t('reglages.tools.csv_export_failed', { error: (e as Error).message }));
     } finally {
       setExporting(false);
     }
@@ -132,7 +133,7 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     try {
       parsed = JSON.parse(restorePayload);
     } catch {
-      window.alert("Ce fichier n'est pas un JSON valide.");
+      void alertDialog(t('reglages.tools.invalid_json'));
       return;
     }
     setRestoring(true);
@@ -186,8 +187,8 @@ export function Tools({ userId, accounts, run }: { userId: number; accounts: Acc
     setMapping({ date: m.columns.date, amount: m.columns.amount, description: m.columns.description ?? '', type: m.columns.type ?? '' });
     setDateFormat(m.date_format);
   };
-  const saveMapping = () => {
-    const name = window.prompt('Nom du profil (ex. nom de la banque) :')?.trim();
+  const saveMapping = async () => {
+    const name = (await promptDialog(t('reglages.tools.mapping_name'), { placeholder: t('reglages.tools.mapping_name_placeholder') }))?.trim();
     if (!name) return;
     void run(() => api.saveImportMapping(userId, {
       name,

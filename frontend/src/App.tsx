@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MoreHorizontal, Plus, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import {
   REPORT_CURRENCIES,
   type Account,
@@ -33,10 +33,10 @@ import { MonthPicker } from './components/MonthPicker';
 import { SearchBox } from './components/SearchBox';
 import { BankSyncButton } from './components/BankSyncButton';
 import { TouchGestures, type SwipeZone } from './components/TouchGestures';
-import { addButtonIndex, useTabbar } from './lib/tabbar';
 import { SuzanneMark } from './components/SuzanneMark';
 import { ThemeToggle, useTheme } from './components/ThemeToggle';
 import { Toast } from './components/Toast';
+import { DialogHost } from './components/Dialogs';
 import { TokenModal } from './components/TokenModal';
 import { onUnauthorized } from './lib/authToken';
 import { readActiveProfile, writeActiveProfile } from './lib/activeProfile';
@@ -99,7 +99,6 @@ export default function App() {
   }
   const [lastTab, setLastTab] = usePersistedState<Tab>('active_tab', 'dashboard');
   // Barre du bas (téléphone) : pages et ordre choisis par l'utilisateur.
-  const tabbarIds = useTabbar();
   const [theme, setTheme] = useTheme();
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -125,7 +124,6 @@ export default function App() {
   const [notice, setNotice] = useState<{ message: string; action?: { label: string; onClick: () => void } } | null>(null);
   const [loading, setLoading] = useState(false);
   // Mobile : feuille « Plus » (sections hors barre d'onglets + réglages rapides).
-  const [moreOpen, setMoreOpen] = useState(false);
   // Mobile : la recherche est repliée derrière une icône.
   const [searchOpen, setSearchOpen] = useState(false);
   // Barre d'onglets défilante (mobile) : l'onglet actif est ramené à l'écran.
@@ -402,35 +400,21 @@ export default function App() {
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
   const setActiveTab = (nextTab: Tab) => {
     navigate(pathForTab(nextTab));
-    setMoreOpen(false);
   };
   // Glisser à gauche / à droite (tactile) : en haut de l'écran, sous-page
-  // voisine dans la section ; en bas, position voisine dans la barre du bas
-  // (pages choisies, puis « Plus », qui ouvre le menu plutôt que d'enchaîner des
-  // pages invisibles dans la barre). Une page de « Plus » compte comme « Plus ».
-  const neighbourTab = (direction: 'next' | 'prev', zone: SwipeZone): Tab | 'more' | undefined => {
+  // voisine dans la section ; en bas, section voisine dans la barre du bas.
+  const neighbourTab = (direction: 'next' | 'prev', zone: SwipeZone): Tab | undefined => {
     const step = direction === 'next' ? 1 : -1;
     if (zone === 'sections') {
-      const positions = [...tabbarIds, 'more'];
-      const here = tabbarIds.includes(section.id) ? positions.indexOf(section.id) : positions.length - 1;
-      const target = positions[here + step];
-      // Sur une page de « Plus », glisser encore vers la gauche rouvre le menu.
-      if (target === undefined) return here === positions.length - 1 && step > 0 ? 'more' : undefined;
-      if (target === 'more') return 'more';
-      return navSections.find((s) => s.id === target)?.tabs[0]?.tab;
+      const here = navSections.findIndex((s) => s.id === section.id);
+      return navSections[here + step]?.tabs[0]?.tab;
     }
     const index = section.tabs.findIndex((item) => item.tab === tab);
     return index < 0 ? undefined : section.tabs[index + step]?.tab;
   };
-  const addButton = (
-    <button key="add" type="button" className="tabbar-add" aria-label={t('ui.app.new_transaction')} onClick={() => navigate('/transactions?focus=quick')}>
-      <Plus size={24} strokeWidth={2.25} />
-    </button>
-  );
   const goNeighbour = (direction: 'next' | 'prev', zone: SwipeZone) => {
     const next = neighbourTab(direction, zone);
-    if (next === 'more') setMoreOpen(true);
-    else if (next) setActiveTab(next);
+    if (next) setActiveTab(next);
   };
   const openUnassignedTransactions = () => {
     setTransactionIssueFilter('unassigned_account');
@@ -527,6 +511,8 @@ export default function App() {
         <Suspense fallback={<div className="page-loading">{t('ui.app.loading_2')}</div>}>
         {/* Keyed by pathname so the wrapper remounts on every navigation and
             replays the fade — whatever element the page uses as its root. */}
+        {/* Téléphone (pas de barre latérale) : profil, devise… en tête des Préférences. */}
+        {tab === 'settings' && <div className="mobile-settings">{settingsControls}</div>}
         <div className="page-fade" key={location.pathname} data-dir={pageDir.current}>
         <Routes>
           <Route path="/" element={<Navigate to={pathForTab(normalizeTab(lastTab))} replace />} />
@@ -617,43 +603,25 @@ export default function App() {
         </main>
       </div>
 
-      {/* Barre du bas : pages choisies dans Réglages › Préférences (2 à 4, dans
-          leur ordre), « + » au milieu, « Plus » au bout. */}
-      <nav className="tabbar" aria-label={t('ui.app.navigation')} style={{ ['--tabbar-cols' as string]: tabbarIds.length + 2 }}>
-        {tabbarIds.flatMap((id, index) => {
-          const s = navSections.find((x) => x.id === id);
-          if (!s) return [];
-          const item = (
-            <button key={s.id} type="button" className={s.id === section.id ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setActiveTab(s.tabs[0]!.tab)}>
-              {s.icon}<span>{t(s.short)}</span>
+      {/* Barre du bas : toutes les sections. Celle où l'on est s'élargit et
+          montre son titre ; les autres, leur icône seule. */}
+      <nav className="tabbar" aria-label={t('ui.app.navigation')}>
+        {navSections.map((s) => {
+          const active = s.id === section.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              className={active ? 'tabbar-item active' : 'tabbar-item'}
+              aria-label={t(s.label)}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => setActiveTab(s.tabs[0]!.tab)}
+            >
+              {s.icon}<span className="tabbar-label">{t(s.short)}</span>
             </button>
           );
-          return index === addButtonIndex(tabbarIds.length) ? [addButton, item] : [item];
         })}
-        {addButtonIndex(tabbarIds.length) >= tabbarIds.length && addButton}
-        <button type="button" className={moreOpen || !tabbarIds.includes(section.id) ? 'tabbar-item active' : 'tabbar-item'} onClick={() => setMoreOpen(true)}>
-          <MoreHorizontal size={20} strokeWidth={1.75} /><span>{t('ui.app.more')}</span>
-        </button>
       </nav>
-
-      {moreOpen && (
-        <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
-          <div className="sheet" role="dialog" aria-modal="true" aria-label={t('ui.app.more')} onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-head">
-              <strong>{t('ui.app.more')}</strong>
-              <button type="button" className="icon-ghost" aria-label={t('ui.app.close')} onClick={() => setMoreOpen(false)}><X size={18} /></button>
-            </div>
-            <div className="sheet-grid">
-              {navSections.filter((s) => !tabbarIds.includes(s.id)).map((s) => (
-                <button key={s.id} type="button" className={s.id === section.id ? 'sheet-link active' : 'sheet-link'} onClick={() => setActiveTab(s.tabs[0]!.tab)}>
-                  {s.icon}<span>{t(s.label)}</span>
-                </button>
-              ))}
-            </div>
-            <div className="sheet-settings">{settingsControls}</div>
-          </div>
-        </div>
-      )}
 
       {shortcutsOpen && (
         <Modal title={t('ui.app.keyboard_shortcuts')} onClose={() => setShortcutsOpen(false)}>
@@ -690,6 +658,7 @@ export default function App() {
         {error && <Toast kind="error" message={error} onDismiss={() => setError(null)} />}
         {notice && <Toast kind="success" message={notice.message} action={notice.action} onDismiss={() => setNotice(null)} />}
       </div>
+      <DialogHost />
     </div>
   );
 }
