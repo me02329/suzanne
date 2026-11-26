@@ -398,6 +398,7 @@ patrimoine.loans.link_existing,Rattacher une opération,Link a transaction
 patrimoine.loans.link_hint,"Une mensualité déjà là (banque, import) devient le remboursement de ce prêt","An instalment already there (bank, import) becomes this loan's repayment"
 patrimoine.loans.link_title,Rattacher à un prêt,Link to a loan
 patrimoine.loans.link_loan,Prêt,Loan
+patrimoine.loans.link_settled_option,{{name}} (soldé),{{name}} (settled)
 patrimoine.loans.link_search,"Chercher (libellé, montant)","Search (label, amount)"
 patrimoine.loans.link_no_candidate,Aucune opération correspondante sur les 13 derniers mois.,No matching transaction in the last 13 months.
 patrimoine.loans.link_pick_tx,Choisis l'opération à rattacher.,Pick the transaction to link.

@@ -27,7 +27,11 @@ export function LoanLinkModal({ userId, accounts, categories, tx, loanAccountId,
   const { t } = useTranslation();
   const accountName = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
   // Depuis une opération : une sortie se rattache à un emprunt, une rentrée à un prêt accordé.
-  const loans = accounts.filter((a) => !a.archived && (tx ? (tx.type === 'expense' ? a.type === 'loan' : a.type === 'receivable') : a.type === 'loan' || a.type === 'receivable'));
+  // Prêts soldés (archivés) compris, après les autres : on rattache souvent la
+  // dernière mensualité après avoir clôturé le prêt.
+  const loans = accounts
+    .filter((a) => (tx ? (tx.type === 'expense' ? a.type === 'loan' : a.type === 'receivable') : a.type === 'loan' || a.type === 'receivable'))
+    .sort((a, b) => Number(Boolean(a.archived)) - Number(Boolean(b.archived)));
   const [loanId, setLoanId] = useState(String(loanAccountId ?? loans[0]?.id ?? ''));
   const loan = accounts.find((a) => a.id === Number(loanId));
   const borrowed = loan?.type === 'loan';
@@ -76,7 +80,7 @@ export function LoanLinkModal({ userId, accounts, categories, tx, loanAccountId,
         ) : (
           <label className="full">{t('patrimoine.loans.link_loan')}
             <select value={loanId} onChange={(e) => { setLoanId(e.target.value); if (!tx) setPicked(null); }} disabled={loanAccountId != null}>
-              {loans.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {loans.map((a) => <option key={a.id} value={a.id}>{a.archived ? t('patrimoine.loans.link_settled_option', { name: a.name }) : a.name}</option>)}
             </select>
           </label>
         )}

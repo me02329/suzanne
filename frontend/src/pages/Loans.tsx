@@ -108,6 +108,7 @@ export function Loans({ userId, accounts, institutions, categories, dataVersion,
                 <span className="num">{money(loan.principal, loan.currency)}</span>
                 <span className="muted">{loan.start_date ? formatTxDate(loan.start_date) : '—'} → {loan.settled_date ? formatTxDate(loan.settled_date) : '—'}</span>
                 <Link to={loanTransactionsLink(loan)}>{t('patrimoine.loans.transactions')}</Link>
+                <button type="button" className="link-button" onClick={() => setLinking(loan)}>{t('patrimoine.loans.link_existing')}</button>
               </li>
             ))}
           </ul>
